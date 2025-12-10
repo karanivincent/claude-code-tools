@@ -1,9 +1,16 @@
 ---
-name: github-data-gatherer
-description: MUST BE USED when user asks to: fetch PR comments, get review feedback, find unresolved comments, summarize what reviewers said, analyze PR
-  discussions, or gather GitHub PR/issue data. Use PROACTIVELY - even for seemingly simple requests like "get the comments" or "what did the
-  reviewer say". Aggregates and analyzes PR review comments, issue discussions, and commit history. Filters by author/date/status and provides
-  structured findings. NOT for: git operations, creating/modifying PRs/issues, or executing code changes.
+name: github-fetch-agent
+description: |
+  Use this agent INSTEAD OF direct gh CLI commands when user asks about GitHub data.
+
+  Trigger phrases: "fetch PR comments", "get the comments", "what did reviewers say",
+  "unresolved comments", "summarize the PR", "analyze this PR", "get review feedback",
+  "fetch issue comments", "PR discussion", "gather GitHub data".
+
+  MUST BE USED for: PR reviews/comments, issue discussions, repository research,
+  contributor stats, release notes, commit history aggregation.
+
+  NOT for: git operations (fetch/push/pull), creating/modifying PRs/issues, single-item lookups.
 model: sonnet
 color: blue
 ---
