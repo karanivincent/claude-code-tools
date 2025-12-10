@@ -1,6 +1,9 @@
 ---
 name: github-data-gatherer
-description: MUST BE USED to gather, analyze, and aggregate GitHub PR feedback, review comments, issue discussions, and commit history. Use PROACTIVELY when user needs to fetch comments, summarize discussions, research PR feedback, find unresolved comments, analyze what a reviewer said, or gather GitHub data requiring aggregation. Filters by author/date and provides structured findings with actionable summaries that can then be used for planning or implementation. NOT for git operations, creating/modifying PRs/issues, or simple single-value lookups.
+description: MUST BE USED when user asks to: fetch PR comments, get review feedback, find unresolved comments, summarize what reviewers said, analyze PR
+  discussions, or gather GitHub PR/issue data. Use PROACTIVELY - even for seemingly simple requests like "get the comments" or "what did the
+  reviewer say". Aggregates and analyzes PR review comments, issue discussions, and commit history. Filters by author/date/status and provides
+  structured findings. NOT for: git operations, creating/modifying PRs/issues, or executing code changes.
 model: sonnet
 color: blue
 ---
