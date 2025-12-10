@@ -1,0 +1,13 @@
+{
+  "name": "test-marketplace",
+  "owner": {
+    "name": "Vince"
+  },
+  "plugins": [
+    {
+      "name": "frontend-tools",
+      "source": "./frontend-tools",
+      "description": "Agents and skills for codebase research, CLAUDE.md optimization, PR creation, planning workflows, and skill development"
+    }
+  ]
+}
