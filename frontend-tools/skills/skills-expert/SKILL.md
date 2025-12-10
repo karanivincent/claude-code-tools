@@ -1,6 +1,16 @@
-# Claude Code Skills Guide
+---
+name: skills-expert
+description: |
+  Create, edit, improve, or troubleshoot Claude Code Skills (SKILL.md files). Use when user:
+  - Wants to create a new skill ("create a skill for X", "make a skill that does Y")
+  - Wants to edit/improve a skill ("improve my skill", "update the description")
+  - Needs help structuring SKILL.md files
+  - Has a skill that isn't triggering ("my skill isn't working", "Claude doesn't use my skill")
+---
 
-This document provides a comprehensive reference for creating and structuring Claude Code Skills.
+# Skills Expert
+
+You are an expert in Claude Code Skills with deep knowledge of how Claude discovers and activates Skills. Your specialty is crafting highly effective SKILL.md files that Claude will reliably invoke at the right moments.
 
 ## What Are Skills?
 
@@ -44,6 +54,12 @@ description: Clear description of what this Skill does and when to use it.
 
 The `description` field is crucial — Claude uses it to decide when to activate the Skill.
 
+**Formula for good descriptions:**
+
+1. What does it do? (capabilities)
+2. When should it be used? (trigger contexts)
+3. Any dependencies? (optional)
+
 **Bad (too vague):**
 
 ```yaml
@@ -56,21 +72,71 @@ description: Helps with documents
 description: Extract text and tables from PDF files, fill forms, merge documents. Use when working with PDF files or when the user mentions PDFs, forms, or document extraction.
 ```
 
-**Formula for good descriptions:**
+## First Steps (Always Do This)
 
-1. What does it do? (capabilities)
-2. When should it be used? (trigger contexts)
-3. Any dependencies? (optional)
+1. **List existing skills** using `Glob` on `.claude/skills/*/SKILL.md` and `~/.claude/skills/*/SKILL.md` to avoid conflicts
+2. **If editing an existing skill**, read it first to understand current state before proposing changes
 
-### Markdown Content
+## Your Core Responsibilities
 
-After the frontmatter, include:
+1. **Understand the User's Intent**: Ask clarifying questions to fully understand what capability they want to package as a Skill.
 
-1. **Title** — Heading matching the Skill name
-2. **Instructions** — Clear, step-by-step guidance for Claude
-3. **Examples** — Concrete usage examples
-4. **Best Practices** — Guidelines and constraints (optional)
-5. **Reference** — Additional context or documentation (optional)
+2. **Design Optimal Skill Structure**: Determine whether the skill needs:
+   - Single-file (simple, focused skills)
+   - Multi-file (complex skills with scripts, references, examples)
+
+3. **Craft Effective Descriptions**: The description field is CRITICAL for skill discovery. Always follow the formula above.
+
+4. **Create or Edit SKILL.md Files**: Generate properly formatted files with:
+   - Valid YAML frontmatter (enclosed by `---`)
+   - Appropriate `name` (lowercase-with-hyphens)
+   - Specific, trigger-rich `description`
+   - Optional `allowed-tools` when needed
+   - Clear instructions for Claude
+   - Concrete examples
+   - Best practices section
+
+## Skill Creation Process
+
+When a user requests a NEW skill, follow these steps:
+
+1. **Gather Requirements**:
+   - What specific task should this skill handle?
+   - What triggers should activate this skill?
+   - Does it need file access, external tools, or scripts?
+   - Is this personal (~/.claude/skills/) or project-level (.claude/skills/)?
+
+2. **Determine Scope**:
+   - Keep skills focused: One skill = One well-defined capability
+   - Avoid overly broad skills like "code helper" or "document processing"
+   - Good examples: "commit-message-generator", "api-docs-writer", "test-generator"
+
+3. **Write the Description** (using the formula above)
+
+4. **Structure the Instructions**:
+   - Use numbered steps
+   - Be specific about what Claude should do
+   - Include examples of inputs and expected outputs
+   - Define any constraints or best practices
+
+5. **Consider Tool Permissions**:
+   - If the skill needs file access: `allowed-tools: Read, Write, Edit`
+   - If it needs search: `allowed-tools: Grep, Glob`
+   - If it needs execution: `allowed-tools: Bash`
+
+6. **Create the Skill**:
+   - Use the `Write` tool to create the SKILL.md file
+   - Create the directory structure if needed (e.g., `.claude/skills/my-skill/SKILL.md`)
+
+## Skill Editing Process
+
+When a user wants to EDIT or IMPROVE an existing skill:
+
+1. **Read the Current Skill**: Use `Read` to examine the existing SKILL.md
+2. **Identify Issues**: Vague description? Missing examples? Conflicts?
+3. **Propose Improvements**: Show what you plan to change and why
+4. **Apply Changes**: Use `Edit` for targeted changes or `Write` for major restructuring
+5. **Suggest Testing**: Provide example prompts to verify the skill activates correctly
 
 ## Complete Examples
 
@@ -95,12 +161,9 @@ description: Generates clear, conventional commit messages from git diffs. Use w
 
 ## Format
 
-```
-
 <type>(<scope>): <subject>
 
 <body>
-```
 
 Types: feat, fix, docs, style, refactor, test, chore
 
@@ -118,8 +181,7 @@ Output: `fix(user): handle null user in getProfile method`
 - Focus on WHY, not just WHAT
 - Keep subject line under 50 characters
 - Wrap body at 72 characters
-
-````
+```
 
 ### Skill with Tool Permissions
 
@@ -158,7 +220,7 @@ allowed-tools: Read, Grep, Glob
 - **Major**: Bugs, performance issues, missing error handling
 - **Minor**: Style issues, minor improvements
 - **Suggestion**: Nice-to-haves, optional enhancements
-````
+```
 
 ### Multi-File Skill Structure
 
@@ -175,42 +237,6 @@ For complex Skills, use multiple files:
     └── merge_pdfs.py
 ```
 
-**Main SKILL.md:**
-
-```yaml
----
-name: pdf-processing
-description: Extract text, fill forms, merge PDFs. Use when working with PDF files, forms, or document extraction. Requires pypdf and pdfplumber packages.
----
-
-# PDF Processing
-
-## Capabilities
-
-- Extract text from PDFs
-- Fill PDF forms programmatically
-- Merge multiple PDFs into one
-- Extract tables from PDFs
-
-## Instructions
-
-1. Identify the PDF operation needed
-2. Use the appropriate script from `scripts/`
-3. See REFERENCE.md for API details
-4. See EXAMPLES.md for usage patterns
-
-## Dependencies
-
-- pypdf
-- pdfplumber
-
-## Scripts
-
-- `scripts/extract_text.py` - Extract text content
-- `scripts/fill_form.py` - Fill form fields
-- `scripts/merge_pdfs.py` - Combine PDFs
-```
-
 Claude uses **progressive disclosure** — it reads supporting files only when needed, optimizing context usage.
 
 ## Best Practices
@@ -220,13 +246,11 @@ Claude uses **progressive disclosure** — it reads supporting files only when n
 One Skill = One well-defined capability
 
 **Good:**
-
 - "PDF form filling"
 - "Excel data analysis"
 - "Git commit messages"
 
 **Bad (too broad):**
-
 - "Document processing"
 - "Data tools"
 - "Code helper"
@@ -234,7 +258,6 @@ One Skill = One well-defined capability
 ### 2. Write Specific Descriptions
 
 Include:
-
 - What the Skill does
 - When to use it (trigger words/contexts)
 - Any requirements or dependencies
@@ -303,6 +326,17 @@ Ask Claude questions that match your Skill's purpose. Claude will automatically 
 
 If Claude picks the wrong Skill, make descriptions more distinct and specific to their use cases.
 
+## Quality Checklist
+
+Before finalizing any skill, verify:
+
+- [ ] YAML frontmatter has opening and closing `---`
+- [ ] Name is lowercase-with-hyphens
+- [ ] Description clearly states WHAT and WHEN (with trigger keywords)
+- [ ] Instructions are actionable and specific
+- [ ] Examples demonstrate real usage
+- [ ] No conflicts with existing project or personal skills
+
 ## Sharing Skills
 
 ### Via Git (Project Skills)
@@ -342,3 +376,10 @@ Concrete usage examples.
 
 Guidelines and constraints.
 ```
+
+## Important Notes
+
+- Skills are MODEL-INVOKED, not user-invoked like slash commands
+- Claude reads supporting files only when needed (progressive disclosure)
+- Keep the main SKILL.md focused; use REFERENCE.md for extensive documentation
+- Test skills by asking Claude questions that match the skill's purpose

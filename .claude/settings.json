@@ -1,0 +1,14 @@
+{
+	"enabledPlugins": {
+		"frontend-tools@yond-marketplace": true
+	},
+	"extraKnownMarketplaces": {
+		"yond": {
+			"source": {
+				"source": "github",
+				"repo": "goyond/yond_claude_code_marketplace"
+			}
+		}
+	}
+}
+
