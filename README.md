@@ -12,7 +12,7 @@ To use this marketplace, add it to your project's `.claude/settings.json`:
     "yond": {
       "source": {
         "source": "github",
-        "repo": "your-org/test-marketplace"
+        "repo": "goyond/yond_claude_code_marketplace"
       }
     }
   },
