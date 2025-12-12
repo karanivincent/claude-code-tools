@@ -8,6 +8,11 @@
       "name": "frontend-tools",
       "source": "./frontend-tools",
       "description": "Agents and skills for codebase research, CLAUDE.md optimization, PR creation, planning workflows, and skill development"
+    },
+    {
+      "name": "general-tools",
+      "source": "./general-tools",
+      "description": "General-purpose skills for git workflows, repository maintenance, and developer productivity"
     }
   ]
 }
