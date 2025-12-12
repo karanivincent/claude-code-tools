@@ -1,13 +1,15 @@
 {
-  "enabledPlugins": {
-    "frontend-tools@yond-marketplace": true
-  },
-  "extraKnownMarketplaces": {
-    "yond": {
-      "source": {
-        "source": "github",
-        "repo": "goyond/yond_claude_code_marketplace"
-      }
-    }
-  }
+	"enabledPlugins": {
+		"frontend-tools@yond-marketplace": true,
+		"general-tools@yond-marketplace": true
+	},
+	"extraKnownMarketplaces": {
+		"yond": {
+			"source": {
+				"source": "github",
+				"repo": "goyond/yond_claude_code_marketplace"
+			}
+		}
+	}
 }
+
