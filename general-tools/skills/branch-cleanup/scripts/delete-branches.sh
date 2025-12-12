@@ -14,7 +14,7 @@ set -uo pipefail
 
 # Defaults
 AGE_MONTHS=3
-MAIN_BRANCH="main"
+MAIN_BRANCH=""
 DRY_RUN=true
 EMAILS=""
 
@@ -54,6 +54,22 @@ done
 # Use default email if none specified
 if [[ -z "$EMAILS" ]]; then
     EMAILS="$DEFAULT_EMAIL"
+fi
+
+# Auto-detect main branch if not specified
+if [[ -z "$MAIN_BRANCH" ]]; then
+    MAIN_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
+    if [[ -z "$MAIN_BRANCH" ]]; then
+        # Fallback: try common branch names
+        for branch in main master dev develop; do
+            if git rev-parse --verify "origin/$branch" >/dev/null 2>&1; then
+                MAIN_BRANCH="$branch"
+                break
+            fi
+        done
+    fi
+    [[ -z "$MAIN_BRANCH" ]] && MAIN_BRANCH="main"  # Final fallback
+    echo "Auto-detected main branch: $MAIN_BRANCH"
 fi
 
 # Protected branches - never delete these

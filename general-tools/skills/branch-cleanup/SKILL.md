@@ -1,76 +1,88 @@
 ---
 name: branch-cleanup
 description: |
-  Clean up stale git branches (merged or abandoned). Use when user:
-  - Wants to clean up old branches
-  - Has too many branches in their repo
-  - Asks about branch cleanup or maintenance
-  - Mentions "delete old branches", "prune branches", "branch cleanup"
+  Clean up stale git branches (merged or abandoned). Use bundled scripts in
+  ./scripts/ directory. Use when user wants to clean up old branches, has too
+  many branches, asks about "delete old branches", "prune branches", or
+  "branch cleanup".
 ---
 
 # Branch Cleanup
 
 Clean up stale git branches with safety measures for team repositories.
 
+## Quick Start
+
+```bash
+# List all cleanup candidates (auto-detects main branch)
+./scripts/list-branches.sh
+
+# Delete only your branches (dry-run first)
+./scripts/delete-branches.sh --dry-run
+
+# Execute deletion
+./scripts/delete-branches.sh --execute
+```
+
 ## Rules
 
 | Condition | Action |
 |-----------|--------|
-| Branch merged into main | Safe to delete (any age) |
-| Unmerged + no commits for 3+ months | Considered abandoned, delete |
-| `main`, `dev`, `master`, `develop` | Never delete (protected) |
-| Default scope | Only user's branches (by git author email) |
+| Merged into main branch | Safe to delete (any age) |
+| Unmerged + >3 months old | Considered abandoned |
+| `main`, `dev`, `master`, `develop` | **Never delete** (protected) |
+| Default scope | Only user's branches |
+
+> **Note:** Both `main` and `dev` are protected because typically one is the
+> development branch and the other is production.
+
+## Script Arguments
+
+### list-branches.sh
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--age <months>` | 3 | Abandoned threshold |
+| `--main-branch <name>` | auto-detect | Branch to check merge status |
+
+### delete-branches.sh
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--emails <list>` | Your git email | Comma-separated emails |
+| `--age <months>` | 3 | Abandoned threshold |
+| `--main-branch <name>` | auto-detect | Branch to check merge status |
+| `--dry-run` | (default) | Show what would be deleted |
+| `--execute` | - | Actually delete branches |
 
 ## Workflow
 
 ### Step 1: List Candidates
 
-Run the list script to see all branches grouped by contributor:
-
 ```bash
-SKILL_DIR="$(dirname "$0")"
-"$SKILL_DIR/scripts/list-branches.sh" --age 3 --main-branch main
+./scripts/list-branches.sh
 ```
-
-**Arguments:**
-- `--age <months>` — Abandoned threshold (default: 3)
-- `--main-branch <name>` — Branch to check merge status against (default: main)
 
 Output groups branches by contributor email showing MERGED and ABANDONED categories.
 
 ### Step 2: Choose Scope
 
 After seeing the grouped list:
-1. Identify which contributors' branches the user has permission to delete
-2. By default, only delete the user's own branches
-3. Include others only if explicitly appropriate
+1. By default, only your branches are deleted
+2. Use `--emails` to include other contributors if appropriate
 
 ### Step 3: Delete Branches
 
-**Dry run (default):**
-
 ```bash
-"$SKILL_DIR/scripts/delete-branches.sh" --age 3 --main-branch main --dry-run
+# Dry run (default) - see what would be deleted
+./scripts/delete-branches.sh --dry-run
+
+# Execute deletion for your branches only
+./scripts/delete-branches.sh --execute
+
+# Include specific contributors
+./scripts/delete-branches.sh --emails "me@example.com,other@example.com" --execute
 ```
-
-**Execute deletion:**
-
-```bash
-"$SKILL_DIR/scripts/delete-branches.sh" --age 3 --main-branch main --execute
-```
-
-**Include specific contributors:**
-
-```bash
-"$SKILL_DIR/scripts/delete-branches.sh" --emails "me@example.com,departed@company.com" --execute
-```
-
-**Arguments:**
-- `--emails <list>` — Comma-separated contributor emails (default: user's git email)
-- `--age <months>` — Abandoned threshold (default: 3)
-- `--main-branch <name>` — Branch to check merge status against (default: main)
-- `--dry-run` — Show what would be deleted (default)
-- `--execute` — Actually perform deletion
 
 ## Safety Measures
 
