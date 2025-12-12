@@ -1,10 +1,11 @@
 ---
 name: branch-cleanup
 description: |
-  Clean up stale git branches (merged or abandoned). Use bundled scripts in
-  ./scripts/ directory. Use when user wants to clean up old branches, has too
-  many branches, asks about "delete old branches", "prune branches", or
-  "branch cleanup".
+  Clean up stale git branches (merged or abandoned). Use when user mentions:
+  branch cleanup, delete old/stale/merged branches, prune branches, too many
+  branches, remove unused branches, git housekeeping, cluttered branches,
+  "what branches can I delete", find stale branches, clean up git, branch
+  management, or after merging PRs and wanting to tidy up.
 ---
 
 # Branch Cleanup
