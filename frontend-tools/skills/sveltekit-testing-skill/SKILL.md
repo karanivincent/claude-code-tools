@@ -147,6 +147,6 @@ page.getByTestId('submit-btn');
 
 ## Related Skills
 
-- **e2e-test-suite**: Use for fixing failing E2E tests and debugging test issues
+- **test-maintenance**: Use for fixing failing E2E tests and debugging test issues
 - **superpowers:condition-based-waiting**: For eliminating flaky async tests with proper polling
 - **superpowers:systematic-debugging**: For root-cause analysis of test failures

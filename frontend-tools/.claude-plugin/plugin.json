@@ -1,7 +1,7 @@
 {
   "name": "frontend-tools",
   "description": "Comprehensive Claude Code toolkit with agents for codebase research and GitHub data, and skills for CLAUDE.md editing, PR creation, research/planning workflows, and skill development",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "author": {
     "name": "Vince"
   },
