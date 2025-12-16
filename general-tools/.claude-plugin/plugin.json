@@ -1,8 +1,20 @@
 {
   "name": "general-tools",
   "description": "General-purpose skills for git workflows, repository maintenance, and developer productivity",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "author": {
     "name": "Vince"
+  },
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ]
+    },
+    "Notion": {
+      "url": "https://mcp.notion.com/mcp"
+    }
   }
 }
