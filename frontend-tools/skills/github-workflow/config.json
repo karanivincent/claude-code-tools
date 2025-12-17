@@ -1,0 +1,17 @@
+{
+	"project": "yond-css",
+	"owner": "goyond",
+	"fields": {
+		"story_points": "Story Points",
+		"issue_type": "Issue Type",
+		"slice": "Slice",
+		"status": "Status"
+	},
+	"issue_type_options": ["Epic", "Slice"],
+	"slice_options": ["Slice 1", "Slice 2", "Slice 3", "Slice 4", "Slice 5"],
+	"status_mapping": {
+		"in-progress": "In Progress",
+		"ready-for-review": "In Review",
+		"closed": "Done"
+	}
+}
