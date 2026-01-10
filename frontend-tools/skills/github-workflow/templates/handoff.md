@@ -1,44 +1,88 @@
 # Session Handoff Template
 
-Post this comment when ending a session to enable seamless continuation.
+**MANDATORY**: Post this comment when ending ANY work session.
+
+## Template
 
 ```markdown
-## 📋 Session Handoff — <Month Day, Year>
+## 📋 Session Handoff — <Month Day, Year HH:MM>
 
-### ✅ Completed
-
+### ✅ Completed This Session
 - <Completed item 1>
 - <Completed item 2>
-- Fixed: <Bug description if any>
+- Fixed: <Bug if any>
 
-### 📁 Key Files Changed
-
+### 📁 Files Changed
 | File | Change |
 |------|--------|
-| `packages/ui/src/shadcn/drawer/` | New (shadcn) |
-| `packages/ui/src/index.ts` | Added Drawer export |
-| `apps/selfservice/src/lib/components/FilterRow.svelte` | New |
-| `apps/selfservice/src/routes/classes/+page.svelte` | Added filter button |
+| `path/to/component.svelte` | New |
+| `path/to/service.ts` | Modified |
 
-### ⏳ Pending
+### 📊 Acceptance Criteria Status
+- [x] Criterion 1 ✅
+- [x] Criterion 2 ✅
+- [ ] Criterion 3 ⏳ in progress
+- [ ] Criterion 4
 
-- [ ] <Remaining task 1>
-- [ ] <Remaining task 2>
+### 📋 Work Plan Status
+- [x] Step 1: Setup ✅
+- [x] Step 2: Implementation ✅
+- [ ] Step 3: Testing 👈 resume here
+- [ ] Step 4: Cleanup
 
-### ⚠️ Notes
+### ⚠️ Important Context
+- <Technical decisions made and why>
+- <Gotchas or edge cases discovered>
+- <Things that almost worked but didn't>
 
-- <Important context for next session>
-- <Technical considerations or gotchas>
+### 🚫 Blockers (if any)
+- Blocked by: #<n> — <reason>
+- Waiting on: <external dependency>
 
 ### 🚀 Next Session
-
-Start with **<Next task title>** — <brief description of what to do>
+Resume at **<specific task>**:
+1. <First thing to do>
+2. <Second thing to do>
+3. <Expected outcome>
 ```
 
-## Guidelines
+## Required Fields
 
-- **Completed**: List all meaningful work done, including bug fixes
-- **Key Files**: Only include files with significant changes
-- **Pending**: Reference remaining acceptance criteria or tasks
-- **Notes**: Include technical context that would be lost between sessions
-- **Next Session**: Give clear direction on where to start
+| Field | Required? | Notes |
+|-------|-----------|-------|
+| Completed This Session | ✅ Yes | Even if just "Investigation" |
+| Files Changed | ✅ Yes | Only significant files |
+| Acceptance Criteria Status | ✅ Yes | Show current state |
+| Work Plan Status | ✅ Yes | Show where to resume |
+| Important Context | ✅ Yes | Critical for continuity |
+| Blockers | If applicable | Document anything blocking |
+| Next Session | ✅ Yes | Specific starting point |
+
+## Quick Version
+
+For very short sessions or minor work:
+
+```markdown
+## 📋 Handoff — <date>
+
+**Done**: <1-2 items>
+**Files**: `path/to/file.ts` (modified)
+**Criteria**: 2/5 complete
+**Next**: Continue with <specific task>
+**Note**: <anything critical>
+```
+
+## When to Post
+
+- ✅ Before switching to different work
+- ✅ Before ending for the day
+- ✅ Before handing off to another person
+- ✅ After hitting an unresolvable blocker
+- ✅ When context would be lost
+
+## Anti-Patterns
+
+❌ Ending session without any handoff comment
+❌ Vague "Next Session" like "continue working"
+❌ Forgetting to show acceptance criteria status
+❌ Not mentioning blockers when blocked

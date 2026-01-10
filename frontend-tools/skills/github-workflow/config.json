@@ -2,16 +2,43 @@
 	"project": "yond-css",
 	"owner": "goyond",
 	"fields": {
+		"status": "Status",
+		"priority": "Priority",
 		"story_points": "Story Points",
 		"issue_type": "Issue Type",
-		"slice": "Slice",
-		"status": "Status"
+		"iteration": "Sprint",
+		"start_date": "Start Date",
+		"target_date": "Target Date"
 	},
-	"issue_type_options": ["Epic", "Slice"],
-	"slice_options": ["Slice 1", "Slice 2", "Slice 3", "Slice 4", "Slice 5"],
+	"status_options": [
+		"Todo",
+		"In Progress",
+		"In Review",
+		"Done"
+	],
+	"priority_options": [
+		"P0 - Critical",
+		"P1 - High",
+		"P2 - Medium",
+		"P3 - Low"
+	],
+	"issue_type_options": [
+		"Epic",
+		"Feature",
+		"Bug",
+		"Spike",
+		"Chore"
+	],
 	"status_mapping": {
 		"in-progress": "In Progress",
 		"ready-for-review": "In Review",
 		"closed": "Done"
+	},
+	"cache_ttl_minutes": 60,
+	"required_comments": {
+		"session_start": true,
+		"session_end": true,
+		"completion": true,
+		"parent_updates": true
 	}
 }
