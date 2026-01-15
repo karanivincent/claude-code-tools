@@ -78,6 +78,21 @@ Sequence by "Make it Run, Right, Fast":
 
 Generate breakdown using the template in [references/output-template.md](references/output-template.md).
 
+**Required illustrations (when designs provided):**
+
+| Illustration | Placement | Purpose |
+|--------------|-----------|---------|
+| Page Layout | After "Design Reference" | Overall structure at a glance |
+| Component Diagrams | Inline with each new component | Visual spec for implementation |
+| State Comparisons | With components that have multiple states | Show conditional rendering |
+| Component Hierarchy | End of components section | Tree view of nesting |
+
+**Illustration principles:**
+- Use box-drawing characters (`┌ ┐ └ ┘ │ ─ ├ ┤ ┬ ┴ ┼`)
+- Keep diagrams ~45 chars wide
+- Annotate with `←` arrows for context
+- Show props below component diagrams
+
 For complexity scoring, consult [references/complexity-factors.md](references/complexity-factors.md).
 
 For SvelteKit-specific patterns, see [references/sveltekit-patterns.md](references/sveltekit-patterns.md).

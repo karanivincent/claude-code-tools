@@ -1,22 +1,59 @@
-# Output Template
+# User Story Breakdown Skill - Illustrations Enhancement
 
-Use this structure for the breakdown document.
-
----
-
-# Story Breakdown: [Feature Name]
+**Date:** 2026-01-15
+**Status:** Design Complete
 
 ## Summary
 
-- **User Story**: [Original story text]
-- **Goal**: [What user achieves]
-- **Complexity**: Low | Medium | High | Very High
-- **Estimated Effort**: [X] story points
+Enhance the `user-story-breakdown` skill to generate visual ASCII illustrations by default when breaking down user stories. This provides developers with quick visual reference for page layouts, component structures, and state variations.
 
-## Design Reference
+## Design Decisions
 
-[Embedded screenshots if provided, or "No designs provided"]
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Illustration types | All four (layout, components, states, hierarchy) | Comprehensive visual documentation |
+| File location | In `output-template.md` | Keep templates consolidated in one place |
+| Structure level | Strict templates | Consistency across breakdowns |
+| Placement | Integrated with components | More scannable than grouped section |
 
+## Changes Required
+
+### 1. Update SKILL.md - Phase 5
+
+Add illustration requirements to the existing Phase 5:
+
+```markdown
+### Phase 5: Generate Breakdown
+
+Generate breakdown using the template in [references/output-template.md].
+
+**Required illustrations (when designs provided):**
+
+| Illustration | Placement | Purpose |
+|--------------|-----------|---------|
+| Page Layout | After "Design Reference" | Overall structure at a glance |
+| Component Diagrams | Inline with each new component | Visual spec for implementation |
+| State Comparisons | With components that have multiple states | Show conditional rendering |
+| Component Hierarchy | End of components section | Tree view of nesting |
+
+**Illustration principles:**
+- Use box-drawing characters (`┌ ┐ └ ┘ │ ─ ├ ┤ ┬ ┴ ┼`)
+- Keep diagrams ~45 chars wide
+- Annotate with `←` arrows for context
+- Show props below component diagrams
+
+For complexity scoring, consult [references/complexity-factors.md](references/complexity-factors.md).
+
+For SvelteKit-specific patterns, see [references/sveltekit-patterns.md](references/sveltekit-patterns.md).
+```
+
+### 2. Update output-template.md - Add Illustration Templates
+
+Add the following sections to the output template:
+
+#### A. Page Layout Template (after Design Reference)
+
+```markdown
 ## Page Layout
 
 ```
@@ -46,32 +83,11 @@ Use this structure for the breakdown document.
 - Annotate with `← Component/purpose` on the right
 - Show nesting for parent-child relationships
 - Keep width ~45 chars for readability
+```
 
-## Codebase Research Findings
+#### B. Component Diagram Template (inline with New Components)
 
-### Existing Components to Reuse
-
-- `ComponentName` at `src/lib/components/...` - [purpose]
-
-### Components to Extend
-
-- `ComponentName` - [current state] → [needed changes] (×1.2)
-
-### Components to Rework
-
-- `ComponentName` - [why rework needed, impact] (×1.5-2.0)
-
-### Similar Implementations Found
-
-- [Feature X] in `src/routes/app/...` - [relevance]
-
-### API Endpoints
-
-| Endpoint | Status | Notes |
-|----------|--------|-------|
-| GET /api/... | Exists | [notes] |
-| POST /api/... | Needs creation | [backend dependency] |
-
+```markdown
 ### New Components Needed
 
 #### [ComponentName]
@@ -91,11 +107,19 @@ Use this structure for the breakdown document.
 │  [Content area]         │  ← Slot/children
 │                         │
 └─────────────────────────┘
+
+Props:
+- icon: ComponentType
+- title: string
+- badge?: string
+- children: Snippet
+```
 ```
 
-#### [ComponentName] with States
+#### C. State Comparison Template (for multi-state components)
 
-Show side-by-side comparison for multi-state components:
+```markdown
+#### [ComponentName] States
 
 ```
 STATE A:                    STATE B:
@@ -105,7 +129,11 @@ STATE A:                    STATE B:
 │               │           │               │
 └───────────────┘           └───────────────┘
 ```
+```
 
+#### D. Component Hierarchy Template (end of components section)
+
+```markdown
 ### Component Hierarchy
 
 ```
@@ -128,79 +156,23 @@ PageName
 - `←── @yond/ui` - imported from shared library
 - `←── create` - new component to build
 - `←── extend` - existing component needs changes
+```
 
-## Vertical Slices
+## Files to Modify
 
-### Slice 1: [Name] - Happy Path
+| File | Change |
+|------|--------|
+| `skills/user-story-breakdown/SKILL.md` | Add illustration requirements table to Phase 5 |
+| `skills/user-story-breakdown/references/output-template.md` | Add 4 illustration template sections |
 
-**Description**: [What this slice delivers]
+## Example Output
 
-**Components**: [List with status: reuse/extend/rework/create]
+See `/Users/vince/Documents/Projects/Ruleev/yond_monorepo/docs/plans/class-detail-page-breakdown.md` for a real-world example of these illustrations applied to a story breakdown.
 
-**Acceptance Criteria**:
-- [ ] Criterion 1
-- [ ] Criterion 2
+## Verification
 
-### Slice 2: [Name] - Error Handling
-
-**Description**: [What this slice delivers]
-
-**Components**: [List]
-
-**Acceptance Criteria**:
-- [ ] Error states handled
-- [ ] User feedback provided
-
-### Slice 3: [Name] - Edge Cases
-
-[Continue pattern...]
-
-## Test Scenarios
-
-### [Feature/Happy Path]
-
-**Given** [precondition]
-**When** [action]
-**Then** [expected result]
-
-### [Error Scenario]
-
-**Given** [precondition]
-**When** [action that fails]
-**Then** [error handling behavior]
-
-### [Edge Case]
-
-**Given** [unusual condition]
-**When** [action]
-**Then** [expected behavior]
-
-## Risks & Mitigations
-
-| Risk | Impact | Mitigation |
-|------|--------|------------|
-| [Description] | High/Med/Low | [How to address] |
-
-## Dependencies
-
-### Blocking (must complete first)
-
-- [ ] [Dependency description]
-
-### Non-blocking (can work in parallel)
-
-- [ ] [Dependency description]
-
-## Effort Drivers
-
-[What makes this complex: state management, responsive requirements, rework items, API dependencies, etc.]
-
----
-
-## Output Notes
-
-- Keep bullet points concise
-- Use actual file paths from research
-- Include component status (reuse/extend/rework/create) with every component
-- Flag any blocking dependencies prominently
-- Test scenarios should be directly convertible to Playwright specs
+After implementation:
+1. Run the skill on a sample user story with design screenshots
+2. Verify all 4 illustration types are generated
+3. Check illustrations are placed inline with relevant sections
+4. Confirm box-drawing characters render correctly in markdown preview
