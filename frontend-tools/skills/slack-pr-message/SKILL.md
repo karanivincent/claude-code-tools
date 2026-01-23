@@ -1,175 +1,245 @@
----
-name: slack-pr-message
-description: |
-  Generate Slack announcement messages for pull requests. Use when user:
-  - Asks to create a Slack message for a PR
-  - Wants to announce a PR in Slack
-  - Needs a PR summary for team communication
-  - Mentions "Slack message", "announce PR", "PR announcement"
----
 
-# Slack PR Message Generator
+  ---
+  name: slack-pr-message
+  description: |
+    Generate Slack announcement messages for pull requests. Use when user:
+    - Asks to create a Slack message for a PR
+    - Wants to announce a PR in Slack
+    - Needs a PR summary for team communication
+    - Mentions "Slack message", "announce PR", "PR announcement"
+  ---
 
-Generate copy-paste ready Slack messages for PR announcements.
+  # Slack PR Message Generator
 
-## Workflow
+  Generate copy-paste ready Slack messages for PR announcements.
 
-### Step 1: Get PR Information
+  ## Workflow
 
-```bash
-gh pr view --json number,title,body,url,headRefOid,headRefName
-```
+  ### Step 1: Get PR Information
 
-If no PR number specified, this gets the current branch's PR.
+  ```bash
+  gh pr view --json number,title,body,url,headRefOid,headRefName
 
-### Step 2: Get Preview URLs
+  If no PR number specified, this gets the current branch's PR.
 
-Try these methods in order:
+  Step 2: Get Preview URLs
 
-#### Method A: Unified Deployment Comment (preferred)
+  Try these methods in order:
 
-Check if the PR has a unified deployment comment (used in repos with multiple Cloudflare Workers):
+  Method A: Unified Deployment Comment (preferred)
 
-```bash
-gh pr view --json comments --jq '.comments[].body' | grep -A 20 'cloudflare-deployments-comment'
-```
+  Check if the PR has a unified deployment comment (used in repos with multiple Cloudflare Workers):
 
-If found, parse the markdown table:
-- Look for rows containing `yond-selfservice` → extract URL for **Preview (App)**
-- Look for rows containing `yond-storybook-worker` → extract URL for **Preview (Storybook)**
-- URLs appear as markdown links: `[https://...](https://...)`
+  gh pr view --json comments --jq '.comments[].body' | grep -A 20 'cloudflare-deployments-comment'
 
-#### Method B: Cloudflare Check Run Output (fallback)
+  If found, parse the markdown table:
+  - Look for rows containing yond-selfservice → extract URL for Preview (App)
+  - Look for rows containing yond-storybook-worker → extract URL for Preview (Storybook)
+  - URLs appear as markdown links: [https://...](https://...)
 
-If no unified comment found, fall back to check run parsing:
+  Method B: Cloudflare Check Run Output (fallback)
 
-1. Get repository info:
+  If no unified comment found, fall back to check run parsing:
 
-   ```bash
-   gh repo view --json owner,name --jq '"\(.owner.login)/\(.name)"'
-   ```
+  1. Get repository info:
 
-2. Query the Cloudflare Workers check run output:
+  gh repo view --json owner,name --jq '"\(.owner.login)/\(.name)"'
+  2. Query the Cloudflare Workers check run output:
 
-   ```bash
-   gh api repos/{owner}/{repo}/commits/{headRefOid}/check-runs \
-     --jq '.check_runs[] | select(.app.name == "Cloudflare Workers and Pages") | .output.summary'
-   ```
+  gh api repos/{owner}/{repo}/commits/{headRefOid}/check-runs \
+    --jq '.check_runs[] | select(.app.name == "Cloudflare Workers and Pages") | .output.summary'
+  3. Extract the Preview Alias URL (NOT the Preview URL):
+    - Preview URL: https://<version-id>-<project>.workers.dev (changes each build)
+    - Preview Alias URL: https://<branch>-<project>.workers.dev (stable, preferred)
 
-3. Extract the **Preview Alias URL** (NOT the Preview URL):
-   - Preview URL: `https://<version-id>-<project>.workers.dev` (changes each build)
-   - Preview Alias URL: `https://<branch>-<project>.workers.dev` (stable, preferred)
+  Check if Storybook Link is Relevant
 
-### Step 3: Get Notion Link from GitHub Issue
+  Before including the Storybook URL, verify there are relevant changes:
 
-1. Extract issue number from branch name:
-   - Branch format: `<number>-<description>` (e.g., `28-add-calendar-view`)
-   - Extract the leading number before the first dash
+  gh pr diff --name-only | grep -E '\.(stories\.svelte|svelte)$' | grep -E '(packages/ui/|apps/storybook/)'
 
-2. If issue number found, fetch the issue:
+  Include Storybook URL only if the PR contains changes to:
+  - Story files (*.stories.svelte)
+  - Components in packages/ui/src/
+  - Storybook configuration in apps/storybook/
 
-   ```bash
-   gh issue view <number> --json body --jq '.body'
-   ```
+  Omit Storybook URL entirely if changes are only to:
+  - App routes/pages
+  - API/backend code
+  - Configuration files
+  - Tests (non-story)
+  - Documentation
 
-3. Look for Notion link with these labels (case-insensitive):
-   - `Notion:` followed by URL
-   - `Story:` followed by URL
-   - `Ticket:` followed by URL
+  Step 3: Get Notion Link from GitHub Issue
 
-4. If no labeled link found, look for any `notion.so` URL in the description
+  1. Extract issue number from branch name:
+    - Branch format: <number>-<description> (e.g., 28-add-calendar-view)
+    - Extract the leading number before the first dash
+  2. If issue number found, fetch the issue:
 
-### Step 4: Generate Message
+  gh issue view <number> --json body --jq '.body'
+  3. Look for Notion link with these labels (case-insensitive):
+    - Notion: followed by URL
+    - Story: followed by URL
+    - Ticket: followed by URL
+  4. If no labeled link found, look for any notion.so URL in the description
 
-Use this template (include lines only if data available):
+  Step 4: Enhance Preview URLs with Deep Links
 
-```
-PR #<NUMBER>: <PR Title>
----------------------------------------
-GitHub: <PR URL>
-Preview (App): <selfservice URL if available>
-Preview (Storybook): <storybook URL if available>
-Preview: <single URL if only Method B available>
-Notion: <Notion link if found>
----------------------------------------
-What's Changed:
-- <Main change 1>
-- <Main change 2>
-- <Main change 3>
----------------------------------------
-Testing Notes:
-<Brief testing instructions>
-```
+  For App Preview URLs (Multiple Features)
 
-**Note:** Use `Preview (App)` and `Preview (Storybook)` when both URLs available from unified comment. Use plain `Preview:` when only one URL available from fallback method.
+  1. Get changed route files:
+  gh pr diff --name-only | grep -E 'src/routes/.*\+page\.svelte$'
+  2. Convert each route file to a URL path:
+    - src/routes/classes/+page.svelte → /classes
+    - src/routes/classes/[oid]/+page.svelte → /classes/book (use navigable parent for dynamic routes)
+    - src/routes/profile/settings/+page.svelte → /profile/settings
+  3. Deduplicate and prioritize:
+    - Remove duplicate parent paths if child route also changed
+    - Limit to 4 most relevant routes
+    - Prioritize new routes over modified routes
 
-## Rules
+  For Storybook URLs (Multiple Components)
 
-- Always include GitHub URL
-- **Prefer unified deployment comment** over check run output when available
-- Show both preview URLs as separate lines when available (App and Storybook)
-- Use single `Preview:` line when only one URL available (backwards compatibility)
-- Extract issue number from branch naming convention (`<number>-<description>`)
-- Look for Notion link in issue description with labels: `Notion:`, `Story:`, `Ticket:`
-- Include Notion link ONLY if found in issue or user provides it
-- Keep "What's Changed" to 2-4 bullet points maximum
-- Focus on user-facing changes, not implementation details
+  1. Get all new/modified story files:
+  gh pr diff --name-only | grep '\.stories\.svelte$'
+  2. For each story file, extract the title and generate URL:
+    - Read title from defineMeta({ title: '...' })
+    - atoms/IconAnimatedClock → /?path=/story/atoms-iconanimatedclock--default
+    - basic/FilterRow → /?path=/story/basic-filterrow--default
+  3. Generate a link for each (limit to 5 max)
 
-## Example Output (Dual Preview URLs)
+  Step 5: Generate Message
 
-When unified deployment comment is present:
+  Use this template (include lines only if data available):
 
-```
-PR #28: Add calendar appointment view
----------------------------------------
-GitHub: https://github.com/goyond/yond_monorepo/pull/28
-Preview (App): https://28-add-calendar-appointment-yond-selfservice.accounts-ec5.workers.dev
-Preview (Storybook): https://28-add-calendar-appointment-yond-storybook-worker.accounts-ec5.workers.dev
-Notion: https://www.notion.so/yond/Calendar-view-design-abc123
----------------------------------------
-What's Changed:
-- Added calendar appointment view component
-- Integrated with appointment API
-- Added date navigation controls
----------------------------------------
-Testing Notes:
-Navigate to /calendar and verify appointments display correctly with proper date filtering
-```
+  Single feature/component:
+  PR #<NUMBER>: <PR Title>
+  ---------------------------------------
+  GitHub: <PR URL>
+  Preview (App): <selfservice URL><route path>
+  Preview (Storybook): <storybook URL><story path>
+  Notion: <Notion link if found>
+  ---------------------------------------
+  What's Changed:
+  - <Main change 1>
+  - <Main change 2>
+  - <Main change 3>
+  ---------------------------------------
+  Testing Notes:
+  <Brief testing instructions>
 
-## Example Output (Single Preview URL - Backwards Compatible)
+  Multiple features/components:
+  PR #<NUMBER>: <PR Title>
+  ---------------------------------------
+  GitHub: <PR URL>
 
-For repos without unified deployment comment:
+  Preview (App):
+    • /classes/book → <full-url>/classes/book
+    • /profile → <full-url>/profile
 
-```
-PR #1786: Fix calendar drag-and-drop scroll offset bug
----------------------------------------
-GitHub: https://github.com/goyond/yond_management/pull/1786
-Preview: https://1742-calendar-appointment-ge.yond.pages.dev
-Notion: https://www.notion.so/yond/Calendar-update-e88c7b63fd44481fb1500ca4f5e6c0cf
----------------------------------------
-What's Changed:
-- Fixed drag-and-drop offset issue when scrolling during dragging in calendar
-- Implemented scroll compensation using neodrag's custom transform function
-- Tracks scroll position and applies compensation to keep element under cursor
----------------------------------------
-Testing Notes:
-Drag an appointment in the calendar, scroll horizontally while dragging, verify the appointment stays under the cursor and drops at the correct position
-```
+  Preview (Storybook):
+    • IconAnimatedClock → <full-url>/?path=/story/atoms-iconanimatedclock--default
+    • FilterRow → <full-url>/?path=/story/basic-filterrow--default
 
-## Example Output (No Notion Link)
+  Notion: <Notion link if found>
+  ---------------------------------------
+  What's Changed:
+  - <Main change 1>
+  - <Main change 2>
+  - <Main change 3>
+  ---------------------------------------
+  Testing Notes:
+  <Brief testing instructions>
 
-When branch doesn't reference an issue or issue has no Notion link:
+  Rules
 
-```
-PR #47: Update deployment workflow
----------------------------------------
-GitHub: https://github.com/goyond/yond_monorepo/pull/47
-Preview (App): https://update-deployment-workflow-yond-selfservice.accounts-ec5.workers.dev
-Preview (Storybook): https://update-deployment-workflow-yond-storybook-worker.accounts-ec5.workers.dev
----------------------------------------
-What's Changed:
-- Updated GitHub Actions workflow for unified deployment comments
----------------------------------------
-Testing Notes:
-Create a test PR and verify both preview URLs appear in comment
-```
+  - Always include GitHub URL
+  - Prefer unified deployment comment over check run output when available
+  - Only include Storybook preview URL when the PR contains component or story changes
+  - Omit sections entirely when no relevant changes (don't show empty sections)
+  - Enhance preview URLs with deep links when possible:
+    - App: Link to the most relevant route(s) changed in the PR
+    - Storybook: Link to new/modified stories if any
+  - List multiple deep links when PR contains multiple features or components
+  - Format as bullet list when more than one link per category
+  - Limit to 4 routes and 5 stories maximum to keep message readable
+  - Use component/route name as link label for clarity
+  - Extract issue number from branch naming convention (<number>-<description>)
+  - Look for Notion link in issue description with labels: Notion:, Story:, Ticket:
+  - Include Notion link ONLY if found in issue or user provides it
+  - Keep "What's Changed" to 2-4 bullet points maximum
+  - Focus on user-facing changes, not implementation details
+
+  Example Output (Multiple Features and Components)
+
+  PR #42: feat: add user profile and settings pages
+  ---------------------------------------
+  GitHub: https://github.com/goyond/yond_monorepo/pull/42
+
+  Preview (App):
+    • /profile → https://abc123-yond-selfservice.workers.dev/profile
+    • /profile/settings → https://abc123-yond-selfservice.workers.dev/profile/settings
+
+  Preview (Storybook):
+    • ProfileCard → https://abc123-yond-storybook.workers.dev/?path=/story/basic-profilecard--default
+    • SettingsToggle → https://abc123-yond-storybook.workers.dev/?path=/story/atoms-settingstoggle--default
+
+  Notion: https://www.notion.so/yond/User-profile-abc123
+  ---------------------------------------
+  What's Changed:
+  - Added user profile page with avatar and bio
+  - Added settings page with notification preferences
+  - Created ProfileCard and SettingsToggle components
+  ---------------------------------------
+  Testing Notes:
+  Navigate to /profile to see user info, then /profile/settings to toggle preferences
+
+  Example Output (Single Feature with Deep Link)
+
+  PR #28: Add calendar appointment view
+  ---------------------------------------
+  GitHub: https://github.com/goyond/yond_monorepo/pull/28
+  Preview (App): https://28-add-calendar-yond-selfservice.workers.dev/calendar
+  Preview (Storybook): https://28-add-calendar-yond-storybook.workers.dev/?path=/story/atoms-iconanimatedclock--default
+  Notion: https://www.notion.so/yond/Calendar-view-design-abc123
+  ---------------------------------------
+  What's Changed:
+  - Added calendar appointment view component
+  - Integrated with appointment API
+  - Added date navigation controls
+  ---------------------------------------
+  Testing Notes:
+  Navigate to /calendar and verify appointments display correctly with proper date filtering
+
+  Example Output (App Changes Only - No Storybook)
+
+  When PR only changes routes/pages without component changes:
+
+  PR #69: feat: implement class detail page with E2E tests
+  ---------------------------------------
+  GitHub: https://github.com/goyond/yond_monorepo/pull/69
+  Preview (App): https://0c73649f-yond-selfservice.workers.dev/classes/book
+  Notion: https://www.notion.so/yond/CSS-class-detail-page-2bf31c80ce358090993bdf22e6a900ae
+  ---------------------------------------
+  What's Changed:
+  - Implemented class detail page showing class info, instructor, date/time
+  - Added E2E tests for the new page
+  ---------------------------------------
+  Testing Notes:
+  Navigate to /classes/book and click any class to view details
+
+  Example Output (No Deep Links Available)
+
+  When no specific routes or stories can be detected:
+
+  PR #47: Update deployment workflow
+  ---------------------------------------
+  GitHub: https://github.com/goyond/yond_monorepo/pull/47
+  Preview (App): https://update-deployment-yond-selfservice.workers.dev
+  ---------------------------------------
+  What's Changed:
+  - Updated GitHub Actions workflow for unified deployment comments
+  ---------------------------------------
+  Testing Notes:
+  Create a test PR and verify deployment comment appears
