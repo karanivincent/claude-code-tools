@@ -1,245 +1,280 @@
+---
+name: slack-pr-message
+description: |
+  Generate Slack announcement messages for pull requests. Use when user:
+  - Asks to create a Slack message for a PR
+  - Wants to announce a PR in Slack
+  - Needs a PR summary for team communication
+  - Mentions "Slack message", "announce PR", "PR announcement"
+---
 
-  ---
-  name: slack-pr-message
-  description: |
-    Generate Slack announcement messages for pull requests. Use when user:
-    - Asks to create a Slack message for a PR
-    - Wants to announce a PR in Slack
-    - Needs a PR summary for team communication
-    - Mentions "Slack message", "announce PR", "PR announcement"
-  ---
+# Slack PR Message Generator
 
-  # Slack PR Message Generator
+Generate copy-paste ready Slack messages for PR announcements.
 
-  Generate copy-paste ready Slack messages for PR announcements.
+## Workflow
 
-  ## Workflow
+### Step 1: Get PR Information
 
-  ### Step 1: Get PR Information
+```bash
+gh pr view --json number,title,body,url,headRefOid,headRefName
+```
 
-  ```bash
-  gh pr view --json number,title,body,url,headRefOid,headRefName
+If no PR number specified, this gets the current branch's PR.
 
-  If no PR number specified, this gets the current branch's PR.
+### Step 2: Get Preview URLs
 
-  Step 2: Get Preview URLs
+Try these methods in order:
 
-  Try these methods in order:
+#### Method A: Unified Deployment Comment (preferred)
 
-  Method A: Unified Deployment Comment (preferred)
+Check if the PR has a unified deployment comment (used in repos with multiple Cloudflare Workers):
 
-  Check if the PR has a unified deployment comment (used in repos with multiple Cloudflare Workers):
+```bash
+gh pr view --json comments --jq '.comments[].body' | grep -A 20 'cloudflare-deployments-comment'
+```
 
-  gh pr view --json comments --jq '.comments[].body' | grep -A 20 'cloudflare-deployments-comment'
+If found, parse the markdown table:
+- Look for rows containing yond-selfservice → extract URL for Preview (App)
+- Look for rows containing yond-storybook-worker → extract URL for Preview (Storybook)
+- URLs appear as markdown links: [https://...](https://...)
 
-  If found, parse the markdown table:
-  - Look for rows containing yond-selfservice → extract URL for Preview (App)
-  - Look for rows containing yond-storybook-worker → extract URL for Preview (Storybook)
-  - URLs appear as markdown links: [https://...](https://...)
+#### Method B: Cloudflare Check Run Output (fallback)
 
-  Method B: Cloudflare Check Run Output (fallback)
+If no unified comment found, fall back to check run parsing:
 
-  If no unified comment found, fall back to check run parsing:
+1. Get repository info:
 
-  1. Get repository info:
+```bash
+gh repo view --json owner,name --jq '"\(.owner.login)/\(.name)"'
+```
 
-  gh repo view --json owner,name --jq '"\(.owner.login)/\(.name)"'
-  2. Query the Cloudflare Workers check run output:
+2. Query the Cloudflare Workers check run output:
 
-  gh api repos/{owner}/{repo}/commits/{headRefOid}/check-runs \
-    --jq '.check_runs[] | select(.app.name == "Cloudflare Workers and Pages") | .output.summary'
-  3. Extract the Preview Alias URL (NOT the Preview URL):
-    - Preview URL: https://<version-id>-<project>.workers.dev (changes each build)
-    - Preview Alias URL: https://<branch>-<project>.workers.dev (stable, preferred)
+```bash
+gh api repos/{owner}/{repo}/commits/{headRefOid}/check-runs \
+  --jq '.check_runs[] | select(.app.name == "Cloudflare Workers and Pages") | .output.summary'
+```
 
-  Check if Storybook Link is Relevant
+3. Extract the Preview Alias URL (NOT the Preview URL):
+   - Preview URL: https://<version-id>-<project>.workers.dev (changes each build)
+   - Preview Alias URL: https://<branch>-<project>.workers.dev (stable, preferred)
 
-  Before including the Storybook URL, verify there are relevant changes:
+### Check if Storybook Link is Relevant
 
-  gh pr diff --name-only | grep -E '\.(stories\.svelte|svelte)$' | grep -E '(packages/ui/|apps/storybook/)'
+Before including the Storybook URL, verify there are relevant changes:
 
-  Include Storybook URL only if the PR contains changes to:
-  - Story files (*.stories.svelte)
-  - Components in packages/ui/src/
-  - Storybook configuration in apps/storybook/
+```bash
+gh pr diff --name-only | grep -E '\.(stories\.svelte|svelte)$' | grep -E '(packages/ui/|apps/storybook/)'
+```
 
-  Omit Storybook URL entirely if changes are only to:
-  - App routes/pages
-  - API/backend code
-  - Configuration files
-  - Tests (non-story)
-  - Documentation
+Include Storybook URL only if the PR contains changes to:
+- Story files (*.stories.svelte)
+- Components in packages/ui/src/
+- Storybook configuration in apps/storybook/
 
-  Step 3: Get Notion Link from GitHub Issue
+Omit Storybook URL entirely if changes are only to:
+- App routes/pages
+- API/backend code
+- Configuration files
+- Tests (non-story)
+- Documentation
 
-  1. Extract issue number from branch name:
-    - Branch format: <number>-<description> (e.g., 28-add-calendar-view)
-    - Extract the leading number before the first dash
-  2. If issue number found, fetch the issue:
+### Step 3: Get Notion Link from GitHub Issue
 
-  gh issue view <number> --json body --jq '.body'
-  3. Look for Notion link with these labels (case-insensitive):
-    - Notion: followed by URL
-    - Story: followed by URL
-    - Ticket: followed by URL
-  4. If no labeled link found, look for any notion.so URL in the description
+1. Extract issue number from branch name:
+   - Branch format: <number>-<description> (e.g., 28-add-calendar-view)
+   - Extract the leading number before the first dash
+2. If issue number found, fetch the issue:
 
-  Step 4: Enhance Preview URLs with Deep Links
+```bash
+gh issue view <number> --json body --jq '.body'
+```
 
-  For App Preview URLs (Multiple Features)
+3. Look for Notion link with these labels (case-insensitive):
+   - Notion: followed by URL
+   - Story: followed by URL
+   - Ticket: followed by URL
+4. If no labeled link found, look for any notion.so URL in the description
 
-  1. Get changed route files:
-  gh pr diff --name-only | grep -E 'src/routes/.*\+page\.svelte$'
-  2. Convert each route file to a URL path:
-    - src/routes/classes/+page.svelte → /classes
-    - src/routes/classes/[oid]/+page.svelte → /classes/book (use navigable parent for dynamic routes)
-    - src/routes/profile/settings/+page.svelte → /profile/settings
-  3. Deduplicate and prioritize:
-    - Remove duplicate parent paths if child route also changed
-    - Limit to 4 most relevant routes
-    - Prioritize new routes over modified routes
+### Step 4: Enhance Preview URLs with Deep Links
 
-  For Storybook URLs (Multiple Components)
+#### For App Preview URLs (Multiple Features)
 
-  1. Get all new/modified story files:
-  gh pr diff --name-only | grep '\.stories\.svelte$'
-  2. For each story file, extract the title and generate URL:
-    - Read title from defineMeta({ title: '...' })
-    - atoms/IconAnimatedClock → /?path=/story/atoms-iconanimatedclock--default
-    - basic/FilterRow → /?path=/story/basic-filterrow--default
-  3. Generate a link for each (limit to 5 max)
+1. Get changed route files:
 
-  Step 5: Generate Message
+```bash
+gh pr diff --name-only | grep -E 'src/routes/.*\+page\.svelte$'
+```
 
-  Use this template (include lines only if data available):
+2. Convert each route file to a URL path:
+   - src/routes/classes/+page.svelte → /classes
+   - src/routes/classes/[oid]/+page.svelte → /classes/book (use navigable parent for dynamic routes)
+   - src/routes/profile/settings/+page.svelte → /profile/settings
+3. Deduplicate and prioritize:
+   - Remove duplicate parent paths if child route also changed
+   - Limit to 4 most relevant routes
+   - Prioritize new routes over modified routes
 
-  Single feature/component:
-  PR #<NUMBER>: <PR Title>
-  ---------------------------------------
-  GitHub: <PR URL>
-  Preview (App): <selfservice URL><route path>
-  Preview (Storybook): <storybook URL><story path>
-  Notion: <Notion link if found>
-  ---------------------------------------
-  What's Changed:
-  - <Main change 1>
-  - <Main change 2>
-  - <Main change 3>
-  ---------------------------------------
-  Testing Notes:
-  <Brief testing instructions>
+#### For Storybook URLs (Multiple Components)
 
-  Multiple features/components:
-  PR #<NUMBER>: <PR Title>
-  ---------------------------------------
-  GitHub: <PR URL>
+1. Get all new/modified story files:
 
-  Preview (App):
-    • /classes/book → <full-url>/classes/book
-    • /profile → <full-url>/profile
+```bash
+gh pr diff --name-only | grep '\.stories\.svelte$'
+```
 
-  Preview (Storybook):
-    • IconAnimatedClock → <full-url>/?path=/story/atoms-iconanimatedclock--default
-    • FilterRow → <full-url>/?path=/story/basic-filterrow--default
+2. For each story file, extract the title and generate URL:
+   - Read title from defineMeta({ title: '...' })
+   - atoms/IconAnimatedClock → /?path=/story/atoms-iconanimatedclock--default
+   - basic/FilterRow → /?path=/story/basic-filterrow--default
+3. Generate a link for each (limit to 5 max)
 
-  Notion: <Notion link if found>
-  ---------------------------------------
-  What's Changed:
-  - <Main change 1>
-  - <Main change 2>
-  - <Main change 3>
-  ---------------------------------------
-  Testing Notes:
-  <Brief testing instructions>
+### Step 5: Generate Message
 
-  Rules
+Use this template (include lines only if data available):
 
-  - Always include GitHub URL
-  - Prefer unified deployment comment over check run output when available
-  - Only include Storybook preview URL when the PR contains component or story changes
-  - Omit sections entirely when no relevant changes (don't show empty sections)
-  - Enhance preview URLs with deep links when possible:
-    - App: Link to the most relevant route(s) changed in the PR
-    - Storybook: Link to new/modified stories if any
-  - List multiple deep links when PR contains multiple features or components
-  - Format as bullet list when more than one link per category
-  - Limit to 4 routes and 5 stories maximum to keep message readable
-  - Use component/route name as link label for clarity
-  - Extract issue number from branch naming convention (<number>-<description>)
-  - Look for Notion link in issue description with labels: Notion:, Story:, Ticket:
-  - Include Notion link ONLY if found in issue or user provides it
-  - Keep "What's Changed" to 2-4 bullet points maximum
-  - Focus on user-facing changes, not implementation details
+**Single feature/component:**
 
-  Example Output (Multiple Features and Components)
+```
+PR #<NUMBER>: <PR Title>
+---------------------------------------
+GitHub: <PR URL>
+Preview (App): <selfservice URL><route path>
+Preview (Storybook): <storybook URL><story path>
+Notion: <Notion link if found>
+---------------------------------------
+What's Changed:
+- <Main change 1>
+- <Main change 2>
+- <Main change 3>
+---------------------------------------
+Testing Notes:
+<Brief testing instructions>
+```
 
-  PR #42: feat: add user profile and settings pages
-  ---------------------------------------
-  GitHub: https://github.com/goyond/yond_monorepo/pull/42
+**Multiple features/components:**
 
-  Preview (App):
-    • /profile → https://abc123-yond-selfservice.workers.dev/profile
-    • /profile/settings → https://abc123-yond-selfservice.workers.dev/profile/settings
+```
+PR #<NUMBER>: <PR Title>
+---------------------------------------
+GitHub: <PR URL>
 
-  Preview (Storybook):
-    • ProfileCard → https://abc123-yond-storybook.workers.dev/?path=/story/basic-profilecard--default
-    • SettingsToggle → https://abc123-yond-storybook.workers.dev/?path=/story/atoms-settingstoggle--default
+Preview (App):
+  • /classes/book → <full-url>/classes/book
+  • /profile → <full-url>/profile
 
-  Notion: https://www.notion.so/yond/User-profile-abc123
-  ---------------------------------------
-  What's Changed:
-  - Added user profile page with avatar and bio
-  - Added settings page with notification preferences
-  - Created ProfileCard and SettingsToggle components
-  ---------------------------------------
-  Testing Notes:
-  Navigate to /profile to see user info, then /profile/settings to toggle preferences
+Preview (Storybook):
+  • IconAnimatedClock → <full-url>/?path=/story/atoms-iconanimatedclock--default
+  • FilterRow → <full-url>/?path=/story/basic-filterrow--default
 
-  Example Output (Single Feature with Deep Link)
+Notion: <Notion link if found>
+---------------------------------------
+What's Changed:
+- <Main change 1>
+- <Main change 2>
+- <Main change 3>
+---------------------------------------
+Testing Notes:
+<Brief testing instructions>
+```
 
-  PR #28: Add calendar appointment view
-  ---------------------------------------
-  GitHub: https://github.com/goyond/yond_monorepo/pull/28
-  Preview (App): https://28-add-calendar-yond-selfservice.workers.dev/calendar
-  Preview (Storybook): https://28-add-calendar-yond-storybook.workers.dev/?path=/story/atoms-iconanimatedclock--default
-  Notion: https://www.notion.so/yond/Calendar-view-design-abc123
-  ---------------------------------------
-  What's Changed:
-  - Added calendar appointment view component
-  - Integrated with appointment API
-  - Added date navigation controls
-  ---------------------------------------
-  Testing Notes:
-  Navigate to /calendar and verify appointments display correctly with proper date filtering
+## Rules
 
-  Example Output (App Changes Only - No Storybook)
+- Always include GitHub URL
+- Prefer unified deployment comment over check run output when available
+- Only include Storybook preview URL when the PR contains component or story changes
+- Omit sections entirely when no relevant changes (don't show empty sections)
+- Enhance preview URLs with deep links when possible:
+  - App: Link to the most relevant route(s) changed in the PR
+  - Storybook: Link to new/modified stories if any
+- List multiple deep links when PR contains multiple features or components
+- Format as bullet list when more than one link per category
+- Limit to 4 routes and 5 stories maximum to keep message readable
+- Use component/route name as link label for clarity
+- Extract issue number from branch naming convention (<number>-<description>)
+- Look for Notion link in issue description with labels: Notion:, Story:, Ticket:
+- Include Notion link ONLY if found in issue or user provides it
+- Keep "What's Changed" to 2-4 bullet points maximum
+- Focus on user-facing changes, not implementation details
 
-  When PR only changes routes/pages without component changes:
+## Example Output (Multiple Features and Components)
 
-  PR #69: feat: implement class detail page with E2E tests
-  ---------------------------------------
-  GitHub: https://github.com/goyond/yond_monorepo/pull/69
-  Preview (App): https://0c73649f-yond-selfservice.workers.dev/classes/book
-  Notion: https://www.notion.so/yond/CSS-class-detail-page-2bf31c80ce358090993bdf22e6a900ae
-  ---------------------------------------
-  What's Changed:
-  - Implemented class detail page showing class info, instructor, date/time
-  - Added E2E tests for the new page
-  ---------------------------------------
-  Testing Notes:
-  Navigate to /classes/book and click any class to view details
+```
+PR #42: feat: add user profile and settings pages
+---------------------------------------
+GitHub: https://github.com/goyond/yond_monorepo/pull/42
 
-  Example Output (No Deep Links Available)
+Preview (App):
+  • /profile → https://abc123-yond-selfservice.workers.dev/profile
+  • /profile/settings → https://abc123-yond-selfservice.workers.dev/profile/settings
 
-  When no specific routes or stories can be detected:
+Preview (Storybook):
+  • ProfileCard → https://abc123-yond-storybook.workers.dev/?path=/story/basic-profilecard--default
+  • SettingsToggle → https://abc123-yond-storybook.workers.dev/?path=/story/atoms-settingstoggle--default
 
-  PR #47: Update deployment workflow
-  ---------------------------------------
-  GitHub: https://github.com/goyond/yond_monorepo/pull/47
-  Preview (App): https://update-deployment-yond-selfservice.workers.dev
-  ---------------------------------------
-  What's Changed:
-  - Updated GitHub Actions workflow for unified deployment comments
-  ---------------------------------------
-  Testing Notes:
-  Create a test PR and verify deployment comment appears
+Notion: https://www.notion.so/yond/User-profile-abc123
+---------------------------------------
+What's Changed:
+- Added user profile page with avatar and bio
+- Added settings page with notification preferences
+- Created ProfileCard and SettingsToggle components
+---------------------------------------
+Testing Notes:
+Navigate to /profile to see user info, then /profile/settings to toggle preferences
+```
+
+## Example Output (Single Feature with Deep Link)
+
+```
+PR #28: Add calendar appointment view
+---------------------------------------
+GitHub: https://github.com/goyond/yond_monorepo/pull/28
+Preview (App): https://28-add-calendar-yond-selfservice.workers.dev/calendar
+Preview (Storybook): https://28-add-calendar-yond-storybook.workers.dev/?path=/story/atoms-iconanimatedclock--default
+Notion: https://www.notion.so/yond/Calendar-view-design-abc123
+---------------------------------------
+What's Changed:
+- Added calendar appointment view component
+- Integrated with appointment API
+- Added date navigation controls
+---------------------------------------
+Testing Notes:
+Navigate to /calendar and verify appointments display correctly with proper date filtering
+```
+
+## Example Output (App Changes Only - No Storybook)
+
+When PR only changes routes/pages without component changes:
+
+```
+PR #69: feat: implement class detail page with E2E tests
+---------------------------------------
+GitHub: https://github.com/goyond/yond_monorepo/pull/69
+Preview (App): https://0c73649f-yond-selfservice.workers.dev/classes/book
+Notion: https://www.notion.so/yond/CSS-class-detail-page-2bf31c80ce358090993bdf22e6a900ae
+---------------------------------------
+What's Changed:
+- Implemented class detail page showing class info, instructor, date/time
+- Added E2E tests for the new page
+---------------------------------------
+Testing Notes:
+Navigate to /classes/book and click any class to view details
+```
+
+## Example Output (No Deep Links Available)
+
+When no specific routes or stories can be detected:
+
+```
+PR #47: Update deployment workflow
+---------------------------------------
+GitHub: https://github.com/goyond/yond_monorepo/pull/47
+Preview (App): https://update-deployment-yond-selfservice.workers.dev
+---------------------------------------
+What's Changed:
+- Updated GitHub Actions workflow for unified deployment comments
+---------------------------------------
+Testing Notes:
+Create a test PR and verify deployment comment appears
+```
