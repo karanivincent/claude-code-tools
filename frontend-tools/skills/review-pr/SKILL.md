@@ -93,25 +93,28 @@ DiffProcessor returns:
 
 ### Phase 2: Launch 9 Specialist Agents in Parallel
 
-Spawn all 9 agents in a **single message** with their assigned diff chunks:
+Spawn all 9 agents in a **single message** with their assigned diff chunks.
 
-| Agent | Focus | Severity |
-|-------|-------|----------|
-| DebugCode | console.log, debugger, commented code | Blocker |
-| Security | Secrets, API keys, credentials | Blocker |
-| TypeSafety | Missing types, `any`, unsafe casts | Major |
-| ErrorHandling | Missing try/catch, unhandled edge cases | Major |
-| Internationalization | Hardcoded UI strings, missing `$LL` | Major |
-| ImportPaths | `$root/src/lib`, deep relative imports | Minor |
-| Naming | Misleading names, negative booleans | Minor |
-| CodeOrganization | Repeated patterns, extraction, documentation | Suggestion |
-| TestCoverage | Missing E2E/unit tests, stories, testability | Major/Suggestion |
+**Important:** Pass `worktree_path` from Phase 0 to agents that need file access (TypeSafety, ErrorHandling, TestCoverage).
+
+| Agent | Focus | Severity | Needs worktree? |
+|-------|-------|----------|-----------------|
+| DebugCode | console.log, debugger, commented code | Blocker | No |
+| Security | Secrets, API keys, credentials | Blocker | No |
+| TypeSafety | Missing types, `any`, unsafe casts | Major | **Yes** |
+| ErrorHandling | Missing try/catch, unhandled edge cases | Major | **Yes** |
+| Internationalization | Hardcoded UI strings, missing `$LL` | Major | No |
+| ImportPaths | `$root/src/lib`, deep relative imports | Minor | No |
+| Naming | Misleading names, negative booleans | Minor | No |
+| CodeOrganization | Repeated patterns, extraction, documentation | Suggestion | No |
+| TestCoverage | Missing E2E/unit tests, stories, testability | Major/Suggestion | **Yes** |
 
 Each agent:
 1. Receives diff chunks relevant to its focus
-2. Reads its own section from `references/agents.md`
-3. Reads relevant patterns from `references/patterns.md`
-4. Returns findings JSON
+2. Receives `worktree_path` if it needs file access
+3. Reads its own section from `references/agents.md`
+4. Reads relevant patterns from `references/patterns.md`
+5. Returns findings JSON
 
 Agent output format:
 ```json
@@ -137,6 +140,7 @@ Spawn **MetaReviewer** agent with:
 - All specialist findings (merged)
 - PR info from Phase 1
 - File list for context validation
+- **Worktree path from Phase 0** (for reading source files during validation)
 
 MetaReviewer performs:
 1. **Deduplication** - Same file + line + similar issue = keep highest confidence

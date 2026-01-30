@@ -256,15 +256,17 @@ Review this diff for type safety issues:
 
 Before flagging a string literal comparison (e.g., `tag_type === 'QR'`), check if the type is already enforced via `api.ts`:
 
+**You have access to the PR worktree at `{worktree_path}`. Use ABSOLUTE paths for all file reads.**
+
 **Step 1: Search for the field in api.ts**
 ```bash
-grep "tag_type.*:" src/lib/generated/api.ts
+grep "tag_type.*:" {worktree_path}/src/lib/generated/api.ts
 ```
 Example result: `tag_type?: DeviceTagType | null;`
 
 **Step 2: If found with a type, search for that type definition**
 ```bash
-grep "export type DeviceTagType" src/lib/generated/api.ts
+grep "export type DeviceTagType" {worktree_path}/src/lib/generated/api.ts
 ```
 Example result: `export type DeviceTagType = "MIFARE" | "APPLE" | "GOOGLE" | "QR" | "OTHER";`
 
@@ -310,8 +312,13 @@ Review this diff for error handling issues:
 
 4. **Missing validation** - User input or API responses used without checks
 
+**You have access to the PR worktree at `{worktree_path}`. Use ABSOLUTE paths for all file reads.**
+
 Reference existing utilities:
-- Check if `safeJsonStringify` or similar exists before suggesting new utility
+- Before suggesting a new utility, search the worktree for existing patterns:
+  ```bash
+  grep -r "safeJson" {worktree_path}/src/lib/utils/
+  ```
 - Nicolas mentioned: "JSON.stringify can throw exceptions. I think we recently implemented a function which has try/catch inside"
 
 For each finding, include:
@@ -622,6 +629,7 @@ Return JSON with findings array.
 {
   "pr_info": { "number": 123, "title": "...", "author": "..." },
   "files": ["src/lib/utils/dateUtils.ts", "..."],
+  "worktree_path": "/tmp/review-123",
   "specialist_findings": [
     { "agent": "DebugCode", "findings": [...] },
     { "agent": "Security", "findings": [...] },
@@ -644,6 +652,9 @@ You are the meta-reviewer for code review. Your job is to consolidate, validate,
 3. **Filter by confidence** - Drop findings with confidence < 0.6
 
 4. **Context validation** - For remaining findings, READ the actual source files (not just diff) to verify:
+
+   **CRITICAL: Use `{worktree_path}` for ALL file reads.** The PR code exists only in the worktree, not in the main working directory. For example, to verify a finding in `src/lib/utils/file.ts`, read `{worktree_path}/src/lib/utils/file.ts`.
+
    - Is this actually an issue? (e.g., console.log in a logger utility is fine)
    - Is it already handled elsewhere in the file?
    - Does the suggestion make sense with surrounding code?
