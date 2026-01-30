@@ -79,17 +79,31 @@ DiffProcessor returns:
 {
   "pr_info": { "number": 123, "title": "...", "author": "..." },
   "files": [
-    { "path": "src/lib/utils/dateUtils.ts", "additions": 45, "deletions": 12 },
-    { "path": "src/routes/app/classes/+page.svelte", "additions": 120, "deletions": 30 }
+    {
+      "path": "src/lib/utils/dateUtils.ts",
+      "additions": 45,
+      "deletions": 12,
+      "changes": [
+        { "line": 52, "content": "const result = JSON.parse(data);" },
+        { "line": 53, "content": "console.log('parsed:', result);" }
+      ]
+    },
+    {
+      "path": "src/routes/app/classes/+page.svelte",
+      "additions": 120,
+      "deletions": 30,
+      "changes": [
+        { "line": 15, "content": "<script lang=\"ts\">" },
+        { "line": 79, "content": "console.log('Creating class:', formData);" }
+      ]
+    }
   ],
   "total_changes": { "files": 8, "additions": 312, "deletions": 87 },
-  "diff_chunks": {
-    "src/lib/utils/dateUtils.ts": "... diff content ...",
-    "src/routes/app/classes/+page.svelte": "... diff content ..."
-  },
   "excluded": ["package-lock.json", "generated/api.ts"]
 }
 ```
+
+**Note:** The `changes` array contains ONLY added/modified lines with their exact line numbers in the new file. Specialists may only flag issues on lines present in this array.
 
 ### Phase 2: Launch 9 Specialist Agents in Parallel
 
@@ -110,11 +124,13 @@ Spawn all 9 agents in a **single message** with their assigned diff chunks.
 | TestCoverage | Missing E2E/unit tests, stories, testability | Major/Suggestion | **Yes** |
 
 Each agent:
-1. Receives diff chunks relevant to its focus
-2. Receives `worktree_path` if it needs file access
+1. Receives the `files` array with `changes` (added/modified lines only)
+2. Receives `worktree_path` if it needs file access for validation
 3. Reads its own section from `references/agents.md`
 4. Reads relevant patterns from `references/patterns.md`
 5. Returns findings JSON
+
+**Critical constraint:** Agents may ONLY flag issues on lines present in the `changes` array. Worktree access is for validation (checking types, existing patterns), not for discovering new issues outside the diff.
 
 Agent output format:
 ```json
@@ -154,7 +170,7 @@ MetaReviewer returns:
 {
   "raw_count": 34,
   "final_count": 12,
-  "filtered": { "low_confidence": 18, "duplicates": 4 },
+  "filtered": { "outside_diff": 5, "low_confidence": 13, "duplicates": 4 },
   "output_file": "./docs/reviews/review-123.md",
   "summary": {
     "blocker": 2,
@@ -164,6 +180,8 @@ MetaReviewer returns:
   }
 }
 ```
+
+**Note:** `outside_diff` counts findings rejected because their line wasn't in the PR's changed lines.
 
 ### Main Agent: Present Results
 
@@ -181,7 +199,7 @@ Review complete for PR #123
 | Minor | 3 |
 | Suggestion | 2 |
 
-Filtered out: 18 low-confidence, 4 duplicates (from 34 raw findings)
+Filtered out: 5 outside-diff, 13 low-confidence, 4 duplicates (from 34 raw findings)
 ```
 
 ### Phase 4: Launch CleanupAgent

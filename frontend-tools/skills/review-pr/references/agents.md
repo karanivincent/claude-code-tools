@@ -92,7 +92,7 @@ Error format:
 
 ## Prompt
 
-You are a diff processor for code review. Your job is to fetch the diff and prepare it for specialist review agents.
+You are a diff processor for code review. Your job is to fetch the diff and parse it into structured data for specialist review agents.
 
 ### Steps:
 
@@ -109,16 +109,33 @@ You are a diff processor for code review. Your job is to fetch the diff and prep
    - `*.min.js`, `*.min.css`
    - Files in `node_modules/`, `.svelte-kit/`, `build/`
 
-3. **Parse diff** - For each file:
+3. **Parse diff into structured changes** - For each file:
    - Extract file path
    - Count additions/deletions
-   - Keep full diff chunk
+   - **Parse each hunk to extract added/modified lines with their NEW file line numbers**
+
+   Diff parsing rules:
+   - Lines starting with `+` (except `+++`) are additions - include these
+   - Lines starting with `-` are deletions - skip these (we review new code, not removed code)
+   - Lines starting with ` ` (space) are context - skip these
+   - Hunk headers `@@ -old,count +new,count @@` tell you the starting line number
+   - Track line numbers as you iterate: increment for `+` and ` ` lines, not for `-` lines
+
+   Example:
+   ```
+   @@ -45,6 +45,8 @@
+    context line          <- line 45, skip (context)
+   +added line 1          <- line 46, INCLUDE
+   +added line 2          <- line 47, INCLUDE
+    another context       <- line 48, skip (context)
+   ```
 
 4. **Return structured JSON** (see output format below)
 
 ### Important:
 - Do NOT analyze the code for issues - just prepare the data
-- Keep the full diff content for each file
+- Extract ONLY added lines (`+`) with their correct line numbers
+- The `changes` array is the authoritative list of reviewable lines
 - If PR not found, return error with clear message
 
 ## Output Format
@@ -133,17 +150,32 @@ You are a diff processor for code review. Your job is to fetch the diff and prep
     "body": "PR description..."
   },
   "files": [
-    { "path": "src/lib/utils/dateUtils.ts", "additions": 45, "deletions": 12 },
-    { "path": "src/routes/app/classes/+page.svelte", "additions": 120, "deletions": 30 }
+    {
+      "path": "src/lib/utils/dateUtils.ts",
+      "additions": 45,
+      "deletions": 12,
+      "changes": [
+        { "line": 52, "content": "const result = JSON.parse(data);" },
+        { "line": 53, "content": "console.log('parsed:', result);" },
+        { "line": 78, "content": "export function formatDate(date: Date) {" }
+      ]
+    },
+    {
+      "path": "src/routes/app/classes/+page.svelte",
+      "additions": 120,
+      "deletions": 30,
+      "changes": [
+        { "line": 15, "content": "import { someUtil } from '$lib/utils';" },
+        { "line": 79, "content": "console.log('Creating class:', formData);" }
+      ]
+    }
   ],
   "total_changes": { "files": 8, "additions": 312, "deletions": 87 },
-  "diff_chunks": {
-    "src/lib/utils/dateUtils.ts": "diff --git a/src/lib/utils/dateUtils.ts...",
-    "src/routes/app/classes/+page.svelte": "diff --git a/src/routes/app/classes/+page.svelte..."
-  },
   "excluded": ["package-lock.json", "src/lib/generated/api.ts"]
 }
 ```
+
+**Important:** The `changes` array contains ONLY added/modified lines. Specialists may ONLY flag issues on lines present in this array.
 
 Error format:
 ```json
@@ -157,7 +189,17 @@ Error format:
 
 # Phase 2: Specialist Agents
 
-Nine specialist agents run in parallel. Each receives diff chunks and reads its own section from this file.
+Nine specialist agents run in parallel. Each receives the `files` array with parsed `changes` and reads its own section from this file.
+
+## Critical Constraint for ALL Specialists
+
+**You may ONLY flag issues on lines present in the `changes` array.**
+
+Before adding a finding, verify:
+1. The `line` number exists in the file's `changes` array
+2. The `code_snippet` matches content from `changes`
+
+If you have worktree access, use it ONLY for validation (checking types, existing patterns), NOT for discovering new issues outside the diff. Any finding on a line not in `changes` will be rejected by MetaReviewer.
 
 ## Specialist Output Format
 
@@ -252,11 +294,20 @@ Review this diff for type safety issues:
 5. **Missing null checks** - Optional chaining where null could cause issues
 6. **Improper nullish handling** - Using `||` instead of `??` for null/undefined
 
-### IMPORTANT: Verify String Literals Against api.ts
+### Worktree Access (Validation Only)
 
-Before flagging a string literal comparison (e.g., `tag_type === 'QR'`), check if the type is already enforced via `api.ts`:
+**You have access to the PR worktree at `{worktree_path}`. Use it ONLY for validation, NOT for finding new issues.**
 
-**You have access to the PR worktree at `{worktree_path}`. Use ABSOLUTE paths for all file reads.**
+Allowed uses:
+- Verify string literals against `api.ts` type definitions
+- Check if a type/enum exists before suggesting it
+- Look up import paths
+
+**You may ONLY flag issues on lines in the `changes` array.** Any finding outside the diff will be rejected.
+
+### Verify String Literals Against api.ts
+
+Before flagging a string literal comparison (e.g., `tag_type === 'QR'`), check if the type is already enforced:
 
 **Step 1: Search for the field in api.ts**
 ```bash
@@ -312,7 +363,16 @@ Review this diff for error handling issues:
 
 4. **Missing validation** - User input or API responses used without checks
 
-**You have access to the PR worktree at `{worktree_path}`. Use ABSOLUTE paths for all file reads.**
+### Worktree Access (Validation Only)
+
+**You have access to the PR worktree at `{worktree_path}`. Use it ONLY for validation, NOT for finding new issues.**
+
+Allowed uses:
+- Check if error handling utilities already exist
+- Verify if try/catch exists elsewhere in the function
+- Look up existing patterns to reference in suggestions
+
+**You may ONLY flag issues on lines in the `changes` array.** Any finding outside the diff will be rejected.
 
 Reference existing utilities:
 - Before suggesting a new utility, search the worktree for existing patterns:
@@ -442,7 +502,16 @@ Return JSON with findings array.
 
 Review this diff for test coverage gaps and testability issues.
 
-You have access to the full worktree at `{worktree_path}`. Use it to verify if tests/stories exist.
+### Worktree Access (Validation Only)
+
+**You have access to the PR worktree at `{worktree_path}`. Use it ONLY for validation:**
+
+Allowed uses:
+- Check if tests/stories already exist for new files
+- Verify test file locations
+- Check for existing test patterns to reference
+
+**Scope:** Only flag test coverage issues for files that appear in the `changes` array. Do not suggest tests for unchanged files.
 
 #### 1. Missing E2E Tests (Major, confidence: 0.85)
 
@@ -628,7 +697,15 @@ Return JSON with findings array.
 ```json
 {
   "pr_info": { "number": 123, "title": "...", "author": "..." },
-  "files": ["src/lib/utils/dateUtils.ts", "..."],
+  "files": [
+    {
+      "path": "src/lib/utils/dateUtils.ts",
+      "changes": [
+        { "line": 52, "content": "..." },
+        { "line": 53, "content": "..." }
+      ]
+    }
+  ],
   "worktree_path": "/tmp/review-123",
   "specialist_findings": [
     { "agent": "DebugCode", "findings": [...] },
@@ -638,6 +715,8 @@ Return JSON with findings array.
 }
 ```
 
+**Important:** The `files` array contains the authoritative list of changed lines. Use it to validate findings.
+
 ## Prompt
 
 You are the meta-reviewer for code review. Your job is to consolidate, validate, and filter findings from 9 specialist agents into a final review.
@@ -646,26 +725,31 @@ You are the meta-reviewer for code review. Your job is to consolidate, validate,
 
 1. **Merge all findings** - Combine findings from all specialists into one list
 
-2. **Deduplicate** - Same file + same line + similar issue = keep only highest confidence
+2. **Validate line numbers** - For each finding, verify the `line` exists in the file's `changes` array:
+   - Build a map: `{ "path/to/file.ts": [52, 53, 78], ... }` from the `files` input
+   - Drop any finding where `finding.line` is NOT in the valid lines for that file
+   - Track dropped findings in `filtered.outside_diff` count
+
+3. **Deduplicate** - Same file + same line + similar issue = keep only highest confidence
    - "Similar issue" means same category (e.g., two type safety issues on same line)
 
-3. **Filter by confidence** - Drop findings with confidence < 0.6
+5. **Filter by confidence** - Drop findings with confidence < 0.6
 
-4. **Context validation** - For remaining findings, READ the actual source files (not just diff) to verify:
+6. **Context validation** - For remaining findings, READ the actual source files to verify:
 
-   **CRITICAL: Use `{worktree_path}` for ALL file reads.** The PR code exists only in the worktree, not in the main working directory. For example, to verify a finding in `src/lib/utils/file.ts`, read `{worktree_path}/src/lib/utils/file.ts`.
+   **Use `{worktree_path}` for file reads.** For example, to verify a finding in `src/lib/utils/file.ts`, read `{worktree_path}/src/lib/utils/file.ts`.
 
    - Is this actually an issue? (e.g., console.log in a logger utility is fine)
    - Is it already handled elsewhere in the file?
    - Does the suggestion make sense with surrounding code?
    - Mark validated findings, drop false positives
 
-5. **Apply noise limiting** - If more than 15 comments remain:
+7. **Apply noise limiting** - If more than 15 comments remain:
    - Keep ALL blockers (never drop)
    - Keep up to 8 major (by confidence)
    - Keep up to 5 minor/suggestions (by confidence)
 
-6. **Generate single output file**: `output/review-{pr}.md`
+8. **Generate single output file**: `output/review-{pr}.md`
    - Group comments by file, ordered by line number within each file
    - Each comment is self-contained with educational context
    - No summary table—the inline format is ready to copy-paste into GitHub
@@ -731,7 +815,8 @@ Return this JSON:
   "raw_count": 34,
   "final_count": 12,
   "filtered": {
-    "low_confidence": 18,
+    "outside_diff": 5,
+    "low_confidence": 13,
     "duplicates": 4,
     "false_positives": 0
   },
@@ -744,6 +829,8 @@ Return this JSON:
   }
 }
 ```
+
+**Note:** `outside_diff` counts findings that were rejected because their line number was not in the `changes` array.
 
 ---
 
