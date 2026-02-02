@@ -24,10 +24,10 @@ Process PR review comments one at a time: analyze, decide, fix, reply.
 ## Workflow
 
 ```
-FETCH → BRAINSTORM (each comment) → PLAN → EXECUTE → COMMIT → REVIEW REPLIES → POST
+FETCH → BRAINSTORM (each comment) → CREATE TODOS → WRITE DECISIONS → PLAN → EXECUTE → COMMIT → PUSH → REVIEW REPLIES → POST
 ```
 
-### Phase 1: Fetch Comments
+## Phase 1: Fetch Comments
 
 ```bash
 gh api repos/{owner}/{repo}/pulls/{number}/comments
@@ -50,11 +50,11 @@ Found 8 unresolved comments:
 Ready to brainstorm through each?
 ```
 
-### Phase 2: Brainstorm Each Comment
+## Phase 2: Brainstorm Each Comment
 
 **One at a time.** For each comment:
 
-1. Show comment with file, line, code snippet
+1. Show comment with file, line, code snippet, and **comment ID**
 2. Read the relevant code to understand context
 3. Analyze: Is the suggestion technically correct? Does it fit the codebase?
 4. Present options with recommendation:
@@ -63,13 +63,13 @@ Ready to brainstorm through each?
    - **Clarify** - ask a question
    - **Skip** - decide later
 5. User decides
-6. Draft the reply
+6. Draft the reply together
 7. Move to next comment
 
 Example flow:
 
 ```
-Comment 1/8
+Comment 1/8 (ID: 2748124698)
 src/lib/api/client.ts:45 (@nicolas)
 
 "This should use AppointmentStatus.DECLINED instead of the string literal."
@@ -96,42 +96,70 @@ Options:
 Your choice:
 ```
 
-Record each decision:
+After user decides, draft the reply together and confirm before moving to next comment.
 
-```json
-{
-  "comment_id": "123456",
-  "decision": "fix",
-  "fix_description": "Replace string literal with enum",
-  "draft_reply": "Fixed - now using the enum."
-}
-```
+## Phase 3: Create Todos
 
-### Phase 3: Plan Fixes
-
-After all comments decided, summarize:
+**Immediately after brainstorming completes**, create todos for all remaining steps:
 
 ```
-Decisions:
-  - 5 will fix
-  - 2 disagree
-  - 1 need clarification
-
-Fixes needed:
-  1. src/lib/api/client.ts:45 - Use enum instead of string literal
-  2. src/lib/api/client.ts:89 - Add error handling
-  3. src/routes/classes/+page.svelte:23 - Remove console.log
+□ Write decisions file (docs/reviews/pr-{number}-decisions.md)
+□ Create implementation plan using superpowers:write-plan
+□ Execute implementation plan
+□ Run typecheck and tests to verify
+□ Commit fixes
+□ Push to remote
+□ Review/edit replies in decisions file
+□ Post replies to GitHub
 ```
 
-Invoke `superpowers:write-plan` with fix descriptions, files, and reasoning.
+## Phase 4: Write Decisions File
 
-### Phase 4: Execute
+Write all decisions to `docs/reviews/pr-{number}-decisions.md`.
 
-Follow the plan. Use `superpowers:verification-before-completion` to verify each fix.
+**Format:**
 
-### Phase 5: Commit
+```markdown
+# PR #86 Decisions
 
-Single commit with all fixes:
+## Fixes
+
+### 1. mock-setup.ts:23 (ID: 2748124698)
+Created `mockRoute` helper to reduce boilerplate.
+
+### 2. class-search.spec.ts:87 (ID: 2748130762)
+Replaced static timeouts with visibility waits.
+
+## Disagree
+
+### 3. dateUtils.ts:361 (ID: 2748235527)
+The current design keeps dateUtils pure without i18n dependencies. Callers pass translated labels. The hardcoded English is a last-resort fallback.
+
+## Clarify
+
+### 4. appointmentUtils.ts:139 (ID: 2748164415)
+Already opened a team discussion - see the Notion proposal for TypeScript type vs interface standardization.
+```
+
+**Important:** Include comment IDs visibly - needed for posting replies later.
+
+## Phase 5: Create Implementation Plan
+
+**STOP.** You MUST invoke `superpowers:write-plan` to create the implementation plan. Do NOT use todos or implement directly.
+
+Invoke `superpowers:write-plan` with:
+- All "Fix" decisions from brainstorming
+- File paths and line numbers
+- Fix descriptions and reasoning
+- Output location: `docs/reviews/pr-{number}-plan.md`
+
+## Phase 6: Execute Plan
+
+Follow the implementation plan. Use `superpowers:verification-before-completion` to verify each fix.
+
+## Phase 7: Commit and Push
+
+After all fixes verified:
 
 ```
 All fixes implemented.
@@ -143,50 +171,51 @@ Changes:
 Ready to commit?
 ```
 
-### Phase 6: Review Replies
+Single commit, then push to remote.
 
-Show all drafted replies:
+## Phase 8: Review Replies
+
+Prompt user to review/edit replies in the decisions file:
 
 ```
-Replies ready for PR #123:
+Fixes committed and pushed.
 
-1. src/lib/api/client.ts:45 - Fixed
-   "Fixed - now using AppointmentStatus.DECLINED."
-
-2. src/lib/api/client.ts:89 - Fixed
-   "Added try/catch around JSON.parse."
-
-3. src/routes/classes/+page.svelte:67 - Disagree
-   "The loading state is already handled by the parent layout."
-
-4. src/lib/utils/date.ts:12 - Clarify
-   "Should this handle UTC or user's local timezone?"
-
-Edit any replies? (enter number to edit, or 'ok' to proceed)
+Next: Review your reply drafts in docs/reviews/pr-86-decisions.md
+Edit any replies to match your tone, then say "ready to post".
 ```
 
-### Phase 7: Post to GitHub
+Wait for user confirmation before posting.
 
-Post each reply to the correct thread:
+## Phase 9: Post Replies to GitHub
+
+Parse the decisions file to extract comment IDs and replies. Post each reply:
 
 ```bash
 gh api repos/{owner}/{repo}/pulls/{pr}/comments/{comment_id}/replies \
-  -f body="Fixed - now using the enum."
+  -f body="Your reply text"
 ```
 
 Report results:
 
 ```
-Posted 5 replies to PR #123
-https://github.com/owner/repo/pull/123
+Posted 8 replies to PR #86
+https://github.com/owner/repo/pull/86
 ```
 
 ## Key Principles
 
 - **Critical analysis** - Evaluate suggestions, don't blindly comply
-- **One at a time** - Full focus on each comment
+- **One at a time** - Full focus on each comment during brainstorming
 - **User decides** - Skill recommends, user chooses
-- **Batch efficiency** - Plan fixes together, post replies together
+- **Document first** - Write decisions before planning
+- **Track everything** - Use todos to ensure no step is forgotten
+
+## Output Files
+
+| File | Contents |
+|------|----------|
+| `docs/reviews/pr-{number}-decisions.md` | All decisions with reply drafts and comment IDs |
+| `docs/reviews/pr-{number}-plan.md` | Implementation tasks (fixes only) |
 
 ## Edge Cases
 
@@ -200,6 +229,6 @@ https://github.com/owner/repo/pull/123
 
 ## Dependencies
 
-- `superpowers:write-plan` - Implementation planning
+- `superpowers:write-plan` - Implementation planning (MANDATORY)
 - `superpowers:verification-before-completion` - Verify fixes
 - `gh` CLI - GitHub API access
