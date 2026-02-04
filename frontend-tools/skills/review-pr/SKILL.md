@@ -109,19 +109,19 @@ DiffProcessor returns:
 
 Spawn all 9 agents in a **single message** with their assigned diff chunks.
 
-**Important:** Pass `worktree_path` from Phase 0 to agents that need file access (TypeSafety, ErrorHandling, TestCoverage).
+**Important:** Pass `worktree_path` from Phase 0 to ALL specialist agents. This ensures agents can validate findings against actual files when reviewing PRs from external repositories.
 
-| Agent | Focus | Severity | Needs worktree? |
-|-------|-------|----------|-----------------|
-| DebugCode | console.log, debugger, commented code | Blocker | No |
-| Security | Secrets, API keys, credentials | Blocker | No |
-| TypeSafety | Missing types, `any`, unsafe casts | Major | **Yes** |
-| ErrorHandling | Missing try/catch, unhandled edge cases | Major | **Yes** |
-| Internationalization | Hardcoded UI strings, missing `$LL` | Major | No |
-| ImportPaths | `$root/src/lib`, deep relative imports | Minor | No |
-| Naming | Misleading names, negative booleans | Minor | No |
-| CodeOrganization | Repeated patterns, extraction, documentation | Suggestion | No |
-| TestCoverage | Missing E2E/unit tests, stories, testability | Major/Suggestion | **Yes** |
+| Agent | Focus | Severity | Receives |
+|-------|-------|----------|----------|
+| DebugCode | console.log, debugger, commented code | Blocker | files, worktree_path |
+| Security | Secrets, API keys, credentials | Blocker | files, worktree_path |
+| TypeSafety | Missing types, `any`, unsafe casts | Major | files, worktree_path |
+| ErrorHandling | Missing try/catch, unhandled edge cases | Major | files, worktree_path |
+| Internationalization | Hardcoded UI strings, missing `$LL` | Major | files, worktree_path |
+| ImportPaths | `$root/src/lib`, deep relative imports | Minor | files, worktree_path |
+| Naming | Misleading names, negative booleans | Minor | files, worktree_path |
+| CodeOrganization | Repeated patterns, extraction, documentation | Suggestion | files, worktree_path |
+| TestCoverage | Missing E2E/unit tests, stories, testability | Major/Suggestion | files, worktree_path |
 
 Each agent:
 1. Receives the `files` array with `changes` (added/modified lines only)

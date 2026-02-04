@@ -394,6 +394,12 @@ Return JSON with findings array.
 **Detects:** Hardcoded UI strings, missing `$LL` usage
 **Severity:** Major
 
+### Input
+- `worktree_path`: Path to PR files for validation
+
+If you need to check project configuration (i18n setup, svelte.config.js), use:
+`{worktree_path}/path/to/file`
+
 ### Prompt
 
 Review this diff for i18n issues in this SvelteKit project using typesafe-i18n:
@@ -420,6 +426,12 @@ Return JSON with findings array.
 
 **Detects:** `$root/src/lib`, deep relative imports
 **Severity:** Minor
+
+### Input
+- `worktree_path`: Path to PR files for validation
+
+If you need to verify path aliases, check:
+`{worktree_path}/tsconfig.json` or `{worktree_path}/svelte.config.js`
 
 ### Prompt
 
@@ -468,6 +480,11 @@ Return JSON with findings array.
 
 **Detects:** Repeated patterns, wrong file placement, extraction opportunities, missing documentation
 **Severity:** Suggestion
+
+### Input
+- `worktree_path`: Path to PR files for validation
+
+All file operations must use `{worktree_path}/` prefix.
 
 ### Prompt
 
@@ -523,7 +540,7 @@ For new routes (`+page.svelte`, `+page.ts`):
 
 2. Search for existing E2E coverage:
    ```bash
-   find e2e -name "*.spec.ts" | xargs grep -l "route-keyword"
+   find {worktree_path}/e2e -name "*.spec.ts" | xargs grep -l "route-keyword"
    ```
 
 3. Flag if no E2E test covers the route
@@ -536,7 +553,7 @@ For new routes (`+page.svelte`, `+page.ts`):
 
 New route with form interactions has no E2E test coverage. User flows involving forms/mutations should have E2E tests to catch regressions in critical paths.
 
-**Expected test location:** `e2e/staff_user/feature/routeName.spec.ts`
+**Expected test location:** `{worktree_path}/e2e/staff_user/feature/routeName.spec.ts`
 
 **Suggested test coverage:**
 - Navigate to the page
