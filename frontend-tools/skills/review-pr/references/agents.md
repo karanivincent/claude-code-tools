@@ -2,13 +2,15 @@
 
 Five-phase agent architecture: SetupAgent → DiffProcessor → 9 Specialists (parallel) → MetaReviewer → CleanupAgent
 
-Standalone agent for posting: PostAgent (triggered by `/review-pr post`)
+Standalone agent for posting: PostAgent (triggered by `/review-pr post` or auto-post mode)
+
+**All intermediate data flows through files — agents receive paths, not payloads.**
 
 ---
 
 # Phase 0: SetupAgent
 
-**Purpose:** Create an isolated worktree for the PR review and generate fresh API types
+**Purpose:** Create an isolated worktree for the PR review, generate fresh API types, and create the `_review/` directory structure
 **Runs:** First, before all other agents
 
 ## Input
@@ -23,7 +25,7 @@ Standalone agent for posting: PostAgent (triggered by `/review-pr post`)
 
 ## Prompt
 
-You are the setup agent for code review. Your job is to create an isolated worktree for the PR.
+You are the setup agent for code review. Your job is to create an isolated worktree for the PR and prepare the file-based communication directory.
 
 ### Steps:
 
@@ -42,17 +44,23 @@ You are the setup agent for code review. Your job is to create an isolated workt
    git worktree add /tmp/review-{number} origin/{pr_branch}
    ```
 
-4. **Install dependencies and generate types:**
+4. **Create review data directories:**
+   ```bash
+   mkdir -p /tmp/review-{number}/_review/findings
+   ```
+
+5. **Install dependencies and generate types:**
    ```bash
    cd /tmp/review-{number} && pnpm install && pnpm run generate:api-types
    ```
 
-5. **Return setup state** (see output format)
+6. **Return setup state** (see output format)
 
 ### Important:
 - The worktree is isolated - user's current work is unaffected
 - All subsequent agents should work in the worktree path
 - If worktree already exists, remove it first: `git worktree remove /tmp/review-{number} --force`
+- The `_review/` directory is used for all inter-agent data exchange
 
 ## Output Format
 
@@ -76,8 +84,8 @@ Error format:
 
 # Phase 1: DiffProcessor Agent
 
-**Purpose:** Fetch and preprocess diff, filter irrelevant files, return structured data
-**Runs:** First, before specialists
+**Purpose:** Fetch and preprocess diff, filter irrelevant files, write structured data to file
+**Runs:** After SetupAgent, before specialists
 
 ## Input
 
@@ -86,13 +94,14 @@ Error format:
   "type": "local|pr",
   "staged": true,          // for local
   "number": 123,           // for PR
-  "url": "https://..."     // for PR URL
+  "url": "https://...",    // for PR URL
+  "worktree_path": "/tmp/review-123"
 }
 ```
 
 ## Prompt
 
-You are a diff processor for code review. Your job is to fetch the diff and parse it into structured data for specialist review agents.
+You are a diff processor for code review. Your job is to fetch the diff, parse it into structured data, and **write it to a file** for specialist agents to read.
 
 ### Steps:
 
@@ -130,52 +139,53 @@ You are a diff processor for code review. Your job is to fetch the diff and pars
     another context       <- line 48, skip (context)
    ```
 
-4. **Return structured JSON** (see output format below)
+4. **Write full data to file:**
+   Write the complete JSON to `{worktree_path}/_review/diff-data.json`:
+   ```json
+   {
+     "pr_info": {
+       "number": 123,
+       "title": "Add user authentication",
+       "author": "developer",
+       "body": "PR description..."
+     },
+     "files": [
+       {
+         "path": "src/lib/utils/dateUtils.ts",
+         "additions": 45,
+         "deletions": 12,
+         "changes": [
+           { "line": 52, "content": "const result = JSON.parse(data);" },
+           { "line": 53, "content": "console.log('parsed:', result);" }
+         ]
+       }
+     ],
+     "total_changes": { "files": 8, "additions": 312, "deletions": 87 },
+     "excluded": ["package-lock.json", "src/lib/generated/api.ts"]
+   }
+   ```
+
+5. **Return only a summary** (see output format below)
 
 ### Important:
 - Do NOT analyze the code for issues - just prepare the data
 - Extract ONLY added lines (`+`) with their correct line numbers
 - The `changes` array is the authoritative list of reviewable lines
+- **Write the full data to the file, return only the summary**
 - If PR not found, return error with clear message
 
 ## Output Format
 
+**Return only this summary — the full data is in the file:**
+
 ```json
 {
   "success": true,
-  "pr_info": {
-    "number": 123,
-    "title": "Add user authentication",
-    "author": "developer",
-    "body": "PR description..."
-  },
-  "files": [
-    {
-      "path": "src/lib/utils/dateUtils.ts",
-      "additions": 45,
-      "deletions": 12,
-      "changes": [
-        { "line": 52, "content": "const result = JSON.parse(data);" },
-        { "line": 53, "content": "console.log('parsed:', result);" },
-        { "line": 78, "content": "export function formatDate(date: Date) {" }
-      ]
-    },
-    {
-      "path": "src/routes/app/classes/+page.svelte",
-      "additions": 120,
-      "deletions": 30,
-      "changes": [
-        { "line": 15, "content": "import { someUtil } from '$lib/utils';" },
-        { "line": 79, "content": "console.log('Creating class:', formData);" }
-      ]
-    }
-  ],
-  "total_changes": { "files": 8, "additions": 312, "deletions": 87 },
-  "excluded": ["package-lock.json", "src/lib/generated/api.ts"]
+  "diff_file": "/tmp/review-123/_review/diff-data.json",
+  "total_changes": { "files": 8, "additions": 312 },
+  "pr_info": { "number": 123, "title": "Add user authentication" }
 }
 ```
-
-**Important:** The `changes` array contains ONLY added/modified lines. Specialists may ONLY flag issues on lines present in this array.
 
 Error format:
 ```json
@@ -189,7 +199,23 @@ Error format:
 
 # Phase 2: Specialist Agents
 
-Nine specialist agents run in parallel. Each receives the `files` array with parsed `changes` and reads its own section from this file.
+Nine specialist agents run in parallel. Each **reads diff data from file** and **writes findings to its own file**.
+
+## File-Based I/O for ALL Specialists
+
+Each specialist receives these paths (not data):
+- `diff_file`: Path to `{worktree_path}/_review/diff-data.json`
+- `output_file`: Path to `{worktree_path}/_review/findings/{slug}.json`
+- `worktree_path`: Path to the worktree (for validation only)
+- `references_dir`: Path to the skill's `references/` directory
+
+Each specialist must:
+1. **Read** `{diff_file}` to get the files/changes data
+2. **Read** its own section from `{references_dir}/agents.md`
+3. **Read** `{references_dir}/patterns.md` for detection patterns
+4. **Read** `{references_dir}/project-conventions.md` for project standards
+5. **Write** findings JSON to `{output_file}`
+6. **Return only** a tiny summary: `{ "agent": "...", "findings_count": N, "findings_file": "..." }`
 
 ## Critical Constraint for ALL Specialists
 
@@ -201,7 +227,9 @@ Before adding a finding, verify:
 
 If you have worktree access, use it ONLY for validation (checking types, existing patterns), NOT for discovering new issues outside the diff. Any finding on a line not in `changes` will be rejected by MetaReviewer.
 
-## Specialist Output Format
+## Findings File Format
+
+Write this JSON to your `{output_file}`:
 
 ```json
 {
@@ -220,12 +248,25 @@ If you have worktree access, use it ONLY for validation (checking types, existin
 }
 ```
 
+## Return Format (to main agent)
+
+**Return only this — the full findings are in the file:**
+
+```json
+{
+  "agent": "AgentName",
+  "findings_count": 3,
+  "findings_file": "/tmp/review-123/_review/findings/agent-name.json"
+}
+```
+
 ---
 
 ## Specialist 1: DebugCode Agent
 
 **Detects:** console.log, debugger, commented code
 **Severity:** Blocker
+**Output file slug:** `debug-code`
 
 ### Prompt
 
@@ -244,7 +285,7 @@ For each finding, include:
 - `why`: Real-world consequence (e.g., "Debug statements leak internal data to browser console, visible to end users")
 - `fixed_code`: Usually "// Remove this line" or the corrected code
 
-Return JSON with findings array.
+Write findings JSON to your output file and return only the summary.
 
 ---
 
@@ -252,6 +293,7 @@ Return JSON with findings array.
 
 **Detects:** Secrets, API keys, credentials, sensitive data exposure
 **Severity:** Blocker
+**Output file slug:** `security`
 
 ### Prompt
 
@@ -274,7 +316,7 @@ For each finding, include:
 - `why`: Security impact (e.g., "API key in source code will be exposed in browser bundle, allowing attackers to impersonate the application")
 - `fixed_code`: Show how to use environment variables or secret management
 
-Return JSON with findings array.
+Write findings JSON to your output file and return only the summary.
 
 ---
 
@@ -282,6 +324,7 @@ Return JSON with findings array.
 
 **Detects:** Missing types, `any`, unsafe casts, null handling
 **Severity:** Major
+**Output file slug:** `type-safety`
 
 ### Prompt
 
@@ -334,7 +377,7 @@ For each finding, include:
 - `why`: What breaks when types are wrong (e.g., "String literal bypasses TypeScript enum checks—if enum value changes, this comparison silently breaks")
 - `fixed_code`: The properly typed version
 
-Return JSON with findings array.
+Write findings JSON to your output file and return only the summary.
 
 ---
 
@@ -342,6 +385,7 @@ Return JSON with findings array.
 
 **Detects:** Missing try/catch, unhandled edge cases, risky operations
 **Severity:** Major
+**Output file slug:** `error-handling`
 
 ### Prompt
 
@@ -385,7 +429,7 @@ For each finding, include:
 - `why`: What fails and how users are affected (e.g., "Network error causes silent failure, user waits indefinitely with no feedback")
 - `fixed_code`: The error-handled version with try/catch or validation
 
-Return JSON with findings array.
+Write findings JSON to your output file and return only the summary.
 
 ---
 
@@ -393,12 +437,7 @@ Return JSON with findings array.
 
 **Detects:** Hardcoded UI strings, missing `$LL` usage
 **Severity:** Major
-
-### Input
-- `worktree_path`: Path to PR files for validation
-
-If you need to check project configuration (i18n setup, svelte.config.js), use:
-`{worktree_path}/path/to/file`
+**Output file slug:** `internationalization`
 
 ### Prompt
 
@@ -414,11 +453,14 @@ Ignore:
 - Error messages for developers (console.error)
 - Test files
 
+If you need to check project configuration (i18n setup, svelte.config.js), use:
+`{worktree_path}/path/to/file`
+
 For each finding, include:
 - `why`: User impact (e.g., "German users see English text, breaking the localized experience")
 - `fixed_code`: The `$LL` version with suggested translation key path
 
-Return JSON with findings array.
+Write findings JSON to your output file and return only the summary.
 
 ---
 
@@ -426,12 +468,7 @@ Return JSON with findings array.
 
 **Detects:** `$root/src/lib`, deep relative imports
 **Severity:** Minor
-
-### Input
-- `worktree_path`: Path to PR files for validation
-
-If you need to verify path aliases, check:
-`{worktree_path}/tsconfig.json` or `{worktree_path}/svelte.config.js`
+**Output file slug:** `import-paths`
 
 ### Prompt
 
@@ -443,11 +480,14 @@ Review this diff for import path issues:
 
 Path aliases available: `$lib`, `$components`, `$utils`, `$models`, `$i18n`, `$routes`
 
+If you need to verify path aliases, check:
+`{worktree_path}/tsconfig.json` or `{worktree_path}/svelte.config.js`
+
 For each finding, include:
 - `why`: Maintenance impact (e.g., "Deep relative imports break when files move and are harder to refactor")
 - `fixed_code`: The corrected import using proper path alias
 
-Return JSON with findings array.
+Write findings JSON to your output file and return only the summary.
 
 ---
 
@@ -455,6 +495,7 @@ Return JSON with findings array.
 
 **Detects:** Misleading names, negative booleans, inconsistent patterns
 **Severity:** Minor
+**Output file slug:** `naming`
 
 ### Prompt
 
@@ -472,7 +513,7 @@ For each finding, include:
 - `why`: How the name misleads (e.g., "Developers will expect X behavior based on name, causing misuse and bugs")
 - `fixed_code`: The renamed version (when straightforward)
 
-Return JSON with findings array.
+Write findings JSON to your output file and return only the summary.
 
 ---
 
@@ -480,11 +521,7 @@ Return JSON with findings array.
 
 **Detects:** Repeated patterns, wrong file placement, extraction opportunities, missing documentation
 **Severity:** Suggestion
-
-### Input
-- `worktree_path`: Path to PR files for validation
-
-All file operations must use `{worktree_path}/` prefix.
+**Output file slug:** `code-organization`
 
 ### Prompt
 
@@ -500,13 +537,15 @@ Review this diff for code organization and documentation issues:
    - Vincent: "If this is meant to be a reusable utility function, please add some jsdoc"
 6. **Redundant code** - Unused variables, dead code paths, redundant expressions (e.g., `value ?? value`)
 
+All file operations must use `{worktree_path}/` prefix.
+
 Be conservative - only flag clear cases. Ask questions for architectural decisions.
 
 For each finding, include:
 - `why`: Why organization matters here (e.g., "Duplicated logic means bug fixes must be applied in multiple places")
 - `fixed_code`: Extracted function signature or suggested structure (when straightforward)
 
-Return JSON with findings array.
+Write findings JSON to your output file and return only the summary.
 
 ---
 
@@ -514,6 +553,7 @@ Return JSON with findings array.
 
 **Detects:** Missing tests, missing Storybook stories, testability issues
 **Severity:** Major (tests, testability), Suggestion (stories)
+**Output file slug:** `test-coverage`
 
 ### Prompt
 
@@ -545,151 +585,25 @@ For new routes (`+page.svelte`, `+page.ts`):
 
 3. Flag if no E2E test covers the route
 
-**Output format:**
-```markdown
-### New Route: `/path/to/route`
-
-**Major: Test Coverage**
-
-New route with form interactions has no E2E test coverage. User flows involving forms/mutations should have E2E tests to catch regressions in critical paths.
-
-**Expected test location:** `{worktree_path}/e2e/staff_user/feature/routeName.spec.ts`
-
-**Suggested test coverage:**
-- Navigate to the page
-- Verify key information displays
-- Test the main user flow (form submission, etc.)
-```
-
 #### 2. Missing Unit Tests (Major, confidence: 0.80)
 
 For new exported functions in `utils/`, `lib/`, `services/`, `models/`:
 
-1. Check if function has testable logic:
-   - Has conditionals (if/else, ternary, ??)
-   - Has loops (for, while, .map, .filter)
-   - Has error handling (try/catch)
-   - If none → skip (trivial function)
-
-2. Check for colocated test file:
-   ```bash
-   ls {filepath}.test.ts 2>/dev/null || ls {filepath}.spec.ts 2>/dev/null
-   ```
-
+1. Check if function has testable logic (conditionals, loops, error handling)
+2. Check for colocated test file
 3. If test file exists, grep for function name to verify coverage
-
 4. Flag if no test exists
-
-**Output format:**
-```markdown
-### Line X-Y `functionName()`
-
-\`\`\`typescript
-{code snippet}
-\`\`\`
-
-**Major: Test Coverage**
-
-Exported utility function with edge case logic has no unit test. Functions with conditional logic should be tested.
-
-**Expected test location:** `path/to/file.test.ts`
-
-**Suggested test cases:**
-\`\`\`typescript
-describe('functionName', () => {
-  it('handles normal case', () => { ... });
-  it('handles edge case', () => { ... });
-});
-\`\`\`
-```
 
 #### 3. Missing Storybook Stories (Suggestion, confidence: 0.75)
 
-For new `.svelte` components in:
-- `components/atoms/`
-- `components/molecules/`
-- `packages/ui/`
-
-Check for colocated story:
-```bash
-ls {ComponentName}.stories.svelte 2>/dev/null
-```
-
-Skip organisms and page-specific components.
-
-**Output format:**
-```markdown
-### New Component: `ComponentName.svelte`
-
-**Suggestion: Test Coverage**
-
-New atom/molecule component has no Storybook story. Reusable components should have stories for visual documentation and testing.
-
-**Expected location:** `path/to/ComponentName.stories.svelte`
-
-**Suggested story:**
-\`\`\`svelte
-<script lang="ts">
-  import { Meta, Story, Template } from '@storybook/addon-svelte-csf';
-  import ComponentName from './ComponentName.svelte';
-</script>
-
-<Meta title="Category/ComponentName" component={ComponentName} />
-
-<Template let:args>
-  <ComponentName {...args} />
-</Template>
-
-<Story name="Default" />
-\`\`\`
-```
+For new `.svelte` components in `components/atoms/`, `components/molecules/`, `packages/ui/`. Skip organisms and page-specific components.
 
 #### 4. Testability Issues (Major, confidence: 0.70)
 
 Flag functions that are hard to test due to tight coupling:
-
-**Pattern 1: Direct store access in logic**
-- Function imports a store AND uses it for business logic decisions
-- Suggest: Extract pure logic into separate function, pass values as parameters
-
-**Pattern 2: Fetch mixed with transformation**
-- Function has `await` API call AND `.map`/`.filter`/`.reduce` transformation
-- Suggest: Split into fetcher function + pure transformer function
-
-**Pattern 3: Multiple side effects**
-- Function has multiple `await` calls or store mutations
-- Suggest: Split into smaller single-purpose functions
-
-**Output format:**
-```markdown
-### Lines X-Y `functionName()`
-
-\`\`\`typescript
-{problematic code}
-\`\`\`
-
-**Major: Testability**
-
-{Explain why it's hard to test - e.g., "Function mixes API fetching with permission logic and reads directly from store. Testing requires mocking both the store and API client, making tests brittle."}
-
-Extract the pure logic:
-
-\`\`\`typescript
-// Pure function - easy to unit test
-export function pureFunctionName(param1: Type1, param2: Type2): ReturnType {
-  // extracted logic here
-}
-
-// Thin wrapper with side effects
-export async function originalFunctionName() {
-  const value1 = get(store);
-  const value2 = await api.call();
-  return pureFunctionName(value1, value2);
-}
-\`\`\`
-
-Now `pureFunctionName` can be unit tested with simple inputs, no mocks required.
-```
+- **Pattern 1:** Direct store access in logic → Extract pure logic
+- **Pattern 2:** Fetch mixed with transformation → Split fetcher + transformer
+- **Pattern 3:** Multiple side effects → Split into single-purpose functions
 
 ### What to Skip
 
@@ -700,59 +614,52 @@ Now `pureFunctionName` can be unit tested with simple inputs, no mocks required.
 - Test files themselves
 - Generated files
 
-Return JSON with findings array.
+Write findings JSON to your output file and return only the summary.
 
 ---
 
 # Phase 3: MetaReviewer Agent
 
-**Purpose:** Deduplicate, validate, filter, and format final review output
+**Purpose:** Read all findings from files, deduplicate, validate, filter, and write final review
 **Runs:** After all specialists complete
 
 ## Input
 
+The main agent passes only paths:
+
 ```json
 {
-  "pr_info": { "number": 123, "title": "...", "author": "..." },
-  "files": [
-    {
-      "path": "src/lib/utils/dateUtils.ts",
-      "changes": [
-        { "line": 52, "content": "..." },
-        { "line": 53, "content": "..." }
-      ]
-    }
-  ],
   "worktree_path": "/tmp/review-123",
-  "specialist_findings": [
-    { "agent": "DebugCode", "findings": [...] },
-    { "agent": "Security", "findings": [...] },
-    // ... all 9 specialists
-  ]
+  "diff_file": "/tmp/review-123/_review/diff-data.json",
+  "findings_dir": "/tmp/review-123/_review/findings",
+  "references_dir": "{path to references/}",
+  "project_dir": "/original/project/directory"
 }
 ```
 
-**Important:** The `files` array contains the authoritative list of changed lines. Use it to validate findings.
-
 ## Prompt
 
-You are the meta-reviewer for code review. Your job is to consolidate, validate, and filter findings from 9 specialist agents into a final review.
+You are the meta-reviewer for code review. Your job is to read all specialist findings from files, consolidate, validate, and produce the final review.
 
 ### Steps:
 
-1. **Merge all findings** - Combine findings from all specialists into one list
+1. **Read diff data** from `{diff_file}` to get `pr_info` and `files` (with `changes` arrays)
 
-2. **Validate line numbers** - For each finding, verify the `line` exists in the file's `changes` array:
-   - Build a map: `{ "path/to/file.ts": [52, 53, 78], ... }` from the `files` input
+2. **Read all findings** from `{findings_dir}/*.json` — each file contains one specialist's output
+
+3. **Merge all findings** - Combine findings from all specialists into one list
+
+4. **Validate line numbers** - For each finding, verify the `line` exists in the file's `changes` array:
+   - Build a map: `{ "path/to/file.ts": [52, 53, 78], ... }` from the files data
    - Drop any finding where `finding.line` is NOT in the valid lines for that file
    - Track dropped findings in `filtered.outside_diff` count
 
-3. **Deduplicate** - Same file + same line + similar issue = keep only highest confidence
+5. **Deduplicate** - Same file + same line + similar issue = keep only highest confidence
    - "Similar issue" means same category (e.g., two type safety issues on same line)
 
-5. **Filter by confidence** - Drop findings with confidence < 0.6
+6. **Filter by confidence** - Drop findings with confidence < 0.6
 
-6. **Context validation** - For remaining findings, READ the actual source files to verify:
+7. **Context validation** - For remaining findings, READ the actual source files to verify:
 
    **Use `{worktree_path}` for file reads.** For example, to verify a finding in `src/lib/utils/file.ts`, read `{worktree_path}/src/lib/utils/file.ts`.
 
@@ -761,15 +668,17 @@ You are the meta-reviewer for code review. Your job is to consolidate, validate,
    - Does the suggestion make sense with surrounding code?
    - Mark validated findings, drop false positives
 
-7. **Apply noise limiting** - If more than 15 comments remain:
+8. **Apply noise limiting** - If more than 15 comments remain:
    - Keep ALL blockers (never drop)
    - Keep up to 8 major (by confidence)
    - Keep up to 5 minor/suggestions (by confidence)
 
-8. **Generate single output file**: `output/review-{pr}.md`
-   - Group comments by file, ordered by line number within each file
-   - Each comment is self-contained with educational context
-   - No summary table—the inline format is ready to copy-paste into GitHub
+9. **Read review format references** from `{references_dir}/agents.md` if needed for output formatting
+
+10. **Write output file** to `{project_dir}/docs/reviews/review-{pr}.md`
+    - **Important:** Use the `{project_dir}` path (original project, NOT the worktree)
+    - Create the directory if it doesn't exist: `mkdir -p {project_dir}/docs/reviews`
+    - Group comments by file, ordered by line number within each file
 
 ### Output File Format
 
@@ -823,7 +732,74 @@ Use this markdown format (comments grouped by file, ordered by line number):
 - Include `fixed_code` block when the fix is straightforward
 - Omit `fixed_code` block for complex architectural issues that need discussion
 
-## Output Format
+### Output Format Examples
+
+**Blocker example:**
+```markdown
+## `src/routes/app/classes/[id]/+page.svelte`
+
+---
+
+### Line 79
+
+\`\`\`svelte
+console.log('Creating class:', formData);
+\`\`\`
+
+**Blocker: Debug Code**
+
+Debug statements leak internal data structures to browser console, making it visible to end users and potential attackers.
+
+\`\`\`svelte
+// Remove this line entirely
+\`\`\`
+
+<!-- agent:DebugCode confidence:0.95 -->
+```
+
+**Major example:**
+```markdown
+---
+
+### Line 126
+
+\`\`\`typescript
+booking.appointment_status !== 'DECLINED'
+\`\`\`
+
+**Major: Type Safety**
+
+String literals bypass TypeScript's enum checks—if the enum value changes, this comparison silently breaks with no compiler warning.
+
+\`\`\`typescript
+booking.appointment_status !== AppointmentStatus.DECLINED
+\`\`\`
+
+<!-- agent:TypeSafety confidence:0.85 -->
+```
+
+**Suggestion example:**
+```markdown
+---
+
+### Lines 102-111
+
+\`\`\`typescript
+export function sortStaffByWorkHours<T extends Staff>(
+  staffList: T[],
+  _workHoursList: WorkHour[],
+\`\`\`
+
+**Suggestion: Naming**
+
+Function name promises sorting by work hours but actually sorts alphabetically. Developers will misuse this expecting work-hour ordering, causing subtle bugs in scheduling logic.
+
+Consider renaming to `sortStaffAlphabetically` and removing the unused `_workHoursList` parameter.
+
+<!-- agent:Naming confidence:0.82 -->
+```
+
+## Return Format
 
 Return this JSON:
 
@@ -837,7 +813,8 @@ Return this JSON:
     "duplicates": 4,
     "false_positives": 0
   },
-  "output_file": "output/review-123.md",
+  "output_file": "./docs/reviews/review-123.md",
+  "review_file": "/absolute/path/to/project/docs/reviews/review-123.md",
   "summary": {
     "blocker": 2,
     "major": 5,
@@ -847,26 +824,27 @@ Return this JSON:
 }
 ```
 
-**Note:** `outside_diff` counts findings that were rejected because their line number was not in the `changes` array.
+**Note:** `outside_diff` counts findings that were rejected because their line number was not in the `changes` array. `review_file` is the absolute path for use by PostAgent.
 
 ---
 
 # Phase 4: CleanupAgent
 
-**Purpose:** Remove the worktree after review completes
-**Runs:** Last, after MetaReviewer
+**Purpose:** Remove the worktree and clean up stale review files
+**Runs:** Last, after MetaReviewer (and PostAgent if auto-posting)
 
 ## Input
 
 ```json
 {
-  "worktree_path": "/tmp/review-123"
+  "worktree_path": "/tmp/review-123",
+  "project_dir": "/original/project/directory"
 }
 ```
 
 ## Prompt
 
-You are the cleanup agent for code review. Your job is to remove the worktree after review.
+You are the cleanup agent for code review. Your job is to remove the worktree and clean up stale review files.
 
 ### Steps:
 
@@ -880,16 +858,25 @@ You are the cleanup agent for code review. Your job is to remove the worktree af
    git worktree prune
    ```
 
+3. **Trash stale review files:**
+   Check `{project_dir}/docs/reviews/` for old review files and trash any older than 7 days:
+   ```bash
+   find {project_dir}/docs/reviews -name "review-*.md" -mtime +7 -exec trash {} \;
+   ```
+   If no `docs/reviews/` directory exists, skip this step.
+
 ### Important:
-- If remove fails, try with `--force`
+- If worktree remove fails, try with `--force`
 - The user's main working directory is unaffected
+- Use `trash` instead of `rm` for review file cleanup
 
 ## Output Format
 
 ```json
 {
   "success": true,
-  "removed_worktree": "/tmp/review-123"
+  "removed_worktree": "/tmp/review-123",
+  "stale_reviews_trashed": 2
 }
 ```
 
@@ -898,6 +885,7 @@ With warnings:
 {
   "success": true,
   "removed_worktree": "/tmp/review-123",
+  "stale_reviews_trashed": 0,
   "warnings": ["Had to use --force to remove worktree"]
 }
 ```
@@ -907,7 +895,7 @@ With warnings:
 # PostAgent
 
 **Purpose:** Post review comments from markdown file to GitHub PR as inline comments
-**Runs:** Standalone, triggered by `/review-pr post` command
+**Runs:** Standalone via `/review-pr post`, or automatically in auto-post mode
 
 ## Input
 
@@ -915,14 +903,16 @@ With warnings:
 {
   "type": "post",
   "pr_number": 123,
-  "review_file": "output/review-123.md"
+  "review_file": "./docs/reviews/review-123.md",
+  "auto_post": false
 }
 ```
 
-If `pr_number` is not provided, detect from current branch:
-```bash
-gh pr view --json number -q '.number'
-```
+- `auto_post`: When `true`, skip the confirmation prompt (still show preview)
+- If `pr_number` is not provided, detect from current branch:
+  ```bash
+  gh pr view --json number -q '.number'
+  ```
 
 ## Prompt
 
@@ -932,7 +922,7 @@ You are the post agent for code review. Your job is to post review comments to G
 
 1. **Read and parse the review file**
 
-   Parse `output/review-{pr}.md` to extract comments. The format is:
+   Parse `docs/reviews/review-{pr}.md` to extract comments. The format is:
 
    ```markdown
    ## `src/lib/utils/file.ts`
@@ -1002,17 +992,13 @@ You are the post agent for code review. Your job is to post review comments to G
 
    Mark comments on invalid lines as "stale" and skip them.
 
-6. **Show preview and ask confirmation**
+6. **Show preview and handle confirmation**
 
    Display:
    ```
-   ┌─────────────────────────────────────────────────────────────┐
-   │ Ready to post {n} comments to PR #{pr}                      │
-   │ "{pr_title}"                                                │
-   ├─────────────────────────────────────────────────────────────┤
-   │ Skipped (already posted): {n}                               │
-   │ Skipped (line not in diff): {n}                             │
-   └─────────────────────────────────────────────────────────────┘
+   Ready to post {n} comments to PR #{pr} "{pr_title}"
+   Skipped (already posted): {n}
+   Skipped (line not in diff): {n}
 
    Comments to post:
 
@@ -1023,11 +1009,11 @@ You are the post agent for code review. Your job is to post review comments to G
       {Severity}: {Category} — {first line of explanation}
 
    ... (more)
-
-   Post these comments? [y/N]:
    ```
 
-   Use AskUserQuestion tool with options: "Yes, post comments" / "No, cancel"
+   **If `auto_post` is `false` (or absent):** Use AskUserQuestion tool with options: "Yes, post comments" / "No, cancel"
+
+   **If `auto_post` is `true`:** Skip confirmation, proceed directly to posting.
 
 7. **Submit review to GitHub**
 
@@ -1055,7 +1041,13 @@ You are the post agent for code review. Your job is to post review comments to G
 
    Note: `side: "RIGHT"` means commenting on the new version (additions).
 
-8. **Report results**
+8. **Trash review file after successful posting**
+   ```bash
+   trash {review_file}
+   ```
+   The review comments are now on GitHub — the local file has served its purpose.
+
+9. **Report results**
 
    ```
    Posted {n} comments to PR #{pr}
@@ -1065,14 +1057,17 @@ You are the post agent for code review. Your job is to post review comments to G
      ⚠ {n} skipped (already posted)
      ⚠ {n} skipped (line not in diff)
 
+   Review file trashed (comments now on GitHub)
    View at: https://github.com/{owner}/{repo}/pull/{pr}
    ```
 
 ### Important:
-- Always ask for confirmation before posting
+- In manual mode, always ask for confirmation before posting
+- In auto-post mode, skip confirmation but still show the preview
 - The review is submitted with `event: "COMMENT"` (neutral, no approval/rejection)
-- If user declines, abort with no changes
+- If user declines (manual mode), abort with no changes
 - This command is idempotent - running it twice won't create duplicates
+- Always trash the review file after successful posting
 
 ## Output Format
 
@@ -1082,6 +1077,7 @@ You are the post agent for code review. Your job is to post review comments to G
   "posted": 9,
   "skipped_duplicate": 2,
   "skipped_stale": 1,
+  "review_file_trashed": true,
   "pr_url": "https://github.com/owner/repo/pull/123"
 }
 ```
@@ -1090,7 +1086,7 @@ Error format:
 ```json
 {
   "success": false,
-  "error": "Review file not found: output/review-123.md"
+  "error": "Review file not found: docs/reviews/review-123.md"
 }
 ```
 

@@ -57,6 +57,13 @@ See `frontend-tools/skills/skill-creator/SKILL.md` for the complete skill author
 
 ## Updating Plugin Versions
 
+**IMPORTANT: Always bump the version after modifying a plugin.** This is a required step — never skip it.
+
 After modifying a plugin, update the version in `.claude-plugin/plugin.json`:
 - `frontend-tools/.claude-plugin/plugin.json`
 - `general-tools/.claude-plugin/plugin.json`
+
+Use semantic versioning:
+- **Patch** (1.0.x): Bug fixes, minor tweaks
+- **Minor** (1.x.0): New features, new skills/agents, significant improvements
+- **Major** (x.0.0): Breaking changes
