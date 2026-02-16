@@ -14,45 +14,72 @@ Multi-agent code review in the synthesized style of Nicolas and Vincent.
 /review-pr --staged     # Review only staged changes
 /review-pr 123          # Review PR #123 from GitHub
 /review-pr <url>        # Review PR from URL
+/review-pr 123 --auto-post  # Review + auto-post comments to GitHub
 /review-pr post 123     # Post review comments to GitHub PR
 /review-pr post         # Post to PR (auto-detect from branch)
 ```
 
+## Context Isolation Rules
+
+**CRITICAL: The main agent is a lightweight orchestrator. It must stay lean.**
+
+1. **Do NOT read any file from `references/`.** Specialists self-serve their own reference files.
+2. **Do NOT pass large JSON payloads** between agents. All data flows through files in `{worktree_path}/_review/`.
+3. **Only pass file paths** to agents. Receive only tiny status objects back.
+4. **Never inline diff data, findings, or reference content** in the main agent's context.
+
+### File Layout
+
+All intermediate data lives in the worktree:
+
+```
+/tmp/review-{pr}/
+  _review/
+    diff-data.json            # DiffProcessor writes, specialists + MetaReviewer read
+    findings/
+      debug-code.json         # Each specialist writes its own file
+      security.json
+      type-safety.json
+      error-handling.json
+      internationalization.json
+      import-paths.json
+      naming.json
+      code-organization.json
+      test-coverage.json
+```
+
 ## Process
 
-Five-phase architecture to minimize main agent context usage:
+Five-phase architecture with file-based communication:
 
 ```
 Phase 0: Setup ────────► SetupAgent
                               │
                               ▼
-Phase 1: Preparation ──► DiffProcessor agent
+Phase 1: Preparation ──► DiffProcessor
                               │
                               ▼
-Phase 2: Review ───────► 9 Specialist agents (parallel)
+Phase 2: Review ───────► 9 Specialists (parallel)
                               │
                               ▼
-Phase 3: Consolidation ► MetaReviewer agent
+Phase 3: Consolidation ► MetaReviewer
                               │
                               ▼
-Phase 4: Cleanup ──────► CleanupAgent
+                    ┌─── auto-post? ───┐
+                    │ yes              │ no
+                    ▼                  ▼
+              PostAgent          Present summary
+                    │                  │
+                    ▼                  ▼
+Phase 4: Cleanup ──► CleanupAgent ◄────┘
                               │
                               ▼
-Main Agent ◄─────────── Final summary to user
+Main Agent ◄─────────── Final summary
 ```
 
 ### Phase 0: Launch SetupAgent
 
-Spawn **SetupAgent** before any other work. This agent creates an isolated worktree for the review:
-
-1. **Get PR branch name:**
-   - `gh pr view {number} --json headRefName -q '.headRefName'`
-
-2. **Create worktree:**
-   - `git worktree add /tmp/review-{number} origin/{pr-branch}`
-
-3. **Generate fresh types (in worktree):**
-   - `cd /tmp/review-{number} && pnpm install && pnpm run generate:api-types`
+Spawn **SetupAgent** before any other work. This agent creates an isolated worktree and the `_review/` directory structure.
 
 SetupAgent returns:
 ```json
@@ -65,105 +92,87 @@ SetupAgent returns:
 
 ### Phase 1: Launch DiffProcessor Agent
 
-Spawn **DiffProcessor** agent with the user's arguments:
+Spawn **DiffProcessor** agent with the user's arguments plus `worktree_path`:
 
 | Argument | Passed to Agent |
 |----------|-----------------|
-| (none) | `{ "type": "local", "staged": false }` |
-| `--staged` | `{ "type": "local", "staged": true }` |
-| Number | `{ "type": "pr", "number": 123 }` |
-| URL | `{ "type": "pr", "url": "..." }` |
+| (none) | `{ "type": "local", "staged": false, "worktree_path": "..." }` |
+| `--staged` | `{ "type": "local", "staged": true, "worktree_path": "..." }` |
+| Number | `{ "type": "pr", "number": 123, "worktree_path": "..." }` |
+| URL | `{ "type": "pr", "url": "...", "worktree_path": "..." }` |
 
-DiffProcessor returns:
+DiffProcessor **writes** full diff data to `{worktree_path}/_review/diff-data.json` and **returns only a summary**:
 ```json
 {
-  "pr_info": { "number": 123, "title": "...", "author": "..." },
-  "files": [
-    {
-      "path": "src/lib/utils/dateUtils.ts",
-      "additions": 45,
-      "deletions": 12,
-      "changes": [
-        { "line": 52, "content": "const result = JSON.parse(data);" },
-        { "line": 53, "content": "console.log('parsed:', result);" }
-      ]
-    },
-    {
-      "path": "src/routes/app/classes/+page.svelte",
-      "additions": 120,
-      "deletions": 30,
-      "changes": [
-        { "line": 15, "content": "<script lang=\"ts\">" },
-        { "line": 79, "content": "console.log('Creating class:', formData);" }
-      ]
-    }
-  ],
-  "total_changes": { "files": 8, "additions": 312, "deletions": 87 },
-  "excluded": ["package-lock.json", "generated/api.ts"]
+  "success": true,
+  "diff_file": "/tmp/review-123/_review/diff-data.json",
+  "total_changes": { "files": 8, "additions": 312 },
+  "pr_info": { "number": 123, "title": "Add user authentication" }
 }
 ```
 
-**Note:** The `changes` array contains ONLY added/modified lines with their exact line numbers in the new file. Specialists may only flag issues on lines present in this array.
+**The main agent never sees the full files array.**
 
 ### Phase 2: Launch 9 Specialist Agents in Parallel
 
-Spawn all 9 agents in a **single message** with their assigned diff chunks.
+Spawn all 9 agents in a **single message**. Each receives only paths — no data payloads.
 
-**Important:** Pass `worktree_path` from Phase 0 to ALL specialist agents. This ensures agents can validate findings against actual files when reviewing PRs from external repositories.
+| Agent | Focus | Severity |
+|-------|-------|----------|
+| DebugCode | console.log, debugger, commented code | Blocker |
+| Security | Secrets, API keys, credentials | Blocker |
+| TypeSafety | Missing types, `any`, unsafe casts | Major |
+| ErrorHandling | Missing try/catch, unhandled edge cases | Major |
+| Internationalization | Hardcoded UI strings, missing `$LL` | Major |
+| ImportPaths | `$root/src/lib`, deep relative imports | Minor |
+| Naming | Misleading names, negative booleans | Minor |
+| CodeOrganization | Repeated patterns, extraction, documentation | Suggestion |
+| TestCoverage | Missing E2E/unit tests, stories, testability | Major/Suggestion |
 
-| Agent | Focus | Severity | Receives |
-|-------|-------|----------|----------|
-| DebugCode | console.log, debugger, commented code | Blocker | files, worktree_path |
-| Security | Secrets, API keys, credentials | Blocker | files, worktree_path |
-| TypeSafety | Missing types, `any`, unsafe casts | Major | files, worktree_path |
-| ErrorHandling | Missing try/catch, unhandled edge cases | Major | files, worktree_path |
-| Internationalization | Hardcoded UI strings, missing `$LL` | Major | files, worktree_path |
-| ImportPaths | `$root/src/lib`, deep relative imports | Minor | files, worktree_path |
-| Naming | Misleading names, negative booleans | Minor | files, worktree_path |
-| CodeOrganization | Repeated patterns, extraction, documentation | Suggestion | files, worktree_path |
-| TestCoverage | Missing E2E/unit tests, stories, testability | Major/Suggestion | files, worktree_path |
+**Prompt template (identical structure for all 9):**
 
-Each agent:
-1. Receives the `files` array with `changes` (added/modified lines only)
-2. Receives `worktree_path` if it needs file access for validation
-3. Reads its own section from `references/agents.md`
-4. Reads relevant patterns from `references/patterns.md`
-5. Returns findings JSON
-
-**Critical constraint:** Agents may ONLY flag issues on lines present in the `changes` array. Worktree access is for validation (checking types, existing patterns), not for discovering new issues outside the diff.
-
-Agent output format:
-```json
-{
-  "agent": "TypeSafety",
-  "findings": [{
-    "file": "src/lib/api/services/search.ts",
-    "line": 126,
-    "severity": "major",
-    "confidence": 0.85,
-    "issue": "Loss of type safety - using string literal instead of enum",
-    "why": "String literals bypass TypeScript's enum checks—if the enum value changes, this comparison silently breaks",
-    "suggestion": "Use `AppointmentStatus.DECLINED` instead of `'DECLINED'`",
-    "code_snippet": "booking.appointment_status !== 'DECLINED'",
-    "fixed_code": "booking.appointment_status !== AppointmentStatus.DECLINED"
-  }]
-}
 ```
+You are the {agent_name} specialist reviewer.
+Read your instructions from {references_dir}/agents.md (section "## Specialist N: {agent_name} Agent").
+Read diff data from {diff_file}.
+Read patterns from {references_dir}/patterns.md.
+Read project conventions from {references_dir}/project-conventions.md.
+Write your findings JSON to {output_file}.
+Worktree is at {worktree_path} (for validation only).
+Return only: { "agent": "{agent_name}", "findings_count": N, "findings_file": "{output_file}" }
+```
+
+Where:
+- `{references_dir}` = path to `references/` directory of this skill
+- `{diff_file}` = `{worktree_path}/_review/diff-data.json`
+- `{output_file}` = `{worktree_path}/_review/findings/{slug}.json`
+- `{worktree_path}` = from Phase 0
+
+Each specialist:
+1. Reads `diff-data.json` to get the files/changes
+2. Reads its own section from `agents.md` + patterns + conventions
+3. **Writes** findings to `_review/findings/{slug}.json`
+4. **Returns only**: `{ "agent": "...", "findings_count": N, "findings_file": "..." }`
+
+**Critical constraint:** Agents may ONLY flag issues on lines present in the `changes` array. Worktree access is for validation only.
 
 ### Phase 3: Launch MetaReviewer Agent
 
-Spawn **MetaReviewer** agent with:
-- All specialist findings (merged)
-- PR info from Phase 1
-- File list for context validation
-- **Worktree path from Phase 0** (for reading source files during validation)
+Spawn **MetaReviewer** with only paths:
 
-MetaReviewer performs:
-1. **Deduplication** - Same file + line + similar issue = keep highest confidence
-2. **Confidence threshold** - Drop findings below 0.6
-3. **Context validation** - Read actual files to verify issues
-4. **Noise limiting** - Cap at 15 comments (all blockers, 8 major, 5 minor/suggestions)
-5. **Write output file** - `./docs/reviews/review-{pr}.md` (grouped by file, ordered by line)
+```json
+{
+  "worktree_path": "/tmp/review-123",
+  "diff_file": "/tmp/review-123/_review/diff-data.json",
+  "findings_dir": "/tmp/review-123/_review/findings",
+  "references_dir": "{path to references/}",
+  "project_dir": "{original working directory}"
+}
+```
+
+MetaReviewer reads all data from files within its own context, performs deduplication/validation/filtering, and writes the review to `{project_dir}/docs/reviews/review-{pr}.md`.
+
+**Important:** `project_dir` is the original project directory (not the worktree). The review file must always be written there so it persists after worktree cleanup.
 
 MetaReviewer returns:
 ```json
@@ -172,6 +181,7 @@ MetaReviewer returns:
   "final_count": 12,
   "filtered": { "outside_diff": 5, "low_confidence": 13, "duplicates": 4 },
   "output_file": "./docs/reviews/review-123.md",
+  "review_file": "/absolute/path/to/docs/reviews/review-123.md",
   "summary": {
     "blocker": 2,
     "major": 5,
@@ -181,11 +191,22 @@ MetaReviewer returns:
 }
 ```
 
-**Note:** `outside_diff` counts findings rejected because their line wasn't in the PR's changed lines.
+### Auto-Post Mode
+
+When `--auto-post` is present OR the project's CLAUDE.md contains an instruction like "When using /review-pr, always auto-post review comments to GitHub":
+
+1. Phases 0-3 run as normal
+2. After MetaReviewer returns, **automatically launch PostAgent** with `auto_post: true`
+3. PostAgent shows a preview of what will be posted, then proceeds directly (no confirmation prompt)
+4. PostAgent trashes the review file after successful posting
+5. Proceed to Phase 4 (CleanupAgent)
+
+When auto-post is NOT active:
+1. Present summary to user after Phase 3
+2. User can later run `/review-pr post` manually
+3. Proceed to Phase 4 (CleanupAgent)
 
 ### Main Agent: Present Results
-
-The main agent only presents the final summary to the user:
 
 ```
 Review complete for PR #123
@@ -204,111 +225,32 @@ Filtered out: 5 outside-diff, 13 low-confidence, 4 duplicates (from 34 raw findi
 
 ### Phase 4: Launch CleanupAgent
 
-After presenting results, spawn **CleanupAgent** to remove the worktree:
+After presenting results (and after PostAgent if auto-posting), spawn **CleanupAgent** with:
 
-1. **Remove worktree:**
-   - `git worktree remove {worktree_path}`
-
-2. **Prune worktree references (optional):**
-   - `git worktree prune`
-
-CleanupAgent returns:
 ```json
 {
-  "success": true,
-  "removed_worktree": "/tmp/review-123"
+  "worktree_path": "/tmp/review-123",
+  "project_dir": "{original working directory}"
 }
 ```
 
+CleanupAgent:
+1. Removes the worktree (`git worktree remove`)
+2. Prunes worktree references
+3. Trashes stale review files older than 7 days from `{project_dir}/docs/reviews/`
+
 ## Output Format
 
-Output is a single file (`./docs/reviews/review-{pr}.md`) with inline comments ready to copy-paste into GitHub PR line comments. No separate summary table—each comment is self-contained.
-
-### File Header
-
-```markdown
-# PR #123 — File Comments
-
-**Reviewed:** 2026-01-19
-**Files changed:** 8
-```
-
-### Comment Block (Blocker)
-
-```markdown
-## `src/routes/app/classes/[id]/+page.svelte`
-
----
-
-### Line 79
-
-\`\`\`svelte
-console.log('Creating class:', formData);
-\`\`\`
-
-**Blocker: Debug Code**
-
-Debug statements leak internal data structures to browser console, making it visible to end users and potential attackers.
-
-\`\`\`svelte
-// Remove this line entirely
-\`\`\`
-
-<!-- agent:DebugCode confidence:0.95 -->
-```
-
-### Comment Block (Major with fix)
-
-```markdown
----
-
-### Line 126
-
-\`\`\`typescript
-booking.appointment_status !== 'DECLINED'
-\`\`\`
-
-**Major: Type Safety**
-
-String literals bypass TypeScript's enum checks—if the enum value changes, this comparison silently breaks with no compiler warning.
-
-\`\`\`typescript
-booking.appointment_status !== AppointmentStatus.DECLINED
-\`\`\`
-
-<!-- agent:TypeSafety confidence:0.85 -->
-```
-
-### Comment Block (Suggestion)
-
-```markdown
----
-
-### Lines 102-111
-
-\`\`\`typescript
-export function sortStaffByWorkHours<T extends Staff>(
-  staffList: T[],
-  _workHoursList: WorkHour[],
-\`\`\`
-
-**Suggestion: Naming**
-
-Function name promises sorting by work hours but actually sorts alphabetically. Developers will misuse this expecting work-hour ordering, causing subtle bugs in scheduling logic.
-
-Consider renaming to `sortStaffAlphabetically` and removing the unused `_workHoursList` parameter.
-
-<!-- agent:Naming confidence:0.82 -->
-```
+Output is a single file (`{project_dir}/docs/reviews/review-{pr}.md`) with inline comments grouped by file, ordered by line number. See the MetaReviewer section in `references/agents.md` for the full format specification.
 
 ## Severity Levels
 
-| Level | Icon | Description |
-|-------|------|-------------|
-| Blocker | (none) | Must fix before merge |
-| Major | (none) | Should fix |
-| Minor | (none) | Nice to fix |
-| Suggestion | (none) | Optional improvement |
+| Level | Description |
+|-------|-------------|
+| Blocker | Must fix before merge |
+| Major | Should fix |
+| Minor | Nice to fix |
+| Suggestion | Optional improvement |
 
 ## Edge Cases
 
@@ -322,79 +264,26 @@ Consider renaming to `sortStaffAlphabetically` and removing the unused `_workHou
 
 ## Posting Reviews to GitHub
 
-The `post` command reads an existing review file and posts comments directly to GitHub as inline PR comments.
+The `post` command reads a review file and posts comments to GitHub as inline PR comments. See `references/agents.md` (PostAgent section) for the full flow.
 
-### Post Command Flow
-
-```
-/review-pr post 123
-        │
-        ▼
-   PostAgent
-        │
-        ├── 1. Read ./docs/reviews/review-123.md
-        ├── 2. Parse comments from markdown
-        ├── 3. Fetch existing GitHub comments
-        ├── 4. Fetch current diff (validate lines)
-        ├── 5. Filter duplicates + stale lines
-        ├── 6. Show preview, ask confirmation
-        ├── 7. Submit review via API
-        └── 8. Report results
-        │
-        ▼
-   Done
-```
-
-### Preview and Confirmation
-
-Before posting, the agent shows a full preview:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ Ready to post 10 comments to PR #123                        │
-│ "Add QR code scanning feature"                              │
-├─────────────────────────────────────────────────────────────┤
-│ Skipped (already posted): 2                                 │
-│ Skipped (line not in diff): 1                               │
-└─────────────────────────────────────────────────────────────┘
-
-Comments to post:
-
-1. src/lib/api/services/scanner.ts:45
-   Blocker: Debug Code — console.log statement in production code
-
-2. src/lib/api/services/scanner.ts:89
-   Major: Error Handling — Missing try/catch around JSON.parse
-
-... (more)
-
-Post these comments? [y/N]:
-```
-
-### After Posting
-
-```
-Posted 10 comments to PR #123
-
-Results:
-  ✓ 9 posted successfully
-  ⚠ 1 skipped (line 45 no longer in diff)
-
-View at: https://github.com/owner/repo/pull/123
-```
-
-### Post Command Edge Cases
+**Quick reference:**
+1. Parse `docs/reviews/review-{pr}.md` into structured comments
+2. Fetch existing GitHub comments, filter duplicates
+3. Validate line numbers against current diff
+4. Show preview, ask confirmation (skipped in auto-post mode)
+5. Submit as single review via `gh api`
+6. Trash review file after successful posting
 
 | Scenario | Behavior |
 |----------|----------|
-| Review file not found | Error: "No review found at ./docs/reviews/review-123.md" |
+| Review file not found | Error: "No review found" |
 | All comments already posted | "All comments already posted or stale" |
 | User declines confirmation | Abort with no changes |
 | Some lines no longer exist | Post valid comments, report skipped |
 
 ## References
 
-- `references/agents.md` - Agent prompts and output format
+- `references/agents.md` - Agent prompts, output formats, and review file format
 - `references/patterns.md` - Regex patterns for detection
 - `references/reviewer-examples.md` - Real Nicolas/Vincent comments
 - `references/project-conventions.md` - Yond-specific standards
