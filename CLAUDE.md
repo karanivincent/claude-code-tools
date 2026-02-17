@@ -55,6 +55,10 @@ Key principles:
 
 See `frontend-tools/skills/skill-creator/SKILL.md` for the complete skill authoring guide.
 
+## Updating the README
+
+**Always update `README.md` after significant changes** — adding/removing skills, agents, plugins, or changing the project structure. Keep the README concise: focus on installation instructions and a brief overview rather than exhaustive listings of every skill and agent.
+
 ## Updating Plugin Versions
 
 **IMPORTANT: Always bump the version after modifying a plugin.** This is a required step — never skip it.

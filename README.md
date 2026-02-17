@@ -1,6 +1,6 @@
-# Claude Code Tools Marketplace
+# Yond Marketplace
 
-A Claude Code plugin marketplace with tools for frontend development, testing, GitHub workflows, and developer productivity.
+A Claude Code plugin marketplace with tools for frontend development, GitHub workflows, and developer productivity.
 
 ## Installation
 
@@ -17,25 +17,25 @@ Add this marketplace to your project's `.claude/settings.json`:
     }
   },
   "enabledPlugins": {
-    "frontend-tools@yond-marketplace": true,
-    "general-tools@yond-marketplace": true
+    "frontend-tools@vince-tools-marketplace": true,
+    "general-tools@vince-tools-marketplace": true
   }
 }
 ```
 
-## Available Plugins
+## Plugins
 
-### frontend-tools
+### frontend-tools `v1.6.0`
 
-Comprehensive toolkit for frontend development with SvelteKit, testing, and GitHub workflows.
+Agents and skills for codebase research, PR workflows, testing, planning, and skill development.
 
 **Agents:**
 
 | Agent | Description |
 |-------|-------------|
-| `gather-codebase-context` | Research-only agent that explores and documents codebase context |
-| `github-fetch-agent` | Fetches and processes GitHub data |
-| `failure-mapper` | Maps all failures in failing E2E tests for systematic fixing |
+| `gather-codebase-context` | Explores and documents codebase context for a proposed change |
+| `github-fetch-agent` | Fetches and processes GitHub data (PR comments, reviews, issue discussions) |
+| `failure-mapper` | Maps all failures in a failing E2E test for systematic fixing |
 | `manual-tester` | Explores features using Playwright MCP to document interactive elements |
 | `testid-fixer` | Adds testId prop support to Svelte components |
 
@@ -47,64 +47,23 @@ Comprehensive toolkit for frontend development with SvelteKit, testing, and GitH
 | `skill-creator` | Creates, edits, and troubleshoots Claude Code Skills |
 | `claude-md-editor` | Creates, reviews, and optimizes CLAUDE.md configuration files |
 | `github-pr-creator` | Creates GitHub PRs with focused descriptions and CI monitoring |
+| `review-pr` | AI code review using patterns learned from team review history |
+| `resolve-pr-comments` | Systematically processes PR review comments with critical analysis |
 | `test-maintenance` | Fixes failing E2E/unit tests using systematic workflows |
 | `sveltekit-testing-skill` | Testing standards for SvelteKit (Vitest + Playwright) |
 | `user-story-breakdown` | Transforms user stories into actionable task breakdowns |
 | `github-workflow` | Manages GitHub Issues through full lifecycle |
+| `github-issue-images` | Downloads images attached to GitHub issues for design review |
 | `slack-pr-message` | Generates Slack announcement messages for PRs |
 
-**MCP Servers:**
-- `playwright` - Browser automation for testing
+### general-tools `v1.1.0`
 
----
-
-### general-tools
-
-General-purpose tools for git workflows and developer productivity.
-
-**Skills:**
+General-purpose skills for git workflows and developer productivity.
 
 | Skill | Description |
 |-------|-------------|
 | `branch-cleanup` | Cleans up stale git branches (merged or abandoned) |
-
-**MCP Servers:**
-- `context7` - Library documentation lookup
-- `notionMCP` - Notion integration
-
-## Structure
-
-```
-claude-code-tools/
-├── .claude-plugin/
-│   └── marketplace.json
-├── frontend-tools/
-│   ├── .claude-plugin/
-│   │   └── plugin.json
-│   ├── agents/
-│   │   ├── gather-codebase-context.md
-│   │   ├── github-fetch-agent.md
-│   │   ├── failure-mapper.md
-│   │   ├── manual-tester.md
-│   │   └── testid-fixer.md
-│   └── skills/
-│       ├── research-and-planning/
-│       ├── skill-creator/
-│       ├── claude-md-editor/
-│       ├── github-pr-creator/
-│       ├── test-maintenance/
-│       ├── sveltekit-testing-skill/
-│       ├── user-story-breakdown/
-│       ├── github-workflow/
-│       └── slack-pr-message/
-├── general-tools/
-│   ├── .claude-plugin/
-│   │   └── plugin.json
-│   └── skills/
-│       └── branch-cleanup/
-├── CLAUDE.md
-└── README.md
-```
+| `autocompact-threshold` | Sets the autocompact threshold percentage for context management |
 
 ## License
 
