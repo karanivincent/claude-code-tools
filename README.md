@@ -56,7 +56,7 @@ Agents and skills for codebase research, PR workflows, testing, planning, and sk
 | `github-issue-images` | Downloads images attached to GitHub issues for design review |
 | `slack-pr-message` | Generates Slack announcement messages for PRs |
 
-### general-tools `v1.4.0`
+### general-tools `v1.5.0`
 
 General-purpose skills for git workflows and developer productivity.
 

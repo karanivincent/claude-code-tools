@@ -124,11 +124,11 @@ Auto-discover which investigation tools are available and initialize them before
 
 1. Use `ToolSearch` to probe each service's MCP tool (see service-mapping.md for exact queries)
 2. For unavailable MCP tools, check CLI fallback, then browser fallback URL from env vars
-3. Read [references/env-vars.md](references/env-vars.md) and load env vars from `.env`
+3. If any MCP tool is unavailable after probing: read [references/env-vars.md](references/env-vars.md) for fallback URLs and credentials. `ISSUE_DOCUMENTER_*` variables live in the repository root `.env` only.
 4. **Initialize discovered tools** (see service-mapping.md for prerequisite calls per service):
-   - **Sentry:** Call `find_organizations` → store `organizationSlug` + `regionUrl`
+   - **Sentry:** **NEVER guess the organizationSlug** — always call `find_organizations` first → store `organizationSlug` + `regionUrl`
    - **Render:** Call `list_workspaces` (auto-selects if one) → `list_services` → match service by name/keyword from bug description → store resource ID
-   - **Vercel:** Read `.vercel/project.json` for `projectId` and `teamId`
+   - **Vercel:** Read `.vercel/project.json` for `projectId` and `teamId`. In monorepos, also check `apps/*/vercel/project.json` if the root path doesn't exist.
    - **Linear:** Call `list_teams` → store team name for issue creation in Step 5
 5. Build internal investigation plan: ordered list of sources with the tool to use for each
 
@@ -157,9 +157,9 @@ Use table names, error messages, and patterns from Step 2.7 as search keywords.
 Read [references/service-mapping.md](references/service-mapping.md) for detailed tool priority and filter options per service.
 
 **Sentry (always check):**
-- Search for related errors by keyword/error message
-- Pull: error count, affected users, stack trace, first/last seen
-- Get direct Sentry issue link
+- Use the URL path from Step 2.7 as the primary search term (e.g. `admin/calls`, `billing/revenue`) — this matches Sentry's transaction field directly and is more reliable than keyword search.
+- If search returns nothing: ask "Do you have a direct Sentry URL or issue ID?" → use `get_issue_details` instead.
+- Pull: error count, affected users, stack trace, first/last seen, direct link.
 
 **Vercel (if dashboard/API related):**
 - Pull runtime logs filtered by query, status code, level, environment, timeframe
@@ -207,7 +207,9 @@ Compile all evidence into the template. Rules:
 
 #### Step 5: Create or Update Linear Issue
 
-After presenting the report, ask: "Create this as a new Linear issue, or update an existing one?"
+**MUST** immediately after presenting the report (do not wait for user input), ask:
+- If started from an existing Linear issue (entry point 1): "Update [ISSUE-ID] with this report, or skip?"
+- If started from scratch (entry point 2): "Create this as a new Linear issue, or skip?"
 
 - **New issue:** Use `create_issue` MCP tool with:
   - `title`: from report's `## [Bug]` heading
@@ -224,6 +226,7 @@ After presenting the report, ask: "Create this as a new Linear issue, or update 
 |----------|--------|
 | Not enough info | Ask targeted questions, don't guess |
 | No errors found anywhere | Diagnose the gap (Step 3.5), then document findings |
+| Sentry search returns nothing | Use URL path from Step 2.7 as search term first; if still nothing, ask user for direct Sentry URL or ID |
 | No direct link from tool | Note search terms used for manual lookup |
 | Investigation reveals second issue | Ask user, then document both or note in Related Findings |
 | Linear MCP not available | Present report for manual copy-paste, note "Linear tool not available" |
