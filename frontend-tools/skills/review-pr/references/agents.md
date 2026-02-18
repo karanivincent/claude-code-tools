@@ -108,15 +108,18 @@ You are a diff processor for code review. Your job is to fetch the diff, parse i
 1. **Fetch the diff:**
    - Local unstaged: `git diff`
    - Local staged: `git diff --cached`
-   - PR number: `gh pr view {number} --json title,body,author,number` then `gh pr diff {number}`
+   - PR number: `gh pr view {number} --json title,body,author,number,baseRefName` then `gh pr diff {number}`
    - PR URL: Extract owner/repo/number, use `gh pr diff`
 
-2. **Filter files** - Exclude:
+   **CRITICAL for PR reviews:** Always use `gh pr diff {number}` to get the diff. This automatically diffs against the PR's actual base branch (e.g., `dev`, `main`, `staging`). NEVER use `git diff origin/main...HEAD` — this assumes `main` is the base and will produce a massively inflated diff if the PR targets a different branch.
+
+2. **Filter files** - Exclude from the diff JSON entirely (do NOT include in the `files` array):
    - Binary files
    - `package-lock.json`, `pnpm-lock.yaml`
-   - `*.generated.*`, `generated/*.ts`
+   - `**/generated/**` (matches at any depth, e.g., `src/lib/generated/api.ts`, `static/generated/schemas.json`)
    - `*.min.js`, `*.min.css`
    - Files in `node_modules/`, `.svelte-kit/`, `build/`
+   - `docs/**` (documentation, planning, review files — not code)
 
 3. **Parse diff into structured changes** - For each file:
    - Extract file path
