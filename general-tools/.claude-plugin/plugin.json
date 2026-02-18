@@ -1,7 +1,7 @@
 {
   "name": "general-tools",
   "description": "General-purpose skills for git workflows, repository maintenance, and developer productivity",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "author": {
     "name": "Vince"
   },
