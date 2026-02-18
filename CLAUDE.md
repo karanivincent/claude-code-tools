@@ -57,7 +57,9 @@ See `frontend-tools/skills/skill-creator/SKILL.md` for the complete skill author
 
 ## Updating the README
 
-**Always update `README.md` after significant changes** — adding/removing skills, agents, plugins, or changing the project structure. Keep the README concise: focus on installation instructions and a brief overview rather than exhaustive listings of every skill and agent.
+**IMPORTANT: Always update `README.md` after significant changes.** This is a required step — never skip it. Include it in the same commit as the change.
+
+After adding/removing skills, agents, plugins, or changing the project structure, update the relevant tables in `README.md` (skill/agent listings, version numbers). Keep the README concise: focus on installation instructions and a brief overview.
 
 ## Updating Plugin Versions
 
