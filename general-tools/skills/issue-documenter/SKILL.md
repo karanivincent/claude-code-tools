@@ -118,14 +118,18 @@ Ask one at a time:
 Based on description and URL, determine which services to check.
 Read [references/service-mapping.md](references/service-mapping.md) for the keyword-to-service mapping and tool priority.
 
-#### Step 2.5: Probe Tools
+#### Step 2.5: Probe and Initialize Tools
 
-Auto-discover which investigation tools are available before attempting evidence collection.
+Auto-discover which investigation tools are available and initialize them before evidence collection.
 
 1. Use `ToolSearch` to probe each service's MCP tool (see service-mapping.md for exact queries)
 2. For unavailable MCP tools, check CLI fallback, then browser fallback URL from env vars
 3. Read [references/env-vars.md](references/env-vars.md) and load env vars from `.env`
-4. If Vercel MCP is available, read `.vercel/project.json` for `projectId` and `teamId`
+4. **Initialize discovered tools** (see service-mapping.md for prerequisite calls per service):
+   - **Sentry:** Call `find_organizations` → store `organizationSlug` + `regionUrl`
+   - **Render:** Call `list_workspaces` (auto-selects if one) → `list_services` → match service by name/keyword from bug description → store resource ID
+   - **Vercel:** Read `.vercel/project.json` for `projectId` and `teamId`
+   - **Linear:** Call `list_teams` → store team name for issue creation in Step 5
 5. Build internal investigation plan: ordered list of sources with the tool to use for each
 
 #### Step 2.7: Analyze Code
@@ -201,6 +205,19 @@ Compile all evidence into the template. Rules:
 - If yes: produce both reports, link them as related in Linear
 - If no: add a "Related Findings" section to the primary report
 
+#### Step 5: Create or Update Linear Issue
+
+After presenting the report, ask: "Create this as a new Linear issue, or update an existing one?"
+
+- **New issue:** Use `create_issue` MCP tool with:
+  - `title`: from report's `## [Bug]` heading
+  - `team`: from team discovered in Step 2.5
+  - `description`: full report markdown
+  - `labels`: `["Bug"]`
+  - `priority`: mapped from severity (see bug-report-template.md Priority Mapping table)
+- **Update existing:** If started from existing Linear issue (entry point 1), use `update_issue` to replace description with enriched report
+- **Skip:** User declines → present report as-is
+
 ### Edge Cases
 
 | Scenario | Action |
@@ -209,7 +226,4 @@ Compile all evidence into the template. Rules:
 | No errors found anywhere | Diagnose the gap (Step 3.5), then document findings |
 | No direct link from tool | Note search terms used for manual lookup |
 | Investigation reveals second issue | Ask user, then document both or note in Related Findings |
-
-### Output
-
-Produce complete bug report ready to paste into Linear or update an existing issue. Format for Linear markdown.
+| Linear MCP not available | Present report for manual copy-paste, note "Linear tool not available" |

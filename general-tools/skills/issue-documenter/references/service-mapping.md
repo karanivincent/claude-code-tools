@@ -27,6 +27,10 @@ For each service, prefer MCP tools first, then CLI, then browser as last resort.
 
 ### Sentry
 1. **MCP (primary):** `mcp__plugin_sentry_sentry__search_issues`, `search_events`
+   - **Prerequisite:** Call `find_organizations` first → get `organizationSlug` and `regionUrl`
+   - **Query syntax:** Sentry search does not support boolean `OR` or `AND` operators. Use separate targeted queries instead of combining terms.
+     - Bad: `"memory failed OR fact extraction error"`
+     - Good: Two separate queries — `"memory failed"`, then `"fact extraction error"`
 2. **Browser fallback:** via `ISSUE_DOCUMENTER_SENTRY_URL`
 
 ### Vercel
@@ -43,7 +47,13 @@ For each service, prefer MCP tools first, then CLI, then browser as last resort.
 
 ### Render
 1. **MCP (primary):** `mcp__render__list_logs`
+   - **Prerequisites:** Call `list_workspaces` first (auto-selects if only one) → then `list_services` to get the resource ID for the relevant service
 2. **Browser fallback:** via `ISSUE_DOCUMENTER_RENDER_LOGS_URL`
+
+### Linear
+1. **MCP (primary):** `mcp__plugin_linear_linear__create_issue`, `update_issue`, `get_issue`
+   - **Prerequisite:** Call `list_teams` first → store team name for issue creation in Step 5
+   - Used for: reading existing issues (entry point 1), creating new issues (Step 5)
 
 ### Browser
 - Chrome MCP for reproduction and console/network inspection
@@ -57,6 +67,7 @@ Before gathering evidence, auto-probe tool availability using `ToolSearch`:
 Sentry  → ToolSearch("+sentry search issues")
 Vercel  → ToolSearch("+vercel runtime logs")
 Render  → ToolSearch("+render logs")
+Linear  → ToolSearch("+linear create issue")
 Chrome  → ToolSearch("+chrome tabs_context navigate")
 ```
 

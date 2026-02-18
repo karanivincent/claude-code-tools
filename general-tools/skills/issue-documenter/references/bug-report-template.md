@@ -72,6 +72,16 @@ Infer severity from evidence, user can override:
 | Partial functionality broken, workaround exists | **degraded** |
 | Visual/UI glitch, cosmetic issue | **cosmetic** |
 
+## Priority Mapping
+
+Map severity to Linear priority when creating issues in Step 5:
+
+| Severity  | Linear Priority |
+|-----------|----------------|
+| blocking  | 1 (Urgent)     |
+| degraded  | 2 (High)       |
+| cosmetic  | 4 (Low)        |
+
 ## Section Rules
 
 - **Code Analysis**: Always include for API/backend bugs. Omit for purely visual/CSS bugs.
