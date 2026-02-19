@@ -6,12 +6,12 @@ description: >
   team structure (single-agent or multi-agent), spawns implementer agents in
   isolated worktrees with a dedicated reviewer. Reviewers communicate directly
   with implementers for fix loops — the lead only handles merges and
-  coordination. Supports --auto for fully autonomous mode or checkpoint-based
-  mode with user approval gates. Use when asked to "implement this design",
-  "execute this plan with agents", "build features from design doc", or
-  "run agent team on design".
+  coordination. Fully autonomous — analyzes streams, determines team size,
+  and proceeds without user confirmation. Use when asked to "implement this
+  design", "execute this plan with agents", "build features from design doc",
+  or "run agent team on design".
 disable-model-invocation: true
-argument-hint: <design-doc-path> [--auto]
+argument-hint: <design-doc-path>
 ---
 
 # Implement Design
@@ -22,12 +22,11 @@ Orchestrate end-to-end implementation of a design document: analyze design, dete
 
 ## Phase 1: Analyze Design Doc
 
-Parse `$ARGUMENTS` for the design doc path and `--auto` flag.
+Parse `$ARGUMENTS` for the design doc path.
 
 ```
 Arguments: $ARGUMENTS
 Design doc path: first argument (required)
-Auto mode: --auto flag present (optional, default: false)
 ```
 
 **If no design doc path provided:** Ask the user for the path.
@@ -67,9 +66,9 @@ Show the user:
 2. Stream Y (after X merged)
 ```
 
-**Checkpoint** (unless `--auto`): Ask user to confirm the breakdown using AskUserQuestion. Options: "Looks good, proceed" / "I want to adjust".
+**Proceed immediately** — do not ask the user to confirm the breakdown.
 
-## Phase 1.5: Propose Team Structure
+## Phase 1.5: Determine Team Structure
 
 Analyze the work streams from Phase 1 to determine optimal team composition. **Ignore any team size suggestions in the design doc** — analyze from scratch.
 
@@ -86,10 +85,10 @@ Apply these rules in order:
 
 ### Present Team Structure
 
-Show the user:
+Display the team structure as informational output, then proceed:
 
 ```
-## Proposed Team Structure
+## Team Structure
 
 **Path:** [Single-agent / Multi-agent]
 **Reasoning:** [1-2 sentences explaining why]
@@ -110,7 +109,7 @@ Show the user:
 ### PR Count: [N] | Reviewer(s): [1 or 2]
 ```
 
-**Checkpoint** (unless `--auto`): Ask user to confirm team structure using AskUserQuestion. Options: "Looks good, proceed" / "I want to adjust".
+**Proceed immediately** — do not ask the user to confirm. The analysis rules above are deterministic.
 
 ## Phase 2: Setup Agent Team & Tasks
 
@@ -213,7 +212,7 @@ Task tool:
 
 If 2 reviewers: split by merge-order position (reviewer-1 gets positions 1, 3, 5; reviewer-2 gets 2, 4, 6).
 
-**Checkpoint** (unless `--auto`): Show spawned agents and task list.
+Display the spawned agents and task list, then proceed to monitoring.
 
 ## Phase 3: Implementation (Parallel)
 
@@ -303,7 +302,7 @@ When a reviewer reports "PR #X approved":
    ```
 6. After merge, if the implementer has another assigned stream → tell them to start it. Otherwise → send shutdown request.
 
-**Checkpoint** (unless `--auto`): Confirm after each merge.
+Display merge status, then proceed to next PR in queue.
 
 ### Reviewer Backpressure
 
@@ -385,13 +384,6 @@ Create `docs/handovers/YYYY-MM-DD-[design-name]-handover.md` by aggregating the 
    Handover document: docs/handovers/[filename]
    [Any issues or notes]
    ```
-
-## Mode Reference
-
-| Mode | Behavior |
-|------|----------|
-| **Checkpoint** (default) | Pauses for user approval at: breakdown, team structure, agent spawn, after each merge |
-| **`--auto`** | Fully autonomous — no pauses, runs start to finish |
 
 ## Red Flags
 
