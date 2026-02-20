@@ -25,7 +25,7 @@ Add this marketplace to your project's `.claude/settings.json`:
 
 ## Plugins
 
-### frontend-tools `v1.6.3`
+### frontend-tools `v1.7.0`
 
 Agents and skills for codebase research, PR workflows, testing, planning, and skill development.
 
