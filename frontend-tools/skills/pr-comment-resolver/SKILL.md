@@ -1,5 +1,5 @@
 ---
-name: resolve-pr-comments
+name: pr-comment-resolver
 description: |
   Systematically process PR review comments with critical analysis, not blind compliance.
   Use when:

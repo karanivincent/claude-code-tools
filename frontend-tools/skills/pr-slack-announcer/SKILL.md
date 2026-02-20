@@ -1,5 +1,5 @@
 ---
-name: slack-pr-message
+name: pr-slack-announcer
 description: |
   Generate Slack announcement messages for pull requests. Use when user:
   - Asks to create a Slack message for a PR

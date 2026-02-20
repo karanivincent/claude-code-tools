@@ -1,5 +1,5 @@
 ---
-name: github-workflow
+name: issue-workflow
 description: Manage GitHub Issues through full lifecycle: create, track, and complete. Use when (1) creating issues from story breakdowns or planning discussions, (2) starting work on a feature branch, (3) tracking progress with commits and changes, (4) completing issues and updating parent epics. Triggers on: branch names like `28-feature-name`, keywords like "create issue" or "close issue", reading `*-breakdown.md` or `docs/plans/*.md` files, or discussing epics/stories/tasks.
 ---
 

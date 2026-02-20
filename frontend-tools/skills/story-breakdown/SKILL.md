@@ -1,5 +1,5 @@
 ---
-name: user-story-breakdown
+name: story-breakdown
 description: Transform user stories into actionable frontend task breakdowns with automatic codebase research. Use when (1) user asks to "break down this story/feature/task", (2) planning implementation for a feature, (3) estimating user stories, (4) preparing task breakdown for sprint planning, or (5) analyzing what's needed to implement a feature in SvelteKit.
 ---
 

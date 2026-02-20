@@ -1,5 +1,5 @@
 ---
-name: claude-md-editor
+name: claudemd-editor
 description: Create, review, optimize, or troubleshoot CLAUDE.md configuration files. Use when user wants a new CLAUDE.md ("I need a CLAUDE.md for my project"), asks for review/improvements ("review my CLAUDE.md", "make it better"), reports instruction-following issues ("Claude keeps using npm instead of pnpm"), wants to consolidate scattered documentation into CLAUDE.md, or mentions CLAUDE.md structure, best practices, or optimization.
 ---
 

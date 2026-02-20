@@ -1,5 +1,5 @@
 ---
-name: research-and-planning
+name: feature-planner
 description: Orchestrates a comprehensive research and planning workflow for features, bugs, or improvements. Spawns context-gathering agent, then runs parallel planning agents, and consolidates into a final plan for user approval. Use when implementing features, fixing bugs, refactoring code, adding capabilities, or when the user needs help planning complex changes that require understanding the codebase first.
 allowed-tools: Read, Grep, Glob, Task
 ---

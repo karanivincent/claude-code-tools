@@ -1,5 +1,5 @@
 ---
-name: github-pr-creator
+name: pr-creator
 description: |
   Create GitHub pull requests with focused descriptions. Use when user:
   - Asks to create a PR or pull request

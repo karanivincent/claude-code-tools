@@ -1,5 +1,5 @@
 ---
-name: sveltekit-testing-skill
+name: sveltekit-test-guide
 description: Use when writing tests, reviewing test code, or deciding what/how to test in SvelteKit/Svelte projects. Covers unit tests (Vitest), component tests (@testing-library/svelte), and E2E tests (Playwright). Triggers on "write tests for", "add test coverage", "create e2e test", "fix flaky test", "test fails", "test timeout", or any testing-related task.
 ---
 

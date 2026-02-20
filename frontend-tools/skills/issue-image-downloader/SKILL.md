@@ -1,5 +1,5 @@
 ---
-name: github-issue-images
+name: issue-image-downloader
 description: |
   Download images attached to GitHub issues for design review workflows.
 

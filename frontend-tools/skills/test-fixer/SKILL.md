@@ -1,5 +1,5 @@
 ---
-name: test-maintenance
+name: test-fixer
 description: Fix failing E2E (Playwright) and unit tests (Vitest), add new E2E tests, and debug test issues using Playwright MCP. Use when (1) tests are failing and need fixing, (2) test selectors or IDs have changed, (3) workflow has changed and tests need updating, (4) adding new E2E tests for features, (5) unit test expectations need updating, (6) debugging why a test fails using live browser interaction.
 ---
 

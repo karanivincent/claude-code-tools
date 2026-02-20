@@ -1,5 +1,5 @@
 ---
-name: implement-design
+name: design-implementer
 description: >
   Orchestrate parallel implementation of a design document using Claude Code
   agent teams. Reads a design doc, analyzes complexity to determine optimal

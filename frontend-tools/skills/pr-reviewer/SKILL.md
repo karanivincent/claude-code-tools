@@ -1,5 +1,5 @@
 ---
-name: review-pr
+name: pr-reviewer
 description: AI code review using patterns learned from Nicolas and Vincent's 2,768 review comments. Use when reviewing PRs, diffs, or code changes. Triggers on "/review-pr", "review this PR", "review my changes", "code review", or when asked to check code before merging.
 ---
 
