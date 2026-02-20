@@ -179,6 +179,28 @@ Testing Notes:
 <Brief testing instructions>
 ```
 
+### Step 6: Post to Slack
+
+After generating the message, post it directly to Slack via webhook if configured.
+
+**If `SLACK_WEBHOOK_URL` is set:**
+
+1. Escape the message for JSON (escape newlines, quotes, backslashes)
+2. Post to Slack:
+
+```bash
+curl -s -X POST "$SLACK_WEBHOOK_URL" \
+  -H 'Content-type: application/json' \
+  -d "{\"text\": \"$ESCAPED_MESSAGE\"}"
+```
+
+3. If curl returns `"ok"`, confirm the message was posted to Slack
+4. If curl fails or returns an error, print the message to terminal as fallback and show the error
+
+**If `SLACK_WEBHOOK_URL` is not set:**
+
+Print the message to the terminal as before (copy-paste workflow).
+
 ## Rules
 
 - Always include GitHub URL
