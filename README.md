@@ -25,7 +25,7 @@ Add this marketplace to your project's `.claude/settings.json`:
 
 ## Plugins
 
-### frontend-tools `v1.6.3`
+### frontend-tools `v1.7.0`
 
 Agents and skills for codebase research, PR workflows, testing, planning, and skill development.
 
@@ -43,20 +43,20 @@ Agents and skills for codebase research, PR workflows, testing, planning, and sk
 
 | Skill | Description |
 |-------|-------------|
-| `research-and-planning` | Orchestrates multi-agent research and parallel planning workflows |
+| `feature-planner` | Orchestrates multi-agent research and parallel planning workflows |
 | `skill-creator` | Creates, edits, and troubleshoots Claude Code Skills |
-| `claude-md-editor` | Creates, reviews, and optimizes CLAUDE.md configuration files |
-| `github-pr-creator` | Creates GitHub PRs with focused descriptions and CI monitoring |
-| `review-pr` | AI code review using patterns learned from team review history |
-| `resolve-pr-comments` | Systematically processes PR review comments with critical analysis |
-| `test-maintenance` | Fixes failing E2E/unit tests using systematic workflows |
-| `sveltekit-testing-skill` | Testing standards for SvelteKit (Vitest + Playwright) |
-| `user-story-breakdown` | Transforms user stories into actionable task breakdowns |
-| `github-workflow` | Manages GitHub Issues through full lifecycle |
-| `github-issue-images` | Downloads images attached to GitHub issues for design review |
-| `slack-pr-message` | Generates and auto-posts Slack announcement messages for PRs |
+| `claudemd-editor` | Creates, reviews, and optimizes CLAUDE.md configuration files |
+| `pr-creator` | Creates GitHub PRs with focused descriptions and CI monitoring |
+| `pr-reviewer` | AI code review using patterns learned from team review history |
+| `pr-comment-resolver` | Systematically processes PR review comments with critical analysis |
+| `test-fixer` | Fixes failing E2E/unit tests using systematic workflows |
+| `sveltekit-test-guide` | Testing standards for SvelteKit (Vitest + Playwright) |
+| `story-breakdown` | Transforms user stories into actionable task breakdowns |
+| `issue-workflow` | Manages GitHub Issues through full lifecycle |
+| `github-image-downloader` | Downloads images attached to GitHub issues for design review |
+| `pr-slack-announcer` | Generates and auto-posts Slack announcement messages for PRs |
 
-### general-tools `v1.7.0`
+### general-tools `v1.8.0`
 
 General-purpose skills for git workflows and developer productivity.
 
@@ -65,8 +65,9 @@ General-purpose skills for git workflows and developer productivity.
 | `branch-cleanup` | Cleans up stale git branches (merged or abandoned) |
 | `autocompact-threshold` | Sets the autocompact threshold percentage for context management |
 | `env-sync` | Manages env vars across monorepo workspaces and deployment services with a central registry, alias detection, and Vercel/Render MCP sync |
-| `implement-design` | Orchestrates parallel implementation of a design document using agent teams, umbrella branch pattern, and isolated worktrees |
+| `design-implementer` | Orchestrates parallel implementation of a design document using agent teams, umbrella branch pattern, and isolated worktrees |
 | `issue-documenter` | Documents user stories and bug reports for Linear with investigation tooling and automatic issue creation |
+| `issue-executor` | End-to-end issue resolution orchestrator — takes a Linear issue URL, classifies bug vs story, and drives it to a reviewable PR |
 | `skill-reviewer` | Reviews skills after real-world usage with scored reports and actionable recommendations |
 
 ## License
