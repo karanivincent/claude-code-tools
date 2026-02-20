@@ -23,6 +23,7 @@ Task tool:
     ## Your Assignment
 
     **Agent name:** impl-[STREAM_NAME]
+    **Base branch:** feature/[DESIGN_NAME]
     **Reviewer:** [REVIEWER_NAME] (send fix notifications directly to them)
 
     ### Stream(s) to implement:
@@ -48,9 +49,9 @@ Task tool:
 
     ## Setup
 
-    1. Create your worktree:
+    1. Create your worktree from the **base branch**:
        ```bash
-       git worktree add ../telitask-[STREAM_NAME] -b feature/[STREAM_NAME] staging
+       git worktree add ../telitask-[STREAM_NAME] -b feature/[STREAM_NAME] feature/[DESIGN_NAME]
        ```
     2. Change to worktree directory:
        ```bash
@@ -87,7 +88,7 @@ Task tool:
 
     ### Step 4: Create PR
     Use the `frontend-tools:github-pr-creator` skill to create a PR:
-    - Target branch: `staging`
+    - **Target branch: `feature/[DESIGN_NAME]`** (the base branch — NOT staging)
     - Title should be descriptive of the stream
     - Body MUST include the following section at the end:
 
@@ -116,7 +117,7 @@ Task tool:
     ### Step 6: Standby
     After reporting, REMAIN ALIVE. Do NOT shut down. You need to be available for:
     - Review feedback from the reviewer ([REVIEWER_NAME])
-    - Rebase instructions from the lead after other PRs merge
+    - Rebase instructions from the lead after other sub-PRs merge to the base branch
     - Starting your next assigned stream (if you have multiple)
 
     Wait for messages. You will be idle — this is expected.
@@ -144,7 +145,11 @@ Task tool:
     ### Step 8: Multi-Stream Continuation
     If you are assigned multiple streams:
     - After the lead tells you your current PR was merged, start your next stream
-    - Create a new worktree for the next stream
+    - Create a new worktree for the next stream **from the base branch**:
+      ```bash
+      git fetch origin
+      git worktree add ../telitask-[NEXT_STREAM] -b feature/[NEXT_STREAM] origin/feature/[DESIGN_NAME]
+      ```
     - Repeat Steps 1-7 for the next stream
     - Shut down only after ALL your assigned streams are merged
 
@@ -311,7 +316,7 @@ SendMessage:
 
 ### Notify Implementer of Merge (Shutdown or Next Stream)
 
-After merging a PR, tell the implementer what to do next:
+After merging a sub-PR to the base branch, tell the implementer what to do next:
 
 **If no more streams assigned:**
 ```
@@ -319,7 +324,7 @@ SendMessage:
   type: message
   recipient: impl-[STREAM_NAME]
   content: |
-    PR #[PR_NUMBER] for [stream-name] has been merged to staging. Your work is complete.
+    PR #[PR_NUMBER] for [stream-name] has been merged to the base branch. Your work is complete.
     You can shut down.
   summary: "[stream] merged, shutting down"
 → Then send shutdown_request
@@ -331,28 +336,33 @@ SendMessage:
   type: message
   recipient: impl-[STREAM_NAME]
   content: |
-    PR #[PR_NUMBER] for [stream-name] has been merged to staging.
+    PR #[PR_NUMBER] for [stream-name] has been merged to the base branch.
 
     Start your next stream: [NEXT_STREAM_NAME]
     Branch: feature/[NEXT_STREAM_NAME]
     Worktree: ../telitask-[NEXT_STREAM_NAME]
 
-    Create the worktree, install deps, and follow the same process (plan → execute → CI → PR).
+    Create the worktree from the updated base branch:
+    ```bash
+    git fetch origin
+    git worktree add ../telitask-[NEXT_STREAM_NAME] -b feature/[NEXT_STREAM_NAME] origin/feature/[DESIGN_NAME]
+    ```
+    Install deps and follow the same process (plan → execute → CI → PR targeting feature/[DESIGN_NAME]).
   summary: "Start next stream: [next-stream]"
 ```
 
 ### Request Rebase After Merge
 
-Send to all agents with open branches after a merge:
+Send to all agents with open branches after a sub-PR merge to the base branch:
 
 ```
 SendMessage:
   type: message
   recipient: impl-[STREAM_NAME]
   content: |
-    staging updated after merging [merged-stream-name]. Rebase your branch:
+    Base branch updated after merging [merged-stream-name]. Rebase your branch:
     ```bash
-    git fetch origin && git rebase origin/staging
+    git fetch origin && git rebase origin/feature/[DESIGN_NAME]
     ```
     Then re-run CI:
     ```bash

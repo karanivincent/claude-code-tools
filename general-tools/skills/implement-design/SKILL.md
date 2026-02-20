@@ -4,19 +4,20 @@ description: >
   Orchestrate parallel implementation of a design document using Claude Code
   agent teams. Reads a design doc, analyzes complexity to determine optimal
   team structure (single-agent or multi-agent), spawns implementer agents in
-  isolated worktrees with a dedicated reviewer. Reviewers communicate directly
-  with implementers for fix loops — the lead only handles merges and
-  coordination. Fully autonomous — analyzes streams, determines team size,
-  and proceeds without user confirmation. Use when asked to "implement this
-  design", "execute this plan with agents", "build features from design doc",
-  or "run agent team on design".
+  isolated worktrees with a dedicated reviewer. Uses an umbrella branch pattern:
+  sub-PRs merge to a base branch, then one umbrella PR goes to staging for
+  user review. Reviewers communicate directly with implementers for fix loops —
+  the lead only handles merges and coordination. Fully autonomous — analyzes
+  streams, determines team size, and proceeds without user confirmation. Use
+  when asked to "implement this design", "execute this plan with agents",
+  "build features from design doc", or "run agent team on design".
 disable-model-invocation: true
 argument-hint: <design-doc-path>
 ---
 
 # Implement Design
 
-Orchestrate end-to-end implementation of a design document: analyze design, determine optimal team structure, spawn parallel implementers in isolated worktrees, pipeline reviews with direct agent-to-agent communication, and merge PRs sequentially.
+Orchestrate end-to-end implementation of a design document: analyze design, determine optimal team structure, create an umbrella base branch, spawn parallel implementers in isolated worktrees, pipeline reviews with direct agent-to-agent communication, merge sub-PRs to the base branch, and create one umbrella PR to staging for user review.
 
 **Announce at start:** "I'm using the implement-design skill to orchestrate implementation of this design document."
 
@@ -43,6 +44,7 @@ Design doc path: first argument (required)
    - File paths likely touched (scan spec for filenames, directories, components)
 4. **Determine merge order** — streams with no dependencies merge first; if the design doc specifies order, follow it
 5. **Identify prerequisites** — anything that must happen before any stream starts (shared migrations, package installs, etc.)
+6. **Derive base branch name** — use the design doc title in kebab-case: `feature/[design-name]` (e.g., `feature/admin-phase2`)
 
 ### Present Breakdown
 
@@ -50,6 +52,8 @@ Show the user:
 
 ```
 ## Design: [title from doc]
+
+**Base branch:** feature/[design-name]
 
 ### Prerequisites (before any stream)
 - [list or "None"]
@@ -61,9 +65,11 @@ Show the user:
 | 1 | [name] | feature/[name] | [summary] | None | [count] |
 | 2 | [name] | feature/[name] | [summary] | Stream 1 (if any) | [count] |
 
-### Merge Order
+### Merge Order (sub-PRs → feature/[design-name])
 1. Stream X (no dependencies)
 2. Stream Y (after X merged)
+
+### Final: Umbrella PR (feature/[design-name] → staging)
 ```
 
 **Proceed immediately** — do not ask the user to confirm the breakdown.
@@ -91,6 +97,7 @@ Display the team structure as informational output, then proceed:
 ## Team Structure
 
 **Path:** [Single-agent / Multi-agent]
+**Base branch:** feature/[design-name]
 **Reasoning:** [1-2 sentences explaining why]
 
 ### Agents
@@ -101,41 +108,54 @@ Display the team structure as informational output, then proceed:
 | impl-2 | implementer | [stream-c] | ../telitask-impl-2 |
 | reviewer-1 | reviewer | Reviews all PRs | (uses impl worktrees) |
 
-### Merge Order
+### Merge Order (sub-PRs → feature/[design-name])
 1. [stream-a] PR (impl-1) → reviewer-1
 2. [stream-b] PR (impl-1, after stream-a merges) → reviewer-1
 3. [stream-c] PR (impl-2) → reviewer-1
 
-### PR Count: [N] | Reviewer(s): [1 or 2]
+### Final: Umbrella PR → staging
+### PR Count: [N] sub-PRs + 1 umbrella | Reviewer(s): [1 or 2]
 ```
 
 **Proceed immediately** — do not ask the user to confirm. The analysis rules above are deterministic.
 
 ## Phase 2: Setup Agent Team & Tasks
 
+### Create Base Branch
+
+**IMPORTANT:** Do NOT checkout the base branch — the user may be working on staging. Create and push without switching:
+
+```bash
+git branch feature/[design-name] staging
+git push -u origin feature/[design-name]
+```
+
 ### Handle Prerequisites
 
 If prerequisites exist (shared migrations, package installs, etc.):
-1. Execute them on `staging` before spawning agents
-2. Commit and push so worktrees pick them up
+1. Create a temporary worktree from the base branch
+2. Execute prerequisites there, commit, and push to the base branch
+3. Remove the temporary worktree
 
 ### Single-Agent Path
 
 If Phase 1.5 recommended single-agent:
 
-1. **Create worktree** (always — user may be working in main directory):
+1. **Create worktree** from the base branch:
    ```bash
-   git worktree add ../telitask-[stream-name] -b feature/[stream-name] staging
+   git worktree add ../telitask-[stream-name] -b feature/[stream-name] feature/[design-name]
    ```
 2. **Plan and execute** directly using `superpowers:writing-plans` → `superpowers:executing-plans`
 3. **Run CI:** `pnpm typecheck && pnpm lint && pnpm build && pnpm test -- -- --coverage`
-4. **Create PR** using `frontend-tools:github-pr-creator` — include Setup & Testing section (see agent-prompts.md)
+4. **Create sub-PR** targeting the **base branch** using `frontend-tools:github-pr-creator` — include detailed Setup & Testing section (see agent-prompts.md)
 5. **Self-review** with `frontend-tools:review-pr`
 6. **Fix any issues** from self-review
-7. **Generate handover document** (see Phase 5)
-8. **Clean up worktree** and report to user
+7. **Merge sub-PR** to the base branch: `gh pr merge [PR#] --squash --delete-branch`
+8. **Generate handover document** (see Phase 5)
+9. **Create umbrella PR** (see Phase 5)
+10. **Clean up worktree** and report to user
 
-**Skip to Phase 5 after completion** — no team, no reviewer agent needed.
+**Skip to Phase 5 after step 7** — no team, no reviewer agent needed.
 
 ### Multi-Agent Path
 
@@ -172,10 +192,19 @@ TaskCreate:
 ```
 TaskCreate:
   subject: "Merge [stream name]"
-  description: "Merge [stream name] PR to staging after review approval"
+  description: "Merge [stream name] PR to base branch after review approval"
   activeForm: "Merging [stream name]"
   → TaskUpdate: addBlockedBy: [review task ID]
   → TaskUpdate: addBlockedBy: [previous stream's merge task ID] (if not first in merge order)
+```
+
+Additionally, create a final task for the umbrella PR (blocked by all merge tasks):
+```
+TaskCreate:
+  subject: "Create umbrella PR"
+  description: "Create umbrella PR from feature/[design-name] to staging with summary and handover"
+  activeForm: "Creating umbrella PR"
+  → TaskUpdate: addBlockedBy: [all merge task IDs]
 ```
 
 #### Spawn Agents
@@ -194,9 +223,10 @@ Task tool:
 Populate each implementer prompt with:
 - Stream name(s) and full spec text (pasted inline — don't make agents read the design doc)
 - Worktree path and branch name
+- **Base branch name:** `feature/[design-name]`
 - Prerequisite context (what was already done)
 - CI command: `pnpm typecheck && pnpm lint && pnpm build && pnpm test -- -- --coverage`
-- PR target: `staging`
+- **PR target:** `feature/[design-name]` (NOT staging)
 - **Reviewer name** (so implementer knows who will review their work)
 
 **Reviewer agent(s)** — 1 for ≤ 3 PRs, 2 for 4+ PRs:
@@ -219,12 +249,12 @@ Display the spawned agents and task list, then proceed to monitoring.
 Each implementer works independently in its own worktree. The lead (you) monitors progress.
 
 **What each implementer does** (defined in their spawn prompt):
-1. Create worktree: `git worktree add ../telitask-[stream-name] -b feature/[stream-name] staging`
+1. Create worktree: `git worktree add ../telitask-[stream-name] -b feature/[stream-name] feature/[design-name]`
 2. Install dependencies: `pnpm install`
 3. Use `superpowers:writing-plans` to create implementation plan
 4. Use `superpowers:executing-plans` to execute the plan
 5. Run full CI: `pnpm typecheck && pnpm lint && pnpm build && pnpm test -- -- --coverage`
-6. Create PR targeting `staging` using `frontend-tools:github-pr-creator` — **must include Setup & Testing section**
+6. Create PR targeting **base branch** (`feature/[design-name]`) using `frontend-tools:github-pr-creator` — **must include detailed Setup & Testing section**
 7. Mark implementation task as completed
 8. Notify lead with PR number
 9. **Enter standby** — remain alive, waiting for review feedback from reviewer
@@ -291,13 +321,13 @@ The lead does NOT track NEEDS_FIXES — that's between reviewer and implementer.
 When a reviewer reports "PR #X approved":
 1. Verify all predecessor PRs in merge order are MERGED
 2. If predecessors aren't merged yet, mark as READY_TO_MERGE and wait
-3. Merge: `gh pr merge [PR#] --squash --delete-branch`
+3. Merge to **base branch**: `gh pr merge [PR#] --squash --delete-branch`
 4. Mark merge task as completed
-5. If more PRs remain, notify all agents with open branches to rebase:
+5. If more PRs remain, notify all agents with open branches to rebase onto the **base branch**:
    ```
    SendMessage to each active implementer:
-   "staging updated after merging [stream]. Rebase your branch:
-    git fetch origin && git rebase origin/staging
+   "Base branch updated after merging [stream]. Rebase your branch:
+    git fetch origin && git rebase origin/feature/[design-name]
     Then re-run CI."
    ```
 6. After merge, if the implementer has another assigned stream → tell them to start it. Otherwise → send shutdown request.
@@ -316,15 +346,15 @@ If 2 reviewers are active:
 - Both report to lead
 - Lead still manages merge order centrally (never more than one merge at a time)
 
-## Phase 5: Handover & Cleanup
+## Phase 5: Umbrella PR, Handover & Cleanup
 
-After all PRs are merged:
+After all sub-PRs are merged to the base branch:
 
 ### Generate Handover Document
 
-Create `docs/handovers/YYYY-MM-DD-[design-name]-handover.md` by aggregating the Setup & Testing sections from all merged PRs.
+Create `docs/handovers/YYYY-MM-DD-[design-name]-handover.md` by aggregating the Setup & Testing sections from all merged sub-PRs.
 
-1. Read each merged PR's description (already has Setup & Testing info from implementers)
+1. Read each merged sub-PR's description (already has Setup & Testing info from implementers)
 2. Consolidate into one document, deduplicating env vars and ordering setup steps logically
 3. Add any cross-cutting concerns (e.g., "run migrations before testing feature X")
 
@@ -335,7 +365,7 @@ Create `docs/handovers/YYYY-MM-DD-[design-name]-handover.md` by aggregating the 
 
 **Date:** YYYY-MM-DD
 **Design doc:** [path]
-**PRs merged:** #X, #Y, #Z
+**Sub-PRs merged:** #X, #Y, #Z
 
 ## Environment Variables
 
@@ -345,20 +375,93 @@ Create `docs/handovers/YYYY-MM-DD-[design-name]-handover.md` by aggregating the 
 
 ## Third-Party Setup
 
-- [Aggregated setup steps from all PRs]
+- [Aggregated setup steps from all sub-PRs]
 
 ## Database Migrations
 
-- [All migrations in order, noting which PR introduced them]
+- [All migrations in order, noting which sub-PR introduced them]
 
 ## Manual Testing Checklist
 
-- [ ] [Combined testing steps from all PRs, ordered logically]
+- [ ] [Combined testing steps from all sub-PRs, ordered logically]
 
 ## Known Limitations / Follow-ups
 
 - [Anything scoped out or deferred]
 ```
+
+### Commit Handover to Base Branch
+
+Commit the handover document to the base branch (use a temporary worktree if needed):
+
+```bash
+git worktree add ../telitask-handover feature/[design-name]
+# Copy handover doc into worktree, commit, push
+git worktree remove ../telitask-handover
+```
+
+### Create Umbrella PR
+
+Create the umbrella PR from base branch to staging using `frontend-tools:github-pr-creator`:
+
+```
+PR: feature/[design-name] → staging
+```
+
+**Umbrella PR body format:**
+
+```markdown
+## Summary
+
+[2-3 sentence overview of the full feature/design implemented]
+
+**Design doc:** [path]
+
+## Sub-PRs
+
+| # | PR | Stream | Summary |
+|---|-----|--------|---------|
+| 1 | #[number] | [stream-name] | [1-2 line summary from sub-PR] |
+| 2 | #[number] | [stream-name] | [1-2 line summary from sub-PR] |
+| 3 | #[number] | [stream-name] | [1-2 line summary from sub-PR] |
+
+## Actions Required
+
+### Environment Variables
+
+| Variable | Service | How to Obtain |
+|----------|---------|---------------|
+| [VAR] | Vercel / Render / Supabase | [instructions] |
+
+*"None" if no new env vars.*
+
+### Database Migrations
+
+- [All migrations in order, noting which sub-PR introduced them]
+
+*"None" if no migrations.*
+
+### Third-Party Setup
+
+- [Aggregated from sub-PRs]
+
+*"None" if no third-party setup.*
+
+## How to Test
+
+1. [End-to-end testing flow across all streams]
+2. [Ordered logically, not per-stream]
+
+## Known Limitations / Follow-ups
+
+- [Anything deferred or scoped out]
+
+## Handover
+
+Full handover document: `docs/handovers/YYYY-MM-DD-[design-name]-handover.md`
+```
+
+**Leave the umbrella PR open** — the user will review and merge it at their own pace.
 
 ### Clean Up
 
@@ -376,13 +479,16 @@ Create `docs/handovers/YYYY-MM-DD-[design-name]-handover.md` by aggregating the 
    ```
    ## Implementation Complete
 
-   | Stream | PR | Status |
-   |--------|----|--------|
-   | [name] | #[number] | Merged |
+   | Stream | Sub-PR | Status |
+   |--------|--------|--------|
+   | [name] | #[number] | Merged to base branch |
 
-   All [N] streams implemented and merged to staging.
-   Handover document: docs/handovers/[filename]
-   [Any issues or notes]
+   All [N] streams implemented and merged to base branch.
+
+   **Umbrella PR:** #[number] (feature/[design-name] → staging)
+   **Handover:** docs/handovers/[filename]
+
+   Review the umbrella PR when ready — it contains all changes and required actions.
    ```
 
 ## Red Flags
@@ -393,20 +499,26 @@ Create `docs/handovers/YYYY-MM-DD-[design-name]-handover.md` by aggregating the 
 - Merge PRs out of declared order (respects dependency chain)
 - Skip CI before creating PR or after rebasing
 - Reference code from sibling branches that hasn't been merged
-- Skip the review phase — every PR gets reviewed
+- Skip the review phase — every sub-PR gets reviewed
 - Proceed past a failing CI — fix it first
 - Have the reviewer fix code — fixes always go back to the implementer
 - Relay fix details through the lead — reviewer talks directly to implementer
 - Shut down implementers before their PR is merged
+- Merge sub-PRs directly to staging — always merge to the base branch
+- Checkout the base branch in the user's working directory
 
 **Always:**
+- Create a base branch from staging without checking it out
 - Paste full stream spec into agent prompts (don't make agents read the design doc)
-- Create worktrees — even for single-agent mode
+- Create worktrees from the base branch — even for single-agent mode
+- Target sub-PRs to the base branch (not staging)
 - Start reviews as soon as the first PR is ready (don't wait for all)
 - Run full CI before PR creation and after rebase
-- Rebase remaining branches after each merge
-- Include Setup & Testing section in every PR description
-- Generate handover document after all merges
+- Rebase remaining branches onto the base branch after each sub-PR merge
+- Include detailed Setup & Testing section in every sub-PR description
+- Generate handover document after all sub-PRs merge
+- Create umbrella PR (base branch → staging) with summary, sub-PR links, and actions required
+- Leave umbrella PR open for the user to review and merge
 - Clean up worktrees and team when done
 
 ## Integration
@@ -423,9 +535,12 @@ Create `docs/handovers/YYYY-MM-DD-[design-name]-handover.md` by aggregating the 
 **Skills used by lead (single-agent path):**
 - `superpowers:writing-plans` — Create implementation plan
 - `superpowers:executing-plans` — Execute plan
-- `frontend-tools:github-pr-creator` — Create PR
+- `frontend-tools:github-pr-creator` — Create PR and umbrella PR
 - `frontend-tools:review-pr` — Self-review
+
+**Skills used by lead (multi-agent path):**
+- `frontend-tools:github-pr-creator` — Create umbrella PR
 
 **Project rules enforced:**
 - CLAUDE.md agent team rules (commit conventions, CI, worktree isolation)
-- Git workflow (feature branches → staging, never commit to staging directly)
+- Git workflow (feature branches → base branch → staging, never commit to staging directly)
