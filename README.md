@@ -56,7 +56,7 @@ Agents and skills for codebase research, PR workflows, testing, planning, and sk
 | `github-issue-images` | Downloads images attached to GitHub issues for design review |
 | `slack-pr-message` | Generates and auto-posts Slack announcement messages for PRs |
 
-### general-tools `v1.5.1`
+### general-tools `v1.6.0`
 
 General-purpose skills for git workflows and developer productivity.
 
@@ -64,6 +64,7 @@ General-purpose skills for git workflows and developer productivity.
 |-------|-------------|
 | `branch-cleanup` | Cleans up stale git branches (merged or abandoned) |
 | `autocompact-threshold` | Sets the autocompact threshold percentage for context management |
+| `env-sync` | Manages env vars across monorepo workspaces and deployment services with a central registry, alias detection, and Vercel/Render MCP sync |
 | `implement-design` | Autonomously orchestrates parallel implementation of a design document using agent teams in isolated worktrees |
 | `issue-documenter` | Documents user stories and bug reports for Linear with investigation tooling and automatic issue creation |
 | `skill-reviewer` | Reviews skills after real-world usage with scored reports and actionable recommendations |
