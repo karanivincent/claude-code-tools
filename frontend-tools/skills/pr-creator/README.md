@@ -16,7 +16,7 @@ Create professional pull requests with focused descriptions, CI status monitorin
 3. **Write Focused Description** - Main changes only, no minor fixes
 4. **Create PR** - Uses `gh pr create` targeting the `dev` branch
 5. **Wait for CI** - Monitors build status with `gh pr checks --watch`
-6. **Generate Slack Message** - Uses `slack-pr-message` skill for announcement
+6. **Generate Slack Message** - Uses `pr-slack-announcer` skill for announcement
 
 ## What to Include
 

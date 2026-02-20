@@ -5,7 +5,7 @@
 
 ## Summary
 
-Enhance the `user-story-breakdown` skill to generate visual ASCII illustrations by default when breaking down user stories. This provides developers with quick visual reference for page layouts, component structures, and state variations.
+Enhance the `story-breakdown` skill to generate visual ASCII illustrations by default when breaking down user stories. This provides developers with quick visual reference for page layouts, component structures, and state variations.
 
 ## Design Decisions
 
@@ -162,8 +162,8 @@ PageName
 
 | File | Change |
 |------|--------|
-| `skills/user-story-breakdown/SKILL.md` | Add illustration requirements table to Phase 5 |
-| `skills/user-story-breakdown/references/output-template.md` | Add 4 illustration template sections |
+| `skills/story-breakdown/SKILL.md` | Add illustration requirements table to Phase 5 |
+| `skills/story-breakdown/references/output-template.md` | Add 4 illustration template sections |
 
 ## Example Output
 

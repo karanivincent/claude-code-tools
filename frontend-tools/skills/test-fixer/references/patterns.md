@@ -3,7 +3,7 @@
 ## Standards Reference
 
 For generic E2E testing standards (query priority, anti-patterns, wait strategies):
-→ See `sveltekit-testing-skill/references/e2e-patterns.md`
+→ See `sveltekit-test-guide/references/e2e-patterns.md`
 
 This file contains **PROJECT-SPECIFIC** patterns only.
 

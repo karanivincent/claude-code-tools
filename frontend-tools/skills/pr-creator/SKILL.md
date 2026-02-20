@@ -81,7 +81,7 @@ EOF
 
 ### Step 5: Generate Slack Message
 
-Use the `slack-pr-message` skill to generate a Slack announcement for the PR.
+Use the `pr-slack-announcer` skill to generate a Slack announcement for the PR.
 
 ## Best Practices
 

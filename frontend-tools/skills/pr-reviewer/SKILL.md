@@ -1,6 +1,6 @@
 ---
 name: pr-reviewer
-description: AI code review using patterns learned from Nicolas and Vincent's 2,768 review comments. Use when reviewing PRs, diffs, or code changes. Triggers on "/review-pr", "review this PR", "review my changes", "code review", or when asked to check code before merging.
+description: AI code review using patterns learned from Nicolas and Vincent's 2,768 review comments. Use when reviewing PRs, diffs, or code changes. Triggers on "/pr-reviewer", "review this PR", "review my changes", "code review", or when asked to check code before merging.
 ---
 
 # PR Review Skill
@@ -10,13 +10,13 @@ Multi-agent code review in the synthesized style of Nicolas and Vincent.
 ## Usage
 
 ```
-/review-pr              # Review uncommitted local changes
-/review-pr --staged     # Review only staged changes
-/review-pr 123          # Review PR #123 from GitHub
-/review-pr <url>        # Review PR from URL
-/review-pr 123 --auto-post  # Review + auto-post comments to GitHub
-/review-pr post 123     # Post review comments to GitHub PR
-/review-pr post         # Post to PR (auto-detect from branch)
+/pr-reviewer              # Review uncommitted local changes
+/pr-reviewer --staged     # Review only staged changes
+/pr-reviewer 123          # Review PR #123 from GitHub
+/pr-reviewer <url>        # Review PR from URL
+/pr-reviewer 123 --auto-post  # Review + auto-post comments to GitHub
+/pr-reviewer post 123     # Post review comments to GitHub PR
+/pr-reviewer post         # Post to PR (auto-detect from branch)
 ```
 
 ## Context Isolation Rules
@@ -193,7 +193,7 @@ MetaReviewer returns:
 
 ### Auto-Post Mode
 
-When `--auto-post` is present OR the project's CLAUDE.md contains an instruction like "When using /review-pr, always auto-post review comments to GitHub":
+When `--auto-post` is present OR the project's CLAUDE.md contains an instruction like "When using /pr-reviewer, always auto-post review comments to GitHub":
 
 1. Phases 0-3 run as normal
 2. After MetaReviewer returns, **automatically launch PostAgent** with `auto_post: true`
@@ -203,7 +203,7 @@ When `--auto-post` is present OR the project's CLAUDE.md contains an instruction
 
 When auto-post is NOT active:
 1. Present summary to user after Phase 3
-2. User can later run `/review-pr post` manually
+2. User can later run `/pr-reviewer post` manually
 3. Proceed to Phase 4 (CleanupAgent)
 
 ### Main Agent: Present Results

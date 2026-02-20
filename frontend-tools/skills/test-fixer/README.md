@@ -16,7 +16,7 @@ Fix failing E2E (Playwright) and unit tests (Vitest), add new E2E tests, and deb
 1. **Phase 0: Environment Setup** - Kill existing server, build, start preview
 2. **Phase 1: Explore** - Dispatch `manual-tester` agent to understand the feature
 3. **Phase 2: Predict → Run → Compare** - Create predictions before running tests
-4. **Phase 4: Write Tests** - Follow standards from `sveltekit-testing-skill`
+4. **Phase 4: Write Tests** - Follow standards from `sveltekit-test-guide`
 5. **Phase 4.5: Review Tests** - Automatic review for test type and standards
 6. **Phase 5: Fix Failures** - Use `failure-mapper` to map all failures systematically
 7. **Phase 6: Finalize** - Run all related tests, check flakiness, commit

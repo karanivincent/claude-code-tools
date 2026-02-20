@@ -19,7 +19,7 @@ BEFORE doing anything else:
 </MANDATORY>
 
 <STANDARDS>
-When writing or fixing E2E tests, follow standards from `sveltekit-testing-skill`:
+When writing or fixing E2E tests, follow standards from `sveltekit-test-guide`:
 - Query priority: `getByRole` → `getByLabel` → `getByText` → `getByTestId`
 - **TestIds are a LAST RESORT** - only for custom widgets without native semantics
 - No `waitForTimeout()` - use `expect().toBeVisible()` or `waitForResponse()`
@@ -68,8 +68,8 @@ If you catch yourself thinking:
 - "I need to understand the component first" → WRONG. Manual-tester understands for you.
 - "The failure map won't tell me more than the error" → WRONG. It shows patterns.
 - "I'll create predictions mentally" → WRONG. Write them to TodoWrite.
-- "I'll use getByTestId, it's faster" → WRONG. Follow query priority from sveltekit-testing-skill.
-- "I'll add waitForTimeout to fix timing" → WRONG. Use proper waits per sveltekit-testing-skill.
+- "I'll use getByTestId, it's faster" → WRONG. Follow query priority from sveltekit-test-guide.
+- "I'll add waitForTimeout to fix timing" → WRONG. Use proper waits per sveltekit-test-guide.
 - "This component needs a testid" → WRONG. First try: aria-label, proper label, semantic HTML. Testid is last resort.
 - "I'll add testids to all the form fields" → WRONG. Form fields have roles. Use `getByRole('textbox')`, `getByRole('combobox')`.
 - "The tests look fine, review is overkill" → WRONG. Run the review. Catches wrong test types and missing cases.
@@ -197,7 +197,7 @@ If testids ARE needed, use convention: `{feature}-{element-type}` (see patterns.
 ## Phase 4: Write Tests
 
 <STANDARDS-CHECK>
-Before writing: Read `sveltekit-testing-skill` Quick Reference.
+Before writing: Read `sveltekit-test-guide` Quick Reference.
 Apply: Query priority, no hardcoded waits, verify outcomes not just toasts.
 </STANDARDS-CHECK>
 
@@ -218,7 +218,7 @@ This phase runs automatically after writing tests. Issues are fixed automaticall
 Create TodoWrite entries for each category:
 
 ### Category 1: Test Type Appropriateness
-Reference: `sveltekit-testing-skill` Test Type Decision Framework
+Reference: `sveltekit-test-guide` Test Type Decision Framework
 
 | Test Content | Action |
 |--------------|--------|
@@ -240,7 +240,7 @@ Compare tests written against Phase 1 manual-tester findings:
 **Action:** Add missing test cases identified in Phase 1 exploration.
 
 ### Category 3: E2E Standards Compliance
-Reference: `sveltekit-testing-skill` Core Principles & Common Mistakes
+Reference: `sveltekit-test-guide` Core Principles & Common Mistakes
 
 | Check | Auto-Fix |
 |-------|----------|
@@ -308,7 +308,7 @@ Create TodoWrite from the failure map.
 | Timing issues | Add proper waitFor conditions |
 
 <STANDARDS-CHECK>
-When fixing, ensure fixes follow `sveltekit-testing-skill` standards:
+When fixing, ensure fixes follow `sveltekit-test-guide` standards:
 - Don't add `waitForTimeout()` as a timing fix
 - Use proper element queries, not just testIds
 - If adding testIds, follow naming convention from patterns.md

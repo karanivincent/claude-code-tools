@@ -19,7 +19,7 @@ argument-hint: <design-doc-path>
 
 Orchestrate end-to-end implementation of a design document: analyze design, determine optimal team structure, create an umbrella base branch, spawn parallel implementers in isolated worktrees, pipeline reviews with direct agent-to-agent communication, merge sub-PRs to the base branch, and create one umbrella PR to staging for user review.
 
-**Announce at start:** "I'm using the implement-design skill to orchestrate implementation of this design document."
+**Announce at start:** "I'm using the design-implementer skill to orchestrate implementation of this design document."
 
 ## Phase 1: Analyze Design Doc
 
@@ -147,8 +147,8 @@ If Phase 1.5 recommended single-agent:
    ```
 2. **Plan and execute** directly using `superpowers:writing-plans` → `superpowers:executing-plans`
 3. **Run CI:** `pnpm typecheck && pnpm lint && pnpm build && pnpm test -- -- --coverage`
-4. **Create sub-PR** targeting the **base branch** using `frontend-tools:github-pr-creator` — include detailed Setup & Testing section (see agent-prompts.md)
-5. **Self-review** with `frontend-tools:review-pr`
+4. **Create sub-PR** targeting the **base branch** using `frontend-tools:pr-creator` — include detailed Setup & Testing section (see agent-prompts.md)
+5. **Self-review** with `frontend-tools:pr-reviewer`
 6. **Fix any issues** from self-review
 7. **Merge sub-PR** to the base branch: `gh pr merge [PR#] --squash --delete-branch`
 8. **Generate handover document** (see Phase 5)
@@ -254,7 +254,7 @@ Each implementer works independently in its own worktree. The lead (you) monitor
 3. Use `superpowers:writing-plans` to create implementation plan
 4. Use `superpowers:executing-plans` to execute the plan
 5. Run full CI: `pnpm typecheck && pnpm lint && pnpm build && pnpm test -- -- --coverage`
-6. Create PR targeting **base branch** (`feature/[design-name]`) using `frontend-tools:github-pr-creator` — **must include detailed Setup & Testing section**
+6. Create PR targeting **base branch** (`feature/[design-name]`) using `frontend-tools:pr-creator` — **must include detailed Setup & Testing section**
 7. Mark implementation task as completed
 8. Notify lead with PR number
 9. **Enter standby** — remain alive, waiting for review feedback from reviewer
@@ -286,7 +286,7 @@ SendMessage:
     Worktree: ../telitask-[stream-name]
     Branch: feature/[stream-name]
 
-    Review using /review-pr [PR#] --auto-post
+    Review using /pr-reviewer [PR#] --auto-post
     If APPROVED: notify me (the lead) — "PR #X approved, ready to merge"
     If CHANGES_REQUESTED: notify the implementer directly with the list of issues
   summary: "Review PR #[number] for [stream]"
@@ -402,7 +402,7 @@ git worktree remove ../telitask-handover
 
 ### Create Umbrella PR
 
-Create the umbrella PR from base branch to staging using `frontend-tools:github-pr-creator`:
+Create the umbrella PR from base branch to staging using `frontend-tools:pr-creator`:
 
 ```
 PR: feature/[design-name] → staging
@@ -526,20 +526,20 @@ Full handover document: `docs/handovers/YYYY-MM-DD-[design-name]-handover.md`
 **Skills used by implementer agents:**
 - `superpowers:writing-plans` — Create implementation plan
 - `superpowers:executing-plans` — Execute plan with batch checkpoints
-- `frontend-tools:github-pr-creator` — Create PR
-- `frontend-tools:resolve-pr-comments` — Fix review issues (`--auto`)
+- `frontend-tools:pr-creator` — Create PR
+- `frontend-tools:pr-comment-resolver` — Fix review issues (`--auto`)
 
 **Skills used by reviewer agent:**
-- `frontend-tools:review-pr` — Post review comments (`--auto-post`)
+- `frontend-tools:pr-reviewer` — Post review comments (`--auto-post`)
 
 **Skills used by lead (single-agent path):**
 - `superpowers:writing-plans` — Create implementation plan
 - `superpowers:executing-plans` — Execute plan
-- `frontend-tools:github-pr-creator` — Create PR and umbrella PR
-- `frontend-tools:review-pr` — Self-review
+- `frontend-tools:pr-creator` — Create PR and umbrella PR
+- `frontend-tools:pr-reviewer` — Self-review
 
 **Skills used by lead (multi-agent path):**
-- `frontend-tools:github-pr-creator` — Create umbrella PR
+- `frontend-tools:pr-creator` — Create umbrella PR
 
 **Project rules enforced:**
 - CLAUDE.md agent team rules (commit conventions, CI, worktree isolation)

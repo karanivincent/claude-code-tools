@@ -4,7 +4,7 @@ description: |
   Systematically process PR review comments with critical analysis, not blind compliance.
   Use when:
   - User says "address PR comments", "resolve review feedback", "fix PR review"
-  - User invokes /resolve-pr-comments with PR number or URL
+  - User invokes /pr-comment-resolver with PR number or URL
   - User needs to respond to code review comments on a pull request
   - User wants to work through reviewer feedback methodically
   Supports --auto flag for fully autonomous processing (no prompts, batch analysis, auto-post, auto-resolve threads).
@@ -17,15 +17,15 @@ Process PR review comments: analyze, decide, fix, reply, resolve threads.
 ## Invocation
 
 ```bash
-/resolve-pr-comments 123              # Interactive (default)
-/resolve-pr-comments 123 --auto       # Auto mode: fully autonomous, no prompts
-/resolve-pr-comments <url>            # PR URL
-/resolve-pr-comments 123 --resume     # Resume interrupted session
+/pr-comment-resolver 123              # Interactive (default)
+/pr-comment-resolver 123 --auto       # Auto mode: fully autonomous, no prompts
+/pr-comment-resolver <url>            # PR URL
+/pr-comment-resolver 123 --resume     # Resume interrupted session
 ```
 
 Auto mode can also be enabled via project CLAUDE.md:
 ```markdown
-When using /resolve-pr-comments, always use auto mode.
+When using /pr-comment-resolver, always use auto mode.
 ```
 
 ## Auto Mode
@@ -343,17 +343,17 @@ Wait for user confirmation before posting.
 
 Parse the decisions file to extract comment IDs and replies. Before posting each reply, append an AI attribution marker:
 
-**Auto mode:** Append `\n\n<!-- ai:resolve-pr-comments mode:auto -->` to each reply body (no edit check needed — user never touches replies).
+**Auto mode:** Append `\n\n<!-- ai:pr-comment-resolver mode:auto -->` to each reply body (no edit check needed — user never touches replies).
 
 **Interactive mode:** Read `docs/reviews/pr-{number}-original-drafts.json` and compare each reply with its original draft:
-- If identical → append `\n\n<!-- ai:resolve-pr-comments mode:interactive edited:false -->`
-- If different → append `\n\n<!-- ai:resolve-pr-comments mode:interactive edited:true -->`
+- If identical → append `\n\n<!-- ai:pr-comment-resolver mode:interactive edited:false -->`
+- If different → append `\n\n<!-- ai:pr-comment-resolver mode:interactive edited:true -->`
 
 Post each reply:
 
 ```bash
 gh api repos/{owner}/{repo}/pulls/{pr}/comments/{comment_id}/replies \
-  -f body="Your reply text\n\n<!-- ai:resolve-pr-comments mode:auto -->"
+  -f body="Your reply text\n\n<!-- ai:pr-comment-resolver mode:auto -->"
 ```
 
 **Interactive mode:** Post replies and report results. Wait for user confirmation before proceeding.

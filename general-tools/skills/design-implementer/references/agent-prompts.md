@@ -1,6 +1,6 @@
 # Agent Prompt Templates
 
-Spawn prompts for implementer and reviewer agents used by the implement-design skill.
+Spawn prompts for implementer and reviewer agents used by the design-implementer skill.
 
 ---
 
@@ -87,7 +87,7 @@ Task tool:
     ALL checks must pass. If anything fails, fix it before proceeding.
 
     ### Step 4: Create PR
-    Use the `frontend-tools:github-pr-creator` skill to create a PR:
+    Use the `frontend-tools:pr-creator` skill to create a PR:
     - **Target branch: `feature/[DESIGN_NAME]`** (the base branch — NOT staging)
     - Title should be descriptive of the stream
     - Body MUST include the following section at the end:
@@ -124,9 +124,9 @@ Task tool:
 
     ### Step 7: Fix Review Issues
     When the REVIEWER ([REVIEWER_NAME]) sends you feedback directly:
-    1. Use `frontend-tools:resolve-pr-comments` with `--auto` to fix the issues:
+    1. Use `frontend-tools:pr-comment-resolver` with `--auto` to fix the issues:
        ```
-       /resolve-pr-comments [PR#] --auto
+       /pr-comment-resolver [PR#] --auto
        ```
     2. Run full CI after fixes:
        ```bash
@@ -212,9 +212,9 @@ Task tool:
     ## Per-PR Process
 
     ### 1. Review
-    Use the `frontend-tools:review-pr` skill with `--auto-post`:
+    Use the `frontend-tools:pr-reviewer` skill with `--auto-post`:
     ```
-    /review-pr [PR#] --auto-post
+    /pr-reviewer [PR#] --auto-post
     ```
     This posts review comments directly to GitHub.
 
@@ -242,7 +242,7 @@ Task tool:
         [LIST SPECIFIC ISSUES — be clear about what needs to change]
 
         Fix these issues and notify me when done.
-        Use /resolve-pr-comments [PR#] --auto to process all comments.
+        Use /pr-comment-resolver [PR#] --auto to process all comments.
       summary: "PR #[number] needs fixes"
     ```
 
@@ -308,7 +308,7 @@ SendMessage:
     Worktree: ../telitask-[stream-name]
     Branch: feature/[stream-name]
 
-    Review using /review-pr [PR#] --auto-post
+    Review using /pr-reviewer [PR#] --auto-post
     If APPROVED: notify me — "PR #X approved, ready to merge"
     If CHANGES_REQUESTED: notify the implementer directly with the list of issues
   summary: "Review PR #[number] for [stream]"

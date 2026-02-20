@@ -35,7 +35,7 @@ If no images are found, do not use this skill.
 ### Step 1: Run the Download Script
 
 ```bash
-python ~/.claude/skills/github-issue-images/scripts/fetch_issue_images.py \
+python ~/.claude/skills/issue-image-downloader/scripts/fetch_issue_images.py \
   <issue_number> \
   --repo <owner/repo> \
   --output-dir docs/designs
@@ -43,7 +43,7 @@ python ~/.claude/skills/github-issue-images/scripts/fetch_issue_images.py \
 
 Example:
 ```bash
-python ~/.claude/skills/github-issue-images/scripts/fetch_issue_images.py \
+python ~/.claude/skills/issue-image-downloader/scripts/fetch_issue_images.py \
   60 \
   --repo goyond/frontend-monorepo \
   --output-dir docs/designs

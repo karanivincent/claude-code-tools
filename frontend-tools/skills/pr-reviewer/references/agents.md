@@ -2,7 +2,7 @@
 
 Five-phase agent architecture: SetupAgent → DiffProcessor → 9 Specialists (parallel) → MetaReviewer → CleanupAgent
 
-Standalone agent for posting: PostAgent (triggered by `/review-pr post` or auto-post mode)
+Standalone agent for posting: PostAgent (triggered by `/pr-reviewer post` or auto-post mode)
 
 **All intermediate data flows through files — agents receive paths, not payloads.**
 
@@ -898,7 +898,7 @@ With warnings:
 # PostAgent
 
 **Purpose:** Post review comments from markdown file to GitHub PR as inline comments
-**Runs:** Standalone via `/review-pr post`, or automatically in auto-post mode
+**Runs:** Standalone via `/pr-reviewer post`, or automatically in auto-post mode
 
 ## Input
 
@@ -1027,12 +1027,12 @@ You are the post agent for code review. Your job is to post review comments to G
        "path": "src/lib/api/services/scanner.ts",
        "line": 89,
        "side": "RIGHT",
-       "body": "**Major: Error Handling**\n\nJSON.parse can throw...\n\n<!-- ai:review-pr -->"
+       "body": "**Major: Error Handling**\n\nJSON.parse can throw...\n\n<!-- ai:pr-reviewer -->"
      }
    ]
    ```
 
-   **Important:** Append `\n\n<!-- ai:review-pr -->` to every comment body before writing to comments.json. This invisible marker enables programmatic identification of AI-generated comments.
+   **Important:** Append `\n\n<!-- ai:pr-reviewer -->` to every comment body before writing to comments.json. This invisible marker enables programmatic identification of AI-generated comments.
 
    Submit as a single review:
    ```bash
@@ -1040,7 +1040,7 @@ You are the post agent for code review. Your job is to post review comments to G
      --method POST \
      -f event="COMMENT" \
      -f commit_id="{head_sha}" \
-     -f body="AI-assisted code review ({n} comments)\n\n<!-- ai:review-pr -->" \
+     -f body="AI-assisted code review ({n} comments)\n\n<!-- ai:pr-reviewer -->" \
      --input comments.json
    ```
 
