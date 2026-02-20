@@ -53,7 +53,7 @@ Agents and skills for codebase research, PR workflows, testing, planning, and sk
 | `sveltekit-test-guide` | Testing standards for SvelteKit (Vitest + Playwright) |
 | `story-breakdown` | Transforms user stories into actionable task breakdowns |
 | `issue-workflow` | Manages GitHub Issues through full lifecycle |
-| `issue-image-downloader` | Downloads images attached to GitHub issues for design review |
+| `github-image-downloader` | Downloads images attached to GitHub issues for design review |
 | `pr-slack-announcer` | Generates and auto-posts Slack announcement messages for PRs |
 
 ### general-tools `v1.8.0`
