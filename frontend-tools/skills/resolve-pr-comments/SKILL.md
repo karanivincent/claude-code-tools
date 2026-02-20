@@ -276,6 +276,17 @@ Already opened a team discussion - see the Notion proposal for TypeScript type v
 
 **Important:** Include comment IDs and thread node IDs visibly — needed for posting replies and resolving threads.
 
+**Also write** `docs/reviews/pr-{number}-original-drafts.json` — a companion file containing the original reply text keyed by comment ID:
+
+```json
+{
+  "2748124698": "Good catch, fixed! Created a mockRoute helper that reduces the boilerplate.",
+  "2745871956": "Thanks for catching this! This is already handled — isStringArray() type guard validates the parsed JSON."
+}
+```
+
+This file is used in Phase 10 for edit detection (interactive mode). It is a transient artifact — do NOT commit it.
+
 ## Phase 6: Create Implementation Plan
 
 **STOP.** You MUST invoke `superpowers:write-plan` to create the implementation plan. Do NOT use todos or implement directly.
@@ -306,6 +317,8 @@ Ready to commit?
 
 Single commit, then push to remote after user confirms.
 
+**Note:** Do NOT commit `docs/reviews/pr-{number}-original-drafts.json` — it is a transient artifact for edit detection only.
+
 **Auto mode:** Commit and push immediately with no confirmation. Commit message format:
 ```
 fix: address PR #{number} review comments
@@ -328,11 +341,19 @@ Wait for user confirmation before posting.
 
 ## Phase 10: Post Replies to GitHub
 
-Parse the decisions file to extract comment IDs and replies. Post each reply:
+Parse the decisions file to extract comment IDs and replies. Before posting each reply, append an AI attribution marker:
+
+**Auto mode:** Append `\n\n<!-- ai:resolve-pr-comments mode:auto -->` to each reply body (no edit check needed — user never touches replies).
+
+**Interactive mode:** Read `docs/reviews/pr-{number}-original-drafts.json` and compare each reply with its original draft:
+- If identical → append `\n\n<!-- ai:resolve-pr-comments mode:interactive edited:false -->`
+- If different → append `\n\n<!-- ai:resolve-pr-comments mode:interactive edited:true -->`
+
+Post each reply:
 
 ```bash
 gh api repos/{owner}/{repo}/pulls/{pr}/comments/{comment_id}/replies \
-  -f body="Your reply text"
+  -f body="Your reply text\n\n<!-- ai:resolve-pr-comments mode:auto -->"
 ```
 
 **Interactive mode:** Post replies and report results. Wait for user confirmation before proceeding.
@@ -401,6 +422,16 @@ Decisions: docs/reviews/pr-86-decisions.md
 PR: https://github.com/owner/repo/pull/86
 ```
 
+## Phase 12: Cleanup
+
+Trash transient artifacts:
+
+```bash
+trash docs/reviews/pr-{number}-original-drafts.json
+```
+
+This file was only needed for edit detection in Phase 10 and should not persist.
+
 ## Key Principles
 
 - **Pre-analyze first** — Scan for already-fixed issues before detailed review
@@ -419,6 +450,7 @@ PR: https://github.com/owner/repo/pull/86
 |------|----------|
 | `docs/reviews/pr-{number}-decisions.md` | All decisions with reply drafts, comment IDs, and thread ID mapping |
 | `docs/reviews/pr-{number}-plan.md` | Implementation tasks (fixes only) |
+| `docs/reviews/pr-{number}-original-drafts.json` | Original reply text keyed by comment ID (transient — trashed after posting) |
 
 ## Edge Cases
 

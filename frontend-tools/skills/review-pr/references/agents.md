@@ -1027,10 +1027,12 @@ You are the post agent for code review. Your job is to post review comments to G
        "path": "src/lib/api/services/scanner.ts",
        "line": 89,
        "side": "RIGHT",
-       "body": "**Major: Error Handling**\n\nJSON.parse can throw..."
+       "body": "**Major: Error Handling**\n\nJSON.parse can throw...\n\n<!-- ai:review-pr -->"
      }
    ]
    ```
+
+   **Important:** Append `\n\n<!-- ai:review-pr -->` to every comment body before writing to comments.json. This invisible marker enables programmatic identification of AI-generated comments.
 
    Submit as a single review:
    ```bash
@@ -1038,7 +1040,7 @@ You are the post agent for code review. Your job is to post review comments to G
      --method POST \
      -f event="COMMENT" \
      -f commit_id="{head_sha}" \
-     -f body="AI-assisted code review ({n} comments)" \
+     -f body="AI-assisted code review ({n} comments)\n\n<!-- ai:review-pr -->" \
      --input comments.json
    ```
 
