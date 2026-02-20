@@ -124,7 +124,7 @@ Auto-discover which investigation tools are available and initialize them before
 
 1. Use `ToolSearch` to probe each service's MCP tool (see service-mapping.md for exact queries)
 2. For unavailable MCP tools, check CLI fallback, then browser fallback URL from env vars
-3. If any MCP tool is unavailable after probing: read [references/env-vars.md](references/env-vars.md) for fallback URLs and credentials. `ISSUE_DOCUMENTER_*` variables live in the repository root `.env` only.
+3. If any MCP tool is unavailable after probing: read [references/env-vars.md](references/env-vars.md) for fallback URLs and credentials. `TEST_*` variables live in the repository root `.env` only.
 4. **Initialize discovered tools** (see service-mapping.md for prerequisite calls per service):
    - **Sentry:** **NEVER guess the organizationSlug** — always call `find_organizations` first → store `organizationSlug` + `regionUrl`
    - **Render:** Call `list_workspaces` (auto-selects if one) → `list_services` → match service by name/keyword from bug description → store resource ID

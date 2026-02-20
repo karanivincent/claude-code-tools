@@ -31,7 +31,7 @@ For each service, prefer MCP tools first, then CLI, then browser as last resort.
    - **Query syntax:** Sentry search does not support boolean `OR` or `AND` operators. Use separate targeted queries instead of combining terms.
      - Bad: `"memory failed OR fact extraction error"`
      - Good: Two separate queries — `"memory failed"`, then `"fact extraction error"`
-2. **Browser fallback:** via `ISSUE_DOCUMENTER_SENTRY_URL`
+2. **Browser fallback:** via `TEST_SENTRY_URL`
 
 ### Vercel
 1. **MCP (primary):** `mcp__vercel__get_runtime_logs` — supports filters:
@@ -43,12 +43,12 @@ For each service, prefer MCP tools first, then CLI, then browser as last resort.
    - `source`: `["serverless"]`, `["edge-function"]`, etc.
    - Requires `projectId` and `teamId` — read from `.vercel/project.json`
 2. **CLI (secondary):** `vercel logs <deployment-url>` (streams real-time only, no filters)
-3. **Browser fallback:** via `ISSUE_DOCUMENTER_VERCEL_LOGS_URL`
+3. **Browser fallback:** via `TEST_VERCEL_LOGS_URL`
 
 ### Render
 1. **MCP (primary):** `mcp__render__list_logs`
    - **Prerequisites:** Call `list_workspaces` first (auto-selects if only one) → then `list_services` to get the resource ID for the relevant service
-2. **Browser fallback:** via `ISSUE_DOCUMENTER_RENDER_LOGS_URL`
+2. **Browser fallback:** via `TEST_RENDER_LOGS_URL`
 
 ### Linear
 1. **MCP (primary):** `mcp__plugin_linear_linear__create_issue`, `update_issue`, `get_issue`
