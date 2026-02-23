@@ -49,16 +49,35 @@ python ~/.claude/skills/github-image-downloader/scripts/fetch_issue_images.py \
   --output-dir docs/designs
 ```
 
-The script will:
-- Fetch the issue body
-- Extract all `user-attachments` image URLs
-- Download each image using authenticated `gh api`
-- Save to `docs/designs/issue-{number}/`
-- Name files using markdown alt text when available
+The script names files using a priority chain:
+1. **Alt text** — markdown alt text (if not generic like "image" or "screenshot")
+2. **Context** — nearest heading or descriptive text above the image in the issue body
+3. **Fallback** — `image-{n}` when no meaningful name can be derived
 
-### Step 2: Display Images
+Duplicate names get `-2`, `-3` suffixes automatically.
 
-After downloading, use the Read tool to display each image inline:
+The script emits a `--- IMAGE_DOWNLOAD_RESULT ---` JSON block listing which files are generically named.
+
+### Step 2: Rename Generically-Named Images
+
+Check the script output for the `generically_named` array in the JSON result block.
+
+For each generically-named file:
+1. **Read the image** using the Read tool to view its contents
+2. **Generate a descriptive name** (2-4 words) based on what the image shows
+3. **Rename** with `mv old-name.png new-name.png`
+
+Naming guidelines:
+- Use kebab-case (e.g., `checkout-form-error.png`)
+- Describe the UI element, state, or feature shown
+- Avoid generic words like "image", "screenshot", "view"
+- Keep names concise: 2-4 words max
+
+If vision cannot determine a meaningful name, keep the `image-{n}` fallback — don't force a bad name.
+
+### Step 3: Display Images
+
+After downloading (and renaming), use the Read tool to display each image inline:
 
 ```
 Read: docs/designs/issue-{number}/image-name.png
@@ -71,9 +90,10 @@ Display all downloaded images so the user can see the designs.
 ```
 docs/designs/
 └── issue-{number}/
-    ├── {alt-text-1}.png
-    ├── {alt-text-2}.png
-    └── image-{n}.png  (fallback if no alt text)
+    ├── {alt-text}.png          (from meaningful alt text)
+    ├── {context-name}.png      (from nearby heading/text)
+    ├── {vision-name}.png       (renamed by vision in Step 2)
+    └── image-{n}.png           (only if vision couldn't name it)
 ```
 
 ## Script Details

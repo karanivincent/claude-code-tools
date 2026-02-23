@@ -21,29 +21,98 @@ import subprocess
 import sys
 from pathlib import Path
 
+GENERIC_ALT_TEXTS = {
+    'image', 'screenshot', 'screen shot', 'img', 'photo',
+    'picture', 'untitled', 'alt text',
+}
+
 
 def sanitize_filename(name: str) -> str:
-    """Convert alt text to a valid filename."""
+    """Convert text to a valid filename."""
     # Lowercase and replace spaces/special chars with hyphens
     name = name.lower().strip()
     name = re.sub(r'[^\w\s-]', '', name)
     name = re.sub(r'[-\s]+', '-', name)
+    name = name.strip('-')
     return name or 'image'
+
+
+def find_context_above(body: str, position: int) -> tuple[str, str]:
+    """
+    Walk backwards from an image's position to find contextual naming info.
+
+    Returns (heading_context, text_context) — either may be empty.
+    """
+    text_before = body[:position]
+    lines = text_before.split('\n')
+
+    heading_context = ''
+    text_context = ''
+
+    for line in reversed(lines):
+        stripped = line.strip()
+        if not stripped:
+            continue
+
+        # Check for markdown heading
+        heading_match = re.match(r'^#{1,6}\s+(.+)$', stripped)
+        if heading_match and not heading_context:
+            heading_context = heading_match.group(1).strip()
+            # Once we have both, stop early
+            if text_context:
+                break
+            continue
+
+        # Skip image lines and horizontal rules
+        if stripped.startswith('![') or re.match(r'^---+$|^\*\*\*+$|^___+$', stripped):
+            continue
+
+        # Use as text context if we don't have one yet
+        if not text_context:
+            text_context = stripped
+            if heading_context:
+                break
+
+    return (heading_context, text_context)
+
+
+def derive_name_from_context(heading: str, text: str) -> str:
+    """
+    Derive a filename from heading or text context.
+
+    Uses heading first, text second. Strips markdown formatting,
+    truncates to first 5 words, and sanitizes.
+    """
+    source = heading or text
+    if not source:
+        return ''
+
+    # Strip markdown formatting: bold, italic, links, inline code
+    source = re.sub(r'\*\*(.+?)\*\*', r'\1', source)
+    source = re.sub(r'\*(.+?)\*', r'\1', source)
+    source = re.sub(r'`(.+?)`', r'\1', source)
+    source = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', source)
+
+    # Truncate to first 5 words
+    words = source.split()[:5]
+    truncated = ' '.join(words)
+
+    return sanitize_filename(truncated)
 
 
 def extract_images_from_body(body: str) -> list[dict]:
     """
-    Extract image URLs and their alt text from issue body.
+    Extract image URLs, alt text, and context from issue body.
 
-    Returns list of dicts with 'url', 'alt_text', and 'uuid' keys.
+    Returns list of dicts with 'url', 'alt_text', 'uuid', 'position',
+    'heading_context', and 'text_context' keys.
     """
     images = []
 
     # Pattern for GitHub user-attachments URLs
-    # Matches both markdown image syntax and raw URLs
     attachment_pattern = r'https://github\.com/user-attachments/assets/([a-f0-9-]+)'
 
-    # First try to find markdown images with alt text: ![alt text](url)
+    # Markdown images with alt text: ![alt text](url)
     markdown_pattern = r'!\[([^\]]*)\]\((https://github\.com/user-attachments/assets/[a-f0-9-]+)\)'
 
     seen_uuids = set()
@@ -53,13 +122,18 @@ def extract_images_from_body(body: str) -> list[dict]:
         alt_text = match.group(1)
         url = match.group(2)
         uuid = re.search(attachment_pattern, url).group(1)
+        position = match.start()
 
         if uuid not in seen_uuids:
             seen_uuids.add(uuid)
+            heading_ctx, text_ctx = find_context_above(body, position)
             images.append({
                 'url': url,
                 'alt_text': alt_text,
-                'uuid': uuid
+                'uuid': uuid,
+                'position': position,
+                'heading_context': heading_ctx,
+                'text_context': text_ctx,
             })
 
     # Find any remaining URLs not captured by markdown pattern
@@ -67,14 +141,33 @@ def extract_images_from_body(body: str) -> list[dict]:
         uuid = match.group(1)
         if uuid not in seen_uuids:
             seen_uuids.add(uuid)
+            position = match.start()
+            heading_ctx, text_ctx = find_context_above(body, position)
             url = f'https://github.com/user-attachments/assets/{uuid}'
             images.append({
                 'url': url,
                 'alt_text': '',
-                'uuid': uuid
+                'uuid': uuid,
+                'position': position,
+                'heading_context': heading_ctx,
+                'text_context': text_ctx,
             })
 
     return images
+
+
+def deduplicate_name(base_name: str, used_names: dict[str, int]) -> str:
+    """
+    Return a unique name, appending -2, -3, etc. if already used.
+
+    Tracks counts in used_names dict (mutated in place).
+    """
+    if base_name not in used_names:
+        used_names[base_name] = 1
+        return base_name
+
+    used_names[base_name] += 1
+    return f"{base_name}-{used_names[base_name]}"
 
 
 def fetch_issue_body(issue_number: int, repo: str) -> str:
@@ -140,18 +233,41 @@ def main():
 
     # Download images
     downloaded = []
-    for i, img in enumerate(images, 1):
-        # Generate filename
-        if img['alt_text']:
-            filename = f"{sanitize_filename(img['alt_text'])}.png"
-        else:
-            filename = f"image-{i}.png"
+    generically_named = []
+    used_names: dict[str, int] = {}
 
+    for i, img in enumerate(images, 1):
+        # Naming priority chain:
+        # 1. Alt text (only if not generic)
+        # 2. Context name from heading/text above the image
+        # 3. Fallback: image-{n}
+        is_generic = False
+        alt = img['alt_text'].strip()
+
+        if alt and alt.lower() not in GENERIC_ALT_TEXTS:
+            base_name = sanitize_filename(alt)
+            naming_source = 'alt_text'
+        else:
+            context_name = derive_name_from_context(
+                img['heading_context'], img['text_context']
+            )
+            if context_name and context_name != 'image':
+                base_name = context_name
+                naming_source = 'context'
+            else:
+                base_name = f"image-{i}"
+                naming_source = 'fallback'
+                is_generic = True
+
+        unique_name = deduplicate_name(base_name, used_names)
+        filename = f"{unique_name}.png"
         output_path = output_dir / filename
 
-        print(f"Downloading {filename}...")
+        print(f"Downloading {filename} (source: {naming_source})...")
         if download_image(img['url'], output_path):
             downloaded.append(str(output_path))
+            if is_generic:
+                generically_named.append(str(output_path))
             print(f"  Saved to {output_path}")
         else:
             print(f"  Failed to download {filename}")
@@ -163,6 +279,16 @@ def main():
 
     for path in downloaded:
         print(path)
+
+    # Structured output for Claude to parse
+    result = {
+        'generically_named': generically_named,
+        'all_downloaded': downloaded,
+        'output_dir': str(output_dir),
+    }
+    print(f"\n--- IMAGE_DOWNLOAD_RESULT ---")
+    print(json.dumps(result))
+    print(f"--- END_IMAGE_DOWNLOAD_RESULT ---")
 
     return 0 if len(downloaded) == len(images) else 1
 
