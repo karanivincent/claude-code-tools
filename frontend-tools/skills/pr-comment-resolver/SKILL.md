@@ -44,21 +44,21 @@ When `--auto` is passed (or configured in CLAUDE.md), the skill runs fully auton
 Key: the AI makes the Disagree/Fix judgment call itself. It should disagree when the suggestion would make the code worse — don't implement bad advice just because it came from a reviewer.
 
 **Reply templates (auto mode):**
-- Already Fixed: "Thanks for catching this! This is already handled — [explanation]."
-- Fix: "Good catch, fixed! [description of change]."
-- Disagree: "I looked into this and [explanation of why the current approach is correct / why the suggestion would cause issues]. [Optional: suggest alternative if appropriate]."
-- Ambiguous: "Thanks for the feedback! I've [description]. Let me know if you had something different in mind."
+- Already Fixed: "Already handled -- [explanation]."
+- Fix: "Fixed. [description of change]."
+- Disagree: "[Explanation of why the current approach is correct / why the suggestion would cause issues]. [Optional: suggest alternative if appropriate]."
+- Ambiguous: "[Description of what was done]. Let me know if you had something different in mind."
 
 ## Workflow
 
 **Interactive:**
 ```
-FETCH → PRE-ANALYZE → BRAINSTORM (one-by-one) → TODOS → DECISIONS → PLAN → EXECUTE → COMMIT → PUSH → REVIEW REPLIES → POST → RESOLVE THREADS
+FETCH → PRE-ANALYZE → BRAINSTORM (one-by-one) → TODOS → DECISIONS → PLAN → EXECUTE → COMMIT → PUSH → HUMANIZE → REVIEW REPLIES → POST → RESOLVE THREADS
 ```
 
 **Auto:**
 ```
-FETCH → BATCH ANALYZE → TODOS → DECISIONS → PLAN → EXECUTE → AUTO-COMMIT → AUTO-PUSH → AUTO-POST → AUTO-RESOLVE
+FETCH → BATCH ANALYZE → TODOS → DECISIONS → PLAN → EXECUTE → AUTO-COMMIT → AUTO-PUSH → HUMANIZE → AUTO-POST → AUTO-RESOLVE
 ```
 
 ## Phase 1: Fetch Comments
@@ -137,7 +137,7 @@ Options:
 ```
 
 If user chooses option 1, auto-mark those as "Already Fixed" with standard reply:
-> "Thanks for catching this! This is already handled — [brief explanation of existing fix]."
+> "Already handled -- [brief explanation of existing fix]."
 
 **Auto mode:** Automatically choose option 1 (skip already-fixed with standard reply). No prompt shown.
 
@@ -215,6 +215,7 @@ For ambiguous comments: pick the most reasonable interpretation, implement it, a
 □ Run typecheck and tests to verify
 □ Commit fixes
 □ Push to remote
+□ Humanize reply drafts
 □ Review/edit replies in decisions file        (interactive only)
 □ Post replies to GitHub
 □ Resolve addressed threads
@@ -245,33 +246,33 @@ Write all decisions to `docs/reviews/pr-{number}-decisions.md`.
 
 ### 1. searchHistory.svelte.ts:38 (ID: 2745871956)
 JSON.parse validation already implemented via isStringArray() type guard.
-**Reply:** Thanks for catching this! This is already handled — isStringArray() type guard validates the parsed JSON.
+**Reply:** Already handled -- isStringArray() type guard validates the parsed JSON before use.
 
 ### 2. searchHistory.svelte.ts:46 (ID: 2745871963)
 Same fix - localStorage branch uses isStringArray() validation.
-**Reply:** Thanks for catching this! This is already handled — same isStringArray() validation covers this path.
+**Reply:** Same as above -- isStringArray() covers this path too.
 
 ## Fixes
 
 ### 3. mock-setup.ts:23 (ID: 2748124698)
 Created `mockRoute` helper to reduce boilerplate.
-**Reply:** Good catch, fixed! Created a mockRoute helper that reduces the boilerplate.
+**Reply:** Fixed. Added a mockRoute helper to cut the boilerplate.
 
 ### 4. class-search.spec.ts:87 (ID: 2748130762)
 Replaced static timeouts with visibility waits.
-**Reply:** Good catch, fixed! Replaced setTimeout with waitForSelector visibility checks.
+**Reply:** Agreed, replaced setTimeout with waitForSelector visibility checks.
 
 ## Disagree
 
 ### 5. dateUtils.ts:361 (ID: 2748235527)
 The current design keeps dateUtils pure without i18n dependencies. Callers pass translated labels. The hardcoded English is a last-resort fallback.
-**Reply:** I looked into this and the current approach is intentional — dateUtils stays pure without i18n dependencies, and callers pass translated labels. The hardcoded English serves as a last-resort fallback only.
+**Reply:** The current approach is intentional -- dateUtils stays pure without i18n dependencies. Callers pass translated labels, and the hardcoded English is only a last-resort fallback.
 
 ## Clarify
 
 ### 6. appointmentUtils.ts:139 (ID: 2748164415)
 Already opened a team discussion - see the Notion proposal for TypeScript type vs interface standardization.
-**Reply:** Great question! I've opened a team discussion about this — see the Notion proposal for our type vs interface standardization.
+**Reply:** Opened a team discussion about this -- see the Notion proposal for our type vs interface standardization.
 ```
 
 **Important:** Include comment IDs and thread node IDs visibly — needed for posting replies and resolving threads.
@@ -324,14 +325,58 @@ Single commit, then push to remote after user confirms.
 fix: address PR #{number} review comments
 ```
 
-## Phase 9: Review Replies
+## Phase 9: Humanize Replies
+
+Run a humanization pass on all reply drafts before posting. This applies in both modes.
+
+**When this runs:**
+- **Interactive mode:** After commit/push, before user review
+- **Auto mode:** After commit/push, before posting
+
+**Steps:**
+
+1. Read all reply drafts from the decisions file
+2. For each reply, check for and fix these anti-AI patterns:
+
+### Anti-AI pattern reference (PR reply context)
+
+These are the patterns that most commonly appear in short reply text:
+
+| Pattern | Example | Fix |
+|---------|---------|-----|
+| Sycophantic openers | "Thanks for catching this!", "Great catch!", "Good point!" | Drop entirely or replace with direct statement |
+| Formulaic starters | "I looked into this and...", "Thanks for the feedback!" | Start with the actual content |
+| AI vocabulary | "enhance", "ensure", "leverage", "crucial", "align with" | Use plain words: "improve", "make sure", "use", "important", "match" |
+| Em dash overuse | "the current approach — which is intentional — keeps..." | Use commas or split into sentences |
+| Filler phrases | "In order to", "It's worth noting that", "It's important to note" | Cut entirely |
+| Rule of three | "improves readability, maintainability, and testability" | Pick the one or two that actually matter |
+| Negative parallelism | "It's not just X, it's Y" | Just state Y directly |
+| Exclamation marks | "Fixed!" "Done!" | Use periods. Enthusiasm in PR replies reads as fake |
+
+3. Rewrite each reply to sound natural and direct:
+   - Lead with the substance, not a pleasantry
+   - Vary sentence length and structure
+   - Use "I" naturally when explaining reasoning
+   - Keep it short -- most PR replies should be 1-2 sentences
+4. Update the decisions file with the humanized versions
+
+**Example transformations:**
+
+| Before | After |
+|--------|-------|
+| "Thanks for catching this! This is already handled — isStringArray() type guard validates the parsed JSON." | "Already handled -- isStringArray() validates the parsed JSON before use." |
+| "Good catch, fixed! Created a mockRoute helper that reduces the boilerplate." | "Fixed. Added a mockRoute helper to cut the boilerplate." |
+| "I looked into this and the current approach is intentional — dateUtils stays pure without i18n dependencies." | "The current approach is intentional -- dateUtils stays pure without i18n deps. Callers pass translated labels." |
+| "Great question! I've opened a team discussion about this — see the Notion proposal." | "Opened a team discussion about this -- see the Notion proposal." |
+
+## Phase 9.5: Review Replies
 
 **Interactive mode:** Prompt user to review/edit replies in the decisions file:
 
 ```
-Fixes committed and pushed.
+Fixes committed, pushed, and replies humanized.
 
-Next: Review your reply drafts in docs/reviews/pr-86-decisions.md
+Next: Review your **humanized** reply drafts in docs/reviews/pr-86-decisions.md
 Edit any replies to match your tone, then say "ready to post".
 ```
 

@@ -25,7 +25,7 @@ Add this marketplace to your project's `.claude/settings.json`:
 
 ## Plugins
 
-### frontend-tools `v1.7.0`
+### frontend-tools `v1.7.1`
 
 Agents and skills for codebase research, PR workflows, testing, planning, and skill development.
 
@@ -56,7 +56,7 @@ Agents and skills for codebase research, PR workflows, testing, planning, and sk
 | `github-image-downloader` | Downloads images attached to GitHub issues for design review |
 | `pr-slack-announcer` | Generates and auto-posts Slack announcement messages for PRs |
 
-### general-tools `v1.8.1`
+### general-tools `v1.9.0`
 
 General-purpose skills for git workflows and developer productivity.
 
@@ -69,6 +69,7 @@ General-purpose skills for git workflows and developer productivity.
 | `issue-documenter` | Documents user stories and bug reports for Linear with investigation tooling and automatic issue creation |
 | `issue-executor` | End-to-end issue resolution orchestrator — takes a Linear issue URL, classifies bug vs story, and drives it to a reviewable PR |
 | `skill-reviewer` | Reviews skills after real-world usage with scored reports and actionable recommendations |
+| `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 
 ## License
 
