@@ -30,6 +30,21 @@ If screenshots provided, analyze for:
 - UI states visible in designs
 - Responsive layout patterns
 
+### Phase 1.5: Refresh Generated Types
+
+Before dispatching research agents, ensure locally generated API files are fresh:
+
+```bash
+cd apps/selfservice && pnpm generate:api-types
+```
+
+This fetches the latest OpenAPI spec and regenerates:
+- `src/lib/generated/api.ts` — TypeScript API client with types
+- `static/generated/route-details.json` — endpoint tags, operationIds, query params
+- `static/generated/schemas.json` — response/request type schemas
+
+**Why here:** Both `gather-codebase-context` (reads `api.ts`) and `technical-spec-generator` (reads `route-details.json` + `schemas.json`) depend on these files being current.
+
 ### Phase 2: Codebase Research
 
 Dispatch the `gather-codebase-context` agent:
