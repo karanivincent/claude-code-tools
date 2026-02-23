@@ -25,7 +25,7 @@ Add this marketplace to your project's `.claude/settings.json`:
 
 ## Plugins
 
-### frontend-tools `v1.7.1`
+### frontend-tools `v1.8.0`
 
 Agents and skills for codebase research, PR workflows, testing, planning, and skill development.
 
@@ -38,6 +38,8 @@ Agents and skills for codebase research, PR workflows, testing, planning, and sk
 | `failure-mapper` | Maps all failures in a failing E2E test for systematic fixing |
 | `manual-tester` | Explores features using Playwright MCP to document interactive elements |
 | `testid-fixer` | Adds testId prop support to Svelte components |
+| `technical-spec-generator` | Generates Technical Spec sections for story breakdowns (API inventory, sequence flows, data flows) |
+| `ascii-diagram-generator` | Generates ASCII diagrams for story breakdowns (page layouts, component hierarchies) |
 
 **Skills:**
 

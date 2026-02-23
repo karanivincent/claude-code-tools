@@ -13,6 +13,77 @@ Use this structure for the breakdown document.
 - **Complexity**: Low | Medium | High | Very High
 - **Estimated Effort**: [X] story points
 
+<!-- CONDITIONAL: Only include Technical Spec if the story involves API dependencies.
+     Omit this entire section for pure UI stories (styling, layout, static content). -->
+
+## Technical Spec
+
+### API Endpoint Inventory
+
+| Endpoint | Method | Path | Status | Request Params | Response Type | Docs |
+|----------|--------|------|--------|---------------|---------------|------|
+| [Name] | GET | /v2/... | Exists | `param: type` | `ResponseType` | [docs](link) |
+| [Name] | POST | /v2/... | Gap | — | — | — |
+
+**Status values:** Exists, Unwrapped, Gap, Needs Extension
+
+**Gaps & Questions:**
+- [ ] [Missing endpoint or unclear requirement for backend discussion]
+
+### API to UI Mapping
+
+**Step 1: [Step Name]**
+- Endpoint: `GET /v2/path`
+
+| UI Element | Source Field | Notes |
+|------------|-------------|-------|
+| [what user sees] | `response.data.field` | [transform, fallback, etc.] |
+
+**Step 2: [Step Name]**
+- Endpoint: `POST /v2/path`
+
+| UI Element | Source Field | Notes |
+|------------|-------------|-------|
+| [what user sees] | `response.field` | [notes] |
+
+### Sequence Flows
+
+```
+User                    Frontend                 Backend
+ |                         |                        |
+ |  [action]               |                        |
+ |------------------------>|                        |
+ |                         |  GET /endpoint          |
+ |                         |----------------------->|
+ |                         |       200 { data }      |
+ |                         |<-----------------------|
+ |  [UI updates]           |                        |
+ |<------------------------|                        |
+```
+
+### Data Flow & Transformations
+
+Only document non-trivial transforms. Skip simple pass-through mappings.
+
+```
+API Response:
+  { field: Type }
+
+Transform:
+  [describe: filtering, grouping, formatting, combining]
+
+UI State:
+  { derivedField: Type }
+```
+
+### Implementation Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| [what needs deciding] | [chosen approach] | [why this over alternatives] |
+
+<!-- END CONDITIONAL Technical Spec -->
+
 ## Design Reference
 
 [Embedded screenshots if provided, or "No designs provided"]
@@ -64,13 +135,6 @@ Use this structure for the breakdown document.
 ### Similar Implementations Found
 
 - [Feature X] in `src/routes/app/...` - [relevance]
-
-### API Endpoints
-
-| Endpoint | Status | Notes |
-|----------|--------|-------|
-| GET /api/... | Exists | [notes] |
-| POST /api/... | Needs creation | [backend dependency] |
 
 ### New Components Needed
 
@@ -204,3 +268,5 @@ PageName
 - Include component status (reuse/extend/rework/create) with every component
 - Flag any blocking dependencies prominently
 - Test scenarios should be directly convertible to Playwright specs
+- Technical Spec section is conditional — only include when API dependencies exist
+- API-related subsections removed from Codebase Research Findings when Technical Spec is present
