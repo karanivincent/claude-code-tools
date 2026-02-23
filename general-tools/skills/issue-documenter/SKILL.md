@@ -113,6 +113,18 @@ Ask one at a time:
 2. Where did it happen? (URL/page/feature — needed for service inference)
 3. Which environment? (staging/production)
 
+#### Step 1.5: Assess Information Quality
+
+Before investigating, determine how much is already known:
+
+| User provided | Path |
+|---------------|------|
+| Error message + affected page/URL + screenshot or reproduction steps | **Document-only** — skip to Step 2.5 (initialize Linear only), then Step 4 |
+| Vague symptom ("something is broken", "it doesn't work") | **Investigate** — continue to Step 2 |
+| Existing Linear issue with rough notes | **Enrich** — continue to Step 2 |
+
+**Document-only path:** The bug is already characterized. Report what the user provided without deep code analysis or log investigation. Only initialize Linear (from Step 2.5) for issue creation.
+
 #### Step 2: Infer Services
 
 Based on description and URL, determine which services to check.
@@ -134,20 +146,14 @@ Auto-discover which investigation tools are available and initialize them before
 
 #### Step 2.7: Analyze Code
 
-Read the source code for failing endpoint(s) before checking logs. This makes log searches targeted.
+Read ONLY the single file where the error originates. Do not trace dependencies, shared services, or related features.
 
 **When:** Always for API/backend bugs. Skip for purely visual/CSS bugs.
 
 1. **Locate the route** — infer file path from failing URL (e.g., `/api/admin/billing/revenue` → `apps/dashboard/src/app/api/admin/billing/revenue/route.ts`). Use `Glob` if path isn't obvious.
-2. **Read the route handler** — identify:
-   - Database tables/queries referenced
-   - Error handling patterns (thrown vs caught, `console.error` vs `Sentry.captureException`)
-   - Shared dependencies across failing endpoints (common table, service, middleware)
-   - External API calls that could fail
-3. **Document internal notes** for use in evidence gathering:
-   - Table/service names to search for in logs
-   - Whether errors would be captured by monitoring
-   - Common failure points across endpoints
+2. **Read the failing file** — identify only:
+   - How the error reaches the user (display path)
+   - Whether the error is logged/captured by monitoring
 
 #### Step 3: Gather Evidence
 
@@ -229,4 +235,5 @@ Compile all evidence into the template. Rules:
 | Sentry search returns nothing | Use URL path from Step 2.7 as search term first; if still nothing, ask user for direct Sentry URL or ID |
 | No direct link from tool | Note search terms used for manual lookup |
 | Investigation reveals second issue | Ask user, then document both or note in Related Findings |
+| Bug is fully characterized by user | Use document-only path (Step 1.5). Report what's provided, don't investigate. |
 | Linear MCP not available | Present report for manual copy-paste, note "Linear tool not available" |

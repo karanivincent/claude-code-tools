@@ -25,10 +25,9 @@ Use this exact structure when producing bug reports for Linear.
 [What actually happens]
 
 ### Code Analysis
-- **Failing route(s):** `path/to/route.ts`
-- **Key dependencies:** [tables, services, middleware queried]
-- **Error handling pattern:** [thrown/caught, uses Sentry.captureException or console.error only]
-- **Shared failure points:** [if multiple endpoints share a table/service/middleware]
+- **Affected file(s):** `path/to/file.ts`
+- **Error display path:** [how the error message reaches the user]
+- **Monitoring visibility:** [whether this error is captured by Sentry/logs, or client-side only]
 
 ### Error Evidence
 
@@ -84,7 +83,7 @@ Map severity to Linear priority when creating issues in Step 5:
 
 ## Section Rules
 
-- **Code Analysis**: Always include for API/backend bugs. Omit for purely visual/CSS bugs.
+- **Code Analysis**: Include for bugs where the affected file is identifiable. Shows where the error occurs and whether monitoring captures it. Do NOT include root cause analysis, dependency tracing, or pattern suggestions — leave that to the executor.
 - **Error Evidence sections**: Only include sections where evidence was found. If Sentry returned nothing, omit the Sentry section entirely — unless the absence is itself notable (see Diagnose Gaps in SKILL.md).
 - **Related Findings**: Only include when investigation revealed secondary issues that weren't filed as separate reports. Omit if no secondary findings.
 - **Links**: Always include direct links to log sources when available. If no direct link, note the search terms used (e.g., "Searched Render logs for `initiateCall` between 2pm-3pm UTC").
