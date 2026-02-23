@@ -47,22 +47,64 @@ Focus on:
 
 Wait for research to complete before proceeding.
 
-### Phase 3: Component Assessment
+### Phase 3: Parallel Generation
 
-Categorize discovered components:
+After research completes, dispatch work in parallel across three streams:
+
+#### 3a: Technical Spec (conditional)
+
+**Only dispatch if** codebase research found API dependencies (endpoints in `src/lib/api/services/`, types from `api.ts`, or the story involves data fetching/mutations). **Skip entirely** for pure UI stories (styling, layout, static content).
+
+Dispatch the `technical-spec-generator` agent:
+
+```
+Generate a Technical Spec section for this story breakdown.
+
+Story: [USER'S STORY]
+UI Steps: [extracted from Phase 1]
+
+Codebase Research Findings:
+[paste relevant sections from gather-codebase-context output — API endpoints, types, services found]
+
+Design Context:
+[screenshot analysis if available, or "No designs provided"]
+```
+
+#### 3b: ASCII Diagrams
+
+Dispatch the `ascii-diagram-generator` agent:
+
+```
+Generate ASCII diagrams for this story breakdown.
+
+Story: [USER'S STORY]
+
+Codebase Research Findings:
+[paste component inventory, similar implementations from gather-codebase-context output]
+
+Component Assessment:
+[list each component with its status: reuse/extend/rework/create]
+
+Design Context:
+[screenshot analysis if available, or "No designs provided"]
+```
+
+#### 3c: Slices + Assessment (main context)
+
+While subagents work, generate in the main context:
+
+**Component Assessment** — categorize discovered components:
 
 | Status | Description | Effort Impact |
 |--------|-------------|---------------|
 | **Reuse** | Exists, fits exactly | Baseline |
-| **Extend** | Needs new props/variants | ×1.2 |
-| **Rework** | Significant changes needed | ×1.5-2.0 |
+| **Extend** | Needs new props/variants | x1.2 |
+| **Rework** | Significant changes needed | x1.5-2.0 |
 | **Create** | Build from scratch | Per complexity |
 
 **Note:** Rework often exceeds create complexity due to backwards compatibility constraints.
 
-### Phase 4: Generate Breakdown
-
-Apply vertical slicing (SPIDR method):
+**Vertical Slicing** — apply SPIDR method:
 - **S**pike: Technical uncertainty requiring investigation
 - **P**ath: Happy path vs alternative flows
 - **I**nterface: User interaction variations
@@ -74,41 +116,40 @@ Sequence by "Make it Run, Right, Fast":
 2. Right: Error handling, edge cases, validation
 3. Fast: Optimization, polish, accessibility
 
-### Phase 5: Generate Breakdown
-
-Generate breakdown using the template in [references/output-template.md](references/output-template.md).
-
-**Required illustrations (when designs provided):**
-
-| Illustration | Placement | Purpose |
-|--------------|-----------|---------|
-| Page Layout | After "Design Reference" | Overall structure at a glance |
-| Component Diagrams | Inline with each new component | Visual spec for implementation |
-| State Comparisons | With components that have multiple states | Show conditional rendering |
-| Component Hierarchy | End of components section | Tree view of nesting |
-
-**Illustration principles:**
-- Use box-drawing characters (`┌ ┐ └ ┘ │ ─ ├ ┤ ┬ ┴ ┼`)
-- Keep diagrams ~45 chars wide
-- Annotate with `←` arrows for context
-- Show props below component diagrams
+**Also generate:** test scenarios, risks & mitigations, dependencies, effort drivers.
 
 For complexity scoring, consult [references/complexity-factors.md](references/complexity-factors.md).
 
 For SvelteKit-specific patterns, see [references/sveltekit-patterns.md](references/sveltekit-patterns.md).
 
-### Phase 6: Write Output Document
+### Phase 4: Assemble & Write Document
 
-After generating the breakdown, write it to a markdown file:
+Wait for all parallel streams to complete, then combine outputs into the final document using the template in [references/output-template.md](references/output-template.md).
+
+**Assembly order:**
+1. Summary (from Phase 1 + 3c)
+2. Technical Spec (from 3a — omit section entirely if skipped)
+3. Design Reference (from Phase 1 screenshots)
+4. Page Layouts (from 3b)
+5. Codebase Research Findings (from Phase 2 — excluding API Endpoints and Key API Types which moved to Technical Spec)
+6. New Component Visuals (from 3b)
+7. Component Hierarchy (from 3b)
+8. Vertical Slices (from 3c)
+9. Test Scenarios (from 3c)
+10. Risks & Mitigations (from 3c)
+11. Dependencies (from 3c)
+12. Effort Drivers (from 3c)
+
+**Write to file:**
 
 **Location:** `./docs/`
 
 **Filename format:** `{feature-name}-breakdown.md`
 - Convert feature name to kebab-case
 - Examples:
-  - "Class Overview Filters" → `class-overview-filters-breakdown.md`
-  - "User Authentication" → `user-authentication-breakdown.md`
-  - "Add dark mode toggle" → `add-dark-mode-toggle-breakdown.md`
+  - "Class Overview Filters" -> `class-overview-filters-breakdown.md`
+  - "User Authentication" -> `user-authentication-breakdown.md`
+  - "Add dark mode toggle" -> `add-dark-mode-toggle-breakdown.md`
 
 **Required:** Always write the final breakdown to this file. Do not skip this step.
 
@@ -131,3 +172,5 @@ After generating the breakdown, write it to a markdown file:
 4. **Recommend splitting** - When complexity exceeds 13 points
 5. **Call out rework** - Explicitly note rework items with effort multiplier impact
 6. **Always write to file** - Save the final breakdown to `./docs/{feature-name}-breakdown.md`
+7. **Conditional Technical Spec** - Only generate when the story involves API dependencies
+8. **Parallel dispatch** - Run subagents concurrently to minimize wall-clock time
