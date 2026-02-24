@@ -4,6 +4,18 @@ A Claude Code plugin marketplace with tools for frontend development, GitHub wor
 
 ## Installation
 
+### Method 1: Using `/plugin` commands (recommended)
+
+Run these commands in Claude Code:
+
+```
+/plugin marketplace add karanivincent/claude-code-tools
+/plugin install frontend-tools@vince-tools-marketplace
+/plugin install general-tools@vince-tools-marketplace
+```
+
+### Method 2: Manual configuration
+
 Add this marketplace to your project's `.claude/settings.json`:
 
 ```json
