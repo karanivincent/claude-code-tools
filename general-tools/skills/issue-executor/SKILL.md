@@ -36,6 +36,9 @@ Linear URL: first argument (required) — e.g., https://linear.app/telitask/issu
    - Has "Story" or "Feature" label -> Story Flow
    - Unlabeled -> classify via AI analysis of title + description keywords
 5. **Announce:** "Classified as **[Bug/Story]**. Routing to [Bug/Story] flow."
+6. **Update Linear issue** — use `update_issue` to set:
+   - Status: "In Progress"
+   - Add comment: "Started working on this issue."
 
 ---
 
@@ -262,7 +265,7 @@ Skills that need to log in use env vars from the **repository root `.env`**:
 - Use worktrees for all implementation work
 - Run full CI before PR creation
 - Verify bug fixes in the browser via Chrome plugin
-- Update the Linear issue status at completion
+- Update the Linear issue status at start ("In Progress") and at completion ("In Review")
 - Clean up agents, teams, and worktrees when done
 
 ## Integration
