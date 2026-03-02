@@ -37,7 +37,7 @@ Add this marketplace to your project's `.claude/settings.json`:
 
 ## Plugins
 
-### frontend-tools `v1.10.0`
+### frontend-tools `v1.11.0`
 
 Agents and skills for codebase research, PR workflows, testing, planning, and skill development.
 
@@ -70,6 +70,7 @@ Agents and skills for codebase research, PR workflows, testing, planning, and sk
 | `issue-workflow` | Manages GitHub Issues through full lifecycle |
 | `github-image-downloader` | Downloads images attached to GitHub issues for design review |
 | `pr-slack-announcer` | Generates and auto-posts Slack announcement messages for PRs |
+| `figma-token-mapper` | Maps Figma design variables to Yond project CSS tokens and Tailwind utilities |
 
 ### general-tools `v1.10.0`
 
