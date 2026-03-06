@@ -57,4 +57,9 @@ Only include rows where values change between variants.
 
 ### Screenshots
 
-[get_screenshot output for each variant state]
+Screenshots are saved to `docs/designs/{feature-name}/` and referenced with relative paths:
+
+![Default state](./designs/{feature-name}/default.png)
+![Booked state](./designs/{feature-name}/booked.png)
+
+One screenshot per variant state, named in kebab-case (e.g., `default.png`, `booked.png`, `scrolling.png`).

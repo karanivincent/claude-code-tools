@@ -128,7 +128,10 @@ UI State:
 
 ### Screenshots
 
-[get_screenshot output per variant]
+Screenshots saved to `docs/designs/{feature-name}/` and referenced with relative paths:
+
+![Default state](./designs/{feature-name}/default.png)
+![Booked state](./designs/{feature-name}/booked.png)
 
 <!-- END CONDITIONAL Design Specification -->
 

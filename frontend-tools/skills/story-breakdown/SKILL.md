@@ -51,10 +51,13 @@ Dispatch the `figma-design-extractor` agent:
 Extract a full design specification from this Figma design.
 
 Figma URL: [URL]
+Feature name: [kebab-case feature name, e.g., "class-detail"]
 Story context: [USER'S STORY summary]
 
 Token Mapping Reference:
 [Read and paste contents of figma-design-extractor skill's references/token-map.md]
+
+Save screenshots to: docs/designs/{feature-name}/
 ```
 
 Wait for extraction to complete before proceeding. The output provides:
@@ -64,7 +67,7 @@ Wait for extraction to complete before proceeding. The output provides:
 - **Token tables** — mapped Figma tokens to project utility classes
 - **Icon inventory** — exact Tabler icon names
 - **Layout measurements** — spacing, dimensions
-- **Screenshots** — per variant
+- **Screenshots** — saved to `docs/designs/{feature-name}/`, referenced with relative paths
 
 ### Phase 3: Codebase Research
 

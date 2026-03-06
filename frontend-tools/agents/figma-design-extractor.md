@@ -16,6 +16,7 @@ You are a Design Specification Extractor. You use Figma MCP tools to extract str
 
 You receive:
 - **Figma URL** or **fileKey + nodeId**
+- **Feature name** (kebab-case, for screenshot folder naming — e.g., "class-detail")
 - **Story context** (optional, when dispatched by story-breakdown)
 - **Token mapping rules** (provided in dispatch prompt or read from skill references)
 
@@ -63,6 +64,7 @@ For each non-canonical variant:
    - **New instances**: Components present in one variant but not canonical
 3. Only drill into nodes that differ
 4. `get_screenshot(variantNodeId, fileKey)` for visual reference of each variant
+5. **Download and save each screenshot** — see Screenshot Storage below
 
 ### Phase 4: Token Mapping
 
@@ -161,7 +163,34 @@ Derive from node coordinates: child.x - parent.x for padding, gaps between sibli
 
 #### Screenshots
 
-Include `get_screenshot` output for each variant.
+Reference saved screenshots with relative paths from the breakdown doc:
+
+```markdown
+![Default state](./designs/{feature-name}/default.png)
+![Booked state](./designs/{feature-name}/booked.png)
+```
+
+## Screenshot Storage
+
+Screenshots from `get_screenshot` are temporary URLs that expire in 7 days. Save them locally so they persist for implementation.
+
+**Folder:** `docs/designs/{feature-name}/`
+- `{feature-name}` is the kebab-case feature name (same as the breakdown filename stem)
+- Create the folder if it doesn't exist
+
+**Naming:** Use the variant name in kebab-case:
+- "Default" -> `default.png`
+- "Booked" -> `booked.png`
+- "Location (hybrid)" -> `location-hybrid.png`
+- "Scrolling" -> `scrolling.png`
+
+**Download process:**
+1. After `get_screenshot` returns a URL for each variant
+2. Download each image: `curl -sL "{screenshot_url}" -o "docs/designs/{feature-name}/{variant-name}.png"`
+3. Verify files exist and have non-zero size
+4. Reference in markdown output with relative paths: `![{Variant} state](./designs/{feature-name}/{variant-name}.png)`
+
+Also take a screenshot of the canonical variant during Phase 2 (the deep drill phase).
 
 ## Critical Rules
 
