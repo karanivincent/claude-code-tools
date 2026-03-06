@@ -18,7 +18,10 @@ You are a Technical Spec Generator for frontend story breakdowns. You produce a 
 You receive from the dispatching agent:
 - **Codebase research findings** from gather-codebase-context (file inventory, API endpoints found, components, types)
 - **User story requirements** and UI steps
-- **Design screenshots context** (if available)
+- **Design context** (one of the following):
+  - **Figma design data** (preferred) — state matrix showing variant differences and designer notes with behavior specs from `figma-design-extractor` output. Use state matrix to identify which states need API data (e.g., "Booked" status requires booking endpoint). Use designer notes to identify interactions that trigger API calls (e.g., "Join virtual session" implies a session join endpoint).
+  - **Design screenshots context** — visual analysis of screenshots (fallback when no Figma data)
+  - **No designs** — generate spec from story requirements and codebase research only
 
 ## Methodology
 
