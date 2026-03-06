@@ -52,6 +52,7 @@ Agents and skills for codebase research, PR workflows, testing, planning, and sk
 | `testid-fixer` | Adds testId prop support to Svelte components |
 | `technical-spec-generator` | Generates Technical Spec sections for story breakdowns (API inventory, sequence flows, data flows) |
 | `ascii-diagram-generator` | Generates ASCII diagrams for story breakdowns (page layouts, component hierarchies) |
+| `figma-design-extractor` | Extracts structured design specs from Figma (tokens, icons, states, layout) |
 
 **Skills:**
 
@@ -70,7 +71,7 @@ Agents and skills for codebase research, PR workflows, testing, planning, and sk
 | `issue-workflow` | Manages GitHub Issues through full lifecycle |
 | `github-image-downloader` | Downloads images attached to GitHub issues for design review |
 | `pr-slack-announcer` | Generates and auto-posts Slack announcement messages for PRs |
-| `figma-token-mapper` | Maps Figma design variables to Yond project CSS tokens and Tailwind utilities |
+| `figma-design-extractor` | Extracts structured design specs from Figma designs with token mapping, icon inventory, and state analysis |
 
 ### general-tools `v1.10.0`
 
