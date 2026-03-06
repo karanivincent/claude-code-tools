@@ -84,9 +84,53 @@ UI State:
 
 <!-- END CONDITIONAL Technical Spec -->
 
-## Design Reference
+<!-- CONDITIONAL: Only include Design Specification if a Figma URL was provided.
+     Omit this entire section if no Figma design was extracted. -->
 
-[Embedded screenshots if provided, or "No designs provided"]
+## Design Specification
+
+### Designer Notes
+
+| Note | Source |
+|------|--------|
+| [Verbatim behavior spec from Figma annotation] | [Annotation frame title] |
+
+### Component Token Table
+
+#### [Section Name]
+
+| Property | Figma Token | Project Class |
+|----------|------------|---------------|
+| Typography | [Figma font token] | `yond-text-{mapped}` |
+| Text color | [Figma color token] | `text-{mapped}` |
+| Background | [Figma surface token] | `bg-{mapped}` |
+| Spacing | [Figma spacing token] | `p-{n}` / `gap-{n}` |
+
+(One sub-section per visual area of the design)
+
+### Icon Inventory
+
+| Location | Icon data-name | Component Import |
+|----------|---------------|-----------------|
+| [Context] | `icon-name` | `IconPascalCase` |
+
+### State Matrix
+
+| Element | [Variant 1] | [Variant 2] | ... |
+|---------|-------------|-------------|-----|
+| [Element] | [Value/class] | [Value/class] | ... |
+
+### Layout Measurements
+
+| Section | Spacing | Project Class |
+|---------|---------|---------------|
+| [Area] | [Npx] | `utility-class` |
+
+### Screenshots
+
+[get_screenshot output per variant]
+
+<!-- END CONDITIONAL Design Specification -->
 
 ## Page Layout
 
@@ -270,3 +314,6 @@ PageName
 - Test scenarios should be directly convertible to Playwright specs
 - Technical Spec section is conditional — only include when API dependencies exist
 - API-related subsections removed from Codebase Research Findings when Technical Spec is present
+- Design Specification section is conditional — only include when Figma URL was provided
+- Designer notes should be verbatim — do not paraphrase annotation text
+- Token table must use project utility classes, never raw hex/px values
