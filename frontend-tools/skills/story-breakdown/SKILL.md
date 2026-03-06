@@ -13,7 +13,7 @@ Transform user stories into well-researched, actionable task breakdowns followin
 - User story text (formal "As a user..." or informal description)
 
 **Optional:**
-- Figma URL — triggers full design extraction for token tables, icons, states, layout
+- Figma URL(s) — triggers full design extraction for token tables, icons, states, layout
 - Context hints — related areas or constraints ("involves calendar", "must use existing API")
 
 ## Workflow
@@ -24,7 +24,7 @@ Parse the user story to extract:
 - Core user goal and value
 - Explicit acceptance criteria (if provided)
 - Implicit requirements (error handling, loading states, validation)
-- **Figma URL detection** — check if the user provided a Figma URL (figma.com/design/...)
+- **Figma URL detection** — check if the user provided one or more Figma URLs (figma.com/design/...)
 
 ### Phase 1.5: Refresh Generated Types
 
@@ -45,72 +45,33 @@ This fetches the latest OpenAPI spec and regenerates:
 
 **Only if** a Figma URL was provided. **Skip entirely** if no Figma URL.
 
-Dispatch the `figma-design-extractor` agent:
+**IMPORTANT: Figma MCP tools (`get_design_context`, `get_screenshot`, `get_variable_defs`) are only available in the main context. Do NOT dispatch figma-design-extractor as a background subagent — it will fail.**
 
-```
-Extract a full design specification from this Figma design.
+Perform extraction in the main context:
 
-Figma URL: [URL]
-Feature name: [kebab-case feature name, e.g., "class-detail"]
-Story context: [USER'S STORY summary]
+1. Read the token mapping reference from figma-design-extractor skill's references/token-map.md
+2. For each Figma URL provided:
+   a. Call `get_design_context` with the fileKey and nodeId
+   b. If the response is a section node (sparse metadata), drill into individual variant frames
+   c. Call `get_design_context` on key variant frames for detailed code + tokens
+   d. Call `get_screenshot` on key variants for visual reference
+3. Extract from the responses:
+   - Component list, Designer notes (from annotation frames), State matrix
+   - Token tables (map Figma tokens to project utilities using token-map.md)
+   - Icon inventory (exact Tabler icon data-names)
+   - Layout measurements (spacing, dimensions)
 
-Token Mapping Reference:
-[Read and paste contents of figma-design-extractor skill's references/token-map.md]
+**Screenshot limitation:** Figma MCP renders screenshots inline in the conversation. They cannot be saved to disk as files. Reference Figma URLs in the breakdown document instead of local file paths.
 
-Save screenshots to: docs/designs/{feature-name}/
-```
-
-Wait for extraction to complete before proceeding. The output provides:
-- **Component list** — named components found in the design (Button, Card, Avatar, icons, etc.)
-- **Designer notes** — behavior specs from annotation frames
-- **State matrix** — what changes between design variants
-- **Token tables** — mapped Figma tokens to project utility classes
-- **Icon inventory** — exact Tabler icon names
-- **Layout measurements** — spacing, dimensions
-- **Screenshots** — saved to `docs/designs/{feature-name}/`, referenced with relative paths
+**Multiple Figma URLs:** If the user provides multiple URLs (e.g., detail page + cancellation flow), extract each sequentially. Merge all results into a single Design Specification section with sub-headings per design area.
 
 ### Phase 3: Codebase Research
 
-Dispatch the `gather-codebase-context` agent.
-
-**If Figma extraction completed (Phase 2):**
-
-```
-Research the codebase for implementing: [USER'S STORY]
-
-Components identified from Figma design:
-[List each component from Phase 2 output with its specs, e.g.:]
-- Button (full-width, 48px height, yond-text-m-bold)
-- Card/Appointment list (existing instance in design)
-- Avatar (24px, stacked variant for multiple items)
-- [Icon imports: IconMapPin, IconExclamationCircle, etc.]
-
-For each component:
-1. Search src/lib/components/ and @yond/ui for existing match
-2. Check if existing component matches the Figma spec (size, tokens, variants)
-3. Flag gaps: missing variants, wrong tokens, needs new props
-
-Also search for:
-4. Similar page implementations in src/routes/
-5. API endpoints in src/lib/api/services/
-6. Types from src/lib/generated/api.ts
-7. E2E test patterns in e2e/
-```
-
-**If no Figma URL (fallback to original behavior):**
-
-```
-Research the codebase for implementing: [USER'S STORY]
-
-Focus on:
-1. Components in src/lib/components/ - identify reusable atoms/molecules/organisms
-2. Similar implementations - search for comparable features/patterns
-3. API endpoints in src/lib/api/services/ - check existing vs needed
-4. Types from src/lib/generated/api.ts - map data models
-5. E2E tests - find patterns to follow in e2e/
-```
+Dispatch the `gather-codebase-context` agent using the prompt template in [references/agent-prompts.md](references/agent-prompts.md#codebase-research). Use the "With Figma Context" variant if Phase 2 completed, otherwise use the "Without Figma" variant.
 
 Wait for research to complete before proceeding.
+
+**Agent completion:** When using `run_in_background: true`, you will be notified automatically when the agent completes. Do NOT poll with sleep loops or check output files — simply continue with other work or wait for the notification.
 
 ### Phase 4: Parallel Generation
 
@@ -120,41 +81,13 @@ After research completes, dispatch work in parallel across three streams:
 
 **Only dispatch if** codebase research found API dependencies (endpoints in `src/lib/api/services/`, types from `api.ts`, or the story involves data fetching/mutations). **Skip entirely** for pure UI stories (styling, layout, static content).
 
-Dispatch the `technical-spec-generator` agent:
-
-```
-Generate a Technical Spec section for this story breakdown.
-
-Story: [USER'S STORY]
-UI Steps: [extracted from Phase 1]
-
-Codebase Research Findings:
-[paste relevant sections from gather-codebase-context output — API endpoints, types, services found]
-
-Design Context:
-[If Figma extraction available: paste State Matrix + Designer Notes — these identify which states need API data and what interactions trigger API calls]
-[If no Figma: "No designs provided"]
-```
+Dispatch the `technical-spec-generator` agent using the prompt template in [references/agent-prompts.md](references/agent-prompts.md#technical-spec).
 
 #### 4b: ASCII Diagrams
 
-Dispatch the `ascii-diagram-generator` agent:
+Dispatch the `ascii-diagram-generator` agent using the prompt template in [references/agent-prompts.md](references/agent-prompts.md#ascii-diagrams).
 
-```
-Generate ASCII diagrams for this story breakdown.
-
-Story: [USER'S STORY]
-
-Codebase Research Findings:
-[paste component inventory, similar implementations from gather-codebase-context output]
-
-Component Assessment:
-[list each component with its status: reuse/extend/rework/create]
-
-Design Context:
-[If Figma extraction available: paste the component tree structure, layout measurements, and component names from the Figma design — use these for accurate diagram labels and nesting]
-[If no Figma: "No designs provided"]
-```
+**Agent completion:** When using `run_in_background: true`, you will be notified automatically when agents complete. Do NOT poll with sleep loops or check output files — simply continue with other work or wait for the notification.
 
 #### 4c: Slices + Assessment (main context)
 
@@ -230,6 +163,10 @@ Wait for all parallel streams to complete, then combine outputs into the final d
 
 **Required:** Always write the final breakdown to this file. Do not skip this step.
 
+### Phase 6: Post-Workflow (optional)
+
+Offer to commit the breakdown document and any regenerated API types if the user wants to save progress before implementation.
+
 ## Story Point Reference
 
 | Points | Scope |
@@ -245,11 +182,13 @@ Wait for all parallel streams to complete, then combine outputs into the final d
 
 1. **Wait for research** - Never generate breakdown without codebase context
 2. **Figma before research** - When Figma URL provided, extract design first so research is targeted
-3. **Ask if ambiguous** - Clarify unclear requirements before proceeding
-4. **Flag blockers** - Prominently surface blocking dependencies (e.g., "API not built")
-5. **Recommend splitting** - When complexity exceeds 13 points
-6. **Call out rework** - Explicitly note rework items with effort multiplier impact
-7. **Always write to file** - Save the final breakdown to `./docs/{feature-name}-breakdown.md`
-8. **Conditional Technical Spec** - Only generate when the story involves API dependencies
-9. **Conditional Design Spec** - Only generate when a Figma URL is provided
-10. **Parallel dispatch** - Run Phase 4 subagents concurrently to minimize wall-clock time
+3. **Figma in main context** - Never dispatch Figma extraction as a subagent (MCP tools unavailable to agents)
+4. **Ask if ambiguous** - Clarify unclear requirements before proceeding
+5. **Flag blockers** - Prominently surface blocking dependencies (e.g., "API not built")
+6. **Recommend splitting** - When complexity exceeds 13 points
+7. **Call out rework** - Explicitly note rework items with effort multiplier impact
+8. **Always write to file** - Save the final breakdown to `./docs/{feature-name}-breakdown.md`
+9. **Conditional Technical Spec** - Only generate when the story involves API dependencies
+10. **Conditional Design Spec** - Only generate when a Figma URL is provided
+11. **Parallel dispatch** - Run Phase 4 subagents concurrently to minimize wall-clock time
+12. **No agent polling** - Wait for automatic completion notifications, never sleep-loop

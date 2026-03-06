@@ -1,124 +1,141 @@
-# SvelteKit Patterns (Yond Management)
+# SvelteKit Patterns (Yond Selfservice)
 
 ## Project Structure
 
 ```
-src/
-├── routes/app/          # Staff routes
-├── routes/self-service/ # Customer self-service portal
+apps/selfservice/src/
+├── routes/                  # SvelteKit pages
+│   ├── appointments/        # Appointment booking & details
+│   ├── classes/             # Class overview & details
+│   ├── profile/             # User profile
+│   ├── login/               # Authentication
+│   └── exp/                 # Experimental (do NOT reference)
 ├── lib/
-│   ├── components/      # Atomic design hierarchy
-│   │   ├── atoms/       # Basic UI elements
-│   │   ├── molecules/   # Composed components
-│   │   └── organisms/   # Complex components
-│   ├── api/services/    # Svelte Query wrappers
-│   ├── formSchemas/     # Zod validation schemas
-│   ├── stores/          # Svelte stores
-│   └── generated/api.ts # Auto-generated types
-└── e2e/                 # Playwright tests
+│   ├── components/          # App-specific components
+│   │   ├── atoms/           # Basic UI elements
+│   │   ├── molecules/       # Composed components
+│   │   └── organisms/       # Complex components
+│   ├── api/
+│   │   ├── services/        # TanStack Query wrappers
+│   │   └── apiUtils.ts      # createGetQuery, createMutation helpers
+│   ├── stores/              # Svelte 5 runes stores (.svelte.ts)
+│   ├── config/              # Tenant configuration
+│   ├── utils/               # API, date, environment, native utils
+│   └── generated/api.ts     # Auto-generated API client + types
+├── paraglide/messages.js    # i18n (auto-generated, gitignored)
+└── e2e/                     # Playwright E2E tests
+packages/ui/                 # @yond/ui shared components
+├── src/shadcn/              # Button, Input, Badge, Label, etc.
+├── src/mobile/              # BottomNav
+└── src/basic/, src/pages/   # Reserved for future
 ```
 
 ## Component Patterns
 
-### Naming Conventions
+### Imports
 
-| Prefix | Purpose | Example |
-|--------|---------|---------|
-| Y- | Form-integrated | YTextField, YForm, YSelect |
-| Meltui- | Melt UI wrappers | MeltuiDialog, MeltuiDropdown |
-| -Cell | Table cell renderers | TextCell, DateCell, ActionCell |
-
-### Form Development
-
-1. Define Zod schema in `src/lib/formSchemas/`
-2. Use `YForm` wrapper component
-3. Integrate Y-prefixed field components
-4. Handle submission with `createMutation`
-
-```svelte
-<YForm {form} onSubmit={handleSubmit}>
-  <YTextField {form} name="email" label="Email" />
-  <YSelect {form} name="role" options={roleOptions} />
-</YForm>
+```typescript
+import { Button, Input, Badge, Avatar, Label } from '@yond/ui';
 ```
 
-### Table Implementation
+No Y- prefix form components. No Meltui wrappers. Use `@yond/ui` shadcn components directly.
 
-- Use `TableGrid.svelte` wrapper
-- Define columns with `TableColumn` type
-- Implement server-side pagination
-- Add mobile-specific cells when needed
+### Custom Components
 
-## API Patterns
+App-specific components live in `src/lib/components/` using atomic design (atoms, molecules, organisms). Shared/reusable components go in `packages/ui/`.
 
-### Service Layer
+## Reactivity — Svelte 5 Runes
+
+```svelte
+<script lang="ts">
+  // Props
+  let { variant = 'primary', onClick } = $props();
+
+  // State
+  let count = $state(0);
+
+  // Derived
+  let doubled = $derived(count * 2);
+</script>
+```
+
+**Never use:** `export let`, `$:`, `$$props`, `$$restProps`, `on:click`
+
+## API Patterns — TanStack Query v6
 
 ```typescript
 // Query (GET)
-createGetQuery(apiClient.endpoint, 'cache-key');
+const query = createGetQuery(apiClient.endpoint, 'cache-key');
+// Access: query.data, query.isLoading, query.error
 
 // Mutation (POST/PUT/DELETE)
-createMutation(apiClient.endpoint, {
+const mutation = createMutation(apiClient.endpoint, {
   onSuccess: () => queryClient.invalidateQueries(['cache-key'])
 });
+// Access: mutation.mutate({...}), mutation.isPending
 ```
 
-### DateTime Handling
-
-- Fields ending in `_dt`, `_date`, `_ts` auto-convert
-- Use Luxon DateTime objects throughout
-- UTC conversion handled by interceptors
-
-## Testing Patterns
-
-### E2E Test Structure
-
-```
-e2e/
-├── staff_user/          # Staff portal tests
-│   ├── customer/        # Customer management
-│   ├── finance/         # Financial features
-│   └── calendar/        # Scheduling
-└── customer_user/       # Self-service tests
-```
-
-### Test Pattern
-
-```typescript
-test('should [action]', async ({ page }) => {
-  // Arrange
-  await page.goto('/app/feature');
-
-  // Act
-  await page.getByRole('button', { name: 'Submit' }).click();
-
-  // Assert
-  await expect(page.getByText('Success')).toBeVisible();
-});
-```
-
-### Preferred Locators
-
-1. `getByRole` - semantic, accessible
-2. `getByLabel` - form fields
-3. `getByTestId` - complex components
-4. `getByText` - visible content
+**Never use `$` prefix** on queries/mutations — they are runes, not stores. `$query.data` causes `store_invalid_shape` runtime errors.
 
 ## State Management
 
 | Scope | Solution |
 |-------|----------|
-| Local | Component `let` variables |
-| Shared | Svelte stores in `src/lib/stores/` |
-| Server | Svelte Query cache |
-| Form | sveltekit-superforms |
+| Local | `$state()` runes |
+| Shared | Svelte 5 runes stores (`.svelte.ts` files) |
+| Server | TanStack Query cache |
+| Form | Direct state management (no sveltekit-superforms) |
 
-## Common Atomic Levels
+## Styling — TailwindCSS Only
 
-| Level | Examples |
-|-------|----------|
-| Atom | Button, Input, Label, Icon |
-| Molecule | TextField, SearchInput, Card |
-| Organism | DataTable, Calendar, Form |
-| Template | PageLayout, SidebarLayout |
-| Page | Route components |
+```svelte
+<div class="flex items-center gap-4 rounded-lg bg-white p-4 shadow-sm">
+  <button class={cn("rounded-md px-4 py-2", variant === 'primary' && "bg-primary text-white")}>
+    Click
+  </button>
+</div>
+```
+
+- Use `cn()` helper from `@yond/ui` for conditional class merging
+- Use `cva()` for component variants
+- **Never write `<style>` blocks**
+
+## Types
+
+- `interface` for all object shapes (enforced by ESLint)
+- `type` only for unions, primitives, tuples, function signatures, mapped/conditional types
+
+## i18n — Paraglide.js
+
+```svelte
+<script>
+  import { m } from '../../paraglide/messages.js';
+</script>
+
+<span>{m.greeting({ username: 'John' })}</span>
+```
+
+Import `m` using relative path from the file to `src/paraglide/messages.js`.
+
+## Testing
+
+### E2E (Playwright)
+
+```typescript
+test('should [action]', async ({ page }) => {
+  await page.goto('/appointments');
+  await page.getByRole('button', { name: 'Book' }).click();
+  await expect(page.getByText('Confirmed')).toBeVisible();
+});
+```
+
+### Preferred Locators
+
+1. `getByRole` — semantic, accessible
+2. `getByLabel` — form fields
+3. `getByTestId` — complex components
+4. `getByText` — visible content
+
+### Unit Tests (Vitest)
+
+Located alongside components or in `__tests__/` directories.
