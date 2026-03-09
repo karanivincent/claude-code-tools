@@ -73,3 +73,12 @@ Use semantic versioning:
 - **Patch** (1.0.x): Bug fixes, minor tweaks
 - **Minor** (1.x.0): New features, new skills/agents, significant improvements
 - **Major** (x.0.0): Breaking changes
+
+## Git Workflow
+
+**Always commit and push changes automatically.** After making changes to skills, agents, plugins, or documentation:
+
+1. Stage and commit with a clear commit message
+2. Push to the remote (`git push origin main`)
+
+Do not wait for the user to ask — commit and push are part of completing any task in this repo.
