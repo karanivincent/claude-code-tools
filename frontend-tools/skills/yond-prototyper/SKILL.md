@@ -16,24 +16,25 @@ Generate working SvelteKit prototypes using the real `@yond/ui` components, desi
 
 ## Quick Start
 
-1. Read context snapshot
+1. Look up what you need from the codebase map below
 2. Determine mode (new / modify / visual)
 3. Generate files immediately - no confirmation step
 4. Tell user the preview URL
 
-## Step 1: Load Context
+## Codebase Map
 
-Read `docs/prototype-context.json` for the component catalog, tokens, and conventions.
+Read source files on demand — only what you need for the current prototype.
 
-```bash
-cat docs/prototype-context.json
-```
+| What | Where | How to use |
+|------|-------|------------|
+| **Available components** | `packages/ui/src/index.ts` | Scan exports for component names; import from `@yond/ui` |
+| **Component variants** | Each component's `.svelte` source in `packages/ui/src/` | Read the file and look for `tv()` or `cva()` calls to find variant options |
+| **Design tokens (colors, radius)** | `packages/ui/tailwind.config.ts` | Read `colors` and `borderRadius` sections |
+| **API types (for mock data)** | `apps/selfservice/src/lib/generated/api.ts` | Search for relevant interfaces when creating typed mock data |
+| **App layout** | `apps/selfservice/src/routes/+layout.svelte` | Reference for app shell structure |
+| **Output directory** | `apps/selfservice/src/routes/exp/prototypes/generated/` | Where all generated prototypes go |
 
-If the file doesn't exist or seems stale, regenerate it:
-
-```bash
-node scripts/generate-prototype-context.mjs
-```
+**Lookup strategy**: For a typical prototype, read `packages/ui/src/index.ts` to see available components. If you need variant details for a specific component (e.g., Button sizes), read that component's source file. Only read tokens/API types when the prototype requires them.
 
 ## Step 2: Determine Mode
 
