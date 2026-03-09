@@ -308,6 +308,16 @@ PageName
 
 ---
 
+## Verification
+
+After implementation, verify against this spec:
+
+```
+/design-verify docs/{feature-name}-breakdown.md
+```
+
+---
+
 ## Output Notes
 
 - Keep bullet points concise

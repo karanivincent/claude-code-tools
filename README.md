@@ -37,7 +37,7 @@ Add this marketplace to your project's `.claude/settings.json`:
 
 ## Plugins
 
-### frontend-tools `v1.14.1`
+### frontend-tools `v1.15.0`
 
 Agents and skills for codebase research, PR workflows, testing, planning, and skill development.
 
@@ -72,6 +72,7 @@ Agents and skills for codebase research, PR workflows, testing, planning, and sk
 | `github-image-downloader` | Downloads images attached to GitHub issues for design review |
 | `pr-slack-announcer` | Generates and auto-posts Slack announcement messages for PRs |
 | `figma-design-extractor` | Extracts structured design specs from Figma designs with token mapping, icon inventory, and state analysis |
+| `design-verify` | Verifies implementation matches design spec using breakdown doc, Figma MCP, and Chrome browser comparison |
 | `yond-prototyper` | Generates working SvelteKit prototypes using real @yond/ui components, design tokens, and app layout |
 
 ### general-tools `v1.10.0`

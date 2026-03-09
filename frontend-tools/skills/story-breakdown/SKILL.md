@@ -163,6 +163,11 @@ Wait for all parallel streams to complete, then combine outputs into the final d
 
 **Required:** Always write the final breakdown to this file. Do not skip this step.
 
+**Verification reminder:** At the end of the document, add:
+
+> **After implementation**, verify against this spec by running:
+> `/design-verify docs/{feature-name}-breakdown.md`
+
 ### Phase 6: Post-Workflow (optional)
 
 Offer to commit the breakdown document and any regenerated API types if the user wants to save progress before implementation.
