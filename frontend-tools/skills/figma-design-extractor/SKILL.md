@@ -34,7 +34,9 @@ Token Mapping Reference:
 
 The agent handles: Figma MCP calls, component drilling, icon identification, token mapping, and output assembly.
 
-After the agent returns, write the Design Specification to the appropriate location:
+After the agent returns, **verify mapped tokens**: grep `packages/ui/src/styles.css` for any color/action/surface classes to confirm they exist. Fix any near-misses before writing the output.
+
+Write the Design Specification to the appropriate location:
 - If part of a story breakdown: slot into the breakdown document
 - If standalone: write to `docs/{feature-name}-design-spec.md`
 
@@ -45,7 +47,7 @@ For quick token mapping without full extraction:
 1. Call `get_variable_defs` from Figma MCP for the target node
 2. Read `references/token-map.md` for transformation rules
 3. Map each Figma token to its project utility
-4. If unsure, grep the source CSS file listed in the reference to verify
+4. **Verify every mapped class** — Grep `packages/ui/src/styles.css` (for colors) or the relevant CSS file to confirm each class exists. See "Token Verification" in the reference for details
 
 ## Key Rules
 

@@ -99,15 +99,15 @@ Figma `--text/toned/{name}` -> CSS `--text-toned-{name}` -> Tailwind `text-toned
 
 ### Action tokens
 
-Figma `--Action/{name}` -> CSS `--action-{name}` -> Tailwind `{prefix}-action-{shortname}`
+Figma `--Action/{category}-{name}` -> CSS `--action-{category}-{name}` -> Tailwind `@theme inline` alias `--color-action-{category}-{name}` -> utility class `{prefix}-action-{category}-{name}`
 
-| Figma Variable | Tailwind Class (bg) | Tailwind Class (text) |
-|---|---|---|
-| `--Action/brand-background` | `bg-action-bg` | `text-action-bg` |
-| `--Action/brand-fill` | `bg-action-fill` | `text-action-fill` |
-| `--Action/brand-placeholder` | `bg-action-placeholder` | `text-action-placeholder` |
-| `--Action/brand-stroke` | `bg-action-stroke` | `text-action-stroke` |
-| `--Action/status-success` | `bg-action-success` | `text-action-success` |
+| Figma Variable | CSS Variable | Tailwind Class (bg) | Tailwind Class (text) |
+|---|---|---|---|
+| `--Action/brand-background` | `--color-action-brand-bg` | `bg-action-brand-bg` | `text-action-brand-bg` |
+| `--Action/brand-fill` | `--color-action-brand-fill` | `bg-action-brand-fill` | `text-action-brand-fill` |
+| `--Action/brand-placeholder` | `--color-action-brand-placeholder` | `bg-action-brand-placeholder` | `text-action-brand-placeholder` |
+| `--Action/brand-stroke` | `--color-action-brand-stroke` | `bg-action-brand-stroke` | `text-action-brand-stroke` |
+| `--Action/status-success` | `--color-action-status-success` | `bg-action-status-success` | `text-action-status-success` |
 
 ### Border tokens
 
@@ -220,6 +220,22 @@ Figma `--Spacing/{n}` follows standard Tailwind 4px grid: `p-{n}`, `m-{n}`, `gap
 Common: 1=4px, 2=8px, 3=12px, 4=16px, 5=20px, 6=24px, 8=32px, 10=40px, 12=48px
 
 Layout safe-area spacing: `pt-layout-top`, `px-layout-x`, `pb-layout-bottom`
+
+## Token Verification
+
+**Always verify mapped classes exist before using them.** Token maps can drift from the codebase.
+
+After mapping Figma tokens to Tailwind classes, grep `styles.css` for each mapped class:
+```
+grep 'action-status-success' packages/ui/src/styles.css
+```
+
+If a mapped class looks plausible but has no match, try a **partial grep** to find the actual name:
+```
+grep 'action.*success' packages/ui/src/styles.css
+```
+
+This catches "near-miss" errors where the token map produces a class that follows naming patterns but doesn't actually exist (e.g., `text-action-success` vs the real `text-action-status-success`).
 
 ## Gap Detection Workflow
 
