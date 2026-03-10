@@ -1,0 +1,73 @@
+name: Auto Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend-tools/.claude-plugin/plugin.json"
+      - "general-tools/.claude-plugin/plugin.json"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect version changes and create releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          plugins=("frontend-tools" "general-tools")
+
+          for plugin in "${plugins[@]}"; do
+            plugin_json="${plugin}/.claude-plugin/plugin.json"
+
+            # Get current version
+            current_version=$(jq -r '.version' "$plugin_json")
+
+            # Get previous version (from parent commit)
+            previous_version=$(git show HEAD~1:"$plugin_json" 2>/dev/null | jq -r '.version' 2>/dev/null || echo "")
+
+            if [ "$current_version" = "$previous_version" ]; then
+              echo "[$plugin] Version unchanged ($current_version), skipping."
+              continue
+            fi
+
+            tag="${plugin}/v${current_version}"
+
+            # Skip if tag already exists
+            if git rev-parse "$tag" >/dev/null 2>&1; then
+              echo "[$plugin] Tag $tag already exists, skipping."
+              continue
+            fi
+
+            echo "[$plugin] Version changed: ${previous_version:-none} -> $current_version"
+
+            # Find previous tag for this plugin to scope release notes
+            previous_tag=$(git tag --list "${plugin}/v*" --sort=-version:refname | head -n1)
+
+            if [ -n "$previous_tag" ]; then
+              range="${previous_tag}..HEAD"
+            else
+              range="HEAD"
+            fi
+
+            # Generate release notes from commits touching this plugin
+            notes=$(git log "$range" --pretty=format:"- %s" -- "$plugin/" | head -50)
+            if [ -z "$notes" ]; then
+              notes="- Version bump to $current_version"
+            fi
+
+            # Create the release
+            gh release create "$tag" \
+              --title "${plugin} v${current_version}" \
+              --notes "$notes" \
+              --target main
+
+            echo "[$plugin] Created release $tag"
+          done
