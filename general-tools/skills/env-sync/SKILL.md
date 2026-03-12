@@ -167,15 +167,26 @@ Push missing vars to deployment services via MCP.
    - If source is an MCP tool -> fetch value automatically
    - If source is `alias:VAR` -> use the primary var's value
    - If source is `manual` -> ask user for the value (mask in output if sensitive)
-5. **Set on deployment service** — Use MCP tools to push the value
-6. **Log changes** to `docs/env-changelog.md`
-7. **Report**
+5. **Sanitize values** — Before setting any value, strip leading/trailing whitespace and newlines. This prevents subtle bugs from invisible characters in env var values.
+6. **Set on deployment service** — Use MCP tools or CLI to push the value:
+   - **Render MCP**: Pass the trimmed value directly to `mcp__render__update_environment_variables`
+   - **Vercel CLI**: Always use `printf` (not `echo`) to pipe values — `echo` appends a trailing newline that gets stored as part of the value:
+     ```bash
+     # CORRECT — no trailing newline
+     printf '%s' 'value' | vercel env add VAR_NAME production --force
+
+     # WRONG — echo adds \n which gets stored in the env var
+     echo "value" | vercel env add VAR_NAME production --force
+     ```
+7. **Log changes** to `docs/env-changelog.md`
+8. **Report**
 
 ### Security Rules for Deploy Mode
 
 - **Never print sensitive values in full** — show first 4 chars + `****` for `sensitive: true` vars
 - **Always confirm before writing** — list all vars to be set and ask for confirmation before pushing
 - **Log but don't log values** — changelog records what was set and where, never the actual value
+- **No trailing whitespace** — Always trim values before setting. Use `printf '%s'` for Vercel CLI, never `echo`
 
 ---
 
@@ -189,6 +200,7 @@ These rules apply across all modes:
 | Sensitive masking | `sensitive: true` vars shown as `ABCD****` (first 4 chars only) |
 | MCP permissions | All MCP calls go through Claude Code permission system |
 | No agent deletion | Agents can add vars and flag orphans but cannot delete from registry or deployment services |
+| Whitespace safety | Always trim values before writing. Use `printf '%s'` for CLI piping, never `echo` (which appends `\n`). |
 | Audit trail | Every change logged to `docs/env-changelog.md` with timestamp and action |
 
 ---
