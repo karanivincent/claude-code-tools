@@ -53,7 +53,7 @@ Key principles:
 - **Progressive disclosure**: Keep SKILL.md lean (<500 lines), split details into `references/`
 - **Description triggers activation**: The frontmatter `description` determines when the skill is used—include specific trigger phrases
 
-See `frontend-tools/skills/skill-creator/SKILL.md` for the complete skill authoring guide.
+See `superpowers/skills/writing-skills/SKILL.md` for the complete skill authoring guide.
 
 ## Updating the README
 
