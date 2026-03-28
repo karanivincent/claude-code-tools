@@ -74,7 +74,7 @@ Agents and skills for codebase research, PR workflows, testing, planning, and sk
 | `design-verify` | Verifies implementation matches design spec using breakdown doc, Figma MCP, and Chrome browser comparison |
 | `prototyper` | Universal prototype generator — auto-detects framework (Next.js/SvelteKit), components, and tokens. Creative mode (default) for free ideation, constrained mode for production-ready prototypes |
 
-### general-tools `v1.10.1`
+### general-tools `v1.11.0`
 
 General-purpose skills for git workflows and developer productivity.
 
@@ -83,7 +83,7 @@ General-purpose skills for git workflows and developer productivity.
 | `branch-cleanup` | Cleans up stale git branches (merged or abandoned) |
 | `autocompact-threshold` | Sets the autocompact threshold percentage for context management |
 | `env-sync` | Manages env vars across monorepo workspaces and deployment services with a central registry, alias detection, and Vercel/Render MCP sync |
-| `design-implementer` | Orchestrates parallel implementation of a design document using agent teams, umbrella branch pattern, and isolated worktrees |
+| `design-implementer` | Orchestrates implementation of a design document — creates plans with writing-plans, dispatches parallel sub-agents in worktrees, reviews via parallel reviewer sub-agents, and merges via umbrella branch pattern |
 | `issue-documenter` | Documents user stories and bug reports for Linear with investigation tooling and automatic issue creation |
 | `issue-executor` | End-to-end issue resolution orchestrator — takes a Linear issue URL, classifies bug vs story, routes bugs to lightweight (single-agent) or full (agent team) flow with flexible verification, and drives it to a reviewable PR |
 | `skill-reviewer` | Reviews skills after real-world usage with scored reports and actionable recommendations |
