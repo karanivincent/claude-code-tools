@@ -74,7 +74,7 @@ Agents and skills for codebase research, PR workflows, testing, planning, and sk
 | `design-verify` | Verifies implementation matches design spec using breakdown doc, Figma MCP, and Chrome browser comparison |
 | `prototyper` | Universal prototype generator — auto-detects framework (Next.js/SvelteKit), components, and tokens. Creative mode (default) for free ideation, constrained mode for production-ready prototypes |
 
-### general-tools `v1.12.0`
+### general-tools `v1.12.1`
 
 General-purpose skills for git workflows and developer productivity.
 

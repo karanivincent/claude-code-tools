@@ -7,7 +7,6 @@ description: >
   isolated worktrees, reviews PRs, and merges via umbrella branch pattern to
   staging. Fully autonomous — analyzes streams, creates plans, and proceeds
   without user confirmation.
-disable-model-invocation: true
 argument-hint: <design-doc-path>
 ---
 
