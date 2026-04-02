@@ -78,9 +78,13 @@ Phase 6: Summary & Cleanup ► SummaryAgent
 - If no argument: `gh pr view --json number -q '.number'`
 - Error if no PR found -- instruct user to pass PR number explicitly
 
+### Agent Permission Mode
+
+**All subagents MUST be spawned with `mode: "bypassPermissions"`** to avoid prompting the user for every Read/Write/Edit/Bash call. This skill orchestrates many agents — without this, the user gets 15+ permission prompts per review.
+
 ### Phase 1: Launch SetupAgent
 
-Spawn **SetupAgent** to create an isolated worktree and the `_review/` directory structure.
+Spawn **SetupAgent** with `mode: "bypassPermissions"` to create an isolated worktree and the `_review/` directory structure.
 
 SetupAgent returns:
 ```json
@@ -93,7 +97,7 @@ SetupAgent returns:
 
 ### Phase 2: Launch DiffProcessor Agent
 
-Spawn **DiffProcessor** agent with:
+Spawn **DiffProcessor** agent with `mode: "bypassPermissions"` and:
 
 ```json
 { "type": "pr", "number": 123, "worktree_path": "..." }
@@ -113,7 +117,7 @@ DiffProcessor **writes** full diff data to `{worktree_path}/_review/diff-data.js
 
 ### Phase 3: Launch 9 Specialist Agents in Parallel
 
-Spawn all 9 agents in a **single message**. Each receives only paths -- no data payloads.
+Spawn all 9 agents in a **single message** with `mode: "bypassPermissions"`. Each receives only paths -- no data payloads.
 
 | Agent | Focus | Severity |
 |-------|-------|----------|
@@ -148,7 +152,7 @@ Where:
 
 ### Phase 4: Launch MetaReviewer Agent
 
-Spawn **MetaReviewer** with only paths:
+Spawn **MetaReviewer** with `mode: "bypassPermissions"` and only paths:
 
 ```json
 {
@@ -179,7 +183,7 @@ MetaReviewer returns:
 
 ### Phase 5: Launch TriageFixer Agent
 
-Spawn **TriageFixer** with:
+Spawn **TriageFixer** with `mode: "bypassPermissions"` and:
 
 ```json
 {
@@ -213,7 +217,7 @@ Returns:
 
 ### Phase 6: Launch SummaryAgent
 
-Spawn **SummaryAgent** with:
+Spawn **SummaryAgent** with `mode: "bypassPermissions"` and:
 
 ```json
 {
