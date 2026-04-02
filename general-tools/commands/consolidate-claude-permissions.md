@@ -58,6 +58,59 @@ Present as a table:
 | Bash(npx prisma migrate:*) | 1 | One-off | Single use, not worth auto-allowing |
 ```
 
+**Pass 4 — Predict nearby permissions (family completion):**
+
+For each tool family already present in settings, suggest all other **safe** commands from that family that aren't yet allowed. The goal: prevent future prompts for commands the user would obviously approve.
+
+**General principle:** Read-only operations are safe to suggest. Mutating operations are not.
+
+- **Bash CLI tools:** If user has any `Bash(gh <sub>:*)`, suggest all other safe gh subcommands. Same for `git`, `npm`, `docker`, etc.
+- **MCP tools:** If user has any `mcp__<server>__*` tool, suggest all `list_*` and `get_*` tools from that server. Never suggest `create_*`, `delete_*`, `update_*`, `apply_*`, or `execute_*`.
+
+**Known safe commands by family** (suggest if any sibling exists):
+
+| Family | Safe to suggest | Never suggest |
+|--------|----------------|---------------|
+| `gh` | `pr:*`, `api:*`, `run:*`, `issue:*`, `repo view:*`, `release list:*`, `release view:*` | `repo delete:*`, `pr close:*`, `release create:*`, `release delete:*` |
+| `git` | `status:*`, `log:*`, `diff:*`, `branch:*`, `fetch:*`, `stash:*`, `worktree:*`, `tag:*`, `remote:*`, `show:*` | `push --force:*`, `reset --hard:*`, `clean:*`, `checkout .:*` |
+| `npm` | `view:*`, `list:*`, `outdated:*`, `run:*` | `publish:*` |
+| `docker` | `build:*`, `images:*`, `ps:*`, `logs:*`, `inspect:*` | `rm:*`, `rmi:*`, `system prune:*` |
+
+For MCP servers not in the table, apply the general principle: `list_*` and `get_*` = safe, everything else = not suggested.
+
+Present predicted permissions in a separate table:
+
+```
+| Permission | Decision | Reason |
+|------------|----------|--------|
+| Bash(gh run:*) | Predict | Same family as gh pr:*, safe read-only CI status |
+| mcp__render__get_service | Predict | Same server as list_services, safe read-only |
+```
+
+**Pass 5 — Gap detection (why did this get prompted?):**
+
+Cross-check logged permissions against existing rules to find prompts that **should not have happened** — the user clearly intended to allow them based on existing rules, but a pattern mismatch caused a prompt.
+
+**Check for prefix gaps:**
+1. Scan log entries for `Bash(cd /path && <command> ...)` patterns
+2. Extract the inner command after `cd ... &&`
+3. If the inner command matches an existing allow rule (e.g., `pnpm:*`, `git:*`), flag it as a gap
+4. If 2+ such entries exist, recommend adding `Bash(cd:*)` and report how many prompts it would have prevented
+
+**Check for suffix gaps:**
+1. Scan for entries with `2>&1`, `| tail`, `| head`, `| grep` suffixes where the base command is already allowed
+2. These usually match fine — only flag if they actually caused prompts
+
+Present gap findings separately:
+
+```
+## Gap Analysis
+
+| Gap | Prompts caused | Fix |
+|-----|---------------|-----|
+| `cd /path &&` prefix breaks pnpm:*, git:* matches | 15 | Add `Bash(cd:*)` |
+```
+
 ### Step 3: Get User Approval
 
 **STOP and ask the user** before making any changes. Present:
@@ -121,6 +174,13 @@ After user approval:
 
    ## Added to Allow List
    - `Bash(docker build:*)` — 7 occurrences, safe build command
+
+   ## Predicted (family completion)
+   - `Bash(gh run:*)` — same family as gh pr:*, safe read-only
+   - `mcp__render__get_service` — same server as list_services, read-only
+
+   ## Gap Fixes
+   - `Bash(cd:*)` — prevented 15 unnecessary prompts from cd prefix pattern
 
    ## Kept Gated
    - `mcp__render__delete_service` — HIGH risk: deletes infrastructure permanently
