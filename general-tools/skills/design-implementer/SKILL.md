@@ -95,13 +95,15 @@ If prerequisites exist (shared migrations, package installs, etc.):
 
 Use `superpowers:writing-plans` to create plans. The plans are the interface between the lead and sub-agents — they must be complete and self-contained.
 
+**CRITICAL: Skip the Execution Handoff.** When writing-plans finishes and presents execution options ("Subagent-Driven vs Inline Execution — Which approach?"), do NOT present this choice to the user or wait for a response. This skill handles execution in Phase 3. Ignore the handoff and proceed immediately.
+
 **Single-stream path:** Invoke `writing-plans` once for a full implementation plan covering all tasks.
 
 **Multi-stream path:** Invoke `writing-plans` once per stream to create a sub-plan for each. Each sub-plan should be independently executable.
 
 Plans are saved to `docs/superpowers/plans/` following the writing-plans convention.
 
-**After creating plans, proceed immediately to Phase 3.**
+**After creating plans, proceed immediately to Phase 3. Do NOT ask the user anything.**
 
 ## Phase 3: Execute
 
@@ -109,7 +111,7 @@ Plans are saved to `docs/superpowers/plans/` following the writing-plans convent
 
 1. **Create worktree** from the base branch:
    ```bash
-   git worktree add ../telitask-[stream-name] -b feature/[stream-name] feature/[design-name]
+   git worktree add /tmp/telitask-[design-name]-[stream-name] -b feature/[stream-name] feature/[design-name]
    ```
 2. **Execute plan** using `superpowers:subagent-driven-development` (preferred, same session with review) or `superpowers:executing-plans`
 3. **Run CI:** `pnpm typecheck && pnpm lint && pnpm build && pnpm test -- -- --coverage`
@@ -152,6 +154,33 @@ Populate each implementer prompt with:
 
 After merging wave N's PRs to the base branch, spawn wave N+1's sub-agents. They create worktrees from the **updated** base branch, so they automatically have the merged work.
 
+## Handling Sub-Agent Failures
+
+### Health Check (required in every sub-agent prompt)
+
+Every implementer and reviewer prompt must begin with:
+
+> **Step 0: Health check.** Run `echo health-check` via Bash. If this or any subsequent tool call is denied, stop immediately and report: (1) which tools were denied, (2) what work you completed so far, (3) the worktree path. Do not retry denied tools.
+
+### Recovery Protocol (for the lead)
+
+When a sub-agent fails or returns incomplete:
+
+1. **Assess the worktree state** before re-dispatching:
+   ```bash
+   cd /tmp/telitask-[design-name]-[stream-name]
+   git log --oneline [base-branch]..HEAD
+   git status --short
+   git diff --stat
+   ```
+
+2. **Decide based on progress:**
+   - **No commits, no changes** — Re-dispatch from scratch
+   - **Has commits but uncommitted work** — Review the diff, commit if correct, then dispatch a continuation agent for remaining tasks only
+   - **All commits done, just couldn't push/PR** — Lead takes over for push and PR creation (no agent needed)
+
+3. **Never re-dispatch blindly** — always check the worktree first. Duplicating completed work wastes tokens and time.
+
 ## Phase 4: Review, Merge & Finalize
 
 ### Review Sub-PRs
@@ -170,7 +199,7 @@ Agent tool:
     Review and fix PR #[PR_NUMBER] for [stream-name].
 
     The PR targets the base branch: feature/[DESIGN_NAME]
-    Worktree: ../telitask-[STREAM_NAME]
+    Worktree: /tmp/telitask-[DESIGN_NAME]-[STREAM_NAME]
 
     Run /pr-review-and-fix [PR_NUMBER]
 
@@ -232,9 +261,9 @@ After **all** sub-PRs are merged to the base branch, create `docs/handovers/YYYY
 Commit the handover document to the base branch (use a temporary worktree if needed):
 
 ```bash
-git worktree add ../telitask-handover feature/[design-name]
+git worktree add /tmp/telitask-[design-name]-handover feature/[design-name]
 # Copy handover doc into worktree, commit, push
-git worktree remove ../telitask-handover
+git worktree remove /tmp/telitask-[design-name]-handover
 ```
 
 ### Create Umbrella PR
@@ -302,7 +331,7 @@ Full handover document: `docs/handovers/YYYY-MM-DD-[design-name]-handover.md`
 
 1. **Remove worktrees:**
    ```bash
-   git worktree remove ../telitask-[stream-name]
+   git worktree remove /tmp/telitask-[design-name]-[stream-name]
    ```
 
 2. **Report summary:**
@@ -335,11 +364,16 @@ Full handover document: `docs/handovers/YYYY-MM-DD-[design-name]-handover.md`
 - Merge sub-PRs directly to staging — always merge to the base branch
 - Checkout the base branch in the user's working directory
 - Spawn sub-agents without a plan — always create plans first
+- Re-dispatch a failed agent without checking the worktree state first
+- Use relative worktree paths (`../`) — always use absolute paths (`/tmp/telitask-...`)
+- Present the writing-plans execution handoff to the user — this skill owns execution
 
 **Always:**
 - Create a base branch from staging without checking it out
-- Create plans with `writing-plans` before dispatching sub-agents
+- Create plans with `writing-plans` before dispatching sub-agents (skip its execution handoff)
 - Paste full stream spec into sub-agent prompts (don't make agents read the design doc)
+- Use absolute worktree paths: `/tmp/telitask-[design-name]-[stream-name]`
+- Include the health-check step in every sub-agent prompt
 - Create worktrees from the base branch
 - Target sub-PRs to the base branch (not staging)
 - Spawn reviewer sub-agents in parallel after implementers return (no serial bottleneck)
