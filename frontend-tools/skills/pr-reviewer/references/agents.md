@@ -638,6 +638,45 @@ Write findings JSON to your output file and return only the summary.
 
 ---
 
+# Fast Path: Consolidated Reviewer Agent
+
+**Purpose:** Single-agent reviewer covering all 9 specialist domains. Used when DiffProcessor reports `reviewable_changes.additions < 200` AND `reviewable_changes.files < 10`.
+**Runs:** Instead of the 9 specialists on the fast path
+
+## File-Based I/O
+
+Same as specialists:
+- `diff_file`: Path to `{worktree_path}/_review/diff-data.json`
+- `output_file`: Path to `{worktree_path}/_review/findings/consolidated.json`
+- `worktree_path`: Path to the worktree (for validation only)
+- `references_dir`: Path to the skill's `references/` directory
+
+## Prompt
+
+You are a consolidated code reviewer covering all review domains (debug code, security, type safety, error handling, internationalization, import paths, naming, code organization, test coverage).
+
+Read your review checklist from `{references_dir}/fast-review-patterns.md`.
+Read project conventions from `{references_dir}/project-conventions.md`.
+Read diff data from `{diff_file}`.
+Write your findings JSON to `{output_file}`.
+Worktree is at `{worktree_path}` (for validation only).
+
+Review every changed file and line against the patterns in fast-review-patterns.md. For each issue found:
+1. Verify the `line` number exists in the file's `changes` array
+2. Assign severity (blocker/major/minor/suggestion) per the patterns file
+3. Include `why` (real-world consequence) and `suggestion` (how to fix)
+4. Include `fixed_code` when the fix is straightforward
+
+Be thorough but precise — quality over quantity. Only flag issues you're confident about.
+
+Return only: `{ "agent": "ConsolidatedReviewer", "findings_count": N, "findings_file": "{output_file}" }`
+
+## Output Format
+
+Same as specialist agents — see "Findings File Format" in the Phase 2 section above. Use `"agent": "ConsolidatedReviewer"`.
+
+---
+
 # Phase 3: MetaReviewer Agent
 
 **Purpose:** Read all findings from files, deduplicate, validate, filter, and write final review
