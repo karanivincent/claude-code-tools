@@ -15,6 +15,21 @@ Both `.claude/settings.local.json` and `.claude/settings.json` are valid targets
 1. **Read** the target permissions file
 2. **Read** the permission log at `~/.claude/permission-log.jsonl` (if it exists)
    - Each line is a JSON object with: `timestamp`, `project`, `tool`, `permission`, `full_input`, `decision`, `session_id`
+3. **Read** review history at `~/.claude/permission-reviews/history.json` (if it exists)
+   - Array of past review records with: `date`, `recommended`, `applied`, `deferred`, `auto_applied`, `log_entries`
+
+### Step 1.5: Cross-Session Analysis
+
+If `history.json` exists and has entries:
+
+1. **Detect recurring deferrals** — permissions recommended in 2+ past reviews but never applied:
+   - Check each entry in `history[].deferred` against current log
+   - If the same permission category appears again → **escalate**: "This was recommended on {dates} but not applied. It appeared {N} more times since. Strongly recommend adding."
+
+2. **Detect recurring patterns** — if the same broad category (e.g., `Edit`, `Write`, `Agent`) keeps appearing across reviews even after previous consolidation:
+   - The current approach is too narrow — suggest blanket allow for that category
+
+Present escalations at the TOP of the recommendations, before the normal analysis.
 
 ### Step 2: Analyze Permission Log
 
@@ -40,8 +55,32 @@ Flag permissions by risk level. For each risky permission, explain WHY it should
 | **LOW** | `Bash(cat:*)`, `Bash(ls:*)`, `Bash(tree:*)`, read-only MCP tools | Safe read-only operations |
 | **LOW** | `Bash(npx tsc:*)`, `Bash(npx vitest:*)` | Build/test tools with no side effects |
 
+**Pass 2.5 — Auto-apply safe universals:**
+
+Before presenting recommendations, identify permissions that should be auto-applied without asking. A permission qualifies for auto-apply if ALL conditions are met:
+- **10+ occurrences** in the current log
+- **100% allow rate** (never denied in the log — check `decision` field)
+- **LOW risk** (not in the HIGH or MEDIUM risk tables above)
+
+Auto-apply candidates are typically broad tool categories where path-specific entries dominate:
+- `Edit` — if 10+ path-specific Edit entries, all allowed → auto-apply blanket `Edit`
+- `Write` — same logic as Edit
+- `Agent` — if 10+ Agent entries across any subtype, all allowed → auto-apply blanket `Agent`
+
+**Do not ask.** Add these to the allow list directly. Inform the user what was auto-applied and why:
+
+```
+## Auto-Applied (safe universals)
+
+| Permission | Log entries | Allow rate | Reason |
+|------------|-----------|------------|--------|
+| Edit | 162 | 100% | All path-specific edits allowed, LOW risk, reversible via git |
+| Write | 110 | 100% | All path-specific writes allowed, LOW risk, reversible via git |
+| Agent | 28 | 100% | All agent dispatches allowed, LOW risk, no side effects |
+```
+
 **Pass 3 — Recommendations:**
-Present each logged permission with one of these verdicts:
+Present each **remaining** logged permission (not already auto-applied) with one of these verdicts:
 
 - **Add to allow list** — safe + frequently prompted (3+ times). Show the consolidated pattern.
 - **Keep gated** — risky, with specific reason why (from the security review table above). Explain what could go wrong.
@@ -113,10 +152,14 @@ Present gap findings separately:
 
 ### Step 3: Get User Approval
 
-**STOP and ask the user** before making any changes. Present:
-1. The recommendations table from Pass 3
-2. The consolidation changes from Step 4 (preview only)
-3. Ask: "Which recommendations should I apply? (all / list specific numbers / none)"
+**Auto-applied permissions (Pass 2.5) are already added — no approval needed.** Inform the user what was auto-applied.
+
+**STOP and ask the user** before applying remaining changes. Present:
+1. Auto-applied summary (informational, already done)
+2. Escalated permissions from cross-session analysis (Step 1.5) — strongly recommend
+3. The recommendations table from Pass 3
+4. The consolidation changes from Step 4 (preview only)
+5. Ask: "Which recommendations should I apply? (all / list specific numbers / none)"
 
 ### Step 4: Consolidate Existing Permissions
 
@@ -168,22 +211,49 @@ After user approval:
 
 2. **Clear** the permission log — truncate `~/.claude/permission-log.jsonl` to empty
 
-3. **Write review summary** to `~/.claude/permission-reviews/YYYY-MM-DD.md`:
+3. **Append to review history** at `~/.claude/permission-reviews/history.json`:
+   ```json
+   {
+     "date": "YYYY-MM-DD",
+     "log_entries": 341,
+     "auto_applied": ["Edit", "Write", "Agent"],
+     "recommended": ["Bash(open:*)", "mcp__chrome__navigate"],
+     "applied": ["Bash(open:*)"],
+     "deferred": ["mcp__chrome__navigate"]
+   }
+   ```
+   - If the file doesn't exist, create it as `[{...}]`
+   - If it exists, read the array, append, write back
+   - `auto_applied`: permissions added without asking (Pass 2.5)
+   - `recommended`: permissions presented to user in Pass 3
+   - `applied`: subset of recommended that user approved
+   - `deferred`: recommended but not approved (these get escalated next review)
+
+4. **Write review summary** to `~/.claude/permission-reviews/YYYY-MM-DD.md`:
    ```markdown
    # Permission Review — YYYY-MM-DD
+
+   ## Auto-Applied (safe universals)
+   - `Edit` — 162 entries, 100% allow rate, reversible via git
+   - `Write` — 110 entries, 100% allow rate, reversible via git
+
+   ## Escalated (recurring deferrals)
+   - `Agent(Explore)` — recommended on 2026-03-15, 2026-03-28, appeared 11 more times
 
    ## Added to Allow List
    - `Bash(docker build:*)` — 7 occurrences, safe build command
 
    ## Predicted (family completion)
    - `Bash(gh run:*)` — same family as gh pr:*, safe read-only
-   - `mcp__render__get_service` — same server as list_services, read-only
 
    ## Gap Fixes
    - `Bash(cd:*)` — prevented 15 unnecessary prompts from cd prefix pattern
 
    ## Kept Gated
    - `mcp__render__delete_service` — HIGH risk: deletes infrastructure permanently
+
+   ## Deferred (not applied this review)
+   - `mcp__chrome__form_input` — user chose not to add
 
    ## Consolidated
    - `Bash(git -C /specific/path)` → already covered by `Bash(git -C:*)`
