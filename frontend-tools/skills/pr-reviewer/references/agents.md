@@ -121,7 +121,21 @@ You are a diff processor for code review. Your job is to fetch the diff, parse i
    - Files in `node_modules/`, `.svelte-kit/`, `build/`
    - `docs/**` (documentation, planning, review files — not code)
 
-3. **Parse diff into structured changes** - For each file:
+3. **Classify remaining files as reviewable vs non-reviewable**
+
+   After filtering (step 2), further classify files still in the `files` array:
+
+   **Non-reviewable** (include in `files` array for specialists, but exclude from `reviewable_changes` count):
+   - Documentation: `*.md`, `*.txt`, `*.rst` (that weren't caught by step 2's `docs/**` filter)
+   - Assets: `*.svg`, `*.png`, `*.jpg`, `*.jpeg`, `*.gif`, `*.ico`, `*.woff`, `*.woff2`, `*.ttf`, `*.eot`
+   - Generated types: `database.types.ts`
+   - Config with version-only changes: `package.json` where only the `version` field changed
+
+   **Reviewable:** All other files remaining after steps 2-3 filtering.
+
+   Compute `reviewable_changes` by summing additions only for reviewable files.
+
+4. **Parse diff into structured changes** - For each file:
    - Extract file path
    - Count additions/deletions
    - **Parse each hunk to extract added/modified lines with their NEW file line numbers**
@@ -142,7 +156,7 @@ You are a diff processor for code review. Your job is to fetch the diff, parse i
     another context       <- line 48, skip (context)
    ```
 
-4. **Write full data to file:**
+5. **Write full data to file:**
    Write the complete JSON to `{worktree_path}/_review/diff-data.json`:
    ```json
    {
@@ -164,11 +178,13 @@ You are a diff processor for code review. Your job is to fetch the diff, parse i
        }
      ],
      "total_changes": { "files": 8, "additions": 312, "deletions": 87 },
-     "excluded": ["package-lock.json", "src/lib/generated/api.ts"]
+     "reviewable_changes": { "files": 5, "additions": 153 },
+     "excluded": ["package-lock.json", "src/lib/generated/api.ts"],
+     "skipped_non_reviewable": ["README.md", "CHANGELOG.md"]
    }
    ```
 
-5. **Return only a summary** (see output format below)
+6. **Return only a summary** (see output format below)
 
 ### Important:
 - Do NOT analyze the code for issues - just prepare the data
@@ -186,6 +202,7 @@ You are a diff processor for code review. Your job is to fetch the diff, parse i
   "success": true,
   "diff_file": "/tmp/review-123/_review/diff-data.json",
   "total_changes": { "files": 8, "additions": 312 },
+  "reviewable_changes": { "files": 5, "additions": 153 },
   "pr_info": { "number": 123, "title": "Add user authentication" }
 }
 ```
