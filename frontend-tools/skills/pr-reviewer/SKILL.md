@@ -37,7 +37,8 @@ All intermediate data lives in the worktree:
   _review/
     diff-data.json            # DiffProcessor writes, specialists + MetaReviewer read
     findings/
-      debug-code.json         # Each specialist writes its own file
+      consolidated.json       # Fast path: single reviewer writes here
+      debug-code.json         # Full path: each specialist writes its own file
       security.json
       type-safety.json
       error-handling.json
@@ -59,9 +60,18 @@ Phase 0: Setup ────────► SetupAgent
 Phase 1: Preparation ──► DiffProcessor
                               │
                               ▼
-Phase 2: Review ───────► 9 Specialists (parallel)
-                              │
-                              ▼
+                        ┌─ triage ─┐
+                        │          │
+                    small PR    large PR
+                    (<200 add   (≥200 add
+                     <10 files)  or ≥10 files)
+                        │          │
+                        ▼          ▼
+Phase 2: Review    Consolidated  9 Specialists
+                   Reviewer      (parallel)
+                        │          │
+                        └────┬─────┘
+                             ▼
 Phase 3: Consolidation ► MetaReviewer
                               │
                               ▼
@@ -106,14 +116,58 @@ DiffProcessor **writes** full diff data to `{worktree_path}/_review/diff-data.js
 {
   "success": true,
   "diff_file": "/tmp/review-123/_review/diff-data.json",
-  "total_changes": { "files": 8, "additions": 312 },
+  "total_changes": { "files": 10, "additions": 1468 },
+  "reviewable_changes": { "files": 5, "additions": 153 },
   "pr_info": { "number": 123, "title": "Add user authentication" }
 }
 ```
 
 **The main agent never sees the full files array.**
 
-### Phase 2: Launch 9 Specialist Agents in Parallel
+### Triage (in main agent)
+
+After DiffProcessor returns, check `reviewable_changes` to decide the review path:
+
+```
+if reviewable_changes.additions < 200 AND reviewable_changes.files < 10:
+  → Fast path: launch 1 Consolidated Reviewer
+else:
+  → Full path: launch 9 Specialists in parallel
+```
+
+**Non-reviewable files** (excluded from `reviewable_changes` count):
+- Lock files: `pnpm-lock.yaml`, `package-lock.json`, `yarn.lock`
+- Documentation: `*.md`, `*.txt`, `*.rst`
+- Generated types: `database.types.ts`
+- Assets: images, fonts (`.svg`, `.png`, `.jpg`, `.woff`, `.woff2`, etc.)
+- Config with version-only changes
+
+This ensures a PR with 1,400 lines of docs + 150 lines of code correctly takes the fast path.
+
+### Phase 2 (Fast Path): Launch Consolidated Reviewer
+
+When triage selects the fast path, spawn **one** Consolidated Reviewer agent:
+
+```
+You are a consolidated code reviewer covering all review domains.
+Read your review checklist from {references_dir}/fast-review-patterns.md.
+Read project conventions from {references_dir}/project-conventions.md.
+Read diff data from {diff_file}.
+Write your findings JSON to {worktree_path}/_review/findings/consolidated.json.
+Worktree is at {worktree_path} (for validation only).
+Return only: { "agent": "ConsolidatedReviewer", "findings_count": N, "findings_file": "..." }
+```
+
+The consolidated reviewer:
+1. Reads `diff-data.json` to get files/changes
+2. Reads `fast-review-patterns.md` + `project-conventions.md` (~500 lines total vs ~1,400 × 9)
+3. Reviews all changed files in a single pass across all domains
+4. Writes findings to `_review/findings/consolidated.json`
+5. Returns only the summary
+
+Output format matches specialist format — MetaReviewer needs no changes.
+
+### Phase 2 (Full Path): Launch 9 Specialist Agents in Parallel
 
 Spawn all 9 agents in a **single message**. Each receives only paths — no data payloads.
 
@@ -286,4 +340,5 @@ The `post` command reads a review file and posts comments to GitHub as inline PR
 - `references/agents.md` - Agent prompts, output formats, and review file format
 - `references/patterns.md` - Regex patterns for detection
 - `references/reviewer-examples.md` - Real Nicolas/Vincent comments
+- `references/fast-review-patterns.md` - Compact patterns for consolidated reviewer (fast path)
 - `references/project-conventions.md` - Yond-specific standards
