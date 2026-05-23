@@ -17,7 +17,6 @@ with inserted_page as (
     founder_note,
     cta_label,
     cta_url,
-    visibility,
     expires_at
   ) values (
     'acme-x7k2',                                              -- slug
@@ -34,7 +33,6 @@ with inserted_page as (
     'Saw the Lagos expansion — congrats. Built a quick demo of how TeliTask could call your drivers each morning so your dispatchers stop chasing them. Three scenarios below, click any to ring your phone.',
     'Book a 15-min call',                                     -- cta_label
     'https://cal.com/vincent-telitask/15min',                 -- cta_url
-    'private',                                                -- visibility
     null                                                      -- expires_at (nullable)
   )
   returning id
@@ -111,14 +109,14 @@ End the call once they have decided next steps.$prompt$,
 ## Verification query (run after insert)
 
 ```sql
-select p.slug, p.company_name, p.visibility, count(s.id) as scenario_count
+select p.slug, p.company_name, count(s.id) as scenario_count
 from custom_demo_pages p
 left join custom_demo_scenarios s on s.page_id = p.id
 where p.slug = 'acme-x7k2'
-group by p.id, p.slug, p.company_name, p.visibility;
+group by p.id, p.slug, p.company_name;
 ```
 
-Expected: 1 row, `scenario_count = 3`, `visibility = 'private'`.
+Expected: 1 row with `scenario_count = 3`.
 
 ## Notes on SQL gotchas
 

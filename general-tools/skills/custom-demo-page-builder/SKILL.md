@@ -104,12 +104,13 @@ When drafting `system_prompt`, lean on the patterns in `references/scenario-prom
 - `cta_label` — short, e.g., "Book a 15-min call", "Talk to Vincent" (default `"Book a call"`)
 - `cta_url` — usually a Calendly link the user supplies; required, no default
 
-#### 3g. Visibility & metadata
+#### 3g. Metadata
 
-- `visibility` — leave as `'private'` (default). The user can flip to `'public'` from admin later.
 - `expires_at` — optional. If the user wants the page to auto-expire (e.g., 30 days), capture as a timestamp.
 - `industry` — capture for filtering/analytics
 - `prospect_email` — capture if known, for follow-up tracking
+
+Access control: there is none beyond the slug. Anyone with the link can view the page and trigger a demo call. Generate an unguessable 4-char suffix on the slug — that IS the access token.
 
 ### Phase 4 — Brand voice review
 
@@ -131,7 +132,7 @@ See `references/seed-sql-template.md` for the exact SQL pattern (uses `with inse
 
 After insert, verify by running a quick read:
 ```sql
-select p.slug, p.company_name, p.visibility, count(s.id) as scenario_count
+select p.slug, p.company_name, count(s.id) as scenario_count
 from custom_demo_pages p
 left join custom_demo_scenarios s on s.page_id = p.id
 where p.slug = '<slug>'
