@@ -92,7 +92,7 @@ For each of 3 scenarios, collect:
 - `description` — one sentence the prospect reads on the card
 - `icon` — a **lucide-react** icon name (e.g., `phone-call`, `truck`, `clock`, `users`, `bell`, `calendar-check`). Match the scenario semantically.
 - `preview` — the one-line transcript hint shown on the card (e.g., *"Hi, this is your TeliTask assistant calling to confirm Driver 12's morning route…"*)
-- `system_prompt` — the LLM system prompt that runs the call. Should set: who the AI is, who it's calling (the prospect role-playing as their customer/driver/etc.), what to ask, how to close.
+- `system_prompt` — the LLM system prompt that runs the call. **MUST** open with an identity override framing the AI as the prospect's own internal assistant (NOT as TeliTask) and explicitly telling it not to mention TeliTask during the call. The voice server prepends a global "You are TeliTask…" identity layer to every demo prompt; without an override the AI introduces itself as TeliTask and the custom-demo framing breaks. See `references/scenario-prompt-template.md` → "Critical: Identity framing".
 - `sell_prompt` — a 1-2 sentence wrap the AI delivers at the end pitching how this same flow would work at the prospect's company
 - `voice_id` — default `'Aoede'` (Gemini female voice). If the user wants a different voice, query `select voice_id from voices where is_default = true` against the staging project.
 - `sort_order` — 0, 1, 2
@@ -163,6 +163,7 @@ If you find yourself doing any of these, stop and reset:
 - Using "automate", "notification", "workflow", or "leverage" anywhere in copy
 - About to call `apply_migration` instead of `execute_sql` — these are data rows, not schema
 - About to seed against `hffrgidrbrspqdqbmcqz` (production)
+- Writing `"You are TeliTask, …"` in any scenario `system_prompt` — must be `"You are <Prospect>'s internal AI assistant. Do NOT mention TeliTask…"`
 
 ## References
 
