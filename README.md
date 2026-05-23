@@ -61,7 +61,7 @@ Agents and skills for codebase research, PR workflows, testing, planning, and sk
 | `feature-planner` | Orchestrates multi-agent research and parallel planning workflows |
 | `claudemd-editor` | Creates, reviews, and optimizes CLAUDE.md configuration files |
 | `pr-creator` | Creates GitHub PRs with focused descriptions and CI monitoring |
-| `pr-reviewer` | AI code review with size-based fast path — 1 agent for small PRs, 9 specialists for large PRs |
+| `pr-reviewer` | AI code review with tiered models — Haiku for pattern checks, Sonnet for judgment specialists + fast-path reviewer, Opus for the final MetaReviewer synthesis |
 | `pr-comment-resolver` | Systematically processes PR review comments with critical analysis |
 | `pr-review-and-fix` | Single-pass AI review + automated fixing for agent-driven PR workflows |
 | `test-fixer` | Fixes failing E2E/unit tests using systematic workflows |
