@@ -7,6 +7,27 @@ Each scenario row has two prompt fields:
 
 The voice server resolves these via `loadScenarioPrompts(scenario)` when the scenario slug is composite (`<page-slug>--<scenario-slug>`). Both prompts must be self-contained — no external context will be injected.
 
+## Mandatory: turn-taking rules
+
+Every `system_prompt` — inbound AND outbound — MUST include the block below **word-for-word**. Append it after the wrap-up/close line, before the closing `$prompt$`. Without it the AI dumps information and stacks questions, which kills the demo.
+
+```
+TURN-TAKING RULES (non-negotiable):
+1. Maximum 2 sentences per turn. If you need to say more, stop and wait.
+2. ONE question per turn. Never stack questions.
+3. After giving information, STOP. Do not follow up with a question in the same turn.
+4. After asking a question, STOP. Wait for the answer before saying anything else.
+5. When the caller answers, acknowledge briefly (1 sentence max) before your next point.
+
+BAD (info dump + stacked questions):
+'Great news, your vehicle is ready for pickup at our Limuru Road showroom. We have completed the full inspection and detailing. Would morning or afternoon work better? And will you be paying the balance by bank transfer?'
+
+GOOD (one thing, then wait):
+'Your vehicle is ready for pickup at our Limuru Road showroom. When works best for you to come by?'
+[Wait for answer]
+'Morning works. Will you be paying the balance by transfer or at the showroom?'
+```
+
 ## Critical: Identity framing (the #1 mistake)
 
 The voice server prepends a **global identity layer** to every demo prompt that says *"You are TeliTask, an AI voice assistant, on a DEMO call…"* For the generic `/demo` flow that's correct. **For custom prospect demos it is wrong.** The prospect should feel like they're hearing *their own AI* — their own after-hours line — not a TeliTask sales pitch. TeliTask is the platform behind the scenes; the brand reveal happens in the post-call wrap-up.
@@ -17,6 +38,8 @@ So every custom-demo `system_prompt` MUST start with an explicit identity overri
 - **DO** frame the AI as the prospect's own internal line: *"You are <Prospect>'s after-hours line. For this call you do NOT mention TeliTask — TeliTask is the platform running you, not who you are to the caller."*
 - It's fine to leave the AI un-named, or to give it a generic functional name (e.g., "the Carsoko sales line", "the front desk"). Don't invent a fake brand name unless the user supplies one.
 - The `sell_prompt` is where the demo arc shifts. Even there, **don't mention TeliTask by name** — the global wrap-up template handles the brand reveal.
+
+**Accent is set elsewhere.** The page's `country` column drives the AI accent — the voice server reads it and applies the accent at call time. Do NOT bake `"speak with a <country> accent"` into any `system_prompt`; set `country` on the page instead.
 
 ## The core mechanic: inbound after-hours framing
 
@@ -67,6 +90,21 @@ Tone: calm and reassuring — they may be panicking. Short, clear questions.
 
 When they have a clear next step (escalation or a booked slot), confirm it back
 to them, reassure them, and end the call.
+
+TURN-TAKING RULES (non-negotiable):
+1. Maximum 2 sentences per turn. If you need to say more, stop and wait.
+2. ONE question per turn. Never stack questions.
+3. After giving information, STOP. Do not follow up with a question in the same turn.
+4. After asking a question, STOP. Wait for the answer before saying anything else.
+5. When the caller answers, acknowledge briefly (1 sentence max) before your next point.
+
+BAD (info dump + stacked questions):
+'Great news, your vehicle is ready for pickup at our Limuru Road showroom. We have completed the full inspection and detailing. Would morning or afternoon work better? And will you be paying the balance by bank transfer?'
+
+GOOD (one thing, then wait):
+'Your vehicle is ready for pickup at our Limuru Road showroom. When works best for you to come by?'
+[Wait for answer]
+'Morning works. Will you be paying the balance by transfer or at the showroom?'
 ```
 
 ### Example: Car dealership, "After-hours new-customer capture" (inbound)
@@ -90,6 +128,21 @@ Tone: warm, confident, never pushy — this is a high-value purchase.
 
 When a visit or callback is booked, confirm the details back to them and end the
 call.
+
+TURN-TAKING RULES (non-negotiable):
+1. Maximum 2 sentences per turn. If you need to say more, stop and wait.
+2. ONE question per turn. Never stack questions.
+3. After giving information, STOP. Do not follow up with a question in the same turn.
+4. After asking a question, STOP. Wait for the answer before saying anything else.
+5. When the caller answers, acknowledge briefly (1 sentence max) before your next point.
+
+BAD (info dump + stacked questions):
+'Great news, your vehicle is ready for pickup at our Limuru Road showroom. We have completed the full inspection and detailing. Would morning or afternoon work better? And will you be paying the balance by bank transfer?'
+
+GOOD (one thing, then wait):
+'Your vehicle is ready for pickup at our Limuru Road showroom. When works best for you to come by?'
+[Wait for answer]
+'Morning works. Will you be paying the balance by transfer or at the showroom?'
 ```
 
 ## OUTBOUND system_prompt structure (slot 3: missed-call auto-callback)
@@ -127,6 +180,21 @@ Your job:
 Tone: warm, a little apologetic, eager to help — you don't want to lose them.
 
 Once the next step is booked, confirm it and end the call.
+
+TURN-TAKING RULES (non-negotiable):
+1. Maximum 2 sentences per turn. If you need to say more, stop and wait.
+2. ONE question per turn. Never stack questions.
+3. After giving information, STOP. Do not follow up with a question in the same turn.
+4. After asking a question, STOP. Wait for the answer before saying anything else.
+5. When the caller answers, acknowledge briefly (1 sentence max) before your next point.
+
+BAD (info dump + stacked questions):
+'Great news, your vehicle is ready for pickup at our Limuru Road showroom. We have completed the full inspection and detailing. Would morning or afternoon work better? And will you be paying the balance by bank transfer?'
+
+GOOD (one thing, then wait):
+'Your vehicle is ready for pickup at our Limuru Road showroom. When works best for you to come by?'
+[Wait for answer]
+'Morning works. Will you be paying the balance by transfer or at the showroom?'
 ```
 
 ## Per-industry scenario menu

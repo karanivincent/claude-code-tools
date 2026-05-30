@@ -17,8 +17,10 @@ with inserted_page as (
     industry,
     pain_points,
     founder_note,
-    cta_label,
-    cta_url,
+    cta_phone,
+    cta_whatsapp,
+    cta_email,
+    country,
     expires_at
   ) values (
     'carsoko-k3p9',                                          -- slug
@@ -33,8 +35,10 @@ with inserted_page as (
       'Hot leads ring the next dealer instead'
     ],
     $note$Hi Patrick — when someone calls Carsoko at 9pm about a Land Cruiser and gets voicemail, they just ring the next dealer. I built you a line that picks up after hours and books them in instead. Tap any scenario below to have it call you now.$note$,
-    'Talk to Vincent',                                       -- cta_label
-    'https://wa.me/254700000000',                            -- cta_url
+    '+254704985136',                                         -- cta_phone (renders as the tel: CTA)
+    '+254704985136',                                         -- cta_whatsapp (renders as the wa.me CTA)
+    null,                                                    -- cta_email (nullable)
+    'Kenya',                                                 -- country — REPLACE with the prospect's actual country; it drives the AI accent at call time
     null                                                     -- expires_at (nullable)
   )
   returning id
@@ -65,7 +69,22 @@ Your job:
 
 Tone: warm, confident, never pushy — this is a high-value purchase.
 
-When a visit or callback is booked, confirm the details back to them and end the call.$prompt$,
+When a visit or callback is booked, confirm the details back to them and end the call.
+
+TURN-TAKING RULES (non-negotiable):
+1. Maximum 2 sentences per turn. If you need to say more, stop and wait.
+2. ONE question per turn. Never stack questions.
+3. After giving information, STOP. Do not follow up with a question in the same turn.
+4. After asking a question, STOP. Wait for the answer before saying anything else.
+5. When the caller answers, acknowledge briefly (1 sentence max) before your next point.
+
+BAD (info dump + stacked questions):
+'Great news, your vehicle is ready for pickup at our Limuru Road showroom. We have completed the full inspection and detailing. Would morning or afternoon work better? And will you be paying the balance by bank transfer?'
+
+GOOD (one thing, then wait):
+'Your vehicle is ready for pickup at our Limuru Road showroom. When works best for you to come by?'
+[Wait for answer]
+'Morning works. Will you be paying the balance by transfer or at the showroom?'$prompt$,
     'That''s how every after-hours call to Carsoko could go — picked up, qualified, and booked, instead of going to voicemail.',
     'Aoede',
     0
@@ -88,7 +107,22 @@ Your job:
 
 Tone: warm and responsive — match their urgency without being pushy.
 
-Once the next step is locked in, confirm it and end the call.$prompt$,
+Once the next step is locked in, confirm it and end the call.
+
+TURN-TAKING RULES (non-negotiable):
+1. Maximum 2 sentences per turn. If you need to say more, stop and wait.
+2. ONE question per turn. Never stack questions.
+3. After giving information, STOP. Do not follow up with a question in the same turn.
+4. After asking a question, STOP. Wait for the answer before saying anything else.
+5. When the caller answers, acknowledge briefly (1 sentence max) before your next point.
+
+BAD (info dump + stacked questions):
+'Great news, your vehicle is ready for pickup at our Limuru Road showroom. We have completed the full inspection and detailing. Would morning or afternoon work better? And will you be paying the balance by bank transfer?'
+
+GOOD (one thing, then wait):
+'Your vehicle is ready for pickup at our Limuru Road showroom. When works best for you to come by?'
+[Wait for answer]
+'Morning works. Will you be paying the balance by transfer or at the showroom?'$prompt$,
     'A buyer this ready won''t wait — Carsoko''s line catches them tonight instead of losing them to the next dealer by morning.',
     'Aoede',
     1
@@ -111,7 +145,22 @@ Your job:
 
 Tone: warm, a little apologetic, eager to help — you don't want to lose them.
 
-Once the next step is booked, confirm it and end the call.$prompt$,
+Once the next step is booked, confirm it and end the call.
+
+TURN-TAKING RULES (non-negotiable):
+1. Maximum 2 sentences per turn. If you need to say more, stop and wait.
+2. ONE question per turn. Never stack questions.
+3. After giving information, STOP. Do not follow up with a question in the same turn.
+4. After asking a question, STOP. Wait for the answer before saying anything else.
+5. When the caller answers, acknowledge briefly (1 sentence max) before your next point.
+
+BAD (info dump + stacked questions):
+'Great news, your vehicle is ready for pickup at our Limuru Road showroom. We have completed the full inspection and detailing. Would morning or afternoon work better? And will you be paying the balance by bank transfer?'
+
+GOOD (one thing, then wait):
+'Your vehicle is ready for pickup at our Limuru Road showroom. When works best for you to come by?'
+[Wait for answer]
+'Morning works. Will you be paying the balance by transfer or at the showroom?'$prompt$,
     'Every missed call at Carsoko could get this callback first thing — no buyer left for the competitor overnight.',
     'Aoede',
     2
@@ -122,14 +171,14 @@ Once the next step is booked, confirm it and end the call.$prompt$,
 ## Verification query (run after insert)
 
 ```sql
-select p.slug, p.company_name, count(s.id) as scenario_count
+select p.slug, p.company_name, p.cta_phone, p.cta_whatsapp, p.country, count(s.id) as scenario_count
 from custom_demo_pages p
 left join custom_demo_scenarios s on s.page_id = p.id
 where p.slug = 'carsoko-k3p9'
-group by p.id, p.slug, p.company_name;
+group by p.id, p.slug, p.company_name, p.cta_phone, p.cta_whatsapp, p.country;
 ```
 
-Expected: 1 row with `scenario_count = 3`.
+Expected: 1 row with `scenario_count = 3`, and `cta_phone` / `cta_whatsapp` / `country` set as intended.
 
 ## Notes on SQL gotchas
 
@@ -138,6 +187,8 @@ Expected: 1 row with `scenario_count = 3`.
 - **`pain_points`** is `text[]` — use `array[...]` literal, not jsonb.
 - **`expires_at`** accepts `null` (no expiry) or a `timestamptz` literal like `'2026-08-01 00:00:00+00'`.
 - **`sample_call_*` columns** stay null at seed time — they get populated later via the admin "Promote to sample" action against a real recorded demo call.
+- **CTA columns** — the public page renders the CTA only from `cta_phone`, `cta_whatsapp`, and `cta_email`. `cta_url` / `cta_label` are **deprecated** and NOT rendered on the public page; leave them out (or null) and never use them as the visible CTA.
+- **`country`** drives the AI accent at call time — the voice server reads it and speaks with that country's accent. So never write a "speak with X accent" line into a `system_prompt`; set `country` instead.
 
 ## Updating an existing page
 
@@ -147,6 +198,9 @@ Don't re-insert with a new slug. Update by slug:
 update custom_demo_pages
 set founder_note = $note$New version of the note$note$,
     pain_points = array['updated', 'pain', 'points'],
+    cta_phone = '+254704985136',
+    cta_whatsapp = '+254704985136',
+    country = 'Kenya',  -- set the prospect's actual country; drives the AI accent
     updated_at = now()
 where slug = 'carsoko-k3p9';
 ```

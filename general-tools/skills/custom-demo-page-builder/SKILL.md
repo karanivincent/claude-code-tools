@@ -53,6 +53,7 @@ Collect (use AskUserQuestion or accept what the user already provided):
 - Company name + website URL (required)
 - Prospect contact name + role + email (optional but recommended)
 - Industry (if not obvious from the URL)
+- Prospect country (drives the AI accent at call time — default "Kenya" if not given)
 - Anything special the user already knows about this prospect (mutual connection, recent fundraise, specific pain they mentioned, etc.)
 
 ### Phase 1 — Light research, focused on off-hours exposure (2-5 fetches max)
@@ -126,18 +127,23 @@ For each scenario collect:
 - `description` — one sentence the prospect reads on the card
 - `icon` — a **lucide-react** icon name (e.g., `phone-incoming`, `phone-call`, `phone-missed`, `clock`, `bell`, `calendar-check`, `siren`). Match the scenario semantically.
 - `preview` — the one-line transcript hint shown on the card
-- `system_prompt` — the LLM system prompt. **MUST** open with an identity override framing the AI as the prospect's own after-hours line (NOT TeliTask) and telling it not to mention TeliTask during the call. Inbound scenarios (1 & 2) frame the AI as **answering** an inbound after-hours call (prospect role-plays the caller). The outbound scenario (3) frames the AI as **placing** the callback. See `references/scenario-prompt-template.md`.
+- `system_prompt` — the LLM system prompt. **MUST** open with an identity override framing the AI as the prospect's own after-hours line (NOT TeliTask) and telling it not to mention TeliTask during the call. Inbound scenarios (1 & 2) frame the AI as **answering** an inbound after-hours call (prospect role-plays the caller). The outbound scenario (3) frames the AI as **placing** the callback. **Every** `system_prompt` MUST also include the verbatim turn-taking block — see `references/scenario-prompt-template.md` → "Mandatory: turn-taking rules". Never bake a "speak with X accent" line into the prompt; accent comes from the page `country` column.
 - `sell_prompt` — a 1-2 sentence wrap the AI delivers at the end, tying this same flow to the prospect's business. Don't mention TeliTask.
 - `voice_id` — default `'Aoede'` (Gemini female voice). If the user wants a different voice, query `select voice_id from voices where is_default = true` against the staging project.
 - `sort_order` — 0, 1, 2
 
 #### 3f. CTA
 
-- `cta_label` — short, e.g., "Book a 15-min call", "Talk to Vincent" (default `"Book a call"`)
-- `cta_url` — usually a Calendly link the user supplies; required, no default. May be a `wa.me`/`tel:` link if the user prefers.
+The public page renders the CTA only from these dedicated columns:
+- `cta_phone` — the tel: CTA. Default to `+254704985136` (Vincent's contact number).
+- `cta_whatsapp` — the wa.me CTA. Default to `+254704985136` as well.
+- `cta_email` — optional mailto CTA. Leave null unless the user wants it.
+
+`cta_url` / `cta_label` are **deprecated** and NOT rendered on the public page — do not use them as the visible CTA.
 
 #### 3g. Metadata
 
+- `country` — free text, e.g. "Kenya" (default "Kenya"). The voice server reads it and makes the AI speak with that country's accent at call time, so set it accurately. Never encode the accent in a `system_prompt`.
 - `expires_at` — optional. If the user wants the page to auto-expire (e.g., 30 days), capture as a timestamp.
 - `industry` — capture for filtering/analytics
 - `prospect_email` — capture if known, for follow-up tracking
@@ -150,6 +156,9 @@ Before writing to the DB, re-read every piece of copy against `references/brand-
 - **No statistics** snuck into founder note or pain points
 - Inbound scenario prompts read as the AI **answering**, not placing, the call
 - No `system_prompt` says "You are TeliTask…"
+- **Every** `system_prompt` includes the verbatim turn-taking block
+- No `system_prompt` bakes in an accent line — accent comes from the page `country`
+- The CTA uses `cta_phone` / `cta_whatsapp` (not the deprecated `cta_url` / `cta_label`)
 
 Common offenders: "automate" → "handles"/"calls you"; "notification" → "phone call"; "workflow" → "things get done"; comparing against AI tools instead of human VAs.
 
@@ -161,13 +170,13 @@ Use `mcp__plugin_supabase_supabase__execute_sql` against the **staging** project
 
 **Never** target the production project (`hffrgidrbrspqdqbmcqz`).
 
-After insert, verify:
+After insert, verify (includes the CTA + `country` columns so you can confirm they were set):
 ```sql
-select p.slug, p.company_name, count(s.id) as scenario_count
+select p.slug, p.company_name, p.cta_phone, p.cta_whatsapp, p.country, count(s.id) as scenario_count
 from custom_demo_pages p
 left join custom_demo_scenarios s on s.page_id = p.id
 where p.slug = '<slug>'
-group by p.id, p.slug, p.company_name;
+group by p.id, p.slug, p.company_name, p.cta_phone, p.cta_whatsapp, p.country;
 ```
 
 ### Phase 6 — Report
@@ -176,7 +185,7 @@ Give the user:
 - The staging URL: `https://staging.telitask.com/en/for/<slug>`
 - The admin URL: `https://staging.telitask.com/en/admin/custom-demos/<slug>`
 - A 1-line summary of what was seeded
-- A reminder: *"Page is `private` — flip to `public` from admin when ready to share."*
+- The CTA fields set (`cta_phone`, `cta_whatsapp`, and `cta_email` if any) and the `country` value (so the user can confirm the accent)
 - For WhatsApp-heavy Kenyan prospects: a one-line honest caveat that the demo is voice-only and may underweight WhatsApp (see `off-hours-playbook.md` → Kenya note). Tell the **user**, never put it on the page.
 
 ## Conventions
@@ -201,6 +210,9 @@ If you find yourself doing any of these, stop and reset:
 - About to call `apply_migration` instead of `execute_sql` — these are data rows, not schema
 - About to seed against `hffrgidrbrspqdqbmcqz` (production)
 - Writing `"You are TeliTask, …"` in any scenario `system_prompt` — must be `"You are <Prospect>'s after-hours line. Do NOT mention TeliTask…"`
+- A `system_prompt` **missing the turn-taking block** — every prompt must carry it verbatim
+- **Baking an accent line** ("speak with a Kenyan accent") into a `system_prompt` instead of setting the page `country`
+- Using `cta_url` / `cta_label` as the visible CTA — they're deprecated; set `cta_phone` / `cta_whatsapp`
 
 ## References
 
@@ -208,3 +220,5 @@ If you find yourself doing any of these, stop and reset:
 - `references/brand-voice.md` — Banned words, preferred phrases, anchoring rules
 - `references/scenario-prompt-template.md` — Inbound (after-hours) + outbound system_prompt patterns, per-industry menu
 - `references/seed-sql-template.md` — Exact SQL to run via Supabase MCP
+
+The canonical cross-path conventions for this feature live at `docs/custom-demo-conventions.md` in the telitask-development repo — the dashboard AI generator follows the same rules (CTA columns, `country`-driven accent, turn-taking block). Keep this skill in sync with that doc.
