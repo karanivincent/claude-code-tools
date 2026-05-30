@@ -43,8 +43,10 @@ insert into custom_demo_scenarios (
   page_id, slug, title, description, icon, preview,
   system_prompt, sell_prompt, voice_id, sort_order
 )
-select id, * from inserted_page,
-(values
+select ip.id, s.slug, s.title, s.description, s.icon, s.preview,
+       s.system_prompt, s.sell_prompt, s.voice_id, s.sort_order
+from inserted_page ip
+cross join (values
   (
     'after-hours-enquiry',
     'After-hours buyer call',
