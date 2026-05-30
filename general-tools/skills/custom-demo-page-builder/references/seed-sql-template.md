@@ -2,6 +2,8 @@
 
 Use `mcp__plugin_supabase_supabase__execute_sql` against **staging** (`pbtvpbrdpgpopieghany`). Never apply to production.
 
+The example below shows the default off-hours mix: **two inbound after-hours scenarios + one outbound missed-call callback**. See `scenario-prompt-template.md` for the prompt patterns.
+
 ## One-shot insert (page + 3 scenarios in a single CTE)
 
 ```sql
@@ -19,21 +21,21 @@ with inserted_page as (
     cta_url,
     expires_at
   ) values (
-    'acme-x7k2',                                              -- slug
-    'Acme Logistics',                                         -- company_name
-    'Jane Doe',                                               -- contact_name (nullable)
-    'Head of Operations',                                     -- contact_role (nullable)
-    'jane@acme.example',                                      -- prospect_email (nullable)
-    'logistics',                                              -- industry (nullable)
-    array[                                                    -- pain_points text[]
-      'Knowing every driver actually started their route on time',
-      'Catching delays before customers call to complain',
-      'Spending less of the morning chasing dispatchers'
+    'carsoko-k3p9',                                          -- slug
+    'Carsoko',                                               -- company_name
+    'Patrick',                                               -- contact_name (nullable)
+    'Head of Sales',                                         -- contact_role (nullable)
+    'info@carsoko.net',                                      -- prospect_email (nullable)
+    'automotive',                                            -- industry (nullable)
+    array[                                                   -- pain_points text[]
+      'Calls after 6pm go to voicemail',
+      'Weekend buyers can''t reach anyone',
+      'Hot leads ring the next dealer instead'
     ],
-    'Saw the Lagos expansion — congrats. Built a quick demo of how TeliTask could call your drivers each morning so your dispatchers stop chasing them. Three scenarios below, click any to ring your phone.',
-    'Book a 15-min call',                                     -- cta_label
-    'https://cal.com/vincent-telitask/15min',                 -- cta_url
-    null                                                      -- expires_at (nullable)
+    $note$Hi Patrick — when someone calls Carsoko at 9pm about a Land Cruiser and gets voicemail, they just ring the next dealer. I built you a line that picks up after hours and books them in instead. Tap any scenario below to have it call you now.$note$,
+    'Talk to Vincent',                                       -- cta_label
+    'https://wa.me/254700000000',                            -- cta_url
+    null                                                     -- expires_at (nullable)
   )
   returning id
 )
@@ -44,62 +46,71 @@ insert into custom_demo_scenarios (
 select id, * from inserted_page,
 (values
   (
-    'driver-checkin',
-    'Driver morning check-in',
-    'AI calls each driver to confirm route start and capture delays',
-    'truck',
-    'Hi, this is your TeliTask assistant calling to confirm Driver 12 has started the morning route…',
-    $prompt$You are TeliTask, calling Driver 12 to confirm route start. The user will role-play as the driver.
+    'after-hours-enquiry',
+    'After-hours buyer call',
+    'A buyer calls after closing — the line picks up, qualifies, and books a visit',
+    'phone-incoming',
+    'Carsoko''s after-hours line — you''re calling about a car this evening, and a real voice picks up…',
+    $prompt$You are Carsoko's after-hours sales line. For this call you do NOT mention TeliTask — you are Carsoko's own line, not a third-party tool. Introduce yourself simply, e.g. "Carsoko's after-hours line".
+
+It is after the showroom has closed. Someone has just called about a car and you picked up. The person who answers is role-playing that caller — a buyer browsing in the evening who expected voicemail.
 
 Your job:
-1. Confirm they have started their route
-2. Ask about delays or vehicle issues
-3. Ask for ETA to first stop
+1. Greet them warmly — they're pleasantly surprised a real voice picked up
+2. Find out which car or type of car they're interested in
+3. Ask 2-3 quick qualifying questions: budget range, trade-in, how soon
+4. Book them a showroom visit or a morning callback and capture their number
 
-Keep it warm but efficient. Drivers are busy.
+Tone: warm, confident, never pushy — this is a high-value purchase.
 
-End the call once you have the info.$prompt$,
-    'That''s how every driver check-in could go at Acme Logistics — same call, same data, no dispatcher chasing.',
+When a visit or callback is booked, confirm the details back to them and end the call.$prompt$,
+    'That''s how every after-hours call to Carsoko could go — picked up, qualified, and booked, instead of going to voicemail.',
     'Aoede',
     0
   ),
   (
-    'eta-callbacks',
-    'Delay ETA callbacks',
-    'AI calls customers proactively when a delivery slips by more than 30 min',
-    'phone-call',
-    'Hi, this is calling on behalf of Acme Logistics — wanted to let you know your delivery is running about 40 minutes late…',
-    $prompt$You are TeliTask, calling on behalf of Acme Logistics. A delivery is running late and you need to proactively inform the customer. The user will role-play as that customer.
+    'urgent-callback',
+    'Urgent buyer, ready now',
+    'A serious buyer calls after hours ready to move — the line captures and fast-tracks them',
+    'siren',
+    'Carsoko''s after-hours line — you''ve got cash ready for an SUV and need someone tonight…',
+    $prompt$You are Carsoko's after-hours sales line. For this call you do NOT mention TeliTask — you are Carsoko's own line. Introduce yourself simply, e.g. "Carsoko's after-hours line".
+
+It is after closing. A serious, ready-to-buy customer has called and you picked up. The person who answers is role-playing that caller — they want to move quickly, maybe today or tomorrow.
 
 Your job:
-1. Apologize for the delay
-2. Give them a realistic new ETA window
-3. Ask if anything changes for them about the delivery slot
+1. Greet them and acknowledge they've reached the after-hours line
+2. Find out exactly what they want and how ready they are (financing, cash, trade-in)
+3. Treat this as hot — lock in the earliest possible visit or a first-thing callback from a salesperson
+4. Capture their name, number, and the car of interest
 
-Tone: warm, owning the issue, not defensive.
+Tone: warm and responsive — match their urgency without being pushy.
 
-End the call once they have the info.$prompt$,
-    'Every late delivery at Acme Logistics could trigger this call automatically — no more angry inbound calls.',
+Once the next step is locked in, confirm it and end the call.$prompt$,
+    'A buyer this ready won''t wait — Carsoko''s line catches them tonight instead of losing them to the next dealer by morning.',
     'Aoede',
     1
   ),
   (
-    'dispatcher-handoff',
-    'Dispatcher escalation',
-    'AI calls the on-call dispatcher when a delay exceeds the SLA threshold',
-    'bell',
-    'Hi, this is TeliTask — flagging that Route 7 has slipped past the 2-hour threshold and needs eyes…',
-    $prompt$You are TeliTask, paging the on-call dispatcher because a route has crossed the SLA threshold. The user will role-play as the dispatcher.
+    'missed-call-callback',
+    'Missed-call auto-callback',
+    'A call came in after hours and wasn''t answered — the line rings them back first thing',
+    'phone-missed',
+    'Carsoko, returning your call — sorry we missed you last night, what were you after?…',
+    $prompt$You are Carsoko's sales line. For this call you do NOT mention TeliTask — you are Carsoko's own line. Introduce yourself simply, e.g. "Carsoko, returning your call".
+
+Someone called or messaged Carsoko after hours and no one picked up. You are calling them back first thing. The person who answers is role-playing that customer.
 
 Your job:
-1. State which route and how long it has slipped
-2. Tell them what the driver last reported
-3. Ask if they want you to call the driver back for an update
+1. Apologise warmly for missing their call
+2. Find out what they were after
+3. Qualify briefly (which car, budget, timeline) and book a visit or hold the car
+4. Capture anything the showroom should have ready
 
-Tone: brisk, just the facts. Dispatchers want signal, not friendliness.
+Tone: warm, a little apologetic, eager to help — you don't want to lose them.
 
-End the call once they have decided next steps.$prompt$,
-    'Acme Logistics dispatchers stop watching dashboards — they only get called when something is actually wrong.',
+Once the next step is booked, confirm it and end the call.$prompt$,
+    'Every missed call at Carsoko could get this callback first thing — no buyer left for the competitor overnight.',
     'Aoede',
     2
   )
@@ -112,7 +123,7 @@ End the call once they have decided next steps.$prompt$,
 select p.slug, p.company_name, count(s.id) as scenario_count
 from custom_demo_pages p
 left join custom_demo_scenarios s on s.page_id = p.id
-where p.slug = 'acme-x7k2'
+where p.slug = 'carsoko-k3p9'
 group by p.id, p.slug, p.company_name;
 ```
 
@@ -120,8 +131,8 @@ Expected: 1 row with `scenario_count = 3`.
 
 ## Notes on SQL gotchas
 
-- **Dollar-quoted strings** (`$prompt$...$prompt$`) avoid escaping every apostrophe in scenario prompts. Use a unique tag (`$prompt$`, `$note$`) per field if needed.
-- **Apostrophes in literals** (`'That''s'`) — use doubled single quotes, or switch the whole literal to dollar quoting.
+- **Dollar-quoted strings** (`$prompt$...$prompt$`, `$note$...$note$`) avoid escaping every apostrophe in prompts and the founder note. Use a unique tag per field if a value itself contains the tag.
+- **Apostrophes in array literals** (`'can''t'`) — double the single quote, since `array[...]` elements are plain quoted strings.
 - **`pain_points`** is `text[]` — use `array[...]` literal, not jsonb.
 - **`expires_at`** accepts `null` (no expiry) or a `timestamptz` literal like `'2026-08-01 00:00:00+00'`.
 - **`sample_call_*` columns** stay null at seed time — they get populated later via the admin "Promote to sample" action against a real recorded demo call.
@@ -132,10 +143,10 @@ Don't re-insert with a new slug. Update by slug:
 
 ```sql
 update custom_demo_pages
-set founder_note = 'New version of the note',
+set founder_note = $note$New version of the note$note$,
     pain_points = array['updated', 'pain', 'points'],
     updated_at = now()
-where slug = 'acme-x7k2';
+where slug = 'carsoko-k3p9';
 ```
 
 Adding a 4th scenario:
@@ -143,5 +154,5 @@ Adding a 4th scenario:
 ```sql
 insert into custom_demo_scenarios (page_id, slug, title, description, icon, preview, system_prompt, sell_prompt, voice_id, sort_order)
 select id, 'new-scenario', '...', '...', 'calendar-check', '...', $prompt$...$prompt$, '...', 'Aoede', 3
-from custom_demo_pages where slug = 'acme-x7k2';
+from custom_demo_pages where slug = 'carsoko-k3p9';
 ```

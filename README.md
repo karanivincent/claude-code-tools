@@ -74,7 +74,7 @@ Agents and skills for codebase research, PR workflows, testing, planning, and sk
 | `design-verify` | Verifies implementation matches design spec using breakdown doc, Figma MCP, and Chrome browser comparison |
 | `prototyper` | Universal prototype generator — auto-detects framework (Next.js/SvelteKit), components, and tokens. Creative mode (default) for free ideation, constrained mode for production-ready prototypes |
 
-### general-tools `v1.13.2`
+### general-tools `v1.14.0`
 
 General-purpose skills for git workflows and developer productivity.
 
@@ -88,7 +88,7 @@ General-purpose skills for git workflows and developer productivity.
 | `issue-executor` | End-to-end issue resolution orchestrator — takes a Linear issue URL, classifies bug vs story, routes bugs to lightweight (single-agent) or full (agent team) flow with flexible verification, and drives it to a reviewable PR |
 | `skill-reviewer` | Reviews skills after real-world usage with scored reports and actionable recommendations |
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
-| `custom-demo-page-builder` | Researches a cold-outreach prospect (light WebFetch), brainstorms the 7 sections of a TeliTask `/for/<slug>` custom demo page, applies brand voice, and seeds rows to staging Supabase via MCP |
+| `custom-demo-page-builder` | Researches a cold-outreach prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the off-hours call-capture wedge, applies brand voice, and seeds rows to staging Supabase via MCP |
 
 ## Releases
 

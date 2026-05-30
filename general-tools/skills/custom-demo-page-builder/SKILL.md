@@ -1,18 +1,37 @@
 ---
 name: custom-demo-page-builder
 description: >
-  Research a cold-outreach prospect and seed a personalized TeliTask custom demo page at `/for/<slug>`.
-  End-to-end flow: light web research → interactive brainstorm of the 7 page sections → write rows to
-  staging Supabase via MCP. Triggers: "build a custom demo for", "seed a demo page for",
+  Research a cold-outreach prospect and seed a personalized TeliTask custom demo page at `/for/<slug>`,
+  built around the off-hours call-capture wedge — what happens when a customer calls this business after
+  it closes. End-to-end flow: light web research → interactive brainstorm of the page sections → write
+  rows to staging Supabase via MCP. Triggers: "build a custom demo for", "seed a demo page for",
   "create a /for page for", "personalize a demo for", "prep a demo for [company]", "custom demo prospect".
   Only for the TeliTask custom-demos feature (table `custom_demo_pages` + `custom_demo_scenarios`).
 ---
 
 # Custom Demo Page Builder
 
-Research a prospect company and seed a personalized custom demo page at `/for/<slug>` for cold outreach. Walks the user through 7 page sections, applies TeliTask brand voice, and writes rows directly to **staging** Supabase via the Supabase MCP.
+Research a prospect company and seed a personalized custom demo page at `/for/<slug>` for cold outreach. Walks the user through the page sections, applies TeliTask brand voice, and writes rows directly to **staging** Supabase via the Supabase MCP.
 
 **Scope:** This skill only handles the TeliTask custom-demos feature. It does NOT handle the generic `/demo` page or `demo_scenarios` table.
+
+## The wedge: off-hours call capture
+
+Every page this skill produces answers one question: **what happens when a customer calls this business after it closes?**
+
+Today, for almost every small business: voicemail — and the caller is gone. Most callers who hit voicemail never call back; they ring the next business in the search results. With TeliTask, the line picks up after hours, captures the need, and books the next step.
+
+That is the North Star. The founder note, pain points, and two of the three scenarios all live inside this after-hours moment. (Operator-facing stats that justify the wedge are in `references/off-hours-playbook.md` — they brief **you**, they do **not** go on the page.)
+
+### The core mechanic (read before drafting scenarios)
+
+The demo platform always **dials the prospect's phone**. But the story we want the prospect to feel is *inbound*: "a customer calls us at 9pm and a real voice picks up." So for the two inbound scenarios we flip the framing:
+
+- **AI = the business's own after-hours line.**
+- **The prospect role-plays a customer who just called the business after closing.**
+- The AI behaves as if it **picked up that inbound call**.
+
+Only the third scenario (missed-call auto-callback) is outbound — there the AI places the call. See `references/scenario-prompt-template.md` for the full inbound vs. outbound patterns.
 
 ## When to use
 
@@ -36,25 +55,31 @@ Collect (use AskUserQuestion or accept what the user already provided):
 - Industry (if not obvious from the URL)
 - Anything special the user already knows about this prospect (mutual connection, recent fundraise, specific pain they mentioned, etc.)
 
-### Phase 1 — Light research (2-5 fetches max)
+### Phase 1 — Light research, focused on off-hours exposure (2-5 fetches max)
 
-WebFetch in this order. Stop as soon as you have enough to write a brief:
-1. Company homepage — pull positioning, what they sell, customer language
-2. About / Careers page — pull team size signal, geography, hiring focus (proxy for growth stage)
-3. **One** optional WebSearch for recent news (last 90 days): `"<company name>" news` — only if the homepage was thin
+WebFetch in this order. As you read, you're hunting for **off-hours exposure**, not a generic company profile:
+1. Company homepage — what they sell, customer language, and any hours / "contact us" / booking signals
+2. About / Contact page — opening hours, phone numbers, how customers are told to get in touch
+3. **One** optional WebSearch (last 90 days) only if the site is thin
 
-Hard cap: 5 fetches. Light research is the rule. If the prospect is opaque, surface that and ask the user what they know.
+For every prospect, try to answer:
+- **When do they close / stop answering?**
+- **What kind of calls land after that** — and which are worth real money?
+- **How urgent** are those calls (emergency vs. schedulable next-day)?
+- **Per-call / per-customer value** (operator context — size the cost of one miss)
 
-### Phase 2 — Research brief
+Use `references/off-hours-playbook.md` to map the industry to its off-hours signal. Hard cap: 5 fetches. If the prospect is opaque, surface that and ask the user what they know.
+
+### Phase 2 — Research brief (off-hours exposure read)
 
 Show the user a tight summary (under 200 words) covering:
 - **Industry / what they do** — one sentence
-- **Likely buyer persona** — who at this company would care about a voice assistant
-- **3-5 candidate pain points** — phrased the way they'd say it, not the way TeliTask sells
-- **Recent signal** (optional) — fundraise, expansion, hiring, news
-- **Founder-note hook** — one personal-sounding angle that ties TeliTask to something specific you found
+- **Likely buyer persona** — who at this company loses money when an after-hours call is missed
+- **Off-hours exposure** — when they close, the after-hours calls they're losing, and (operator-facing) the cost of one missed call
+- **3-5 candidate pain points** — phrased the way they'd say it, centred on losing after-hours calls
+- **Founder-note hook** — one personal-sounding angle tying TeliTask's after-hours line to something specific you found
 
-Ask: *"Anything to add or correct before we brainstorm the page?"*
+Keep statistics in the brief for **the user only** — they do not go on the page. Ask: *"Anything to add or correct before we brainstorm the page?"*
 
 ### Phase 3 — Brainstorm the page
 
@@ -73,36 +98,43 @@ Generate: `<company-kebab>-<4-char-random>` (e.g., `acme-x7k2`, `northwind-h4q9`
 #### 3c. Founder note (`founder_note`)
 
 A 2-4 sentence message from Vincent. Should:
-- Reference something specific from research (e.g., "Saw you just opened your Lagos office")
-- Connect to a TeliTask use case
-- Sound like a human founder, not marketing copy
+- Lead with the prospect's specific after-hours moment ("when someone calls you at 9pm about X and gets voicemail…")
+- Connect it to the TeliTask after-hours line
+- Sound like a real DM, not marketing copy
+- **No statistics** — keep it specific to them
 - **Avoid** the banned words (see `references/brand-voice.md`)
 
-If research turned up nothing personal, draft a generic version and flag it: *"This is generic — got anything specific you want to lead with?"*
+If research turned up nothing specific, draft a generic version and flag it: *"This is generic — got anything specific you want to lead with?"*
 
 #### 3d. Pain points (`pain_points text[]`)
 
-3-5 short bullets in the prospect's voice. Each one a single line, sentence case, no trailing punctuation. Frame as outcomes they want, not features TeliTask has.
+3-5 short bullets in the prospect's voice, centred on losing after-hours calls. Each one a single line, sentence case, no trailing punctuation. Outcomes they want, not features TeliTask has. No statistics.
+
+Example shape (car dealer): `Calls after 6pm go to voicemail` · `Weekend buyers can't reach anyone` · `Hot leads ring the next dealer instead`.
 
 #### 3e. Scenarios (3 rows in `custom_demo_scenarios`)
 
-For each of 3 scenarios, collect:
-- `slug` — kebab-case, unique within the page (e.g., `driver-checkin`, `eta-callbacks`)
+Default mix: **two inbound after-hours + one outbound**.
+
+1. **After-hours new-customer capture** (inbound) — someone calls wanting to buy/book after closing; the AI captures the need and books a next-day visit or callback.
+2. **Urgent / emergency after-hours triage** (inbound) — the AI triages an urgent call and books or escalates. (Swap to a second capture/booking scenario if the industry has no real emergencies — use the per-industry menu in `references/scenario-prompt-template.md`.)
+3. **Missed-call auto-callback** (outbound) — a call/message came in after hours and wasn't captured; the AI rings the person back first thing.
+
+For each scenario collect:
+- `slug` — kebab-case, unique within the page (e.g., `after-hours-enquiry`, `urgent-triage`, `missed-call-callback`)
 - `title` — short label (3-5 words)
 - `description` — one sentence the prospect reads on the card
-- `icon` — a **lucide-react** icon name (e.g., `phone-call`, `truck`, `clock`, `users`, `bell`, `calendar-check`). Match the scenario semantically.
-- `preview` — the one-line transcript hint shown on the card (e.g., *"Hi, this is your TeliTask assistant calling to confirm Driver 12's morning route…"*)
-- `system_prompt` — the LLM system prompt that runs the call. **MUST** open with an identity override framing the AI as the prospect's own internal assistant (NOT as TeliTask) and explicitly telling it not to mention TeliTask during the call. The voice server prepends a global "You are TeliTask…" identity layer to every demo prompt; without an override the AI introduces itself as TeliTask and the custom-demo framing breaks. See `references/scenario-prompt-template.md` → "Critical: Identity framing".
-- `sell_prompt` — a 1-2 sentence wrap the AI delivers at the end pitching how this same flow would work at the prospect's company
+- `icon` — a **lucide-react** icon name (e.g., `phone-incoming`, `phone-call`, `phone-missed`, `clock`, `bell`, `calendar-check`, `siren`). Match the scenario semantically.
+- `preview` — the one-line transcript hint shown on the card
+- `system_prompt` — the LLM system prompt. **MUST** open with an identity override framing the AI as the prospect's own after-hours line (NOT TeliTask) and telling it not to mention TeliTask during the call. Inbound scenarios (1 & 2) frame the AI as **answering** an inbound after-hours call (prospect role-plays the caller). The outbound scenario (3) frames the AI as **placing** the callback. See `references/scenario-prompt-template.md`.
+- `sell_prompt` — a 1-2 sentence wrap the AI delivers at the end, tying this same flow to the prospect's business. Don't mention TeliTask.
 - `voice_id` — default `'Aoede'` (Gemini female voice). If the user wants a different voice, query `select voice_id from voices where is_default = true` against the staging project.
 - `sort_order` — 0, 1, 2
-
-When drafting `system_prompt`, lean on the patterns in `references/scenario-prompt-template.md`.
 
 #### 3f. CTA
 
 - `cta_label` — short, e.g., "Book a 15-min call", "Talk to Vincent" (default `"Book a call"`)
-- `cta_url` — usually a Calendly link the user supplies; required, no default
+- `cta_url` — usually a Calendly link the user supplies; required, no default. May be a `wa.me`/`tel:` link if the user prefers.
 
 #### 3g. Metadata
 
@@ -110,33 +142,32 @@ When drafting `system_prompt`, lean on the patterns in `references/scenario-prom
 - `industry` — capture for filtering/analytics
 - `prospect_email` — capture if known, for follow-up tracking
 
-Access control: there is none beyond the slug. Anyone with the link can view the page and trigger a demo call. Generate an unguessable 4-char suffix on the slug — that IS the access token.
+Access control: there is none beyond the slug. Anyone with the link can view the page and trigger a demo call. The unguessable 4-char suffix IS the access token.
 
 ### Phase 4 — Brand voice review
 
-Before writing to the DB, re-read every piece of copy you drafted against `references/brand-voice.md`. Flag any rule violations and propose fixes inline. Common offenders:
-- "Automate / automation" → "handles", "calls you"
-- "Notification" → "phone call"
-- "Workflow" → "things get done"
-- Comparing against AI tools instead of human VAs
+Before writing to the DB, re-read every piece of copy against `references/brand-voice.md`. Flag any rule violations and propose fixes inline. Also confirm:
+- **No statistics** snuck into founder note or pain points
+- Inbound scenario prompts read as the AI **answering**, not placing, the call
+- No `system_prompt` says "You are TeliTask…"
+
+Common offenders: "automate" → "handles"/"calls you"; "notification" → "phone call"; "workflow" → "things get done"; comparing against AI tools instead of human VAs.
 
 ### Phase 5 — Seed via Supabase MCP
 
 Use `mcp__plugin_supabase_supabase__execute_sql` against the **staging** project (`pbtvpbrdpgpopieghany`).
 
-**Single transaction**: insert the page row, capture the returned id, then insert the 3 scenarios.
+**Single transaction**: insert the page row, capture the returned id, then insert the 3 scenarios. See `references/seed-sql-template.md` for the exact SQL pattern.
 
-See `references/seed-sql-template.md` for the exact SQL pattern (uses `with inserted_page as (insert ... returning id)` to avoid two round-trips).
+**Never** target the production project (`hffrgidrbrspqdqbmcqz`).
 
-**Never** target the production project (`hffrgidrbrspqdqbmcqz`) — these are private/test pages, they go through staging→main like any other change.
-
-After insert, verify by running a quick read:
+After insert, verify:
 ```sql
 select p.slug, p.company_name, count(s.id) as scenario_count
 from custom_demo_pages p
 left join custom_demo_scenarios s on s.page_id = p.id
 where p.slug = '<slug>'
-group by p.id;
+group by p.id, p.slug, p.company_name;
 ```
 
 ### Phase 6 — Report
@@ -146,28 +177,34 @@ Give the user:
 - The admin URL: `https://staging.telitask.com/en/admin/custom-demos/<slug>`
 - A 1-line summary of what was seeded
 - A reminder: *"Page is `private` — flip to `public` from admin when ready to share."*
+- For WhatsApp-heavy Kenyan prospects: a one-line honest caveat that the demo is voice-only and may underweight WhatsApp (see `off-hours-playbook.md` → Kenya note). Tell the **user**, never put it on the page.
 
 ## Conventions
 
-- **No new SQL migration files.** This is data, not schema. Seed via MCP `execute_sql`.
+- **Off-hours is the angle.** Two of three scenarios live in the after-hours moment; the founder note and pain points centre on it.
+- **No stats on the page.** Statistics brief the operator only.
+- **No new SQL migration files.** This is data — seed via MCP `execute_sql`.
 - **Staging only.** Never seed production.
 - **Slug is the access token.** Make it unguessable (4-char random suffix).
-- **One scenario brainstorm per turn.** Don't dump three scenarios at once — the user can't react meaningfully.
-- **Reuse the research summary.** When drafting founder_note and scenarios, pull specific details from the brief — don't write generic copy and then "add personalization".
+- **One scenario brainstorm per turn.** Don't dump three scenarios at once.
+- **Reuse the research brief.** Pull specific details into founder_note and scenarios — don't write generic copy and then "add personalization".
 
 ## Red flags
 
 If you find yourself doing any of these, stop and reset:
-- Researching more than 5 URLs — you're past the "light" budget
+- An **inbound** scenario where the AI *places* a call to a lead — you've reverted to the old outbound model. Only slot 3 is outbound.
+- Putting **statistics** in the founder note or pain points — stats are operator-facing only
+- Researching more than 5 URLs — past the "light" budget
 - Drafting all 3 scenarios before showing the user any of them
 - Writing a generic founder_note without flagging it as generic
 - Using "automate", "notification", "workflow", or "leverage" anywhere in copy
 - About to call `apply_migration` instead of `execute_sql` — these are data rows, not schema
 - About to seed against `hffrgidrbrspqdqbmcqz` (production)
-- Writing `"You are TeliTask, …"` in any scenario `system_prompt` — must be `"You are <Prospect>'s internal AI assistant. Do NOT mention TeliTask…"`
+- Writing `"You are TeliTask, …"` in any scenario `system_prompt` — must be `"You are <Prospect>'s after-hours line. Do NOT mention TeliTask…"`
 
 ## References
 
+- `references/off-hours-playbook.md` — Off-hours stats (operator-facing), per-industry archetypes, Kenya/WhatsApp note
 - `references/brand-voice.md` — Banned words, preferred phrases, anchoring rules
-- `references/scenario-prompt-template.md` — system_prompt and sell_prompt patterns
+- `references/scenario-prompt-template.md` — Inbound (after-hours) + outbound system_prompt patterns, per-industry menu
 - `references/seed-sql-template.md` — Exact SQL to run via Supabase MCP
