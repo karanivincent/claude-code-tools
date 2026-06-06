@@ -1,6 +1,6 @@
 # Seed SQL Template
 
-Use `mcp__plugin_supabase_supabase__execute_sql` against **staging** (`pbtvpbrdpgpopieghany`). Never apply to production.
+Use `mcp__plugin_supabase_supabase__execute_sql` against the project the user confirmed in Phase 5 — **production** (`hffrgidrbrspqdqbmcqz`, the default) or **staging** (`pbtvpbrdpgpopieghany`, test runs). Confirm the target every run before writing; never assume.
 
 The example below shows the default off-hours mix: **two inbound after-hours scenarios + one outbound missed-call callback**. See `scenario-prompt-template.md` for the prompt patterns.
 
