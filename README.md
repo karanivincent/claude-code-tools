@@ -88,7 +88,7 @@ General-purpose skills for git workflows and developer productivity.
 | `issue-executor` | End-to-end issue resolution orchestrator — takes a Linear issue URL, classifies bug vs story, routes bugs to lightweight (single-agent) or full (agent team) flow with flexible verification, and drives it to a reviewable PR |
 | `skill-reviewer` | Reviews skills after real-world usage with scored reports and actionable recommendations |
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
-| `custom-demo-page-builder` | Researches a cold-outreach prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the off-hours call-capture wedge, applies brand voice, and seeds rows to staging Supabase via MCP — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent) |
+| `custom-demo-page-builder` | Researches a cold-outreach prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the off-hours call-capture wedge, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent) |
 
 ## Releases
 

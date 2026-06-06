@@ -4,14 +4,14 @@ description: >
   Research a cold-outreach prospect and seed a personalized TeliTask custom demo page at `/for/<slug>`,
   built around the off-hours call-capture wedge — what happens when a customer calls this business after
   it closes. End-to-end flow: light web research → interactive brainstorm of the page sections → write
-  rows to staging Supabase via MCP. Triggers: "build a custom demo for", "seed a demo page for",
+  rows to Supabase (production or staging) via MCP. Triggers: "build a custom demo for", "seed a demo page for",
   "create a /for page for", "personalize a demo for", "prep a demo for [company]", "custom demo prospect".
   Only for the TeliTask custom-demos feature (table `custom_demo_pages` + `custom_demo_scenarios`).
 ---
 
 # Custom Demo Page Builder
 
-Research a prospect company and seed a personalized custom demo page at `/for/<slug>` for cold outreach. Walks the user through the page sections, applies TeliTask brand voice, and writes rows directly to **staging** Supabase via the Supabase MCP.
+Research a prospect company and seed a personalized custom demo page at `/for/<slug>` for cold outreach. Walks the user through the page sections, applies TeliTask brand voice, and writes rows directly to Supabase via the Supabase MCP. Because these pages must be reachable by real prospects, the skill seeds **production by default** but asks before every write and lets you redirect to staging for test runs.
 
 **Scope:** This skill only handles the TeliTask custom-demos feature. It does NOT handle the generic `/demo` page or `demo_scenarios` table.
 
@@ -129,7 +129,7 @@ For each scenario collect:
 - `preview` — the one-line transcript hint shown on the card
 - `system_prompt` — the LLM system prompt. **MUST** open with an identity override framing the AI as the prospect's own after-hours line (NOT TeliTask) and telling it not to mention TeliTask during the call. Inbound scenarios (1 & 2) frame the AI as **answering** an inbound after-hours call (prospect role-plays the caller). The outbound scenario (3) frames the AI as **placing** the callback. **Every** `system_prompt` MUST also include the verbatim turn-taking block — see `references/scenario-prompt-template.md` → "Mandatory: turn-taking rules". Never bake a "speak with X accent" line into the prompt; accent comes from the page `country` column.
 - `sell_prompt` — a 1-2 sentence wrap the AI delivers at the end, tying this same flow to the prospect's business. Don't mention TeliTask.
-- `voice_id` — default `'Aoede'` (Gemini female voice). If the user wants a different voice, query `select voice_id from voices where is_default = true` against the staging project.
+- `voice_id` — default `'Aoede'` (Gemini female voice). If the user wants a different voice, query `select voice_id from voices where is_default = true` against the project you're about to seed (see Phase 5).
 - `sort_order` — 0, 1, 2
 
 #### 3f. CTA
@@ -164,13 +164,17 @@ Common offenders: "automate" → "handles"/"calls you"; "notification" → "phon
 
 ### Phase 5 — Seed via Supabase MCP
 
-Use `mcp__plugin_supabase_supabase__execute_sql` against the **staging** project (`pbtvpbrdpgpopieghany`).
+**First, pick the target.** Ask the user which database to seed — use AskUserQuestion with two options, **default/recommended: production** (so the page is reachable by real prospects):
+- **Production** → `hffrgidrbrspqdqbmcqz` — the live page real prospects will visit. Recommend this.
+- **Staging** → `pbtvpbrdpgpopieghany` — for test runs only; not reachable by prospects.
+
+Do **not** seed until the user has confirmed the target in this run. A prior run's choice does not carry over — ask every time. Set `project_id` on every `execute_sql` call to the confirmed project, and remember it for the voice query (Phase 3e) and the verification + report.
+
+Then use `mcp__plugin_supabase_supabase__execute_sql` against the confirmed project.
 
 **Single transaction**: insert the page row, capture the returned id, then insert the 3 scenarios. See `references/seed-sql-template.md` for the exact SQL pattern.
 
-**Never** target the production project (`hffrgidrbrspqdqbmcqz`).
-
-After insert, verify (includes the CTA + `country` columns so you can confirm they were set):
+After insert, verify against the **same project** (includes the CTA + `country` columns so you can confirm they were set):
 ```sql
 select p.slug, p.company_name, p.cta_phone, p.cta_whatsapp, p.country, count(s.id) as scenario_count
 from custom_demo_pages p
@@ -181,9 +185,14 @@ group by p.id, p.slug, p.company_name, p.cta_phone, p.cta_whatsapp, p.country;
 
 ### Phase 6 — Report
 
+Use the host that matches the project you seeded in Phase 5:
+- Production (`hffrgidrbrspqdqbmcqz`) → `https://telitask.ai`
+- Staging (`pbtvpbrdpgpopieghany`) → `https://staging.telitask.com`
+
 Give the user:
-- The staging URL: `https://staging.telitask.com/en/for/<slug>`
-- The admin URL: `https://staging.telitask.com/en/admin/custom-demos/<slug>`
+- The public URL: `<host>/en/for/<slug>`
+- The admin URL: `<host>/en/admin/custom-demos/<slug>`
+- Which environment it was seeded to (production or staging)
 - A 1-line summary of what was seeded
 - The CTA fields set (`cta_phone`, `cta_whatsapp`, and `cta_email` if any) and the `country` value (so the user can confirm the accent)
 - For WhatsApp-heavy Kenyan prospects: a one-line honest caveat that the demo is voice-only and may underweight WhatsApp (see `off-hours-playbook.md` → Kenya note). Tell the **user**, never put it on the page.
@@ -193,7 +202,7 @@ Give the user:
 - **Off-hours is the angle.** Two of three scenarios live in the after-hours moment; the founder note and pain points centre on it.
 - **No stats on the page.** Statistics brief the operator only.
 - **No new SQL migration files.** This is data — seed via MCP `execute_sql`.
-- **Staging only.** Never seed production.
+- **Ask which database every run.** Default to production (the page must be live for prospects), but confirm production vs staging before any write — never assume.
 - **Slug is the access token.** Make it unguessable (4-char random suffix).
 - **One scenario brainstorm per turn.** Don't dump three scenarios at once.
 - **Reuse the research brief.** Pull specific details into founder_note and scenarios — don't write generic copy and then "add personalization".
@@ -208,7 +217,8 @@ If you find yourself doing any of these, stop and reset:
 - Writing a generic founder_note without flagging it as generic
 - Using "automate", "notification", "workflow", or "leverage" anywhere in copy
 - About to call `apply_migration` instead of `execute_sql` — these are data rows, not schema
-- About to seed against `hffrgidrbrspqdqbmcqz` (production)
+- Seeding **without asking** which database in this run, or assuming a prior run's target — always confirm production vs staging first (default production)
+- Reporting URLs on the wrong host — production seeds get `telitask.ai`, staging seeds get `staging.telitask.com`; don't mix them
 - Writing `"You are TeliTask, …"` in any scenario `system_prompt` — must be `"You are <Prospect>'s after-hours line. Do NOT mention TeliTask…"`
 - A `system_prompt` **missing the turn-taking block** — every prompt must carry it verbatim
 - **Baking an accent line** ("speak with a Kenyan accent") into a `system_prompt` instead of setting the page `country`
