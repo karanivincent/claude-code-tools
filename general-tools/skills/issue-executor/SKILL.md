@@ -93,7 +93,7 @@ For well-scoped bugs where the lead can investigate and fix alone.
 
 ### Phase L3: Create PR
 
-Use `frontend-tools:pr-creator` to create a PR targeting `staging`.
+Use `yond-dev:pr-creator` to create a PR targeting `staging`.
 
 ### Phase L4: Verification
 
@@ -111,8 +111,8 @@ For non-UI: document what was verified and how in the PR description.
 
 ### Phase L5: PR Review
 
-1. Run `frontend-tools:pr-reviewer` with `--auto-post`
-2. Run `frontend-tools:pr-comment-resolver` with `--auto`
+1. Run `yond-dev:pr-reviewer` with `--auto-post`
+2. Run `yond-dev:pr-comment-resolver` with `--auto`
 3. Push any fixes, re-run CI
 4. Follow the **PR Thread Resolution Checklist** (see below)
 
@@ -198,7 +198,7 @@ The selected investigator:
 1. Implements the fix in `../telitask-TELI-XXX`
 2. Runs full CI: `pnpm typecheck && pnpm lint && pnpm build && pnpm test -- -- --coverage`
 3. Commits and pushes to `fix/TELI-XXX`
-4. Creates PR via `frontend-tools:pr-creator` targeting `staging`
+4. Creates PR via `yond-dev:pr-creator` targeting `staging`
 5. Reports PR number to the lead
 
 ### Phase 5: Verification (First Pass)
@@ -225,8 +225,8 @@ Choose verification method based on bug type:
 
 ### Phase 6: PR Review
 
-1. Lead runs `frontend-tools:pr-reviewer` with `--auto-post` on the PR
-2. Lead runs `frontend-tools:pr-comment-resolver` with `--auto` to address review comments
+1. Lead runs `yond-dev:pr-reviewer` with `--auto-post` on the PR
+2. Lead runs `yond-dev:pr-comment-resolver` with `--auto` to address review comments
 3. Push any fixes from review, re-run CI
 4. Follow the **PR Thread Resolution Checklist** (see below)
 
@@ -275,7 +275,7 @@ Invoke `superpowers:brainstorming` with context from the Linear issue:
 
 ### Phase 2: Implementation (Autonomous)
 
-Invoke `general-tools:design-implementer` with the design document path from Phase 1.
+Invoke `yond-design:design-implementer` with the design document path from Phase 1.
 
 This skill handles everything autonomously:
 - Analyzes streams and determines team structure
@@ -370,19 +370,19 @@ Skills that need to log in use env vars from the **repository root `.env`**:
 
 **Skills used (Lightweight Bug Flow):**
 - `superpowers:systematic-debugging` — Root cause investigation (lead)
-- `frontend-tools:pr-creator` — Create PR (lead)
-- `frontend-tools:pr-reviewer` — Review PR (`--auto-post`, lead)
-- `frontend-tools:pr-comment-resolver` — Fix review issues (`--auto`, lead)
+- `yond-dev:pr-creator` — Create PR (lead)
+- `yond-dev:pr-reviewer` — Review PR (`--auto-post`, lead)
+- `yond-dev:pr-comment-resolver` — Fix review issues (`--auto`, lead)
 
 **Skills used (Full Bug Flow):**
 - `superpowers:systematic-debugging` — Root cause investigation (investigators)
-- `frontend-tools:pr-creator` — Create PR (investigator)
-- `frontend-tools:pr-reviewer` — Review PR (`--auto-post`, lead)
-- `frontend-tools:pr-comment-resolver` — Fix review issues (`--auto`, lead)
+- `yond-dev:pr-creator` — Create PR (investigator)
+- `yond-dev:pr-reviewer` — Review PR (`--auto-post`, lead)
+- `yond-dev:pr-comment-resolver` — Fix review issues (`--auto`, lead)
 
 **Skills used (Story Flow):**
 - `superpowers:brainstorming` — Interactive design session (lead)
-- `general-tools:design-implementer` — Full implementation orchestration (lead)
+- `yond-design:design-implementer` — Full implementation orchestration (lead)
 
 **MCP tools used:**
 - Linear MCP — Fetch issue, update status, add comments

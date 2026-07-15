@@ -37,56 +37,40 @@ Add this marketplace to your project's `.claude/settings.json`:
 
 ## Plugins
 
-### frontend-tools `v1.17.0`
+> **Note:** Yond work skills (PR, planning, design, git, and meta workflows) now live in the team
+> marketplace **[`goyond/AI-skills-`](https://github.com/goyond/AI-skills-)** as `yond-*` plugins.
+> This personal marketplace keeps issue workflows, testing, and non-Yond skills.
 
-Agents and skills for codebase research, PR workflows, testing, planning, and skill development.
+### frontend-tools `v1.19.0`
+
+Agents and skills for GitHub issue workflows and SvelteKit testing.
 
 **Agents:**
 
 | Agent | Description |
 |-------|-------------|
-| `gather-codebase-context` | Explores and documents codebase context for a proposed change |
 | `github-fetch-agent` | Fetches and processes GitHub data (PR comments, reviews, issue discussions) |
 | `failure-mapper` | Maps all failures in a failing E2E test for systematic fixing |
 | `manual-tester` | Explores features using Playwright MCP to document interactive elements |
 | `testid-fixer` | Adds testId prop support to Svelte components |
-| `technical-spec-generator` | Generates Technical Spec sections for story breakdowns (API inventory, sequence flows, data flows) |
-| `ascii-diagram-generator` | Generates ASCII diagrams for story breakdowns (page layouts, component hierarchies) |
-| `figma-design-extractor` | Extracts structured design specs from Figma (tokens, icons, states, layout) |
 
 **Skills:**
 
 | Skill | Description |
 |-------|-------------|
-| `feature-planner` | Orchestrates multi-agent research and parallel planning workflows |
-| `claudemd-editor` | Creates, reviews, and optimizes CLAUDE.md configuration files |
-| `pr-creator` | Creates GitHub PRs with focused descriptions and CI monitoring |
-| `pr-reviewer` | AI code review with tiered models — Haiku for pattern checks, Sonnet for judgment specialists + fast-path reviewer, Opus for the final MetaReviewer synthesis |
-| `pr-comment-resolver` | Systematically processes PR review comments with critical analysis |
-| `pr-review-and-fix` | Single-pass AI review + automated fixing for agent-driven PR workflows |
 | `test-fixer` | Fixes failing E2E/unit tests using systematic workflows |
 | `sveltekit-test-guide` | Testing standards for SvelteKit (Vitest + Playwright) |
-| `story-breakdown` | Transforms user stories into actionable task breakdowns |
 | `issue-workflow` | Manages GitHub Issues through full lifecycle |
 | `github-image-downloader` | Downloads images attached to GitHub issues for design review |
-| `pr-slack-announcer` | Generates and auto-posts Slack announcement messages for PRs |
-| `figma-design-extractor` | Extracts structured design specs from Figma designs with token mapping, icon inventory, and state analysis |
-| `design-verify` | Verifies implementation matches design spec using breakdown doc, Figma MCP, and Chrome browser comparison |
-| `prototyper` | Universal prototype generator — auto-detects framework (Next.js/SvelteKit), components, and tokens. Creative mode (default) for free ideation, constrained mode for production-ready prototypes |
 
-### general-tools `v1.15.0`
+### general-tools `v1.17.0`
 
-General-purpose skills for git workflows and developer productivity.
+Linear issue workflows and non-Yond productivity skills.
 
 | Skill | Description |
 |-------|-------------|
-| `branch-cleanup` | Cleans up stale git branches (merged or abandoned) |
-| `autocompact-threshold` | Sets the autocompact threshold percentage for context management |
-| `env-sync` | Manages env vars across monorepo workspaces and deployment services with a central registry, alias detection, and Vercel/Render MCP sync |
-| `design-implementer` | Orchestrates implementation of a design document — creates plans with writing-plans, dispatches parallel sub-agents in worktrees, reviews via parallel reviewer sub-agents, and merges via umbrella branch pattern |
 | `issue-documenter` | Documents user stories and bug reports for Linear with investigation tooling and automatic issue creation |
 | `issue-executor` | End-to-end issue resolution orchestrator — takes a Linear issue URL, classifies bug vs story, routes bugs to lightweight (single-agent) or full (agent team) flow with flexible verification, and drives it to a reviewable PR |
-| `skill-reviewer` | Reviews skills after real-world usage with scored reports and actionable recommendations |
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a cold-outreach prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the off-hours call-capture wedge, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent) |
 
