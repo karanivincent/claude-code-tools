@@ -76,9 +76,11 @@ Use semantic versioning:
 
 ## Git Workflow
 
-**Always commit and push changes automatically.** After making changes to skills, agents, plugins, or documentation:
+**Always ship changes via a PR, never a direct push to `main`.** After making changes to skills, agents, plugins, or documentation:
 
-1. Stage and commit with a clear commit message
-2. Push to the remote (`git push origin main`)
+1. Branch first (`git checkout -b <topic>`) — never commit straight onto `main`
+2. Stage and commit with a clear commit message
+3. Push the branch and open a PR (`gh pr create`) describing what changed and why
+4. Merge it immediately (`gh pr merge --squash --delete-branch`) — no waiting for review or approval
 
-Do not wait for the user to ask — commit and push are part of completing any task in this repo.
+Do not wait for the user to ask — the whole branch → PR → merge cycle is part of completing any task in this repo. The PR exists for the audit trail and so teammates can see changes land, not as a review gate, so merging right away is expected.
