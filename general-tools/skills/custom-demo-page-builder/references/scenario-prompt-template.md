@@ -1,5 +1,8 @@
 # Scenario Prompt Templates
 
+> **Note (July 2026).** The default scenario mix is now **three outbound calls from the prospect's daily round** (pre-work confirmation, retry after a failed attempt, status round with their own staff). The inbound after-hours patterns below are retained for the cases where a prospect raises an inbound problem themselves — they are no longer the default. See SKILL.md, "The wedge: routine calls they already make".
+
+
 Each scenario row has two prompt fields:
 
 - `system_prompt` — runs for the entire call. Defines the AI's role and what it's doing.

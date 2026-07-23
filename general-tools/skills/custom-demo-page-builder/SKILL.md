@@ -2,8 +2,8 @@
 name: custom-demo-page-builder
 description: >
   Research a cold-outreach prospect and seed a personalized TeliTask custom demo page at `/for/<slug>`,
-  built around the off-hours call-capture wedge — what happens when a customer calls this business after
-  it closes. End-to-end flow: light web research → interactive brainstorm of the page sections → write
+  built around the routine calls the business already makes every day — confirmations, check-in rounds,
+  follow-ups. End-to-end flow: light web research → interactive brainstorm of the page sections → write
   rows to Supabase (production or staging) via MCP. Triggers: "build a custom demo for", "seed a demo page for",
   "create a /for page for", "personalize a demo for", "prep a demo for [company]", "custom demo prospect".
   Only for the TeliTask custom-demos feature (table `custom_demo_pages` + `custom_demo_scenarios`).
@@ -15,23 +15,29 @@ Research a prospect company and seed a personalized custom demo page at `/for/<s
 
 **Scope:** This skill only handles the TeliTask custom-demos feature. It does NOT handle the generic `/demo` page or `demo_scenarios` table.
 
-## The wedge: off-hours call capture
+## The wedge: routine calls they already make
 
-Every page this skill produces answers one question: **what happens when a customer calls this business after it closes?**
+Every page this skill produces answers one question: **which calls does this business make, over and over, every single day — and who is being paid to make them?**
 
-Today, for almost every small business: voicemail — and the caller is gone. Most callers who hit voicemail never call back; they ring the next business in the search results. With TeliTask, the line picks up after hours, captures the need, and books the next step.
+Delivery confirmations before dispatch. A morning round of check-in calls to regional or field staff. Follow-ups after a delivery or visit that didn't land. Payment reminders. Appointment confirmations. These are structured, repeated, and someone's whole job. That is the demo: the AI makes one of those calls, and the prospect hears their own daily grind happen without anyone on their team doing it.
 
-That is the North Star. The founder note, pain points, and two of the three scenarios all live inside this after-hours moment. (Operator-facing stats that justify the wedge are in `references/off-hours-playbook.md` — they brief **you**, they do **not** go on the page.)
+**Do not build the page around missed or after-hours calls.** That was the previous wedge and it has been rejected by three of three prospects in discovery — two of them emphatically, because evening cover is a solved problem for anyone big enough to feel it. Evidence: `Telitask/Marketing/strategy/discovery-call-log.md`. Only use the after-hours framing if this specific prospect has said the words themselves.
+
+Good prospects have **five or more people employed to make calls**. Below that there is no volume to feel. If research suggests the business is smaller than that, say so to the user before building.
 
 ### The core mechanic (read before drafting scenarios)
 
-The demo platform always **dials the prospect's phone**. But the story we want the prospect to feel is *inbound*: "a customer calls us at 9pm and a real voice picks up." So for the two inbound scenarios we flip the framing:
+The demo platform always **dials the prospect's phone**, which fits this wedge directly: these calls are outbound in real life too.
 
-- **AI = the business's own after-hours line.**
-- **The prospect role-plays a customer who just called the business after closing.**
-- The AI behaves as if it **picked up that inbound call**.
+- **AI = the business's own line**, making one of its routine daily calls.
+- **The prospect role-plays the person who normally receives it** — their customer, their driver, their regional rep.
+- The AI behaves exactly as it would on the real call: one purpose, gets the information, confirms, ends.
 
-Only the third scenario (missed-call auto-callback) is outbound — there the AI places the call. See `references/scenario-prompt-template.md` for the full inbound vs. outbound patterns.
+Inbound framing (AI picks up a call the prospect places) is still supported and documented in `references/scenario-prompt-template.md` — use it only when the prospect has a genuine inbound problem they raised themselves.
+
+### The objection to pre-empt
+
+Prospects hear "AI phone line" and picture a pre-recorded IVR menu. The page's job is to get them to tap a scenario and hear a real conversation. Keep the founder note short and concrete so the call happens fast.
 
 ## When to use
 
@@ -58,27 +64,29 @@ Collect (use AskUserQuestion or accept what the user already provided):
 
 ### Phase 1 — Light research, focused on off-hours exposure (2-5 fetches max)
 
-WebFetch in this order. As you read, you're hunting for **off-hours exposure**, not a generic company profile:
-1. Company homepage — what they sell, customer language, and any hours / "contact us" / booking signals
-2. About / Contact page — opening hours, phone numbers, how customers are told to get in touch
+WebFetch in this order. As you read, you're hunting for **the calls their operation runs on**, not a generic company profile:
+1. Company homepage — what they sell or move, and to whom
+2. About / Contact / Careers pages — the operational shape: branches, regions, fleet, field staff, and especially **call-centre, customer-care, dispatch, or tele-sales job listings** (the clearest signal that people are paid to make calls)
 3. **One** optional WebSearch (last 90 days) only if the site is thin
 
 For every prospect, try to answer:
-- **When do they close / stop answering?**
-- **What kind of calls land after that** — and which are worth real money?
-- **How urgent** are those calls (emergency vs. schedulable next-day)?
-- **Per-call / per-customer value** (operator context — size the cost of one miss)
+- **What has to be confirmed, chased, or checked before work happens?** (deliveries, appointments, dispatch, stock, payment)
+- **Who do they call every day** — customers, drivers, field agents, branch or regional staff, suppliers?
+- **Roughly how many such calls a day**, and how many people are employed to make them
+- **What breaks when a call doesn't happen** — a wasted trip, a missed dispatch, a stalled decision
 
-Use `references/off-hours-playbook.md` to map the industry to its off-hours signal. Hard cap: 5 fetches. If the prospect is opaque, surface that and ask the user what they know.
+Hard cap: 5 fetches. Websites rarely reveal internal call workflows, so expect to infer from the operating model and then **ask the user** — anything they heard directly from the prospect beats anything you can find. If the prospect is opaque, say so plainly rather than inventing a workflow.
 
-### Phase 2 — Research brief (off-hours exposure read)
+`references/off-hours-playbook.md` is retained only for the legacy inbound framing — do not use it as the default lens.
+
+### Phase 2 — Research brief (operational calling read)
 
 Show the user a tight summary (under 200 words) covering:
 - **Industry / what they do** — one sentence
-- **Likely buyer persona** — who at this company loses money when an after-hours call is missed
-- **Off-hours exposure** — when they close, the after-hours calls they're losing, and (operator-facing) the cost of one missed call
-- **3-5 candidate pain points** — phrased the way they'd say it, centred on losing after-hours calls
-- **Founder-note hook** — one personal-sounding angle tying TeliTask's after-hours line to something specific you found
+- **Likely buyer persona** — the person who owns the team making these calls (ops lead, branch or regional manager, owner)
+- **Their daily calling round** — the specific repeated calls you believe they make, and your rough estimate of volume and headcount. Label estimates as estimates.
+- **3-5 candidate pain points** — phrased the way they'd say it, centred on the volume of routine calls their people carry
+- **Founder-note hook** — one personal-sounding angle tying the demo to a specific call they make
 
 Keep statistics in the brief for **the user only** — they do not go on the page. Ask: *"Anything to add or correct before we brainstorm the page?"*
 
@@ -99,35 +107,44 @@ Generate: `<company-kebab>-<4-char-random>` (e.g., `acme-x7k2`, `northwind-h4q9`
 #### 3c. Founder note (`founder_note`)
 
 A 2-4 sentence message from Vincent. Should:
-- Lead with the prospect's specific after-hours moment ("when someone calls you at 9pm about X and gets voicemail…")
-- Connect it to the TeliTask after-hours line
+- Lead with the specific round of calls their team makes ("every morning someone on your team rings each customer to confirm the drop…")
+- Say plainly that the demo will call them so they can hear one of those calls happen
 - Sound like a real DM, not marketing copy
 - **No statistics** — keep it specific to them
+- **No price** — pricing is unset for this direction; never put a figure on the page
 - **Avoid** the banned words (see `references/brand-voice.md`)
+
+If the user has told you something the prospect said in conversation, use their words. That beats anything from research.
 
 If research turned up nothing specific, draft a generic version and flag it: *"This is generic — got anything specific you want to lead with?"*
 
 #### 3d. Pain points (`pain_points text[]`)
 
-3-5 short bullets in the prospect's voice, centred on losing after-hours calls. Each one a single line, sentence case, no trailing punctuation. Outcomes they want, not features TeliTask has. No statistics.
+3-5 short bullets in the prospect's voice, centred on the weight of the calls their team makes. Each one a single line, sentence case, no trailing punctuation. Outcomes they want, not features TeliTask has. No statistics.
 
-Example shape (car dealer): `Calls after 6pm go to voicemail` · `Weekend buyers can't reach anyone` · `Hot leads ring the next dealer instead`.
+Example shape (delivery operation): `Three hundred confirmation calls before the day even starts` · `Orders land overnight with no address confirmed yet` · `Every failed delivery means calling the customer back to rebook` · `Ten people on the phones and still not enough`.
+
+Naming a concrete number they gave you is the single strongest line on the page.
 
 #### 3e. Scenarios (3 rows in `custom_demo_scenarios`)
 
-Default mix: **two inbound after-hours + one outbound**.
+Default mix: **three outbound calls from their daily round.** Pick the three that carry the most volume for this specific business. Common shapes:
 
-1. **After-hours new-customer capture** (inbound) — someone calls wanting to buy/book after closing; the AI captures the need and books a next-day visit or callback.
-2. **Urgent / emergency after-hours triage** (inbound) — the AI triages an urgent call and books or escalates. (Swap to a second capture/booking scenario if the industry has no real emergencies — use the per-industry menu in `references/scenario-prompt-template.md`.)
-3. **Missed-call auto-callback** (outbound) — a call/message came in after hours and wasn't captured; the AI rings the person back first thing.
+1. **Pre-work confirmation** — calling ahead to confirm the details before anything ships, dispatches, or starts: exact location, time window, who will receive it.
+2. **Retry after a failed attempt** — the delivery or visit didn't land; the AI calls to find out what happened and rebook.
+3. **Status round with their own staff** — calling each driver, field agent, or regional rep to collect what happened today and flag anything escalating.
+
+Other options as the business warrants: post-delivery check, appointment reminder, payment follow-up, stock or availability check with a supplier.
+
+Legacy inbound scenarios (after-hours capture, urgent triage, missed-call callback) are still documented in `references/scenario-prompt-template.md`. Use them only when the prospect has raised an inbound problem themselves — not as a default.
 
 For each scenario collect:
 - `slug` — kebab-case, unique within the page (e.g., `after-hours-enquiry`, `urgent-triage`, `missed-call-callback`)
 - `title` — short label (3-5 words)
 - `description` — one sentence the prospect reads on the card
-- `icon` — a **lucide-react** icon name (e.g., `phone-incoming`, `phone-call`, `phone-missed`, `clock`, `bell`, `calendar-check`, `siren`). Match the scenario semantically.
+- `icon` — a **lucide-react** icon name (e.g., `phone-outgoing`, `phone-call`, `calendar-clock`, `package-check`, `clipboard-check`, `truck`, `clock`). Match the scenario semantically.
 - `preview` — the one-line transcript hint shown on the card
-- `system_prompt` — the LLM system prompt. **MUST** open with an identity override framing the AI as the prospect's own after-hours line (NOT TeliTask) and telling it not to mention TeliTask during the call. Inbound scenarios (1 & 2) frame the AI as **answering** an inbound after-hours call (prospect role-plays the caller). The outbound scenario (3) frames the AI as **placing** the callback. **Every** `system_prompt` MUST also include the verbatim turn-taking block — see `references/scenario-prompt-template.md` → "Mandatory: turn-taking rules". Never bake a "speak with X accent" line into the prompt; accent comes from the page `country` column.
+- `system_prompt` — the LLM system prompt. **MUST** open with an identity override framing the AI as the prospect's own line (NOT TeliTask) and telling it not to mention TeliTask during the call. Outbound scenarios frame the AI as **placing** the call, with the prospect role-playing whoever normally receives it. **Every** `system_prompt` MUST also include the verbatim turn-taking block — see `references/scenario-prompt-template.md` → "Mandatory: turn-taking rules". Never bake a "speak with X accent" line into the prompt; accent comes from the page `country` column.
 - `sell_prompt` — a 1-2 sentence wrap the AI delivers at the end, tying this same flow to the prospect's business. Don't mention TeliTask.
 - `voice_id` — default `'Aoede'` (Gemini female voice). If the user wants a different voice, query `select voice_id from voices where is_default = true` against the project you're about to seed (see Phase 5).
 - `sort_order` — 0, 1, 2
@@ -154,13 +171,15 @@ Access control: there is none beyond the slug. Anyone with the link can view the
 
 Before writing to the DB, re-read every piece of copy against `references/brand-voice.md`. Flag any rule violations and propose fixes inline. Also confirm:
 - **No statistics** snuck into founder note or pain points
-- Inbound scenario prompts read as the AI **answering**, not placing, the call
+- **No price** anywhere on the page
+- The page is built on calls they **make**, not calls they might be **missing** — unless the prospect raised the inbound problem themselves
+- Any inbound scenario prompts read as the AI **answering**, not placing, the call
 - No `system_prompt` says "You are TeliTask…"
 - **Every** `system_prompt` includes the verbatim turn-taking block
 - No `system_prompt` bakes in an accent line — accent comes from the page `country`
 - The CTA uses `cta_phone` / `cta_whatsapp` (not the deprecated `cta_url` / `cta_label`)
 
-Common offenders: "automate" → "handles"/"calls you"; "notification" → "phone call"; "workflow" → "things get done"; comparing against AI tools instead of human VAs.
+Common offenders: "automate" → "handles"/"makes the calls"; "notification" → "phone call"; "workflow" → "the round of calls"; quoting a price; anchoring against human VAs (that framing belongs to the old personal-assistant product — the anchor now is the staff currently making these calls).
 
 ### Phase 5 — Seed via Supabase MCP
 

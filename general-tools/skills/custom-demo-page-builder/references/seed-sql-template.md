@@ -2,7 +2,7 @@
 
 Use `mcp__plugin_supabase_supabase__execute_sql` against the project the user confirmed in Phase 5 — **production** (`hffrgidrbrspqdqbmcqz`, the default) or **staging** (`pbtvpbrdpgpopieghany`, test runs). Confirm the target every run before writing; never assume.
 
-The example below shows the default off-hours mix: **two inbound after-hours scenarios + one outbound missed-call callback**. See `scenario-prompt-template.md` for the prompt patterns.
+The example below is retained for its **SQL structure**, not its content — it uses the legacy off-hours mix (two inbound + one outbound callback). The current default is **three outbound calls from the prospect's daily round**; see SKILL.md, "The wedge: routine calls they already make". Copy the CTE pattern, replace the scenarios. See `scenario-prompt-template.md` for the prompt patterns.
 
 ## One-shot insert (page + 3 scenarios in a single CTE)
 
