@@ -1,4 +1,7 @@
-# Off-Hours Playbook (operator-facing)
+# Off-Hours Playbook (operator-facing) — LEGACY
+
+> **Superseded (July 2026).** The off-hours missed-call wedge this file supports has been rejected by three of three discovery prospects. The current wedge is the routine outbound calls a business already makes daily — see SKILL.md, "The wedge: routine calls they already make". Use this file only when a specific prospect raises an inbound problem themselves. Evidence: `Telitask/Marketing/strategy/discovery-call-log.md`.
+
 
 Everything in this file is to brief **you, the operator** while you build the
 page. **None of these statistics go on the prospect-facing page** — page copy
