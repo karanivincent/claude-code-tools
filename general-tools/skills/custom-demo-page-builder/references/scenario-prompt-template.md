@@ -31,6 +31,25 @@ GOOD (one thing, then wait):
 'Morning works. Will you be paying the balance by transfer or at the showroom?'
 ```
 
+## Mandatory: never assume the answerer's name
+
+The page names a specific contact, but that contact routinely forwards the link — a
+colleague, an assistant, or the person who actually runs the calls may be the one
+who picks up. An AI that opens with "Hi Maureen" when it is not Maureen kills the
+demo in the first sentence.
+
+Every `system_prompt` MUST include the line below **word-for-word**, immediately
+before the turn-taking block:
+
+```
+Do NOT assume you know the name of the person who answers. Never greet them by name. If you need a name, ask who you are speaking to.
+```
+
+Also never hardcode the contact's name anywhere else in a `system_prompt` — no
+"greet Maureen warmly", no "you are calling Maureen". Refer to the answerer by
+their role in the scenario ("the branch buyer", "the driver", "the caller"). The
+contact's name belongs in `contact_name` and the founder note, not in the prompts.
+
 ## Critical: Identity framing (the #1 mistake)
 
 The voice server prepends a **global identity layer** to every demo prompt that says *"You are TeliTask, an AI voice assistant, on a DEMO call…"* For the generic `/demo` flow that's correct. **For custom prospect demos it is wrong.** The prospect should feel like they're hearing *their own AI* — their own after-hours line — not a TeliTask sales pitch. TeliTask is the platform behind the scenes; the brand reveal happens in the post-call wrap-up.
@@ -94,6 +113,8 @@ Tone: calm and reassuring — they may be panicking. Short, clear questions.
 When they have a clear next step (escalation or a booked slot), confirm it back
 to them, reassure them, and end the call.
 
+Do NOT assume you know the name of the person who answers. Never greet them by name. If you need a name, ask who you are speaking to.
+
 TURN-TAKING RULES (non-negotiable):
 1. Maximum 2 sentences per turn. If you need to say more, stop and wait.
 2. ONE question per turn. Never stack questions.
@@ -131,6 +152,8 @@ Tone: warm, confident, never pushy — this is a high-value purchase.
 
 When a visit or callback is booked, confirm the details back to them and end the
 call.
+
+Do NOT assume you know the name of the person who answers. Never greet them by name. If you need a name, ask who you are speaking to.
 
 TURN-TAKING RULES (non-negotiable):
 1. Maximum 2 sentences per turn. If you need to say more, stop and wait.
@@ -183,6 +206,8 @@ Your job:
 Tone: warm, a little apologetic, eager to help — you don't want to lose them.
 
 Once the next step is booked, confirm it and end the call.
+
+Do NOT assume you know the name of the person who answers. Never greet them by name. If you need a name, ask who you are speaking to.
 
 TURN-TAKING RULES (non-negotiable):
 1. Maximum 2 sentences per turn. If you need to say more, stop and wait.
