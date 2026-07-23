@@ -144,7 +144,7 @@ For each scenario collect:
 - `description` — one sentence the prospect reads on the card
 - `icon` — a **lucide-react** icon name (e.g., `phone-outgoing`, `phone-call`, `calendar-clock`, `package-check`, `clipboard-check`, `truck`, `clock`). Match the scenario semantically.
 - `preview` — the one-line transcript hint shown on the card
-- `system_prompt` — the LLM system prompt. **MUST** open with an identity override framing the AI as the prospect's own line (NOT TeliTask) and telling it not to mention TeliTask during the call. Outbound scenarios frame the AI as **placing** the call, with the prospect role-playing whoever normally receives it. **Every** `system_prompt` MUST also include the verbatim turn-taking block — see `references/scenario-prompt-template.md` → "Mandatory: turn-taking rules". Never bake a "speak with X accent" line into the prompt; accent comes from the page `country` column.
+- `system_prompt` — the LLM system prompt. **MUST** open with an identity override framing the AI as the prospect's own line (NOT TeliTask) and telling it not to mention TeliTask during the call. Outbound scenarios frame the AI as **placing** the call, with the prospect role-playing whoever normally receives it. **Every** `system_prompt` MUST also include the verbatim turn-taking block — see `references/scenario-prompt-template.md` → "Mandatory: turn-taking rules". Never bake a "speak with X accent" line into the prompt; accent comes from the page `country` column. **Every** `system_prompt` MUST also carry the verbatim no-assumed-name rule — see `references/scenario-prompt-template.md` → "Mandatory: never assume the answerer's name".
 - `sell_prompt` — a 1-2 sentence wrap the AI delivers at the end, tying this same flow to the prospect's business. Don't mention TeliTask.
 - `voice_id` — default `'Aoede'` (Gemini female voice). If the user wants a different voice, query `select voice_id from voices where is_default = true` against the project you're about to seed (see Phase 5).
 - `sort_order` — 0, 1, 2
@@ -177,6 +177,7 @@ Before writing to the DB, re-read every piece of copy against `references/brand-
 - No `system_prompt` says "You are TeliTask…"
 - **Every** `system_prompt` includes the verbatim turn-taking block
 - No `system_prompt` bakes in an accent line — accent comes from the page `country`
+- **Every** `system_prompt` includes the no-assumed-name rule, and no prompt greets the answerer by name or hardcodes the contact's name
 - The CTA uses `cta_phone` / `cta_whatsapp` (not the deprecated `cta_url` / `cta_label`)
 
 Common offenders: "automate" → "handles"/"makes the calls"; "notification" → "phone call"; "workflow" → "the round of calls"; quoting a price; anchoring against human VAs (that framing belongs to the old personal-assistant product — the anchor now is the staff currently making these calls).
@@ -240,6 +241,7 @@ If you find yourself doing any of these, stop and reset:
 - Reporting URLs on the wrong host — production seeds get `telitask.ai`, staging seeds get `staging.telitask.com`; don't mix them
 - Writing `"You are TeliTask, …"` in any scenario `system_prompt` — must be `"You are <Prospect>'s after-hours line. Do NOT mention TeliTask…"`
 - A `system_prompt` **missing the turn-taking block** — every prompt must carry it verbatim
+- A `system_prompt` that **names the person who answers** (e.g. "greet Maureen warmly") or is missing the no-assumed-name rule — the page link gets forwarded, so the answerer is often not the contact on the page
 - **Baking an accent line** ("speak with a Kenyan accent") into a `system_prompt` instead of setting the page `country`
 - Using `cta_url` / `cta_label` as the visible CTA — they're deprecated; set `cta_phone` / `cta_whatsapp`
 

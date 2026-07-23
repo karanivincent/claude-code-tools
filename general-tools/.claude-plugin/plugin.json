@@ -1,7 +1,7 @@
 {
   "name": "general-tools",
   "description": "Skills for Linear issue documentation/execution, TeliTask demo pages, and text humanizing. (git, env, design, and skill-review skills moved to the goyond/AI-skills- marketplace.)",
-  "version": "1.18.0",
+  "version": "1.18.1",
   "author": {
     "name": "Vince"
   },
