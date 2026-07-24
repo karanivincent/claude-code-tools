@@ -1,43 +1,58 @@
 ---
 name: custom-demo-page-builder
 description: >
-  Research a cold-outreach prospect and seed a personalized TeliTask custom demo page at `/for/<slug>`,
-  built around the routine calls the business already makes every day — confirmations, check-in rounds,
-  follow-ups. End-to-end flow: light web research → interactive brainstorm of the page sections → write
-  rows to Supabase (production or staging) via MCP. Triggers: "build a custom demo for", "seed a demo page for",
-  "create a /for page for", "personalize a demo for", "prep a demo for [company]", "custom demo prospect".
+  Research a prospect and seed a personalized TeliTask custom demo page at `/for/<slug>`, built around
+  the calls that specific business actually makes or takes. End-to-end flow: light web research →
+  interactive brainstorm of the page sections → write rows to Supabase (production or staging) via MCP.
+  Triggers: "build a custom demo for", "seed a demo page for", "create a /for page for",
+  "personalize a demo for", "prep a demo for [company]", "custom demo prospect".
   Only for the TeliTask custom-demos feature (table `custom_demo_pages` + `custom_demo_scenarios`).
 ---
 
 # Custom Demo Page Builder
 
-Research a prospect company and seed a personalized custom demo page at `/for/<slug>` for cold outreach. Walks the user through the page sections, applies TeliTask brand voice, and writes rows directly to Supabase via the Supabase MCP. Because these pages must be reachable by real prospects, the skill seeds **production by default** but asks before every write and lets you redirect to staging for test runs.
+Research a prospect company and seed a personalized custom demo page at `/for/<slug>`. Walks the user through the page sections, applies TeliTask brand voice, and writes rows directly to Supabase via the Supabase MCP. Because these pages must be reachable by real prospects, the skill seeds **production by default** but asks before every write and lets you redirect to staging for test runs.
 
 **Scope:** This skill only handles the TeliTask custom-demos feature. It does NOT handle the generic `/demo` page or `demo_scenarios` table.
 
-## The wedge: routine calls they already make
+## These pages are discovery instruments, not closes
 
-Every page this skill produces answers one question: **which calls does this business make, over and over, every single day — and who is being paid to make them?**
+TeliTask is in customer discovery. The point of a `/for/` page is to get a specific person to hear a call and then tell you what it got wrong. It is not to book them.
 
-Delivery confirmations before dispatch. A morning round of check-in calls to regional or field staff. Follow-ups after a delivery or visit that didn't land. Payment reminders. Appointment confirmations. These are structured, repeated, and someone's whole job. That is the demo: the AI makes one of those calls, and the prospect hears their own daily grind happen without anyone on their team doing it.
+That changes what a good page looks like:
 
-**Do not build the page around missed or after-hours calls.** That was the previous wedge and it has been rejected by three of three prospects in discovery — two of them emphatically, because evening cover is a solved problem for anyone big enough to feel it. Evidence: `Telitask/Marketing/strategy/discovery-call-log.md`. Only use the after-hours framing if this specific prospect has said the words themselves.
+- The page ends by asking a question, not by pitching. The prospect's correction is the deliverable.
+- **Never put a price on the page.** Pricing for the current direction is unset. No figures, no ranges, no "starting from".
+- Don't oversell what TeliTask does. Overpromising buys a polite yes, which teaches you nothing.
+- Statistics stay off the page entirely — they brief you, not the prospect.
 
-Good prospects have **five or more people employed to make calls**. Below that there is no volume to feel. If research suggests the business is smaller than that, say so to the user before building.
+## Start from what you actually know
+
+**This skill has no built-in wedge, and you should not invent one.** Positioning is changing month to month; anything hardcoded here would be stale by the time you used it. Build each page around what is true of *this* prospect.
+
+Order of evidence, strongest first:
+
+1. **What the prospect said in conversation.** If the user has notes or a quote, that is the page. Nothing else comes close.
+2. **What the user knows about them** — the industry, a mutual connection, something they observed.
+3. **What research turns up** about how the business operates.
+4. **Inference from the operating model.** Weakest. Label it as a guess and check it with the user.
+
+If you have nothing beyond a company name and a URL, say so plainly and ask the user what they know before you research. A page built on invented pain reads as invented.
+
+For background on the calls different businesses make and take, and how prior prospects have reacted to each framing, see `references/call-patterns.md`. It is a menu to choose from, not a template to apply.
 
 ### The core mechanic (read before drafting scenarios)
 
-The demo platform always **dials the prospect's phone**, which fits this wedge directly: these calls are outbound in real life too.
+The demo platform always **dials the prospect's phone**. Each scenario then picks one of two framings:
 
-- **AI = the business's own line**, making one of its routine daily calls.
-- **The prospect role-plays the person who normally receives it** — their customer, their driver, their regional rep.
-- The AI behaves exactly as it would on the real call: one purpose, gets the information, confirms, ends.
+- **Outbound** — the AI is the business's own line placing one of its real calls. The prospect role-plays whoever normally receives it: their customer, their driver, their regional rep. The framing matches reality, so it needs no reversal.
+- **Inbound** — the AI is the business's own line *answering* a call. The prospect role-plays the person who rang in. The platform still dials them, so the prompt must state clearly that the AI has picked up.
 
-Inbound framing (AI picks up a call the prospect places) is still supported and documented in `references/scenario-prompt-template.md` — use it only when the prospect has a genuine inbound problem they raised themselves.
+Pick per scenario, based on which calls matter to this business. Neither is the default. See `references/scenario-prompt-template.md` for both structures.
 
 ### The objection to pre-empt
 
-Prospects hear "AI phone line" and picture a pre-recorded IVR menu. The page's job is to get them to tap a scenario and hear a real conversation. Keep the founder note short and concrete so the call happens fast.
+Prospects hear "AI phone line" and picture a pre-recorded IVR menu. The page's job is to get them to tap a scenario and hear a real conversation as fast as possible. Keep the founder note short and the call obvious.
 
 ## When to use
 
@@ -57,38 +72,36 @@ Execute these phases sequentially. Do **not** batch the brainstorm — walk the 
 
 Collect (use AskUserQuestion or accept what the user already provided):
 - Company name + website URL (required)
+- **Anything the user already knows about this prospect** — a conversation they've had, a specific complaint, a mutual connection. Ask for this explicitly; it outranks everything you can research.
 - Prospect contact name + role + email (optional but recommended)
 - Industry (if not obvious from the URL)
 - Prospect country (drives the AI accent at call time — default "Kenya" if not given)
-- Anything special the user already knows about this prospect (mutual connection, recent fundraise, specific pain they mentioned, etc.)
 
-### Phase 1 — Light research, focused on off-hours exposure (2-5 fetches max)
+### Phase 1 — Light research (2-5 fetches max)
 
-WebFetch in this order. As you read, you're hunting for **the calls their operation runs on**, not a generic company profile:
-1. Company homepage — what they sell or move, and to whom
-2. About / Contact / Careers pages — the operational shape: branches, regions, fleet, field staff, and especially **call-centre, customer-care, dispatch, or tele-sales job listings** (the clearest signal that people are paid to make calls)
+WebFetch in this order:
+1. Company homepage — what they sell or do, and for whom
+2. About / Contact / Careers pages — the operating shape: hours, branches, regions, fleet, field staff, and any job listings that involve phones (customer care, dispatch, tele-sales, front desk)
 3. **One** optional WebSearch (last 90 days) only if the site is thin
 
-For every prospect, try to answer:
-- **What has to be confirmed, chased, or checked before work happens?** (deliveries, appointments, dispatch, stock, payment)
-- **Who do they call every day** — customers, drivers, field agents, branch or regional staff, suppliers?
-- **Roughly how many such calls a day**, and how many people are employed to make them
-- **What breaks when a call doesn't happen** — a wasted trip, a missed dispatch, a stalled decision
+You are trying to answer: **which phone calls does this business depend on?** Both directions count.
 
-Hard cap: 5 fetches. Websites rarely reveal internal call workflows, so expect to infer from the operating model and then **ask the user** — anything they heard directly from the prospect beats anything you can find. If the prospect is opaque, say so plainly rather than inventing a workflow.
+- Who calls them, and what happens to those calls?
+- Who do they call, how often, and who is paid to do it?
+- What breaks when one of those calls doesn't happen — a wasted trip, a lost customer, a stalled decision?
 
-`references/off-hours-playbook.md` is retained only for the legacy inbound framing — do not use it as the default lens.
+Hard cap: 5 fetches. Websites rarely reveal internal call workflows, so expect to infer and then **ask the user**. If the prospect is opaque, say so plainly rather than inventing a workflow.
 
-### Phase 2 — Research brief (operational calling read)
+### Phase 2 — Research brief
 
 Show the user a tight summary (under 200 words) covering:
 - **Industry / what they do** — one sentence
-- **Likely buyer persona** — the person who owns the team making these calls (ops lead, branch or regional manager, owner)
-- **Their daily calling round** — the specific repeated calls you believe they make, and your rough estimate of volume and headcount. Label estimates as estimates.
-- **3-5 candidate pain points** — phrased the way they'd say it, centred on the volume of routine calls their people carry
-- **Founder-note hook** — one personal-sounding angle tying the demo to a specific call they make
+- **Likely buyer persona** — who at this company owns the phone problem
+- **The calls that matter** — which calls you believe this business lives on, in or out, and why. Label every guess as a guess.
+- **3-5 candidate pain points** — phrased the way they'd say it
+- **Founder-note hook** — one specific angle, ideally something the user heard directly
 
-Keep statistics in the brief for **the user only** — they do not go on the page. Ask: *"Anything to add or correct before we brainstorm the page?"*
+End with: *"How much of this is guesswork I should check with you before we build?"*
 
 ### Phase 3 — Brainstorm the page
 
@@ -101,53 +114,47 @@ Generate: `<company-kebab>-<4-char-random>` (e.g., `acme-x7k2`, `northwind-h4q9`
 #### 3b. Hero
 
 - `company_name` — exactly as the prospect uses it (preserve casing, drop "Inc." unless they use it)
-- `contact_name` (if known)
+- `contact_name` (if known) — used for the on-page greeting only, never for the call itself
 - `contact_role` (if known)
 
 #### 3c. Founder note (`founder_note`)
 
 A 2-4 sentence message from Vincent. Should:
-- Lead with the specific round of calls their team makes ("every morning someone on your team rings each customer to confirm the drop…")
-- Say plainly that the demo will call them so they can hear one of those calls happen
+- Lead with something specific and true about *their* calls
+- Say plainly that tapping a scenario will call them
 - Sound like a real DM, not marketing copy
-- **No statistics** — keep it specific to them
-- **No price** — pricing is unset for this direction; never put a figure on the page
+- **No statistics**
+- **No price**
 - **Avoid** the banned words (see `references/brand-voice.md`)
 
-If the user has told you something the prospect said in conversation, use their words. That beats anything from research.
+If the user has told you something the prospect said in conversation, use their words.
 
 If research turned up nothing specific, draft a generic version and flag it: *"This is generic — got anything specific you want to lead with?"*
 
 #### 3d. Pain points (`pain_points text[]`)
 
-3-5 short bullets in the prospect's voice, centred on the weight of the calls their team makes. Each one a single line, sentence case, no trailing punctuation. Outcomes they want, not features TeliTask has. No statistics.
+3-5 short bullets in the prospect's voice. Each one a single line, sentence case, no trailing punctuation. Outcomes they want, not features TeliTask has. No statistics.
 
-Example shape (delivery operation): `Three hundred confirmation calls before the day even starts` · `Orders land overnight with no address confirmed yet` · `Every failed delivery means calling the customer back to rebook` · `Ten people on the phones and still not enough`.
-
-Naming a concrete number they gave you is the single strongest line on the page.
+A concrete number the prospect gave you is the single strongest line on the page. An invented one is the weakest — if you don't have a real number, stay qualitative.
 
 #### 3e. Scenarios (3 rows in `custom_demo_scenarios`)
 
-Default mix: **three outbound calls from their daily round.** Pick the three that carry the most volume for this specific business. Common shapes:
+Pick the three calls that matter most to *this* business, from `references/call-patterns.md` or from what the prospect described. Mix inbound and outbound freely — choose by what's true, not by a template.
 
-1. **Pre-work confirmation** — calling ahead to confirm the details before anything ships, dispatches, or starts: exact location, time window, who will receive it.
-2. **Retry after a failed attempt** — the delivery or visit didn't land; the AI calls to find out what happened and rebook.
-3. **Status round with their own staff** — calling each driver, field agent, or regional rep to collect what happened today and flag anything escalating.
-
-Other options as the business warrants: post-delivery check, appointment reminder, payment follow-up, stock or availability check with a supplier.
-
-Legacy inbound scenarios (after-hours capture, urgent triage, missed-call callback) are still documented in `references/scenario-prompt-template.md`. Use them only when the prospect has raised an inbound problem themselves — not as a default.
+Sanity check before locking: would this prospect recognise all three as calls their business actually involves? If one is there to show off a capability rather than because they'd recognise it, cut it.
 
 For each scenario collect:
-- `slug` — kebab-case, unique within the page (e.g., `after-hours-enquiry`, `urgent-triage`, `missed-call-callback`)
+- `slug` — kebab-case, unique within the page
 - `title` — short label (3-5 words)
 - `description` — one sentence the prospect reads on the card
-- `icon` — a **lucide-react** icon name (e.g., `phone-outgoing`, `phone-call`, `calendar-clock`, `package-check`, `clipboard-check`, `truck`, `clock`). Match the scenario semantically.
+- `icon` — a **lucide-react** icon name (e.g. `phone-outgoing`, `phone-incoming`, `phone-call`, `calendar-clock`, `package-check`, `clipboard-check`, `truck`, `clock`). Match the scenario semantically.
 - `preview` — the one-line transcript hint shown on the card
-- `system_prompt` — the LLM system prompt. **MUST** open with an identity override framing the AI as the prospect's own line (NOT TeliTask) and telling it not to mention TeliTask during the call. Outbound scenarios frame the AI as **placing** the call, with the prospect role-playing whoever normally receives it. **Every** `system_prompt` MUST also include the verbatim turn-taking block — see `references/scenario-prompt-template.md` → "Mandatory: turn-taking rules". Never bake a "speak with X accent" line into the prompt; accent comes from the page `country` column. **Every** `system_prompt` MUST also carry the verbatim no-assumed-name rule — see `references/scenario-prompt-template.md` → "Mandatory: never assume the answerer's name".
-- `sell_prompt` — a 1-2 sentence wrap the AI delivers at the end, tying this same flow to the prospect's business. Don't mention TeliTask.
+- `system_prompt` — the LLM system prompt. **MUST** open with an identity override framing the AI as the prospect's own line (NOT TeliTask) and telling it not to mention TeliTask during the call. State the direction explicitly — the AI is placing this call, or has answered it. **Every** `system_prompt` MUST include the verbatim turn-taking block — see `references/scenario-prompt-template.md`. Never bake a "speak with X accent" line into the prompt; accent comes from the page `country` column.
+- `sell_prompt` — **not used at call time.** The voice server selects the column but never injects it. It is `not null`, so write a short neutral close ("Wrap up naturally, thank them for their time, and end the call.") and move on. Do not craft a pitch here.
 - `voice_id` — default `'Aoede'` (Gemini female voice). If the user wants a different voice, query `select voice_id from voices where is_default = true` against the project you're about to seed (see Phase 5).
 - `sort_order` — 0, 1, 2
+
+**Do not write anything about the caller's name into a prompt.** The page asks whoever is testing for their own name and passes that to the call; if they leave it blank the AI greets them anonymously. Naming anyone in the prompt overrides that and breaks the demo for whoever the link got forwarded to.
 
 #### 3f. CTA
 
@@ -156,7 +163,9 @@ The public page renders the CTA only from these dedicated columns:
 - `cta_whatsapp` — the wa.me CTA. Default to `+254704985136` as well.
 - `cta_email` — optional mailto CTA. Leave null unless the user wants it.
 
-`cta_url` / `cta_label` are **deprecated** and NOT rendered on the public page — do not use them as the visible CTA.
+`cta_url` / `cta_label` are **deprecated** and NOT rendered on the public page.
+
+The closing copy above these buttons asks the prospect what the demo got wrong. It is hardcoded in `ClosingCta.tsx`, not per-page — you don't write it, but don't undercut it by writing a closing pitch elsewhere on the page.
 
 #### 3g. Metadata
 
@@ -167,20 +176,20 @@ The public page renders the CTA only from these dedicated columns:
 
 Access control: there is none beyond the slug. Anyone with the link can view the page and trigger a demo call. The unguessable 4-char suffix IS the access token.
 
-### Phase 4 — Brand voice review
+### Phase 4 — Review before seeding
 
-Before writing to the DB, re-read every piece of copy against `references/brand-voice.md`. Flag any rule violations and propose fixes inline. Also confirm:
-- **No statistics** snuck into founder note or pain points
+Re-read every piece of copy against `references/brand-voice.md`. Flag any rule violations and propose fixes inline. Also confirm:
 - **No price** anywhere on the page
-- The page is built on calls they **make**, not calls they might be **missing** — unless the prospect raised the inbound problem themselves
-- Any inbound scenario prompts read as the AI **answering**, not placing, the call
+- **No statistics** in the founder note or pain points
+- Every claim on the page traces back to something the user or the research actually established — nothing invented
+- Each scenario states its direction, and inbound prompts read as the AI **answering**
 - No `system_prompt` says "You are TeliTask…"
 - **Every** `system_prompt` includes the verbatim turn-taking block
 - No `system_prompt` bakes in an accent line — accent comes from the page `country`
-- **Every** `system_prompt` includes the no-assumed-name rule, and no prompt greets the answerer by name or hardcodes the contact's name
+- No `system_prompt` names the person who will answer
 - The CTA uses `cta_phone` / `cta_whatsapp` (not the deprecated `cta_url` / `cta_label`)
 
-Common offenders: "automate" → "handles"/"makes the calls"; "notification" → "phone call"; "workflow" → "the round of calls"; quoting a price; anchoring against human VAs (that framing belongs to the old personal-assistant product — the anchor now is the staff currently making these calls).
+Common offenders: "automate" → "handles"/"makes the calls"; "notification" → "phone call"; "workflow" → "the round of calls"; quoting a price; anchoring against human VAs or against other AI tools.
 
 ### Phase 5 — Seed via Supabase MCP
 
@@ -194,7 +203,7 @@ Then use `mcp__plugin_supabase_supabase__execute_sql` against the confirmed proj
 
 **Single transaction**: insert the page row, capture the returned id, then insert the 3 scenarios. See `references/seed-sql-template.md` for the exact SQL pattern.
 
-After insert, verify against the **same project** (includes the CTA + `country` columns so you can confirm they were set):
+After insert, verify against the **same project**:
 ```sql
 select p.slug, p.company_name, p.cta_phone, p.cta_whatsapp, p.country, count(s.id) as scenario_count
 from custom_demo_pages p
@@ -214,15 +223,17 @@ Give the user:
 - The admin URL: `<host>/en/admin/custom-demos/<slug>`
 - Which environment it was seeded to (production or staging)
 - A 1-line summary of what was seeded
-- The CTA fields set (`cta_phone`, `cta_whatsapp`, and `cta_email` if any) and the `country` value (so the user can confirm the accent)
-- For WhatsApp-heavy Kenyan prospects: a one-line honest caveat that the demo is voice-only and may underweight WhatsApp (see `off-hours-playbook.md` → Kenya note). Tell the **user**, never put it on the page.
+- The CTA fields set and the `country` value (so the user can confirm the accent)
+- **What on the page is a guess.** List the assumptions the page rests on, so the user knows what to listen for when the prospect reacts. This is the discovery payload.
+- For WhatsApp-heavy Kenyan prospects: a one-line honest caveat that the demo is voice-only and may underweight WhatsApp (see `call-patterns.md` → Kenya note). Tell the **user**, never put it on the page.
 
 ## Conventions
 
-- **Off-hours is the angle.** Two of three scenarios live in the after-hours moment; the founder note and pain points centre on it.
+- **Build from evidence, not from a wedge.** What the prospect said beats what you inferred.
+- **No price, ever.** Pricing is unset.
 - **No stats on the page.** Statistics brief the operator only.
 - **No new SQL migration files.** This is data — seed via MCP `execute_sql`.
-- **Ask which database every run.** Default to production (the page must be live for prospects), but confirm production vs staging before any write — never assume.
+- **Ask which database every run.** Default to production, but confirm before any write.
 - **Slug is the access token.** Make it unguessable (4-char random suffix).
 - **One scenario brainstorm per turn.** Don't dump three scenarios at once.
 - **Reuse the research brief.** Pull specific details into founder_note and scenarios — don't write generic copy and then "add personalization".
@@ -230,26 +241,29 @@ Give the user:
 ## Red flags
 
 If you find yourself doing any of these, stop and reset:
-- An **inbound** scenario where the AI *places* a call to a lead — you've reverted to the old outbound model. Only slot 3 is outbound.
-- Putting **statistics** in the founder note or pain points — stats are operator-facing only
+- **Inventing a pain point** the prospect never mentioned and the research never showed — say "I don't know" instead
+- Applying a wedge because a previous page used it, rather than because it fits this prospect
+- Putting a **price** or a **statistic** on the page
+- Writing a **closing pitch** — these pages ask a question, they don't close
+- An inbound scenario whose prompt has the AI *placing* the call, or vice versa
 - Researching more than 5 URLs — past the "light" budget
 - Drafting all 3 scenarios before showing the user any of them
 - Writing a generic founder_note without flagging it as generic
 - Using "automate", "notification", "workflow", or "leverage" anywhere in copy
 - About to call `apply_migration` instead of `execute_sql` — these are data rows, not schema
-- Seeding **without asking** which database in this run, or assuming a prior run's target — always confirm production vs staging first (default production)
-- Reporting URLs on the wrong host — production seeds get `telitask.ai`, staging seeds get `staging.telitask.com`; don't mix them
-- Writing `"You are TeliTask, …"` in any scenario `system_prompt` — must be `"You are <Prospect>'s after-hours line. Do NOT mention TeliTask…"`
+- Seeding **without asking** which database in this run
+- Reporting URLs on the wrong host — production seeds get `telitask.ai`, staging seeds get `staging.telitask.com`
+- Writing `"You are TeliTask, …"` in any scenario `system_prompt`
 - A `system_prompt` **missing the turn-taking block** — every prompt must carry it verbatim
-- A `system_prompt` that **names the person who answers** (e.g. "greet Maureen warmly") or is missing the no-assumed-name rule — the page link gets forwarded, so the answerer is often not the contact on the page
-- **Baking an accent line** ("speak with a Kenyan accent") into a `system_prompt` instead of setting the page `country`
-- Using `cta_url` / `cta_label` as the visible CTA — they're deprecated; set `cta_phone` / `cta_whatsapp`
+- A `system_prompt` that **names the person who answers** — the page collects that from whoever is actually testing
+- **Baking an accent line** into a `system_prompt` instead of setting the page `country`
+- Using `cta_url` / `cta_label` as the visible CTA
 
 ## References
 
-- `references/off-hours-playbook.md` — Off-hours stats (operator-facing), per-industry archetypes, Kenya/WhatsApp note
-- `references/brand-voice.md` — Banned words, preferred phrases, anchoring rules
-- `references/scenario-prompt-template.md` — Inbound (after-hours) + outbound system_prompt patterns, per-industry menu
-- `references/seed-sql-template.md` — Exact SQL to run via Supabase MCP
+- `references/call-patterns.md` — menu of inbound and outbound call shapes by industry, what discovery has shown about each, Kenya/WhatsApp note
+- `references/brand-voice.md` — banned words, preferred phrases, anchoring rules
+- `references/scenario-prompt-template.md` — inbound and outbound `system_prompt` structures with examples
+- `references/seed-sql-template.md` — exact SQL to run via Supabase MCP
 
-The canonical cross-path conventions for this feature live at `docs/custom-demo-conventions.md` in the telitask-development repo — the dashboard AI generator follows the same rules (CTA columns, `country`-driven accent, turn-taking block). Keep this skill in sync with that doc.
+The canonical cross-path conventions for this feature live at `docs/custom-demo-conventions.md` in the telitask-development repo — the dashboard AI generator follows the same rules. Keep this skill in sync with that doc.

@@ -72,7 +72,7 @@ Linear issue workflows and non-Yond productivity skills.
 | `issue-documenter` | Documents user stories and bug reports for Linear with investigation tooling and automatic issue creation |
 | `issue-executor` | End-to-end issue resolution orchestrator — takes a Linear issue URL, classifies bug vs story, routes bugs to lightweight (single-agent) or full (agent team) flow with flexible verification, and drives it to a reviewable PR |
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
-| `custom-demo-page-builder` | Researches a cold-outreach prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the routine outbound calls the business already makes daily (confirmations, check-in rounds, follow-ups), applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent); scenario prompts never assume the name of whoever answers |
+| `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
 ## Releases
 
