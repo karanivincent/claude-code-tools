@@ -2,7 +2,9 @@
 
 Use `mcp__plugin_supabase_supabase__execute_sql` against the project the user confirmed in Phase 5 — **production** (`hffrgidrbrspqdqbmcqz`, the default) or **staging** (`pbtvpbrdpgpopieghany`, test runs). Confirm the target every run before writing; never assume.
 
-The example below is retained for its **SQL structure**, not its content — it uses the legacy off-hours mix (two inbound + one outbound callback). The current default is **three outbound calls from the prospect's daily round**; see SKILL.md, "The wedge: routine calls they already make". Copy the CTE pattern, replace the scenarios. See `scenario-prompt-template.md` for the prompt patterns.
+The example below is retained for its **SQL structure**, not its content. Its scenarios happen to be an after-hours mix, which is one option among many and not a default — pick the three calls that fit the prospect in front of you (`call-patterns.md`). Copy the CTE pattern, replace the scenarios. See `scenario-prompt-template.md` for the prompt patterns.
+
+Note the founder note in the example quotes no price and no statistic. Keep it that way.
 
 ## One-shot insert (page + 3 scenarios in a single CTE)
 
@@ -71,8 +73,6 @@ Tone: warm, confident, never pushy — this is a high-value purchase.
 
 When a visit or callback is booked, confirm the details back to them and end the call.
 
-Do NOT assume you know the name of the person who answers. Never greet them by name. If you need a name, ask who you are speaking to.
-
 TURN-TAKING RULES (non-negotiable):
 1. Maximum 2 sentences per turn. If you need to say more, stop and wait.
 2. ONE question per turn. Never stack questions.
@@ -87,7 +87,7 @@ GOOD (one thing, then wait):
 'Your vehicle is ready for pickup at our Limuru Road showroom. When works best for you to come by?'
 [Wait for answer]
 'Morning works. Will you be paying the balance by transfer or at the showroom?'$prompt$,
-    'That''s how every after-hours call to Carsoko could go — picked up, qualified, and booked, instead of going to voicemail.',
+    'Wrap up naturally, thank them for their time, and end the call.',  -- sell_prompt is never injected at call time
     'Aoede',
     0
   ),
@@ -111,8 +111,6 @@ Tone: warm and responsive — match their urgency without being pushy.
 
 Once the next step is locked in, confirm it and end the call.
 
-Do NOT assume you know the name of the person who answers. Never greet them by name. If you need a name, ask who you are speaking to.
-
 TURN-TAKING RULES (non-negotiable):
 1. Maximum 2 sentences per turn. If you need to say more, stop and wait.
 2. ONE question per turn. Never stack questions.
@@ -127,7 +125,7 @@ GOOD (one thing, then wait):
 'Your vehicle is ready for pickup at our Limuru Road showroom. When works best for you to come by?'
 [Wait for answer]
 'Morning works. Will you be paying the balance by transfer or at the showroom?'$prompt$,
-    'A buyer this ready won''t wait — Carsoko''s line catches them tonight instead of losing them to the next dealer by morning.',
+    'Wrap up naturally, thank them for their time, and end the call.',
     'Aoede',
     1
   ),
@@ -151,8 +149,6 @@ Tone: warm, a little apologetic, eager to help — you don't want to lose them.
 
 Once the next step is booked, confirm it and end the call.
 
-Do NOT assume you know the name of the person who answers. Never greet them by name. If you need a name, ask who you are speaking to.
-
 TURN-TAKING RULES (non-negotiable):
 1. Maximum 2 sentences per turn. If you need to say more, stop and wait.
 2. ONE question per turn. Never stack questions.
@@ -167,7 +163,7 @@ GOOD (one thing, then wait):
 'Your vehicle is ready for pickup at our Limuru Road showroom. When works best for you to come by?'
 [Wait for answer]
 'Morning works. Will you be paying the balance by transfer or at the showroom?'$prompt$,
-    'Every missed call at Carsoko could get this callback first thing — no buyer left for the competitor overnight.',
+    'Wrap up naturally, thank them for their time, and end the call.',
     'Aoede',
     2
   )
