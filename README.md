@@ -63,7 +63,7 @@ Agents and skills for GitHub issue workflows and SvelteKit testing.
 | `issue-workflow` | Manages GitHub Issues through full lifecycle |
 | `github-image-downloader` | Downloads images attached to GitHub issues for design review |
 
-### general-tools `v1.17.0`
+### general-tools `v1.20.0`
 
 Linear issue workflows and non-Yond productivity skills.
 
@@ -71,6 +71,7 @@ Linear issue workflows and non-Yond productivity skills.
 |-------|-------------|
 | `issue-documenter` | Documents user stories and bug reports for Linear with investigation tooling and automatic issue creation |
 | `issue-executor` | End-to-end issue resolution orchestrator — takes a Linear issue URL, classifies bug vs story, routes bugs to lightweight (single-agent) or full (agent team) flow with flexible verification, and drives it to a reviewable PR |
+| `loose-ends` | Audits what merged PRs declared but never performed — unticked handover checklist steps, env vars declared in `docs/env-registry.json` but never set on Vercel/Render, and migrations applied to staging but not production. Scopes by exact branch comparison (on `origin/staging`, not on `origin/main`), verifies what is mechanically checkable, and batches every tick or deferral onto one `chore/close-loose-ends-YYYY-MM-DD` PR. Reports could-not-check honestly instead of rendering a failed check as a pass; never applies migrations or writes env values |
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
