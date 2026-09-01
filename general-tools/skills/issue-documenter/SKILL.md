@@ -1,19 +1,25 @@
 ---
 name: issue-documenter
 description: >
-  Document user stories and bug reports for Linear. Handles two modes:
+  Document user stories and bug reports as GitHub Issues. Handles two modes:
   (1) User Story mode - create well-scoped stories with acceptance criteria. Triggers: "write a story",
   "create a story for", "break down this feature", "scope this work", "new feature".
   (2) Bug Report mode - investigate and document bugs using Sentry, Vercel, Render, and browser tools.
   Triggers: "report a bug", "document this bug", "bug report", "something is broken", "log this issue",
-  "this isn't working", "found a bug", "there's an error". Can enrich existing rough Linear issues or
-  create new detailed reports from scratch. This skill ONLY documents - it does NOT suggest fixes,
+  "this isn't working", "found a bug", "there's an error", "file an issue", "open a github issue".
+  Can enrich an existing rough GitHub issue or create a new detailed report from scratch. This skill ONLY documents - it does NOT suggest fixes,
   root causes, or solutions.
 ---
 
 # Issue Documenter
 
-Document user stories and bug reports for Linear. Two modes: **User Story** and **Bug Report**.
+Document user stories and bug reports as GitHub Issues. Two modes: **User Story** and **Bug Report**.
+
+**Issues are filed on GitHub with the `gh` CLI, never on Linear.** Linear is retired; if you
+find yourself reaching for a Linear MCP tool, you are in the wrong tracker.
+
+**Every issue this skill files carries the `priority` label by default.** Both modes end at
+[Filing the Issue](#filing-the-issue), which is where that happens.
 
 **CRITICAL: This skill documents only. NEVER suggest fixes, root causes, or solutions.**
 
@@ -91,7 +97,7 @@ Must be: testable (yes/no), user-observable, specific, independent.
 4. **Triage** - For each edge case: handle now or defer?
 5. **Implementation** - Ask: "Technical constraints or patterns to follow?"
 6. **Size Check** - If too large, suggest child stories under same epic.
-7. **Output** - Produce complete story ready for Linear markdown.
+7. **File** - Produce the complete story, then file it — see [Filing the Issue](#filing-the-issue).
 
 ---
 
@@ -101,7 +107,7 @@ Investigate and document bugs with evidence from dev tools. Documentation only �
 
 ### Entry Points
 
-1. **From existing Linear issue** — User provides issue ID/URL -> read the rough note, enrich it
+1. **From an existing GitHub issue** — User gives an issue number or URL -> `gh issue view` the rough note, enrich it
 2. **From scratch** — User describes the bug -> create a new detailed report
 
 ### Bug Report Workflow
@@ -109,7 +115,7 @@ Investigate and document bugs with evidence from dev tools. Documentation only �
 #### Step 1: Capture Basics
 
 Ask one at a time:
-1. What's the bug? (or read from existing Linear issue)
+1. What's the bug? (or read it from the existing GitHub issue)
 2. Where did it happen? (URL/page/feature — needed for service inference)
 3. Which environment? (staging/production)
 
@@ -119,11 +125,11 @@ Before investigating, determine how much is already known:
 
 | User provided | Path |
 |---------------|------|
-| Error message + affected page/URL + screenshot or reproduction steps | **Document-only** — skip to Step 2.5 (initialize Linear only), then Step 4 |
+| Error message + affected page/URL + screenshot or reproduction steps | **Document-only** — skip investigation, go straight to Step 4 |
 | Vague symptom ("something is broken", "it doesn't work") | **Investigate** — continue to Step 2 |
-| Existing Linear issue with rough notes | **Enrich** — continue to Step 2 |
+| Existing GitHub issue with rough notes | **Enrich** — continue to Step 2 |
 
-**Document-only path:** The bug is already characterized. Report what the user provided without deep code analysis or log investigation. Only initialize Linear (from Step 2.5) for issue creation.
+**Document-only path:** The bug is already characterized. Report what the user provided without deep code analysis or log investigation, then file it.
 
 #### Step 2: Infer Services
 
@@ -141,7 +147,6 @@ Auto-discover which investigation tools are available and initialize them before
    - **Sentry:** **NEVER guess the organizationSlug** — always call `find_organizations` first → store `organizationSlug` + `regionUrl`
    - **Render:** Call `list_workspaces` (auto-selects if one) → `list_services` → match service by name/keyword from bug description → store resource ID
    - **Vercel:** Read `.vercel/project.json` for `projectId` and `teamId`. In monorepos, also check `apps/*/vercel/project.json` if the root path doesn't exist.
-   - **Linear:** Call `list_teams` → store team name for issue creation in Step 5
 5. Build internal investigation plan: ordered list of sources with the tool to use for each
 
 #### Step 2.7: Analyze Code
@@ -208,23 +213,95 @@ Compile all evidence into the template. Rules:
 
 **Multi-issue detection:** If investigation revealed a distinct secondary issue (different root area, fix scope, or severity):
 - Ask user: "I found a related but separate issue: [description]. Should I document it as its own report?"
-- If yes: produce both reports, link them as related in Linear
+- If yes: produce both reports and cross-reference them by issue number
 - If no: add a "Related Findings" section to the primary report
 
-#### Step 5: Create or Update Linear Issue
+#### Step 5: File It
 
-**MUST** immediately after presenting the report (do not wait for user input), ask:
-- If started from an existing Linear issue (entry point 1): "Update [ISSUE-ID] with this report, or skip?"
-- If started from scratch (entry point 2): "Create this as a new Linear issue, or skip?"
+Both modes end at the same place — see [Filing the Issue](#filing-the-issue).
 
-- **New issue:** Use `create_issue` MCP tool with:
-  - `title`: from report's `## [Bug]` heading
-  - `team`: from team discovered in Step 2.5
-  - `description`: full report markdown
-  - `labels`: `["Bug"]`
-  - `priority`: mapped from severity (see bug-report-template.md Priority Mapping table)
-- **Update existing:** If started from existing Linear issue (entry point 1), use `update_issue` to replace description with enriched report
-- **Skip:** User declines → present report as-is
+---
+
+## Filing the Issue
+
+**Do not ask whether to file.** Write the issue, then say where it landed. The user paid
+for that round trip when they invoked the skill.
+
+### Where
+
+GitHub Issues, via `gh`. Default to the repository of the current working directory:
+
+```bash
+gh repo view --json nameWithOwner -q .nameWithOwner
+```
+
+If the working directory is not a git repository, ask which repo — that is the one question
+here worth asking. Some projects keep a public intake repo separate from the internal
+tracker; work goes to the internal one, so check the repo's `CLAUDE.md` before assuming.
+
+### Labels
+
+**Apply `priority` to every issue this skill creates.** A human sat down and described this
+deliberately, which is exactly what the label means: it ranks the issue ahead of age in an
+autonomous agent queue. Filing without it drops hand-written work to the back of a backlog
+the agents are already draining.
+
+Add type and area on top: `bug` or `enhancement`, plus whatever area labels the repo defines
+(`dashboard`, `voice-server`, `infrastructure`, `documentation`). Do not invent labels — list
+what exists first:
+
+```bash
+gh label list --repo <owner/repo> --limit 100
+```
+
+If `priority` is absent from that repo, create it once and carry on:
+
+```bash
+gh label create priority --repo <owner/repo> --color 0E8A16 --description "Ranks ahead of age in the agent queue. Applied by a human only."
+```
+
+**One thing defeats `priority` and it is easy to miss.** A repo whose agent queue excludes
+issues parked on a human — `needs-decision`, `needs-human`, `blocked-scope`, `epic` — filters
+those out *before* ranking, so an issue carrying both is never worked at all. Never apply
+both. If the work genuinely needs a founder decision, put the decision in the body, leave the
+blocking label off, and name the open question in your report back.
+
+### Creating
+
+Write the body to a file and pass `--body-file`. A heredoc straight into `--body` mangles
+backticks and `$`:
+
+```bash
+gh issue create --repo <owner/repo> --title "<title>" --label priority --label bug --body-file <path>.md
+```
+
+If you started from an existing issue (entry point 1), replace its body instead of filing a
+duplicate:
+
+```bash
+gh issue edit <N> --repo <owner/repo> --body-file <path>.md --add-label priority
+```
+
+### Parenting to an epic
+
+If the repo organises issues under epics, parent the new one. The sub-issue API takes the
+issue's **database id**, not its number — a number returns 404:
+
+```bash
+gh issue list --repo <owner/repo> --label epic --state open --json number,title
+```
+
+```bash
+NID=$(gh api repos/<owner/repo>/issues/<new> --jq '.id') && gh api --method POST repos/<owner/repo>/issues/<epic>/sub_issues -F "sub_issue_id=$NID"
+```
+
+Pick the epic yourself. An unparented issue is not a failure — file it either way rather than
+stopping to ask.
+
+### Reporting back
+
+The issue number and URL, the labels applied, and the epic it went under. One line. Do not
+paste the body back; it is on GitHub now.
 
 ### Edge Cases
 
@@ -236,4 +313,5 @@ Compile all evidence into the template. Rules:
 | No direct link from tool | Note search terms used for manual lookup |
 | Investigation reveals second issue | Ask user, then document both or note in Related Findings |
 | Bug is fully characterized by user | Use document-only path (Step 1.5). Report what's provided, don't investigate. |
-| Linear MCP not available | Present report for manual copy-paste, note "Linear tool not available" |
+| `gh` not authenticated | Present the report for manual copy-paste, and say `gh auth login` is needed |
+| Repo has no `priority` label | Create it (see Filing the Issue), then carry on |

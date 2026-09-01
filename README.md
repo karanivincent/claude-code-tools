@@ -65,11 +65,11 @@ Agents and skills for GitHub issue workflows and SvelteKit testing.
 
 ### general-tools `v1.23.0`
 
-Linear issue workflows and non-Yond productivity skills.
+Issue documentation workflows and non-Yond productivity skills.
 
 | Skill | Description |
 |-------|-------------|
-| `issue-documenter` | Documents user stories and bug reports for Linear with investigation tooling and automatic issue creation |
+| `issue-documenter` | Documents user stories and bug reports as GitHub Issues with investigation tooling, filing them via `gh` with the `priority` label and parented to an epic |
 | `issue-executor` | End-to-end issue resolution orchestrator — takes a Linear issue URL, classifies bug vs story, routes bugs to lightweight (single-agent) or full (agent team) flow with flexible verification, and drives it to a reviewable PR |
 | `loose-ends` | Audits what merged PRs declared but never performed — unticked handover checklist steps, env vars declared in `docs/env-registry.json` but never set on Vercel/Render, and migrations applied to staging but not production. Scopes by exact branch comparison (on `origin/staging`, not on `origin/main`), verifies what is mechanically checkable, and batches every tick or deferral onto one `chore/close-loose-ends-YYYY-MM-DD` PR. Reports could-not-check honestly instead of rendering a failed check as a pass; never applies migrations or writes env values |
 | `tldr` | Replaces the end-of-task wall of prose with four fixed blocks — a two-line verdict, what the user must do, what went wrong, what shipped — under hard length ceilings, with the depth linked rather than inlined. Every required action carries an escalation tier (🔴 broken or blocked, 🟠 breaks at a named upcoming event, 🔵 nothing degrades if it waits) and the section header takes the highest tier present, so the worst thing in the block reads before any item does. Repeated items are marked with a count and must be justified or demoted by the third briefing. Each item may carry one optional indented detail line saying what breaks if it is skipped, so titles stay skimmable and reasoning stays opt-in. Fires on merges, migrations, infra changes and multi-step investigations; stays silent for questions and trivial edits |

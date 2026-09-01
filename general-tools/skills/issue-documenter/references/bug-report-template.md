@@ -1,6 +1,6 @@
 # Bug Report Template
 
-Use this exact structure when producing bug reports for Linear.
+Use this exact structure when producing bug reports as GitHub issues.
 
 ```markdown
 ## [Bug] [Short descriptive title]
@@ -71,15 +71,20 @@ Infer severity from evidence, user can override:
 | Partial functionality broken, workaround exists | **degraded** |
 | Visual/UI glitch, cosmetic issue | **cosmetic** |
 
-## Priority Mapping
+## Severity and Labels
 
-Map severity to Linear priority when creating issues in Step 5:
+GitHub has no priority field, so severity is carried by labels and stated in the report body.
 
-| Severity  | Linear Priority |
-|-----------|----------------|
-| blocking  | 1 (Urgent)     |
-| degraded  | 2 (High)       |
-| cosmetic  | 4 (Low)        |
+Every issue gets `priority` regardless of severity — see **Filing the Issue** in SKILL.md for
+why. Severity decides what goes *alongside* it:
+
+| Severity  | Labels                          |
+|-----------|---------------------------------|
+| blocking  | `priority`, `bug`, + area label |
+| degraded  | `priority`, `bug`, + area label |
+| cosmetic  | `priority`, `bug`               |
+
+State the severity as a line in the report body — that is where a reader actually sees it.
 
 ## Section Rules
 
