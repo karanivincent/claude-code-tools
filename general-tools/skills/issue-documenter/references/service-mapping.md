@@ -50,10 +50,11 @@ For each service, prefer MCP tools first, then CLI, then browser as last resort.
    - **Prerequisites:** Call `list_workspaces` first (auto-selects if only one) → then `list_services` to get the resource ID for the relevant service
 2. **Browser fallback:** via `TEST_RENDER_LOGS_URL`
 
-### Linear
-1. **MCP (primary):** `mcp__plugin_linear_linear__create_issue`, `update_issue`, `get_issue`
-   - **Prerequisite:** Call `list_teams` first → store team name for issue creation in Step 5
-   - Used for: reading existing issues (entry point 1), creating new issues (Step 5)
+### GitHub Issues
+1. **CLI (only):** `gh issue view`, `gh issue create`, `gh issue edit`, `gh label list`
+   - **Prerequisite:** none — resolve the repo with `gh repo view --json nameWithOwner -q .nameWithOwner`
+   - Used for: reading an existing issue (entry point 1), filing the report (Filing the Issue)
+   - No MCP probe needed; do not reach for a Linear tool
 
 ### Browser
 - Chrome MCP for reproduction and console/network inspection
@@ -67,7 +68,6 @@ Before gathering evidence, auto-probe tool availability using `ToolSearch`:
 Sentry  → ToolSearch("+sentry search issues")
 Vercel  → ToolSearch("+vercel runtime logs")
 Render  → ToolSearch("+render logs")
-Linear  → ToolSearch("+linear create issue")
 Chrome  → ToolSearch("+chrome tabs_context navigate")
 ```
 
