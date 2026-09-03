@@ -63,7 +63,7 @@ Agents and skills for GitHub issue workflows and SvelteKit testing.
 | `issue-workflow` | Manages GitHub Issues through full lifecycle |
 | `github-image-downloader` | Downloads images attached to GitHub issues for design review |
 
-### general-tools `v1.23.0`
+### general-tools `v1.26.0`
 
 Issue documentation workflows and non-Yond productivity skills.
 
@@ -76,6 +76,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `tldr` | Replaces the end-of-task wall of prose with four fixed blocks — a two-line verdict, what the user must do, what went wrong, what shipped — under hard length ceilings, with the depth linked rather than inlined. Every required action carries an escalation tier (🔴 broken or blocked, 🟠 breaks at a named upcoming event, 🔵 nothing degrades if it waits) and the section header takes the highest tier present, so the worst thing in the block reads before any item does. Repeated items are marked with a count and must be justified or demoted by the third briefing. Each item may carry one optional indented detail line saying what breaks if it is skipped, so titles stay skimmable and reasoning stays opt-in. Fires on merges, migrations, infra changes and multi-step investigations; stays silent for questions and trivial edits |
 | `in-flight` | Shows what work is actually in flight across every branch and worktree of a repo, and what each piece is waiting on — sorted into live (a session is on it now), review (open PR, with its blocker named: red CI, conflicts, changes requested, or just waiting for a merge), stalled (unmerged commits, no PR) and landed (merged, worktree still on disk). Detects squash merges by patch equivalence rather than commit count, so branches that already shipped stop reading as abandoned work; flags commits that exist on one machine only and worktrees holding undrained loose ends. Read-only, network-free, and silent when nothing is outstanding, so it suits a SessionStart hook |
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
+| `crit-prompt-framework` | Turns a rough problem or half-formed idea into a structured CRIT prompt (Context, Role, Interview, Task). Two modes: build the prompt block for pasting elsewhere, or run it directly — adopting the personas and interviewing one question at a time before recommending anything. Brackets missing numbers instead of inventing them, and hands back challenger/customer/constraint passes to stress-test the first answer |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
 ## Releases
