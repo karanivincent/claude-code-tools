@@ -80,6 +80,12 @@ flowchart TD
 
 This is where AI skills orchestrate the entire development process. Each skill hands off to the next like a relay race.
 
+> **Where these skills live.** Most of this pipeline has moved to the Yond marketplace —
+> `/story-breakdown`, `/pr-creator`, `/pr-reviewer`, `/pr-slack-announcer` and
+> `/pr-comment-resolver` ship from `yond-dev`, and `/design-implementer`, `/design-verify` and
+> `/figma-design-extractor` from `yond-design`. Only `/test-fixer` (`frontend-tools`) and
+> `/text-humanizer` (`general-tools`) still ship from this repo.
+
 ```mermaid
 flowchart TD
     INPUT["📦 Story + Figma + Acceptance Criteria"]
@@ -87,9 +93,9 @@ flowchart TD
     INPUT --> SB["/story-breakdown"]
     SB -->|"design doc"| DI["/design-implementer"]
     DI -->|"implemented code"| DV["/design-verify"]
-    DV -->|"verified & fixed"| PRR["/pr-review-and-fix"]
-    PRR -->|"reviewed & clean"| PRC["/pr-creator"]
-    PRC -->|"PR ready"| PSA["/pr-slack-announcer"]
+    DV -->|"verified & fixed"| PRC["/pr-creator"]
+    PRC -->|"PR #123 open"| PRR["/pr-reviewer --fix"]
+    PRR -->|"reviewed & clean"| PSA["/pr-slack-announcer"]
     PSA --> DONE["✅ Team Notified<br/>PR Ready for Review"]
 
     style INPUT fill:#FFF3E0,stroke:#FF9800
@@ -287,50 +293,17 @@ mindmap
 
 ---
 
-## Skill 4: `/pr-review-and-fix`
-
-> *"Review the code. Find the issues. Fix them. All in one pass."*
-
-Runs an AI code review across the changes, identifies problems, and automatically fixes them — no back-and-forth needed.
-
-```mermaid
-flowchart TD
-    CODE["💻 Implementation<br/>Changes"] --> DETECT["Auto-detect PR<br/>or Branch"]
-
-    DETECT --> REVIEW["🔍 AI Code Review"]
-
-    subgraph "Review Checks"
-        REVIEW --> C1["🐛 Debug Code<br/>& Console Logs"]
-        REVIEW --> C2["🔒 Security<br/>Vulnerabilities"]
-        REVIEW --> C3["📦 Type Safety<br/>& Imports"]
-        REVIEW --> C4["⚠️ Error<br/>Handling"]
-        REVIEW --> C5["🌍 i18n<br/>Compliance"]
-        REVIEW --> C6["📝 Naming<br/>Conventions"]
-        REVIEW --> C7["🏗️ Code<br/>Organization"]
-    end
-
-    C1 & C2 & C3 & C4 & C5 & C6 & C7 --> FINDINGS["📋 Findings"]
-
-    FINDINGS --> FIX["🔧 Auto-Fix<br/>All Issues"]
-    FIX --> COMMIT["📝 Commit<br/>Fixes"]
-    COMMIT --> COMMENT["💬 Post Summary<br/>on PR"]
-
-    style CODE fill:#E3F2FD,stroke:#1976D2
-    style FIX fill:#C8E6C9,stroke:#388E3C
-    style COMMENT fill:#E8F5E9,stroke:#4CAF50
-```
-
----
-
-## Skill 5: `/pr-creator`
+## Skill 4: `/pr-creator`
 
 > *"Package it up and ship it out."*
 
-Creates (or updates) the GitHub PR with a clean description, then waits for CI to pass.
+Creates (or updates) the GitHub PR with a clean description, then waits for CI to pass. The PR has
+to exist before the reviewer can run, because `/pr-reviewer --fix` reviews a PR by number and posts
+its summary back onto that PR.
 
 ```mermaid
 flowchart LR
-    CHANGES["✅ Reviewed Code"] --> CHECK{"Existing<br/>PR?"}
+    CHANGES["✅ Verified Code"] --> CHECK{"Existing<br/>PR?"}
 
     CHECK -->|No| CREATE["Create New PR<br/>→ dev branch"]
     CHECK -->|Yes| UPDATE["Update PR<br/>Description"]
@@ -341,12 +314,79 @@ flowchart LR
     CI -->|Pass ✅| READY["PR Ready"]
     CI -->|Fail ❌| NOTIFY["Alert Developer"]
 
-    READY --> NEXT["/pr-slack-announcer"]
+    READY --> NEXT["/pr-reviewer --fix"]
 
     style CHANGES fill:#E8F5E9,stroke:#4CAF50
     style CI fill:#FFF9C4,stroke:#FBC02D
     style READY fill:#C8E6C9,stroke:#388E3C
     style NEXT fill:#66BB6A,stroke:#66BB6A,color:#fff
+```
+
+---
+
+## Skill 5: `/pr-reviewer <pr> --fix`
+
+> *"Review the code. Argue with the review. Fix what survives."*
+
+Runs a multi-agent code review over the PR's diff, then triages the findings and applies the ones
+that hold up.
+
+**This replaces `/pr-review-and-fix`.** That skill was merged into `pr-reviewer` behind the `--fix`
+flag in `yond-dev` 0.8.0 and no longer exists — the old slash command resolves to nothing.
+
+Three things differ from the skill it replaces:
+
+- **The fixer is not the reviewer.** FixAgent never sees a lens's reasoning. It sees the finding,
+  the code and the repo's conventions — what a human triaging the review sees — and it is expected
+  to disagree with some of them. The old design fixed everything it was told to, which turned a
+  reviewer's false positive into a commit.
+- **It fixes, it does not refactor.** A finding that cannot be addressed without touching lines it
+  does not name, moving code between files or changing a signature is a `disagree`. Suggestions are
+  never acted on; they are the author's call.
+- **It has hard stops, not warnings.** It refuses a dirty working tree, a `HEAD` that moved since
+  the review, a failed review, and the `--ci` flag. Commit and push before you run it.
+
+The review reads the target repo's own conventions at runtime, so it carries no repo-specific
+knowledge. A repo can pin its rules in `.claude/pr-review/conventions.md` — add that file to
+`.prettierignore`, or prettier rewrites `## scope: **` as `## scope: \*\*` and every scoped rule
+matches nothing.
+
+```mermaid
+flowchart TD
+    PR["🔀 PR #123"] --> SETUP["Resolve conventions<br/>+ shard the diff"]
+
+    SETUP --> TIER{"Size &<br/>risk tier"}
+
+    TIER -->|trivial / standard| FEW["Dispatch<br/>2–3 lenses"]
+    TIER -->|full| ALL["Dispatch<br/>all 6 lenses"]
+
+    subgraph "Review Lenses"
+        L1["🐛 correctness"]
+        L2["📐 conventions"]
+        L3["🏗️ framework"]
+        L4["♿ a11y<br/>(full tier only)"]
+        L5["🕓 history"]
+        L6["💬 prior-feedback"]
+    end
+
+    FEW --> L1 & L2 & L3
+    ALL --> L1 & L2 & L3 & L4 & L5 & L6
+
+    L1 & L2 & L3 & L4 & L5 & L6 --> SCORE["🎯 Confidence scorer<br/>one per finding"]
+    SCORE --> META["⚖️ MetaReviewer<br/>consolidate + verdict"]
+    META --> REVIEW["📋 review-123.json"]
+
+    REVIEW --> TRIAGE{"FixAgent<br/>triage"}
+    TRIAGE -->|fix| APPLY["🔧 Apply · verify · commit · push"]
+    TRIAGE -->|disagree| WHY["📝 Reason recorded"]
+
+    APPLY --> COMMENT["💬 Post summary on PR"]
+    WHY --> MEM["🧠 MemoryAgent<br/>propose a conventions rule<br/>via PR"]
+
+    style PR fill:#E3F2FD,stroke:#1976D2
+    style APPLY fill:#C8E6C9,stroke:#388E3C
+    style COMMENT fill:#E8F5E9,stroke:#4CAF50
+    style WHY fill:#FFF3E0,stroke:#FF9800
 ```
 
 ---
@@ -396,13 +436,13 @@ flowchart TD
     FIG -->|"Original design"| DV
 
     DV["/design-verify"]
-    DV -->|"Verified + fixed code"| PRF
-
-    PRF["/pr-review-and-fix"]
-    PRF -->|"Clean, reviewed code"| PRC
+    DV -->|"Verified + fixed code"| PRC
 
     PRC["/pr-creator"]
-    PRC -->|"GitHub PR #123"| PSA
+    PRC -->|"GitHub PR #123"| PRR
+
+    PRR["/pr-reviewer --fix"]
+    PRR -->|"docs/reviews/review-123.json<br/>+ fix commit"| PSA
 
     PSA["/pr-slack-announcer"]
     PSA -->|"📢 Team notified"| DONE["✅ Ready for<br/>Human Review"]
@@ -412,8 +452,8 @@ flowchart TD
     style SB fill:#1B5E20,stroke:#1B5E20,color:#fff
     style DI fill:#2E7D32,stroke:#2E7D32,color:#fff
     style DV fill:#388E3C,stroke:#388E3C,color:#fff
-    style PRF fill:#43A047,stroke:#43A047,color:#fff
-    style PRC fill:#4CAF50,stroke:#4CAF50,color:#fff
+    style PRC fill:#43A047,stroke:#43A047,color:#fff
+    style PRR fill:#4CAF50,stroke:#4CAF50,color:#fff
     style PSA fill:#66BB6A,stroke:#66BB6A,color:#fff
     style DONE fill:#C8E6C9,stroke:#388E3C
 ```
@@ -429,9 +469,9 @@ flowchart TD
     subgraph "Main Pipeline"
         SB["/story-breakdown"] --> DI["/design-implementer"]
         DI --> DV["/design-verify"]
-        DV --> PRF["/pr-review-and-fix"]
-        PRF --> PRC["/pr-creator"]
-        PRC --> PSA["/pr-slack-announcer"]
+        DV --> PRC["/pr-creator"]
+        PRC --> PRR["/pr-reviewer --fix"]
+        PRR --> PSA["/pr-slack-announcer"]
     end
 
     FDE["/figma-design-extractor"] -.->|"Extracts design tokens"| SB
@@ -484,8 +524,8 @@ pie title Who Does What
 | **Story Breakdown** | **AI + Developer** | AI analyzes, developer reviews & approves |
 | **Implementation** | **AI Agents** | Parallel implementation in worktrees |
 | **Design Verification** | **AI** | Automated pixel-level comparison |
-| **Code Review & Fix** | **AI** | Automated review against learned patterns |
 | **PR Creation** | **AI** | Auto-generated PR with CI monitoring |
+| **Code Review & Fix** | **AI** | Multi-agent review, then triage — the fixer may disagree with a finding |
 | **Slack Announcement** | **AI** | Formatted message with deep links |
 | Human Code Review | Team | Final sign-off on quality and approach |
 | **Comment Resolution** | **AI + Developer** | AI fixes, developer approves approach |
@@ -556,7 +596,7 @@ flowchart TD
 | Story Breakdown | `/story-breakdown` | Story + Figma URL | `docs/{feature}-breakdown.md` |
 | Design Implementer | `/design-implementer` | Breakdown doc path | Implemented code on branch |
 | Design Verify | `/design-verify` | Breakdown doc path | `docs/{feature}-design-review.md` |
-| PR Review & Fix | `/pr-review-and-fix` | PR number (auto-detect) | Fixed code + PR comment |
 | PR Creator | `/pr-creator` | Current branch | GitHub PR |
+| PR Review & Fix | `/pr-reviewer <pr> --fix` | PR number (clean tree required) | `docs/reviews/review-<pr>.json` + fix commit + PR comment |
 | Slack Announcer | `/pr-slack-announcer` | PR number (auto-detect) | Slack message on clipboard |
 | Comment Resolver | `/pr-comment-resolver` | PR with comments | Resolved threads + fixes |
