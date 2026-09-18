@@ -67,8 +67,20 @@
     "path": "/elements/0/style/fontClass",
     "contains": "must be one of"
   },
+  "capture-controls": {
+    "path": "/0/reached",
+    "contains": "must be boolean"
+  },
   "capture-errors": {
     "path": "/axe",
     "contains": "must match at least one"
+  },
+  "profile--robot-org": {
+    "path": "/testData/robotOrganizationId",
+    "contains": "at least 1 character"
+  },
+  "capture--controls": {
+    "path": "/items/0/files/controls",
+    "contains": "must be string"
   }
 }

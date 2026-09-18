@@ -220,10 +220,12 @@ Pure logic takes plain data (a plan, a findings doc, file text) and lives in
 
 ## Artefacts
 
-Every artefact has a schema in `schemas/` (JSON Schema 2020-12, `schemaVersion` const 1, every
-object closed with `additionalProperties: false` except pure records) and is read and written
-through `readArtefact(paths, name, { key, optional })` / `writeArtefact(paths, name, value, { key })`,
-which validate both ways. A file only the CLI writes (state, ready, captures, unit files,
+Every artefact has a schema in `schemas/`: JSON Schema 2020-12, `schemaVersion` const 1, every
+object closed with `additionalProperties: false` except pure records. The one exception is the
+click-results file, a bare array with no `schemaVersion`; the capture manifest that names it
+carries one. Artefacts with a fixed path are read and written through
+`readArtefact(paths, name, { key, optional })` / `writeArtefact(paths, name, value, { key })`,
+which validate both ways; files beside a capture are checked with `validateAgainst(schema, value)`. A file only the CLI writes (state, ready, captures, unit files,
 sidefx, seedplan, preflight, candidates) that fails its schema is exit 5: tampered.
 
 | Artefact | Path | Schema | Writer | Main readers |
@@ -246,13 +248,23 @@ sidefx, seedplan, preflight, candidates) that fails its schema is exit 5: tamper
 | capture | `.delivery/<f>/captures/<runId>/capture.json` | capture | capture (C) | B1, A1, report |
 | capture log | beside it, named by `files.errors` | capture-errors | capture (C) | M10, M16, M17 (B1) |
 | capture dom | beside it, named by `files.dom` | dom | capture (C) | M5, M6, M9 (B1) |
+| click results | beside it, named by `files.controls` (`<key>.controls.json`), only when the capture clicked | capture-controls: `[{ testid, target, reached, why? }]` | capture (C) | M9 (B1) |
 | findings | `.delivery/<f>/findings.json` | findings | checks (B1, B2), auditors via the main session | ready, report, audit compile |
 | ready | `.delivery/<f>/ready.json` | ready | ready (A1) | hook, land, report |
 | state | `.delivery/<f>/state.json` | state | only through `lib/core/state.mjs` | status, gates |
 | punch list | `.delivery/<f>/punch-list.html` | (html) | audit compile (C) | the main session |
 
 File paths inside `capture.json` are relative to that capture run's directory. The `.txt`
-beside a render or capture holds one visible text element per line, in reading order.
+beside a render or capture holds one visible text element per line, in reading order. In a
+click-results entry, `target` is the plan control's target (a state id, `external` or `none`),
+`reached` is true when every marker of that target appeared after the click, and `why` says in
+one line what was missing when it did not.
+
+The profile has one optional section that spec 17 lacks, `testData` (spec 18, Portability):
+`mode` (`tenant`, the default when the section is absent; `database`; `none`) and
+`robotOrganizationId`, the organisation the repo's e2e robot writes to. Check M14 counts that
+organisation's rows before and after the PR's new e2e specs run; without the field, M14 says it
+did not count them.
 
 ## State and the journal
 
@@ -444,7 +456,8 @@ cross-slice call not in this table is a request to F, not a private agreement be
   `commit`, `addWorktree`, `cleanup`), `makeTempDir()`, `fakeClock(iso)` with `advance(ms)`.
 - **Fixtures**: synthetic and generic only (a fictional `example-org/example-repo`, feature
   `widgets`, fake numbers such as `15550100001`, `example.invalid` addresses). One valid and
-  one invalid example per schema live in `tests/fixtures/schemas/`; use `validExample(name)`,
+  one invalid example per schema live in `tests/fixtures/schemas/` (`<schema>--<variant>.invalid.json`
+  adds a defect for a field added after the first freeze); use `validExample(name)`,
   `makeProfile()`, `makeSafety()` as starting points. Slice fixtures go under
   `tests/fixtures/<area>/`.
 - **Replay tests** check behaviour on the private set of real artefacts from an earlier build,

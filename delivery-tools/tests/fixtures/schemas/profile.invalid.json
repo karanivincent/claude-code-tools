@@ -76,6 +76,10 @@
     },
     "previews": "vercel"
   },
+  "testData": {
+    "mode": "tenant",
+    "robotOrganizationId": "org-robot-0001"
+  },
   "auth": {
     "supportModule": "apps/web/e2e/support/session.ts",
     "signInFunction": "signIn",

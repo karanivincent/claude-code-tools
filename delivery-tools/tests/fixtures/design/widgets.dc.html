@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div style="font-family: sans-serif; padding: 16px">
+  <h1>{{ title }}</h1>
+  <nav style="display: flex; gap: 12px">
+    <sc-for list="{{ tabs }}" as="t">
+      <span onClick="{{ t.go }}" style="cursor: pointer">{{ t.label }}</span>
+    </sc-for>
+  </nav>
+  <sc-if value="{{ onList }}">
+    <p style="text-transform: uppercase">{{ countLine }}</p>
+    <sc-for list="{{ rows }}" as="r">
+      <div onClick="{{ r.open }}" style="cursor: pointer; display: flex; gap: 8px" data-testid="widget-row"><span>{{ r.name }}</span><span>{{ r.stock }}</span></div>
+    </sc-for>
+  </sc-if>
+  <sc-if value="{{ onSettings }}">
+    <p>Settings for {{ owner }} are saved as you type.</p>
+  </sc-if>
+  <sc-if value="{{ dlg }}">
+    <div role="dialog" data-testid="widget-dialog"><strong>{{ dlg.title }}</strong> <button onClick="{{ dlg.close }}">Close</button></div>
+  </sc-if>
+  <button onClick="{{ newWidget }}" style="color: {{ accent }}">New widget</button>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;empty&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;section&quot;:&quot;Demo data&quot;},&quot;tone&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;calm&quot;,&quot;loud&quot;],&quot;default&quot;:&quot;calm&quot;},&quot;limit&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:3,&quot;min&quot;:0,&quot;max&quot;:10}}">
+const WIDGETS = [
+  { name: 'Blue widget', stock: 4 },
+  { name: 'Red widget', stock: 1 },
+  { name: 'Green widget', stock: 0 }
+];
+
+class Component extends DCLogic {
+  state = { screen: 'list', dlg: null, menuOpen: false, picked: null, owner: 'Sam' };
+
+  set(patch) { this.setState(patch); }
+
+  renderVals() {
+    const items = this.props.empty === true ? [] : WIDGETS.slice(0, this.props.limit);
+    const n = items.length;
+    // a comment with a 'quoted' word and a ternary-looking ? : that is not code
+    return {
+      title: this.state.screen === 'list' ? 'Widgets' : 'Widget settings',
+      tabs: [
+        { label: 'List', go: () => this.set({ screen: 'list' }) },
+        { label: 'Settings', go: () => this.set({ screen: 'settings', menuOpen: !this.state.menuOpen }) }
+      ],
+      onList: this.state.screen === 'list',
+      onSettings: this.state.screen === 'settings',
+      owner: this.state.owner,
+      countLine: n ? n + (n === 1 ? ' widget' : ' widgets') + ' in stock' : 'No widgets yet',
+      rows: items.map((w) => ({
+        name: w.name,
+        stock: w.stock === 0 ? 'Sold out' : `${w.stock} left`,
+        open: () => this.set({ dlg: 'details', picked: w.name })
+      })),
+      dlg: this.state.dlg ? {
+        title: this.state.dlg === 'details' ? 'About ' + this.state.picked : 'New widget',
+        close: () => this.set({ dlg: null })
+      } : null,
+      newWidget: () => this.set({ dlg: sure ? 'create' : 'create-draft' }),
+      accent: this.props.tone === 'loud' ? 'var(--red)' : 'var(--grey)',
+      label: 'x used'.split(' used').join('')
+    };
+  }
+}
+const sure = /yes|no/.test('yes') && 2 / 1 > 1;
+</script>
+</body>
+</html>

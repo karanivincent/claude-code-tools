@@ -18,7 +18,8 @@
         "png": "WL-01.design.admin.1440.en.light.png",
         "txt": "WL-01.design.admin.1440.en.light.txt",
         "dom": "WL-01.design.admin.1440.en.light.dom.json",
-        "errors": "WL-01.design.admin.1440.en.light.errors.json"
+        "errors": "WL-01.design.admin.1440.en.light.errors.json",
+        "controls": "WL-01.design.admin.1440.en.light.controls.json"
       },
       "textSha256": "5555555555555555555555555555555555555555555555555555555555555555",
       "createdRowIds": []

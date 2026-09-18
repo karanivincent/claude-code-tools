@@ -7,8 +7,10 @@ import { SCHEMA_DIR, schemaNames, validateAgainst, assertValid, assertKeywords }
 import { FIXTURES_DIR, loadFixture } from '../helpers/fixtures.mjs';
 
 const SECTION_17 = ['profile', 'safety', 'intent', 'inventory', 'baseline', 'plan', 'unit-file', 'unit-report', 'sidefx', 'seedplan', 'capture', 'findings', 'state', 'ready'];
-const SUPPLEMENTARY = ['preflight', 'candidates', 'dom', 'capture-errors'];
+const SUPPLEMENTARY = ['preflight', 'candidates', 'dom', 'capture-errors', 'capture-controls'];
 const ARTEFACTS = [...SECTION_17, ...SUPPLEMENTARY];
+// A bare array has nowhere to carry schemaVersion; the capture manifest that names it does.
+const BARE_ARRAYS = ['capture-controls'];
 const raw = (name) => JSON.parse(readFileSync(join(SCHEMA_DIR, `${name}.schema.json`), 'utf8'));
 
 test('the schema set is exactly section 17 plus the documented supplements and common', () => {
@@ -24,8 +26,9 @@ test('every schema is 2020-12, has its $id, and uses only supported keywords', (
   }
 });
 
-test('every artefact requires schemaVersion const 1', () => {
-  for (const name of ARTEFACTS) {
+test('every artefact requires schemaVersion const 1, except the bare arrays', () => {
+  for (const name of BARE_ARRAYS) assert.equal(raw(name).type, 'array', name);
+  for (const name of ARTEFACTS.filter((n) => !BARE_ARRAYS.includes(n))) {
     const s = raw(name);
     assert.deepEqual(s.properties.schemaVersion, { const: 1 }, name);
     assert.ok(s.required.includes('schemaVersion'), name);
@@ -66,11 +69,20 @@ for (const name of ARTEFACTS) {
     const r = validateAgainst(name, loadFixture(`schemas/${name}.valid.json`));
     assert.equal(r.ok, true, JSON.stringify(r.errors));
   });
-  test(`${name}: the synthetic invalid example fails for its planted reason`, () => {
-    const r = validateAgainst(name, loadFixture(`schemas/${name}.invalid.json`));
+}
+
+test('every artefact has an invalid example, and every invalid example names a known schema', () => {
+  for (const name of ARTEFACTS) assert.ok(reasons[name], `${name} has no invalid example`);
+  for (const stem of Object.keys(reasons)) assert.ok(ARTEFACTS.includes(stem.split('--')[0]), stem);
+});
+
+// <schema>.invalid.json, plus <schema>--<variant>.invalid.json for fields added after the first freeze.
+for (const [stem, { path, contains }] of Object.entries(reasons)) {
+  const name = stem.split('--')[0];
+  test(`${stem}: the synthetic invalid example fails for its planted reason`, () => {
+    const r = validateAgainst(name, loadFixture(`schemas/${stem}.invalid.json`));
     assert.equal(r.ok, false);
-    const { path, contains } = reasons[name];
-    assert.ok(r.errors.some((e) => e.path === path && e.message.includes(contains)), `${name}: wanted ${path} ${contains}; got ${JSON.stringify(r.errors)}`);
+    assert.ok(r.errors.some((e) => e.path === path && e.message.includes(contains)), `${stem}: wanted ${path} ${contains}; got ${JSON.stringify(r.errors)}`);
   });
 }
 

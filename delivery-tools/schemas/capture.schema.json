@@ -36,7 +36,8 @@
               "png": { "type": "string" },
               "txt": { "type": "string" },
               "dom": { "type": "string" },
-              "errors": { "type": "string" }
+              "errors": { "description": "<key>.errors.json (schemas/capture-errors.schema.json).", "type": "string" },
+              "controls": { "description": "<key>.controls.json (schemas/capture-controls.schema.json), when the capture clicked the item's controls.", "type": "string" }
             }
           },
           "textSha256": { "$ref": "common.schema.json#/$defs/Sha256" },

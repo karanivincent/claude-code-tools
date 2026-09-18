@@ -110,11 +110,14 @@
       }
     },
     "testData": {
-      "description": "Optional (spec 18, Portability). tenant: fixture worlds are organisations in a shared test database (the default); database: a separate database per run; none: no seeding, every seeded state falls to component tests.",
+      "description": "Optional (spec 18, Portability). mode tenant: fixture worlds are organisations in a shared test database (the default); database: a separate database per run; none: no seeding, every seeded state falls to component tests. robotOrganizationId: the organisation the repo's e2e robot writes to, whose rows check M14 counts before and after the PR's new e2e specs run.",
       "type": "object",
       "additionalProperties": false,
       "required": ["mode"],
-      "properties": { "mode": { "enum": ["tenant", "database", "none"] } }
+      "properties": {
+        "mode": { "enum": ["tenant", "database", "none"] },
+        "robotOrganizationId": { "$ref": "common.schema.json#/$defs/Text" }
+      }
     },
     "auth": {
       "type": "object",
