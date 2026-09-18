@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delivery-tools.invalid/schemas/baseline.schema.json",
+  "title": "Baseline (docs/delivery/<feature>/baseline.json)",
+  "description": "Every capability of today's in-scope pages at a ref, with a signature the M2 diff compares (spec 5, 17.5). baseline --against <ref> writes the same shape.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "base", "capabilities", "refreshes"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "sha"],
+      "properties": {
+        "ref": { "$ref": "common.schema.json#/$defs/Text" },
+        "sha": { "$ref": "common.schema.json#/$defs/GitSha" }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "signature", "screen", "evidence"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/CapId" },
+          "kind": { "enum": ["route", "control", "api-call", "e2e-assertion", "copy-key", "data-field", "open-issue"] },
+          "signature": { "$ref": "common.schema.json#/$defs/Text" },
+          "screen": { "type": "string" },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["file", "line"],
+              "properties": {
+                "file": { "$ref": "common.schema.json#/$defs/Text" },
+                "line": { "type": "integer", "minimum": 1 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "refreshes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sha", "at", "added"],
+        "properties": {
+          "sha": { "$ref": "common.schema.json#/$defs/GitSha" },
+          "at": { "$ref": "common.schema.json#/$defs/Timestamp" },
+          "added": { "$ref": "common.schema.json#/$defs/Strings" }
+        }
+      }
+    }
+  }
+}

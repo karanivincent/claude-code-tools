@@ -1,0 +1,329 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delivery-tools.invalid/schemas/plan.schema.json",
+  "title": "Plan (docs/delivery/<feature>/plan.json)",
+  "description": "The spec: one row per design state and baseline capability, the worlds, units, contracts and Scope lines (spec 4.3, 17.6). spec.md is rendered from it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "feature", "epic", "scopeIssue", "scopeSnapshot", "worlds", "units", "contracts", "rows", "seed", "scope"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "feature": { "$ref": "common.schema.json#/$defs/Slug" },
+    "epic": { "$ref": "common.schema.json#/$defs/IssueNumber" },
+    "scopeIssue": { "type": ["integer", "null"], "minimum": 1 },
+    "scopeSnapshot": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+    "worlds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "orgName", "users", "notes"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/FileId" },
+          "kind": { "enum": ["design", "day-one", "messy", "empty", "limits"] },
+          "orgName": { "$ref": "common.schema.json#/$defs/Text" },
+          "users": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["role", "email"],
+              "properties": {
+                "role": { "$ref": "common.schema.json#/$defs/Role" },
+                "email": { "$ref": "common.schema.json#/$defs/Text" }
+              }
+            }
+          },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "units": { "type": "array", "items": { "$ref": "#/$defs/Unit" } },
+    "contracts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "file", "stub", "consumers"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/FileId" },
+          "file": { "$ref": "common.schema.json#/$defs/Text" },
+          "stub": { "$ref": "common.schema.json#/$defs/Text" },
+          "consumers": { "$ref": "common.schema.json#/$defs/Strings" }
+        }
+      }
+    },
+    "rows": { "type": "array", "items": { "$ref": "#/$defs/PlanRow" } },
+    "seed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["globalRows"],
+      "properties": {
+        "globalRows": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["table", "why"],
+            "properties": {
+              "table": { "$ref": "common.schema.json#/$defs/Text" },
+              "why": { "$ref": "common.schema.json#/$defs/Text" }
+            }
+          }
+        }
+      }
+    },
+    "scope": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["line", "rows", "kind", "text", "default", "appliesAtWave", "reply"],
+        "properties": {
+          "line": { "type": "string", "pattern": "^S\\d+$" },
+          "rows": { "$ref": "common.schema.json#/$defs/Strings" },
+          "kind": { "enum": ["cut-requested", "remove", "adapt-behaviour"] },
+          "text": { "$ref": "common.schema.json#/$defs/Text" },
+          "default": { "$ref": "common.schema.json#/$defs/Text" },
+          "appliesAtWave": { "$ref": "common.schema.json#/$defs/Count" },
+          "reply": { "type": ["string", "null"] }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "Unit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "issue", "kind", "wave", "files", "states", "capabilities", "risk", "model"],
+      "properties": {
+        "id": { "$ref": "common.schema.json#/$defs/FileId" },
+        "title": { "$ref": "common.schema.json#/$defs/Text" },
+        "issue": { "type": ["integer", "null"], "minimum": 1 },
+        "kind": { "enum": ["contract", "tooling", "backend", "shared-ui", "words", "screen", "stub-swap", "fix"] },
+        "wave": { "$ref": "common.schema.json#/$defs/Count" },
+        "files": { "$ref": "common.schema.json#/$defs/Strings" },
+        "states": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/Id" } },
+        "capabilities": { "$ref": "common.schema.json#/$defs/Strings" },
+        "risk": { "enum": ["normal", "high"] },
+        "model": { "enum": ["sonnet", "opus"] }
+      }
+    },
+    "AppStep": {
+      "oneOf": [
+        { "type": "object", "additionalProperties": false, "required": ["goto"], "properties": { "goto": { "$ref": "common.schema.json#/$defs/Text" } } },
+        {
+          "type": "object", "additionalProperties": false, "required": ["click"],
+          "properties": {
+            "click": {
+              "type": "object", "additionalProperties": false, "minProperties": 1,
+              "properties": { "testid": { "type": "string" }, "role": { "type": "string" }, "name": { "type": "string" } }
+            }
+          }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["type"],
+          "properties": {
+            "type": {
+              "type": "object", "additionalProperties": false, "required": ["testid", "text"],
+              "properties": { "testid": { "type": "string" }, "text": { "type": "string" } }
+            }
+          }
+        },
+        {
+          "type": "object", "additionalProperties": false, "required": ["select"],
+          "properties": {
+            "select": {
+              "type": "object", "additionalProperties": false, "required": ["testid", "value"],
+              "properties": { "testid": { "type": "string" }, "value": { "type": "string" } }
+            }
+          }
+        },
+        { "type": "object", "additionalProperties": false, "required": ["press"], "properties": { "press": { "$ref": "common.schema.json#/$defs/Text" } } },
+        {
+          "type": "object", "additionalProperties": false, "required": ["waitFor"],
+          "properties": {
+            "waitFor": {
+              "type": "object", "additionalProperties": false, "minProperties": 1,
+              "properties": { "testid": { "type": "string" }, "text": { "type": "string" } }
+            }
+          }
+        }
+      ]
+    },
+    "PlanRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "class", "owner", "requested", "invented", "data", "backend", "controls", "copy", "dayOne", "invariants"],
+      "properties": {
+        "id": { "$ref": "common.schema.json#/$defs/RowId" },
+        "class": { "enum": ["keep", "change", "new", "migrate", "remove", "adapt", "cut"] },
+        "owner": { "type": ["string", "null"] },
+        "requested": { "type": ["string", "null"] },
+        "invented": { "type": "boolean" },
+        "reason": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "text"],
+          "properties": {
+            "code": { "enum": ["money", "dials", "production", "new-vendor", "over-size", "product-rule", "unused"] },
+            "text": { "$ref": "common.schema.json#/$defs/Text" }
+          }
+        },
+        "issue": { "$ref": "common.schema.json#/$defs/IssueNumber" },
+        "scopeLine": { "type": "string", "pattern": "^S\\d+$" },
+        "migrateTo": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["file", "control"],
+          "properties": {
+            "file": { "$ref": "common.schema.json#/$defs/Text" },
+            "control": { "$ref": "common.schema.json#/$defs/Text" }
+          }
+        },
+        "adapt": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["rule", "designText", "productText"],
+          "properties": {
+            "rule": { "$ref": "common.schema.json#/$defs/Text" },
+            "designText": { "type": "string" },
+            "productText": { "type": "string" }
+          }
+        },
+        "route": { "type": "string" },
+        "component": { "type": "string" },
+        "data": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["table", "column", "exists", "verifiedBy"],
+            "properties": {
+              "table": { "$ref": "common.schema.json#/$defs/Text" },
+              "column": { "$ref": "common.schema.json#/$defs/Text" },
+              "exists": { "type": "boolean" },
+              "verifiedBy": { "enum": ["types", "verify-spec"] }
+            }
+          }
+        },
+        "backend": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["method", "route", "exists", "verifiedBy"],
+            "properties": {
+              "method": { "type": "string", "pattern": "^[A-Z]+$" },
+              "route": { "$ref": "common.schema.json#/$defs/Text" },
+              "discriminator": { "type": "string" },
+              "exists": { "type": "boolean" },
+              "verifiedBy": { "enum": ["route-file", "verify-spec"] },
+              "unit": { "type": "string" }
+            }
+          }
+        },
+        "reach": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["class", "world", "role", "steps"],
+          "properties": {
+            "class": { "enum": ["seeded", "action", "prop", "unseedable"] },
+            "world": { "type": "string" },
+            "role": { "$ref": "common.schema.json#/$defs/Role" },
+            "steps": { "type": "array", "items": { "$ref": "#/$defs/AppStep" } },
+            "intercept": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["method", "url", "status", "body"],
+              "properties": {
+                "method": { "type": "string", "pattern": "^[A-Z]+$" },
+                "url": { "$ref": "common.schema.json#/$defs/Text" },
+                "status": { "type": "integer", "minimum": 0, "maximum": 599 },
+                "body": { "type": "string" },
+                "timeoutMs": { "type": "integer", "minimum": 0 }
+              }
+            },
+            "test": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["file", "name"],
+              "properties": {
+                "file": { "$ref": "common.schema.json#/$defs/Text" },
+                "name": { "$ref": "common.schema.json#/$defs/Text" }
+              }
+            },
+            "why": { "enum": ["needs-live-call", "needs-carrier", "needs-time", "needs-third-party", "unsafe-to-seed"] }
+          }
+        },
+        "markers": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["text", "testids", "forbidden"],
+          "properties": {
+            "text": { "$ref": "common.schema.json#/$defs/Strings" },
+            "testids": { "$ref": "common.schema.json#/$defs/Strings" },
+            "forbidden": { "$ref": "common.schema.json#/$defs/Strings" },
+            "sameAs": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["state", "why"],
+              "properties": {
+                "state": { "$ref": "common.schema.json#/$defs/Id" },
+                "why": { "$ref": "common.schema.json#/$defs/Text" }
+              }
+            }
+          }
+        },
+        "controls": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "testid", "effect", "target"],
+            "properties": {
+              "label": { "type": "string" },
+              "testid": { "type": "string" },
+              "effect": { "$ref": "common.schema.json#/$defs/Effect" },
+              "target": { "$ref": "common.schema.json#/$defs/Target" },
+              "enabledWhen": { "type": "string" }
+            }
+          }
+        },
+        "permission": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["member"],
+          "properties": { "member": { "enum": ["hidden", "disabled", "enabled"] } }
+        },
+        "copy": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["key", "en", "plural"],
+            "properties": {
+              "key": { "$ref": "common.schema.json#/$defs/Text" },
+              "en": { "type": "string" },
+              "plural": { "type": "boolean" }
+            }
+          }
+        },
+        "dayOne": { "type": "boolean" },
+        "invariants": { "$ref": "common.schema.json#/$defs/Strings" },
+        "e2eMap": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["baseTest", "branchTest"],
+            "properties": {
+              "baseTest": { "$ref": "common.schema.json#/$defs/Text" },
+              "branchTest": { "$ref": "common.schema.json#/$defs/Text" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

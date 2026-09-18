@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delivery-tools.invalid/schemas/unit-report.schema.json",
+  "title": "Unit report (.delivery/<feature>/units/<id>.report.json)",
+  "description": "What a builder did, written once at the end of its work (spec 4.5, 17.7). Decisions and loose ends go here; the main session files them.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "unit", "branch", "commits", "statesDone", "statesNotDone", "testsAdded", "unitCheck", "decisions", "looseEnds"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "unit": { "$ref": "common.schema.json#/$defs/FileId" },
+    "branch": { "$ref": "common.schema.json#/$defs/Text" },
+    "commits": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/GitSha" } },
+    "statesDone": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/Id" } },
+    "statesNotDone": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "why"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/Id" },
+          "why": { "$ref": "common.schema.json#/$defs/Text" }
+        }
+      }
+    },
+    "testsAdded": { "$ref": "common.schema.json#/$defs/Strings" },
+    "unitCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command", "exit"],
+      "properties": {
+        "command": { "type": "string" },
+        "exit": { "type": "integer" }
+      }
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["title", "why", "undo"],
+        "properties": {
+          "title": { "$ref": "common.schema.json#/$defs/Text" },
+          "why": { "$ref": "common.schema.json#/$defs/Text" },
+          "undo": { "$ref": "common.schema.json#/$defs/Text" }
+        }
+      }
+    },
+    "looseEnds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["title", "body", "labels", "paths"],
+        "properties": {
+          "title": { "$ref": "common.schema.json#/$defs/Text" },
+          "body": { "$ref": "common.schema.json#/$defs/Text" },
+          "labels": { "$ref": "common.schema.json#/$defs/Strings" },
+          "paths": { "$ref": "common.schema.json#/$defs/Strings" }
+        }
+      }
+    }
+  }
+}

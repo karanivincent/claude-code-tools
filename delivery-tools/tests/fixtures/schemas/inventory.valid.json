@@ -1,0 +1,98 @@
+{
+  "schemaVersion": 1,
+  "feature": "widgets",
+  "designTreeSha256": "2222222222222222222222222222222222222222222222222222222222222222",
+  "candidates": [
+    {
+      "id": "C-001",
+      "kind": "set-target",
+      "source": "Widgets.dc.html:120",
+      "mappedTo": "WL-01"
+    },
+    {
+      "id": "C-002",
+      "kind": "list",
+      "source": "Widgets.dc.html:300",
+      "mappedTo": "WL-02"
+    },
+    {
+      "id": "C-003",
+      "kind": "shot",
+      "source": "shots/old-draft.png",
+      "mappedTo": null,
+      "excluded": {
+        "reason": "an earlier round, superseded"
+      }
+    }
+  ],
+  "states": [
+    {
+      "id": "WL-01",
+      "screen": "Widgets list",
+      "name": "Several widgets",
+      "reach": {
+        "kind": "click-path",
+        "steps": [
+          {
+            "click": "Widgets"
+          }
+        ]
+      },
+      "shots": [
+        "shots/list.png"
+      ],
+      "render": {
+        "status": "ok",
+        "txt": "WL-01.txt",
+        "png": "WL-01.png",
+        "dom": "WL-01.dom.json"
+      },
+      "controls": [
+        {
+          "label": "New widget",
+          "role": "button",
+          "target": "WL-03",
+          "effect": "free"
+        }
+      ]
+    },
+    {
+      "id": "WL-02",
+      "screen": "Widgets list",
+      "name": "No widgets yet",
+      "reach": {
+        "kind": "unspecified",
+        "unspecified": "empty"
+      },
+      "shots": [],
+      "render": {
+        "status": "impossible",
+        "why": "the design draws no empty list"
+      },
+      "controls": []
+    },
+    {
+      "id": "WL-03",
+      "screen": "Widgets list",
+      "name": "New widget dialog",
+      "reach": {
+        "kind": "prop",
+        "props": {
+          "dlg": "new"
+        }
+      },
+      "shots": [],
+      "render": {
+        "status": "ok"
+      },
+      "controls": [
+        {
+          "label": "Close",
+          "role": "button",
+          "target": "WL-01",
+          "effect": "none"
+        }
+      ]
+    }
+  ]
+}

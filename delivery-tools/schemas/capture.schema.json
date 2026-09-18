@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delivery-tools.invalid/schemas/capture.schema.json",
+  "title": "Capture manifest (.delivery/<feature>/captures/<runId>/capture.json)",
+  "description": "One capture run: every state, world, role, width, locale and theme it captured, reached or not (spec 6.2, 9, 17.10). File paths are relative to the capture run's directory.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "mode", "expectedSha", "baseUrl", "items"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "runId": { "$ref": "common.schema.json#/$defs/FileId" },
+    "mode": { "enum": ["baseline", "branch", "wave", "full", "staging", "real-org"] },
+    "expectedSha": { "$ref": "common.schema.json#/$defs/GitSha" },
+    "baseUrl": { "$ref": "common.schema.json#/$defs/Text" },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["state", "world", "role", "width", "locale", "theme", "status", "servedSha", "files", "textSha256", "createdRowIds"],
+        "properties": {
+          "state": { "$ref": "common.schema.json#/$defs/Id" },
+          "world": { "type": "string" },
+          "role": { "type": "string" },
+          "width": { "type": "integer", "minimum": 200 },
+          "locale": { "type": "string", "pattern": "^[a-z]{2}(-[A-Z]{2})?$" },
+          "theme": { "enum": ["light", "dark"] },
+          "status": { "enum": ["reached", "not-reached"] },
+          "why": { "type": "string" },
+          "servedSha": { "type": "string" },
+          "files": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["png", "txt", "dom"],
+            "properties": {
+              "png": { "type": "string" },
+              "txt": { "type": "string" },
+              "dom": { "type": "string" },
+              "errors": { "type": "string" }
+            }
+          },
+          "textSha256": { "$ref": "common.schema.json#/$defs/Sha256" },
+          "createdRowIds": { "$ref": "common.schema.json#/$defs/Strings" }
+        }
+      }
+    }
+  }
+}

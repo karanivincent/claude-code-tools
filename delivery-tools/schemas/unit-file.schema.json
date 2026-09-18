@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delivery-tools.invalid/schemas/unit-file.schema.json",
+  "title": "Unit file (.delivery/<feature>/units/<id>.json)",
+  "description": "Everything one builder needs besides its brief (spec 4.5, 17.7).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "unit", "rows", "contracts", "commands", "baseRef", "branch", "reportPath", "flight", "tried"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "unit": { "$ref": "plan.schema.json#/$defs/Unit" },
+    "rows": { "type": "array", "items": { "$ref": "plan.schema.json#/$defs/PlanRow" } },
+    "contracts": { "$ref": "common.schema.json#/$defs/Strings" },
+    "commands": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bootstrap", "unitCheck"],
+      "properties": {
+        "bootstrap": { "type": "string" },
+        "unitCheck": { "type": "string" }
+      }
+    },
+    "baseRef": { "$ref": "common.schema.json#/$defs/Text" },
+    "branch": { "$ref": "common.schema.json#/$defs/Text" },
+    "reportPath": { "$ref": "common.schema.json#/$defs/Text" },
+    "flight": { "type": "string" },
+    "tried": { "type": "string" }
+  }
+}

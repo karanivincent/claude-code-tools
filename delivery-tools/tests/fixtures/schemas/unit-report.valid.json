@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "unit": "U2",
+  "branch": "epic/101-widgets-U2",
+  "commits": [
+    "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  ],
+  "statesDone": [
+    "WL-01"
+  ],
+  "statesNotDone": [
+    {
+      "id": "WL-02",
+      "why": "waiting on the empty-state copy"
+    }
+  ],
+  "testsAdded": [
+    "apps/web/src/widgets/list.empty.test.tsx"
+  ],
+  "unitCheck": {
+    "command": "npm run typecheck",
+    "exit": 0
+  },
+  "decisions": [
+    {
+      "title": "Kept the old sort order",
+      "why": "the design shows none",
+      "undo": "one line in list.tsx"
+    }
+  ],
+  "looseEnds": [
+    {
+      "title": "Stale widget icon",
+      "body": "apps/web/src/widgets/icon.tsx:3 uses the old icon",
+      "labels": [
+        "bug"
+      ],
+      "paths": [
+        "apps/web/src/widgets/icon.tsx"
+      ]
+    }
+  ]
+}

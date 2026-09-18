@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delivery-tools.invalid/schemas/seedplan.schema.json",
+  "title": "Seed plan (.delivery/<feature>/seedplan.json)",
+  "description": "Every fixture row and user the run will write, with deterministic ids (spec 7.4, 17.9).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "project", "worlds", "rows", "users"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "runId": { "$ref": "common.schema.json#/$defs/FileId" },
+    "project": { "$ref": "common.schema.json#/$defs/Text" },
+    "worlds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "orgId"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/FileId" },
+          "orgId": { "$ref": "common.schema.json#/$defs/Text" }
+        }
+      }
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["world", "table", "id", "values"],
+        "properties": {
+          "world": { "type": "string" },
+          "table": { "$ref": "common.schema.json#/$defs/Text" },
+          "id": { "$ref": "common.schema.json#/$defs/Text" },
+          "values": { "type": "object", "additionalProperties": true }
+        }
+      }
+    },
+    "users": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["world", "role", "email", "id"],
+        "properties": {
+          "world": { "$ref": "common.schema.json#/$defs/FileId" },
+          "role": { "$ref": "common.schema.json#/$defs/Text" },
+          "email": { "$ref": "common.schema.json#/$defs/Text" },
+          "id": { "$ref": "common.schema.json#/$defs/Text" }
+        }
+      }
+    }
+  }
+}

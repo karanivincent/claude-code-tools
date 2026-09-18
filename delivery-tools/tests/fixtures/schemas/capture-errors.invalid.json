@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "console": [
+    {
+      "type": "error",
+      "text": "Failed to load resource",
+      "location": "http://localhost:4101/api/widgets"
+    }
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "url": "http://localhost:4101/api/widgets",
+      "status": 500,
+      "failure": null,
+      "intercepted": false,
+      "aborted": false
+    },
+    {
+      "method": "POST",
+      "url": "http://localhost:4101/api/widgets",
+      "status": 200,
+      "failure": null,
+      "intercepted": true,
+      "aborted": false
+    }
+  ],
+  "perf": {
+    "requestCount": 14,
+    "loadMs": 820.5
+  },
+  "axe": [
+    {
+      "id": "x",
+      "impact": "blocker",
+      "nodes": 1,
+      "help": ""
+    }
+  ]
+}

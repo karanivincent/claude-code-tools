@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delivery-tools.invalid/schemas/dom.schema.json",
+  "title": "Rendered DOM summary (<ID>.dom.json, design renders and captures alike)",
+  "description": "Supplementary schema (spec 17 is silent; shape from 4.2 step 3, M5, M6). Every visible text element and control with its box, role, accessible name and computed style, in reading order. The .txt file beside it holds the same elements' text, one per line.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "url", "viewport", "document", "fonts", "elements"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "url": { "type": "string" },
+    "viewport": { "$ref": "#/$defs/Size" },
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scrollWidth", "clientWidth", "scrollHeight"],
+      "properties": {
+        "scrollWidth": { "type": "number", "minimum": 0 },
+        "clientWidth": { "type": "number", "minimum": 0 },
+        "scrollHeight": { "type": "number", "minimum": 0 }
+      }
+    },
+    "fonts": {
+      "description": "Every font family the page's elements use, and whether document.fonts.check() says it loaded.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["family", "loaded"],
+        "properties": { "family": { "type": "string" }, "loaded": { "type": "boolean" } }
+      }
+    },
+    "elements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["i", "kind", "tag", "role", "name", "text", "testid", "box", "visible", "style", "icon", "clipped", "lines", "disabled"],
+        "properties": {
+          "i": { "$ref": "common.schema.json#/$defs/Count" },
+          "kind": { "enum": ["text", "control"] },
+          "tag": { "type": "string" },
+          "role": { "type": ["string", "null"] },
+          "name": { "type": ["string", "null"] },
+          "text": { "type": "string" },
+          "testid": { "type": ["string", "null"] },
+          "box": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["x", "y", "w", "h"],
+            "properties": {
+              "x": { "type": "number" }, "y": { "type": "number" },
+              "w": { "type": "number", "minimum": 0 }, "h": { "type": "number", "minimum": 0 }
+            }
+          },
+          "visible": { "type": "boolean" },
+          "style": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["fontFamily", "fontClass", "fontSize", "fontWeight", "textTransform", "letterSpacing", "color", "backgroundColor"],
+            "properties": {
+              "fontFamily": { "type": "string" },
+              "fontClass": { "enum": ["sans", "mono", "serif", "other"] },
+              "fontSize": { "type": "number", "minimum": 0 },
+              "fontWeight": { "type": "number", "minimum": 0 },
+              "textTransform": { "type": "string" },
+              "letterSpacing": { "description": "In px; 0 for normal.", "type": "number" },
+              "color": { "type": "string" },
+              "backgroundColor": { "type": "string" }
+            }
+          },
+          "icon": { "description": "An svg or icon font glyph is inside the element.", "type": "boolean" },
+          "clipped": { "description": "Content wider or taller than the element's box with overflow hidden.", "type": "boolean" },
+          "lines": { "description": "Rendered line count of the element's text.", "$ref": "common.schema.json#/$defs/Count" },
+          "disabled": { "type": ["boolean", "null"] }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "Size": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height"],
+      "properties": { "width": { "type": "integer", "minimum": 1 }, "height": { "type": "integer", "minimum": 1 } }
+    }
+  }
+}

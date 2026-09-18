@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delivery-tools.invalid/schemas/intent.schema.json",
+  "title": "Intent (docs/delivery/<feature>/intent.json)",
+  "description": "What the founder wants built; intent.md is rendered from it (spec 4.0, 17.3).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "feature", "epic", "sentence", "design", "job", "users", "inScope", "outOfScope", "requested", "widths", "themes", "locales", "rollout", "analytics", "redesign"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "feature": { "$ref": "common.schema.json#/$defs/Slug" },
+    "epic": { "type": ["integer", "null"], "minimum": 1 },
+    "sentence": { "$ref": "common.schema.json#/$defs/Text" },
+    "design": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter", "archiveSha256", "treeSha256", "project", "exportedAt", "snapshotDir"],
+      "properties": {
+        "adapter": { "enum": ["claude-design", "image-folder"] },
+        "archiveSha256": { "$ref": "common.schema.json#/$defs/Sha256" },
+        "treeSha256": { "$ref": "common.schema.json#/$defs/Sha256" },
+        "project": { "$ref": "common.schema.json#/$defs/Text" },
+        "exportedAt": { "$ref": "common.schema.json#/$defs/DateOrTimestamp" },
+        "snapshotDir": { "$ref": "common.schema.json#/$defs/Text" }
+      }
+    },
+    "job": { "$ref": "common.schema.json#/$defs/Text" },
+    "users": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "can"],
+        "properties": {
+          "role": { "$ref": "common.schema.json#/$defs/Text" },
+          "can": { "$ref": "common.schema.json#/$defs/Strings" }
+        }
+      }
+    },
+    "inScope": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["screen", "routes"],
+        "properties": {
+          "screen": { "$ref": "common.schema.json#/$defs/Text" },
+          "routes": { "$ref": "common.schema.json#/$defs/Strings" }
+        }
+      }
+    },
+    "outOfScope": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["screen", "why"],
+        "properties": {
+          "screen": { "$ref": "common.schema.json#/$defs/Text" },
+          "why": { "$ref": "common.schema.json#/$defs/Text" }
+        }
+      }
+    },
+    "requested": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "text", "source", "passWhen"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/Text" },
+          "text": { "$ref": "common.schema.json#/$defs/Text" },
+          "source": { "$ref": "common.schema.json#/$defs/Text" },
+          "passWhen": { "$ref": "common.schema.json#/$defs/Text" }
+        }
+      }
+    },
+    "widths": {
+      "type": "object",
+      "additionalProperties": { "enum": ["desktop-only", "no-break", "phone-required"] }
+    },
+    "themes": { "$ref": "common.schema.json#/$defs/Strings" },
+    "locales": { "type": "array", "items": { "type": "string", "pattern": "^[a-z]{2}(-[A-Z]{2})?$" } },
+    "rollout": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "why"],
+          "properties": { "mode": { "const": "all-at-once" }, "why": { "$ref": "common.schema.json#/$defs/Text" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mode", "flag", "why"],
+          "properties": {
+            "mode": { "const": "flag" },
+            "flag": { "$ref": "common.schema.json#/$defs/Text" },
+            "why": { "$ref": "common.schema.json#/$defs/Text" }
+          }
+        }
+      ]
+    },
+    "analytics": {
+      "oneOf": [
+        { "const": "none" },
+        {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["event", "when"],
+            "properties": {
+              "event": { "$ref": "common.schema.json#/$defs/Text" },
+              "when": { "$ref": "common.schema.json#/$defs/Text" }
+            }
+          }
+        }
+      ]
+    },
+    "redesign": { "type": "boolean" }
+  }
+}

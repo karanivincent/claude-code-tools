@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "feature": "widgets",
+  "epic": 101,
+  "sentence": "Redesign the widgets page to match the design.",
+  "design": {
+    "adapter": "claude-design",
+    "archiveSha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "treeSha256": "2222222222222222222222222222222222222222222222222222222222222222",
+    "project": "Widgets",
+    "exportedAt": "2026-01-14",
+    "snapshotDir": "docs/design/widgets"
+  },
+  "job": "Owners manage their widgets.",
+  "users": [
+    {
+      "role": "admin",
+      "can": [
+        "edit widgets"
+      ]
+    },
+    {
+      "role": "member",
+      "can": [
+        "view widgets"
+      ]
+    }
+  ],
+  "inScope": [
+    {
+      "screen": "Widgets list",
+      "routes": [
+        "/widgets"
+      ]
+    }
+  ],
+  "outOfScope": [
+    {
+      "screen": "Settings",
+      "why": "in the export for context only"
+    }
+  ],
+  "requested": [
+    {
+      "id": "R1-03",
+      "text": "An empty state with one clear action",
+      "source": "round 1 brief",
+      "passWhen": "the empty list shows one button"
+    }
+  ],
+  "widths": {
+    "Widgets list": "no-break"
+  },
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "locales": [
+    "en",
+    "fr"
+  ],
+  "rollout": {
+    "mode": "flag",
+    "why": "no flag named"
+  },
+  "analytics": "none",
+  "redesign": true
+}

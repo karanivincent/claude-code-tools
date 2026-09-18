@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "repo": {
+    "slug": "example-org/example-repo",
+    "base": "main",
+    "branchPrefix": "epic/",
+    "worktreeRoot": ".claude/worktrees"
+  },
+  "commands": {
+    "bootstrap": "node scripts/bootstrap.mjs --dir {dir} --port {port}",
+    "heavy": "node scripts/heavy.mjs -- '{cmd}'",
+    "gate": "npm run typecheck && npm run lint && npm test",
+    "unitCheck": "npm run typecheck && npx vitest run {spec}",
+    "devServer": "npm --prefix {dir} run dev -- --port {port}",
+    "prodBuild": "npm run build",
+    "prodStart": "npm start -- -p {port}",
+    "e2e": "npx playwright test {spec}",
+    "previewUrl": "PREVIEW_SHA={sha} node scripts/resolve-preview.mjs",
+    "versionProbe": "GET /api/version",
+    "ciWait": "node scripts/wait-for-checks.mjs {pr}",
+    "stagingDeployWait": "DEPLOY_SHA={sha} node scripts/wait-for-deploy.mjs",
+    "review": {
+      "skill": "example:reviewer",
+      "args": "{pr} --fix"
+    },
+    "loopTest": {
+      "command": "node scripts/loop-test.mjs --issue {epic} --pr {pr}",
+      "when": [
+        "apps/server/**"
+      ],
+      "stagingCommand": "node scripts/loop-test.mjs --issue {epic}"
+    },
+    "flight": "npm run flight",
+    "tried": "npm run tried -- {spec}",
+    "planner": "node scripts/planner.mjs",
+    "epicClose": "node scripts/close-epic.mjs {epic} --exit 0",
+    "migrationsOwed": "node scripts/migrations-owed.mjs",
+    "pendingProduction": "node scripts/pending-production.mjs",
+    "ledgerFetch": "node scripts/ledger.mjs --project {project}"
+  },
+  "paths": {
+    "designRoot": "docs/design",
+    "deliveryRoot": "docs/delivery",
+    "runRoot": ".delivery",
+    "handovers": "docs/handovers",
+    "e2eDir": "apps/web/e2e",
+    "captureSpec": "apps/web/e2e/delivery-capture.spec.ts",
+    "versionRoute": "apps/web/src/app/api/version/route.ts",
+    "messages": [
+      {
+        "locale": "en",
+        "file": "apps/web/messages/en.json"
+      },
+      {
+        "locale": "fr",
+        "file": "apps/web/messages/fr.json"
+      }
+    ],
+    "appRouteGlobs": [
+      "apps/web/src/app/**/page.tsx"
+    ],
+    "apiRouteGlobs": [
+      "apps/web/src/app/api/**/route.ts"
+    ],
+    "componentGlobs": [
+      "apps/web/src/components/**/*.tsx"
+    ],
+    "databaseTypes": "packages/types/src/database.ts"
+  },
+  "environments": {
+    "test": {
+      "name": "test",
+      "projectRef": "testprojectref",
+      "appUrl": "https://test.example.invalid"
+    },
+    "previews": "vercel"
+  },
+  "auth": {
+    "supportModule": "apps/web/e2e/support/session.ts",
+    "signInFunction": "signIn",
+    "robotAdminEmail": "robot-admin@example.invalid",
+    "robotMemberEmail": "robot-member@example.invalid"
+  },
+  "issues": {
+    "repo": "example-org/example-repo",
+    "epicLabels": [
+      "epic"
+    ],
+    "epicType": "Feature",
+    "childLabels": [
+      "enhancement"
+    ],
+    "scopeLabel": "needs-decision",
+    "polishLabels": [
+      "enhancement"
+    ],
+    "subIssues": true,
+    "markerPrefix": "delivery"
+  },
+  "claims": {
+    "mode": "open-draft-pr",
+    "verify": "planner",
+    "pathClaims": "none",
+    "runLabel": "delivery-run"
+  },
+  "decisions": {
+    "file": ".claude/decisions/{slug}.json",
+    "looseEnd": ".claude/loose-ends/{slug}.json",
+    "handoverPattern": "docs/handovers/{date}-{slug}-handover.md"
+  },
+  "founder": {
+    "github": "founder-login",
+    "reportFormat": "tldr",
+    "mergesOwnPRs": true
+  },
+  "baseline": {
+    "discriminators": [
+      "mode",
+      "action"
+    ]
+  },
+  "audit": {
+    "widths": [
+      1440,
+      390
+    ],
+    "phoneWidth": 390,
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "primaryLocale": "en",
+    "roles": [
+      "admin",
+      "member"
+    ],
+    "bannedWords": {
+      "en": [
+        "approve",
+        "persona"
+      ],
+      "fr": [
+        "approuver"
+      ]
+    },
+    "developerPhrases": [
+      "TODO",
+      "not built"
+    ],
+    "sameAsEnglishOk": [
+      "Widgets"
+    ],
+    "dateShape": "D Mon"
+  },
+  "limits": {
+    "builderParallel": 6,
+    "subagentCommandMinutes": 8,
+    "maxCuts": 5,
+    "overSizeHours": 6,
+    "maxAcceptedP2PerGroup": 3,
+    "maxAcceptedP2": 10,
+    "maxPropOrUnseedablePct": 20,
+    "maxFixWaves": 3,
+    "spotRecapturePct": 10
+  },
+  "release": {
+    "tagFormat": "v{n}-{slug}",
+    "prodTitlePrefix": "prod:",
+    "mergeMethod": "merge-commit"
+  },
+  "safetyFile": ".claude/delivery-safety.json"
+}

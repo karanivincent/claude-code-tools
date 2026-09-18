@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delivery-tools.invalid/schemas/safety.schema.json",
+  "title": "Safety file (.claude/delivery-safety.json)",
+  "description": "Founder-authored seed-safety rules (spec 7, 17.2, 18). The CLI only ever reads it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "approvedBy", "approvedAt", "productionRefs", "neverDial", "neverDialQueries", "fakeNumbers", "fakeEmailDomain", "fixtureUserPattern", "fixtureOrgPrefix", "workers", "forbiddenStates", "guards", "realOrg"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "approvedBy": { "$ref": "common.schema.json#/$defs/Text" },
+    "approvedAt": { "$ref": "common.schema.json#/$defs/DateOrTimestamp" },
+    "productionRefs": { "$ref": "common.schema.json#/$defs/Strings" },
+    "neverDial": { "type": "array", "items": { "type": "string", "pattern": "^\\+?\\d{6,15}$" } },
+    "neverDialQueries": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/Text" } },
+    "fakeNumbers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pattern", "sample", "probeSql"],
+      "properties": {
+        "pattern": { "$ref": "common.schema.json#/$defs/Text" },
+        "sample": { "$ref": "common.schema.json#/$defs/Text" },
+        "probeSql": { "type": "string" }
+      }
+    },
+    "fakeEmailDomain": { "type": "string", "pattern": "^[a-z0-9.-]+\\.[a-z]+$" },
+    "fixtureUserPattern": { "$ref": "common.schema.json#/$defs/Text" },
+    "fixtureOrgPrefix": { "$ref": "common.schema.json#/$defs/Text" },
+    "workers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tsGlobs", "sqlGlobs"],
+      "properties": {
+        "tsGlobs": { "$ref": "common.schema.json#/$defs/Strings" },
+        "sqlGlobs": { "$ref": "common.schema.json#/$defs/Strings" }
+      }
+    },
+    "forbiddenStates": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/Predicate" } },
+    "guards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "covers", "why", "probes"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/Slug" },
+          "covers": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^[a-z_][a-z0-9_]*:(\\*|[A-Za-z0-9._:#-]+)$" } },
+          "why": { "$ref": "common.schema.json#/$defs/Text" },
+          "probes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["sql", "expect"],
+              "properties": {
+                "sql": { "$ref": "common.schema.json#/$defs/Text" },
+                "expect": { "type": ["number", "string", "null"] }
+              }
+            }
+          }
+        }
+      }
+    },
+    "realOrg": {
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "observerEmail", "role"],
+          "properties": {
+            "id": { "$ref": "common.schema.json#/$defs/Text" },
+            "observerEmail": { "$ref": "common.schema.json#/$defs/Text" },
+            "role": { "$ref": "common.schema.json#/$defs/Role" }
+          }
+        }
+      ]
+    }
+  }
+}

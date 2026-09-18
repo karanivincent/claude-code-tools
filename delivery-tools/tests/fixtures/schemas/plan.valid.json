@@ -1,0 +1,230 @@
+{
+  "schemaVersion": 1,
+  "feature": "widgets",
+  "epic": 101,
+  "scopeIssue": 110,
+  "scopeSnapshot": "3333333333333333333333333333333333333333333333333333333333333333",
+  "worlds": [
+    {
+      "id": "design",
+      "kind": "design",
+      "orgName": "Delivery fixture · widgets design",
+      "users": [
+        {
+          "role": "admin",
+          "email": "delivery+widgets-design-admin@example.invalid"
+        }
+      ],
+      "notes": ""
+    }
+  ],
+  "units": [
+    {
+      "id": "U1",
+      "title": "Contracts and stubs",
+      "issue": 102,
+      "kind": "contract",
+      "wave": 0,
+      "files": [
+        "apps/web/src/widgets/contract.ts"
+      ],
+      "states": [],
+      "capabilities": [],
+      "risk": "high",
+      "model": "opus"
+    },
+    {
+      "id": "U2",
+      "title": "Widgets list",
+      "issue": 103,
+      "kind": "screen",
+      "wave": 1,
+      "files": [
+        "apps/web/src/widgets/list.tsx"
+      ],
+      "states": [
+        "WL-01",
+        "WL-02"
+      ],
+      "capabilities": [
+        "CAP-001"
+      ],
+      "risk": "normal",
+      "model": "sonnet"
+    }
+  ],
+  "contracts": [
+    {
+      "id": "shell",
+      "file": "apps/web/src/widgets/contract.ts",
+      "stub": "apps/web/src/widgets/shell.stub.tsx",
+      "consumers": [
+        "U2"
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "id": "WL-01",
+      "class": "change",
+      "owner": "U2",
+      "requested": null,
+      "invented": false,
+      "data": [
+        {
+          "table": "widgets",
+          "column": "name",
+          "exists": true,
+          "verifiedBy": "types"
+        }
+      ],
+      "backend": [
+        {
+          "method": "POST",
+          "route": "/api/widgets",
+          "discriminator": "mode=draft",
+          "exists": true,
+          "verifiedBy": "route-file"
+        }
+      ],
+      "controls": [
+        {
+          "label": "New widget",
+          "testid": "widgets-new",
+          "effect": "free",
+          "target": "WL-03",
+          "enabledWhen": "always"
+        }
+      ],
+      "copy": [
+        {
+          "key": "widgets.list.title",
+          "en": "Widgets",
+          "plural": false
+        }
+      ],
+      "dayOne": true,
+      "invariants": [
+        "at most one widget row shows Publish"
+      ],
+      "route": "/widgets",
+      "component": "apps/web/src/widgets/list.tsx",
+      "reach": {
+        "class": "seeded",
+        "world": "design",
+        "role": "admin",
+        "steps": [
+          {
+            "goto": "/widgets"
+          },
+          {
+            "waitFor": {
+              "testid": "widgets-list"
+            }
+          }
+        ]
+      },
+      "markers": {
+        "text": [
+          "Widgets",
+          "New widget"
+        ],
+        "testids": [
+          "widgets-list"
+        ],
+        "forbidden": [
+          "widgets-empty"
+        ]
+      },
+      "permission": {
+        "member": "hidden"
+      }
+    },
+    {
+      "id": "WL-02",
+      "class": "new",
+      "owner": "U2",
+      "requested": null,
+      "invented": false,
+      "data": [],
+      "backend": [],
+      "controls": [],
+      "copy": [],
+      "dayOne": false,
+      "invariants": [],
+      "reach": {
+        "class": "prop",
+        "world": "empty",
+        "role": "admin",
+        "steps": [],
+        "test": {
+          "file": "apps/web/src/widgets/list.empty.test.tsx",
+          "name": "renders the empty list"
+        }
+      },
+      "markers": {
+        "text": [
+          "No widgets yet"
+        ],
+        "testids": [
+          "widgets-empty"
+        ],
+        "forbidden": [
+          "widgets-list"
+        ]
+      }
+    },
+    {
+      "id": "CAP-002",
+      "class": "migrate",
+      "owner": "U2",
+      "requested": null,
+      "invented": false,
+      "data": [],
+      "backend": [],
+      "controls": [],
+      "copy": [],
+      "dayOne": false,
+      "invariants": [],
+      "migrateTo": {
+        "file": "apps/web/src/widgets/list.tsx",
+        "control": "Save as draft"
+      }
+    },
+    {
+      "id": "WL-03",
+      "class": "cut",
+      "owner": null,
+      "requested": "R1-03",
+      "invented": false,
+      "data": [],
+      "backend": [],
+      "controls": [],
+      "copy": [],
+      "dayOne": false,
+      "invariants": [],
+      "reason": {
+        "code": "money",
+        "text": "each use calls a paid service"
+      },
+      "issue": 104,
+      "scopeLine": "S1"
+    }
+  ],
+  "seed": {
+    "globalRows": []
+  },
+  "scope": [
+    {
+      "line": "S1",
+      "rows": [
+        "WL-03"
+      ],
+      "kind": "cut-requested",
+      "text": "Cut \"New widget\" (reason money).",
+      "default": "cut; follow-up #104",
+      "appliesAtWave": 1,
+      "reply": null
+    }
+  ]
+}
