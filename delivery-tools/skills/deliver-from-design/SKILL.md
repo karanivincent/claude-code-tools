@@ -35,6 +35,13 @@ phase you believe you finished can go red again, and that is the check working.
 1. **Run `delivery status` first and do what NEXT says.** If your memory and NEXT disagree, NEXT
    wins — it was computed from the files a moment ago and your memory was not. Load the skill NEXT
    names even when you are sure you remember it.
+
+   **`delivery intake` ends by naming a worktree, and a session cannot move into it.** A session is
+   bound to the worktree it started in, and so is every agent it dispatches: a subagent asked to
+   write into a different worktree is refused at the tool level, not by anything you can argue with.
+   So intake is the end of the first session. Open a new one **in the worktree intake named**, and
+   run everything after it from there. Found by running it: the first extractor dispatched from the
+   wrong worktree did all the reading correctly and then could not write its one file.
 2. **Leaf agents never dispatch agents.** Anything that will take longer than about eight minutes
    runs in *this* session with `run_in_background`, and you wait on the marker file it writes. A
    subagent's background children die with its turn.
