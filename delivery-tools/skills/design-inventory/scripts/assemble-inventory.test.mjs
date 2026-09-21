@@ -178,3 +178,26 @@ test('the script runs as a command: --help, then --json on a real directory', as
     assert.deepEqual(doc.data.counts, { candidates: 1, mapped: 1, excluded: 0, states: 1 });
   } finally { await rm(dir, { recursive: true, force: true }); }
 });
+
+// A plugin is reached through a symlink, and a symlink broke this silently. `import.meta.url` is
+// always the real path; `process.argv[1]` is the path the caller typed. Installed from a
+// marketplace that links to a checkout, the two differ, the run-directly guard was false, and the
+// script exited 0 having printed nothing and written nothing. A silent no-op that reports success
+// is the worst failure shape there is: the phase it belongs to just looks finished.
+test('run through a symlink it still runs, rather than exiting 0 in silence', async () => {
+  const { execFileSync } = await import('node:child_process');
+  const { mkdtempSync, symlinkSync } = await import('node:fs');
+  const { tmpdir } = await import('node:os');
+  const { join: j, dirname: d } = await import('node:path');
+  const { fileURLToPath: f } = await import('node:url');
+
+  const real = j(d(f(import.meta.url)), 'assemble-inventory.mjs');
+  const link = j(mkdtempSync(j(tmpdir(), 'assemble-link-')), 'assemble-inventory.mjs');
+  symlinkSync(real, link);
+
+  // --help is enough: it proves main() ran at all, which is the whole bug, and needs no fixture.
+  const viaLink = execFileSync('node', [link, '--help'], { encoding: 'utf8' });
+  const viaReal = execFileSync('node', [real, '--help'], { encoding: 'utf8' });
+  assert.ok(viaLink.trim().length > 0, 'through a symlink it printed nothing at all');
+  assert.equal(viaLink, viaReal, 'a symlink must not change what it does');
+});

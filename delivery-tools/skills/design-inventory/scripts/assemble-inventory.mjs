@@ -6,7 +6,7 @@
 // fails the inventory schema. Run it from the repository root, like the delivery CLI.
 
 import { readFile, readdir } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { validateAgainst } from '../../../lib/core/schema.mjs';
@@ -226,7 +226,23 @@ export async function main(argv, io = {}) {
   return ok ? 0 : 1;
 }
 
-if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+/**
+ * Was this file run, rather than imported? Both sides are resolved through the filesystem first.
+ *
+ * A PLUGIN IS REACHED THROUGH A SYMLINK, AND A SYMLINK BROKE THIS SILENTLY. `import.meta.url`
+ * is always the real path; `process.argv[1]` is the path the caller typed. Installed from a
+ * marketplace that links to a checkout, the two differ, this guard is false, `main` never runs —
+ * and the script exits 0 having printed nothing and written nothing. A silent no-op that reports
+ * success is the worst failure shape there is: the phase it belongs to just looks finished.
+ * Found on the first real run of it, 2026-09-21.
+ */
+function runDirectly() {
+  const arg = process.argv[1];
+  if (!arg) return false;
+  try { return pathToFileURL(realpathSync(arg)).href === import.meta.url; } catch { return false; }
+}
+
+if (runDirectly()) {
   main(process.argv.slice(2)).then((code) => { process.exitCode = code; }, (err) => {
     process.stdout.write(`FAIL internal ${err.message}\n`);
     process.exitCode = 1;
