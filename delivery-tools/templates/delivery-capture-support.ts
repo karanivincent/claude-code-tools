@@ -93,6 +93,8 @@ export interface CaptureJob {
   auth: { module: string; fn: string };
   webServer: CaptureWebServer | null;
   settleMs: number;
+  /** Selectors for loading indicators a capture must never photograph. Defaults to DEFAULT_LOADING. */
+  loadingSelectors?: string[];
   items: CaptureItem[];
   targets: Record<string, { text: string[]; testids: string[] }>;
 }
@@ -228,15 +230,127 @@ async function settle(page: Page, ms: number): Promise<void> {
   await page.waitForTimeout(ms);
 }
 
-function locate(page: Page, c: NonNullable<CaptureStep['click']>) {
-  if (c.testid) return page.getByTestId(c.testid);
-  if (c.role) return page.getByRole(c.role as Parameters<Page['getByRole']>[0], c.name ? { name: c.name } : {});
-  return page.getByText(c.name ?? '', { exact: true });
+/** The loading indicators a capture must never photograph, when the job names none of its own. */
+const DEFAULT_LOADING = ['[aria-busy="true"]', '[role="progressbar"]', '[data-testid$="-loading"]'];
+
+/**
+ * Which loading indicators are still visible, having waited up to `ms` for them to go.
+ *
+ * PROVING A CLICK LANDED IS NOT PROVING THE PANEL FINISHED LOADING. `settle` waits for
+ * `networkidle`, which returns immediately when a client-rendered panel fetches nothing, and for
+ * fonts, which say nothing about data. A capture taken then photographs the skeleton, and every
+ * check downstream reads a page whose markers have not been rendered yet: the markers are reported
+ * missing, the text parity is measured against placeholder boxes, and the whole state is judged
+ * against something the product never shows a person.
+ *
+ * Returning the list rather than throwing keeps the decision with the caller: a state that is
+ * still loading is `unavailable` with a reason, which is honest, rather than a wrong comparison.
+ */
+async function stillLoading(page: Page, selectors: string[], ms: number): Promise<string[]> {
+  const deadline = Date.now() + ms;
+  for (;;) {
+    const loading = await page.evaluate((sel: string[]) =>
+      Array.from(document.querySelectorAll(sel.join(',')))
+        .filter((el) => {
+          const box = el.getBoundingClientRect();
+          if (box.width < 1 || box.height < 1) return false;
+          const cs = getComputedStyle(el);
+          return cs.visibility !== 'hidden' && cs.display !== 'none' && cs.opacity !== '0';
+        })
+        .map((el) => el.getAttribute('data-testid') || el.tagName.toLowerCase()), selectors).catch(() => null);
+    // A torn-down execution context is not an answer. Ask again.
+    if (loading !== null && loading.length === 0) return [];
+    if (Date.now() >= deadline) return loading ?? ['the page never answered'];
+    await page.waitForTimeout(150);
+  }
+}
+
+/** Settle, then refuse to photograph a page that is still loading. */
+async function settled(page: Page, job: CaptureJob): Promise<void> {
+  await settle(page, job.settleMs);
+  const loading = await stillLoading(page, job.loadingSelectors ?? DEFAULT_LOADING, 15_000);
+  if (loading.length) throw new Error(`still loading after 15s (${loading.slice(0, 6).join(', ')})`);
+}
+
+/**
+ * The one visible element a click step addresses, or an error saying why there is not exactly one.
+ *
+ * AMBIGUITY IS AN ERROR, NOT SOMETHING TO RESOLVE BY TAKING THE FIRST. Two controls can carry one
+ * label -- a rail tab named "Knowledge" and a sidebar link named "Knowledge" -- and `.first()`
+ * took the sidebar, navigated off the screen entirely, and the retry below watched the page change
+ * and called it a success. The capture recorded a different PAGE under this state's id, and every
+ * marker the checks then reported missing was really present, somewhere else. A step that names
+ * two controls has not said what it meant; the state is `unavailable` until it does.
+ */
+async function resolveClick(page: Page, c: NonNullable<CaptureStep['click']>) {
+  if (c.testid) {
+    const byTestId = page.getByTestId(c.testid);
+    // WAIT BEFORE COUNTING. `count()` answers about the DOM at that instant, and `networkidle`
+    // returns before a client-rendered control is painted, because no request was made.
+    if (!(await byTestId.first().isVisible().catch(() => false))) {
+      await byTestId.first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => undefined);
+    }
+    const hits = await byTestId.count();
+    if (hits === 1) return byTestId;
+    // Name the page it was actually on: a step that fails because the goto landed elsewhere reads
+    // identically to one that fails because the control is missing.
+    const seen = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('[data-testid]')).map((e) => e.getAttribute('data-testid'))).catch(() => []);
+    throw new Error(hits === 0
+      ? `no visible element carries data-testid="${c.testid}" on ${page.url()}, which carries ${seen.length} test ids${seen.length ? `: ${seen.slice(0, 12).join(', ')}` : ''}`
+      : `data-testid="${c.testid}" matches ${hits} elements, so this step does not address one control`);
+  }
+  if (c.role) {
+    const byRole = page.getByRole(c.role as Parameters<Page['getByRole']>[0], c.name ? { name: c.name, exact: true } : {});
+    const n = await byRole.count();
+    if (n > 1) throw new Error(`role ${c.role}${c.name ? ` named "${c.name}"` : ''} matches ${n} visible controls, so this step is ambiguous`);
+    if (n === 0) throw new Error(`no visible ${c.role}${c.name ? ` named "${c.name}"` : ''} on ${page.url()}`);
+    return byRole;
+  }
+  const byText = page.getByText(c.name ?? '', { exact: true });
+  const n = await byText.count();
+  if (n > 1) throw new Error(`"${c.name}" matches ${n} visible elements by text, so this step is ambiguous`);
+  if (n === 0) throw new Error(`nothing reads exactly "${c.name}" on ${page.url()}`);
+  return byText;
+}
+
+/**
+ * Click, and prove the page moved. Up to three attempts.
+ *
+ * A CLICK THAT DID NOTHING IS INVISIBLE WITHOUT THIS. A tab clicked before React attached its
+ * handler does nothing at all, and `waitUntil: 'networkidle'` returns at once because no request
+ * was made -- so the capture records the page it was already on, under the next state's id.
+ *
+ * Watch for the move, do not sample once. A client-side navigation makes no request and updates
+ * the URL and the body a tick later; a single sample taken then reads a click that WORKED as a
+ * click that did nothing, and the next attempt then hunts for the control on the page it has just
+ * successfully left.
+ */
+async function clickAndVerify(page: Page, c: NonNullable<CaptureStep['click']>): Promise<void> {
+  const fingerprint = () => page.evaluate(() => `${location.href}|${document.body.innerText.length}`);
+  const before = await fingerprint();
+  const movedWithin = async (ms: number): Promise<boolean> => {
+    const deadline = Date.now() + ms;
+    for (;;) {
+      // Mid-navigation the execution context can be torn down; that is not an answer.
+      const now = await fingerprint().catch(() => before);
+      if (now !== before) return true;
+      if (Date.now() >= deadline) return false;
+      await page.waitForTimeout(100);
+    }
+  };
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await (await resolveClick(page, c)).click({ timeout: 10_000 });
+    if (await movedWithin(5_000)) return;
+    await page.waitForTimeout(500 * attempt);
+  }
+  const what = c.testid ? `data-testid="${c.testid}"` : `"${c.name}"`;
+  throw new Error(`clicking ${what} changed nothing after 3 attempts; the handler had probably not attached`);
 }
 
 async function runStep(page: Page, step: CaptureStep): Promise<void> {
   if (step.goto !== undefined) { await page.goto(step.goto); return; }
-  if (step.click) { await locate(page, step.click).first().click({ timeout: 10_000 }); return; }
+  if (step.click) { await clickAndVerify(page, step.click); return; }
   if (step.type) { await page.getByTestId(step.type.testid).first().fill(step.type.text, { timeout: 10_000 }); return; }
   if (step.select) { await page.getByTestId(step.select.testid).first().selectOption(step.select.value, { timeout: 10_000 }); return; }
   if (step.press) { await page.keyboard.press(step.press); return; }
@@ -429,15 +543,19 @@ async function clickControls(context: BrowserContext, job: CaptureJob, item: Cap
     watch(page, job, scratch, marks, meta, { n: 0 });
     try {
       await reach(page, job, item, { ...meta, steps: [] }, false);
-      await settle(page, job.settleMs);
+      // `settled`, not `settle`: a control that has not rendered yet is not a missing control, and
+      // a target whose panel is still a skeleton has not failed to be reached.
+      await settled(page, job);
       const st = await controlState(page, c);
+      const hits = await page.getByTestId(c.testid).count();
       if (!st.found) r.why = 'no element has this test id';
+      else if (hits > 1) r.why = `${hits} elements carry this test id, so it does not address one control`;
       else if (!st.visible) r.why = 'not visible';
       else if (!st.enabled) r.why = 'disabled';
       else if (c.effect !== 'none' && c.effect !== 'free') r.why = `not clicked: its effect is ${c.effect}`;
       else {
-        await page.getByTestId(c.testid).first().click({ timeout: 10_000 });
-        await settle(page, job.settleMs);
+        await page.getByTestId(c.testid).click({ timeout: 10_000 });
+        await settled(page, job);
         const target = job.targets[c.target];
         const missing = target ? await markersShown(page, target) : [];
         r.reached = missing.length === 0;
@@ -485,7 +603,7 @@ export async function captureItem(browser: Browser, job: CaptureJob, item: Captu
     watch(page, job, log, marks, meta, counter);
     const t0 = Date.now();
     await reach(page, job, item, meta, saved === undefined);
-    await settle(page, job.settleMs);
+    await settled(page, job);
     log.perf.loadMs = Date.now() - t0;
     if (saved === undefined) sessions.set(item.email, await context.storageState());
     meta.finalUrl = page.url();

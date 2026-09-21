@@ -8,14 +8,79 @@ import { foldTypography, excerpt } from './text.mjs';
 const norm = (s) => foldTypography(s ?? '').toLowerCase();
 const ROLE_ALIASES = { a: 'link', link: 'link', button: 'button', select: 'select', combobox: 'select', listbox: 'select', checkbox: 'checkbox', switch: 'switch', tab: 'tab', textbox: 'textbox', input: 'textbox' };
 
-function parseColor(c) {
-  const m = /rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+%?))?\s*\)/i.exec(String(c));
-  if (!m) return null;
-  return [Number(m[1]), Number(m[2]), Number(m[3])];
+const clamp01 = (n) => (n < 0 ? 0 : n > 1 ? 1 : n);
+/** Linear-light channel to the sRGB byte a browser reports. */
+const gamma = (u) => Math.round(255 * clamp01(u <= 0.0031308 ? 12.92 * u : 1.055 * u ** (1 / 2.4) - 0.055));
+/** A number, or a percentage of `full`. */
+const scalar = (v, full) => (String(v).endsWith('%') ? (parseFloat(v) / 100) * full : parseFloat(v));
+
+/** Oklab to sRGB bytes (Björn Ottosson's matrices), so an oklch colour can be compared with an rgb one. */
+function oklabToRgb(L, a, b) {
+  const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+  const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+  const s = (L - 0.0894841775 * a - 1.2914855480 * b) ** 3;
+  return [
+    gamma(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
+    gamma(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
+    gamma(-0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s),
+  ];
+}
+
+function hslToRgb(h, sPct, lPct) {
+  const S = sPct / 100, L = lPct / 100;
+  const k = (n) => (n + h / 30) % 12;
+  const A = S * Math.min(L, 1 - L);
+  const f = (n) => L - A * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return [Math.round(255 * f(0)), Math.round(255 * f(8)), Math.round(255 * f(4))];
+}
+
+/**
+ * A CSS colour as sRGB bytes, whatever notation it is written in.
+ *
+ * ONE COLOUR IN TWO NOTATIONS IS ONE COLOUR. This read `rgb()` alone for a long time, while the
+ * products it measures ship `oklch()`; a token written oklch on the design side and reported as
+ * rgb by the browser came back `Infinity` apart, so every colour difference was reported and none
+ * could ever be trusted. Comparing notations rather than colours is the same mistake as comparing
+ * two spellings of one string, and `foldTypography` already refuses to make it for text.
+ *
+ * @param {string} c
+ * @returns {[number, number, number] | null} sRGB 0-255, or null when the notation is unknown.
+ */
+export function parseColor(c) {
+  const str = String(c).trim();
+
+  const rgb = /rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+%?))?\s*\)/i.exec(str);
+  if (rgb) return [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])];
+
+  const hex = /^#([0-9a-f]{3,8})$/i.exec(str);
+  if (hex) {
+    const h = hex[1];
+    const pair = (i) => parseInt(h.length <= 4 ? h[i] + h[i] : h.slice(i * 2, i * 2 + 2), 16);
+    if (h.length === 3 || h.length === 4 || h.length === 6 || h.length === 8) return [pair(0), pair(1), pair(2)];
+    return null;
+  }
+
+  // oklch(L C H) and oklab(L a b). L is 0-1 or a percentage; C's 100% is 0.4; H is degrees.
+  const ok = /^okl(ch|ab)\(\s*([\d.%]+)[,\s]+(-?[\d.%]+)[,\s]+(-?[\d.]+)(?:deg)?(?:[,\s/]+[\d.]+%?)?\s*\)$/i.exec(str);
+  if (ok) {
+    const L = scalar(ok[2], 1);
+    if (ok[1].toLowerCase() === 'ch') {
+      const C = scalar(ok[3], 0.4);
+      const H = (Number(ok[4]) * Math.PI) / 180;
+      return oklabToRgb(L, C * Math.cos(H), C * Math.sin(H));
+    }
+    return oklabToRgb(L, scalar(ok[3], 0.4), scalar(ok[4], 0.4));
+  }
+
+  const hsl = /hsla?\(\s*(-?[\d.]+)(?:deg)?[,\s]+([\d.]+)%[,\s]+([\d.]+)%(?:[,\s/]+[\d.]+%?)?\s*\)/i.exec(str);
+  if (hsl) return hslToRgb(Number(hsl[1]), Number(hsl[2]), Number(hsl[3]));
+
+  if (/^(transparent|rgba?\(0,\s*0,\s*0,\s*0\))$/i.test(str)) return null;
+  return null;
 }
 /** Colours within this distance count as the same design token. */
 export const COLOR_TOLERANCE = 24;
-function colorDistance(a, b) {
+export function colorDistance(a, b) {
   const x = parseColor(a), y = parseColor(b);
   if (!x || !y) return a === b ? 0 : Infinity;
   return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]);
