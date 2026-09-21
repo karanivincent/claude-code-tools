@@ -78,6 +78,34 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
+### delivery-tools `v0.1.0` — not released yet
+
+Turns a design export into one reviewed, verified pull request built by agents. It is listed in the
+marketplace so it can be installed from a local checkout; it has not been released, and the Trust
+rule in its own spec means no real feature runs through it until both halves of section 20 pass.
+
+**Agents:**
+
+| Agent | Description |
+|-------|-------------|
+| `delivery-extractor` | Reads a design export or a Scope reply and writes one part file. Runs nothing, opens no browser, and takes every word from a render rather than from the design's source |
+| `delivery-builder` | Builds one unit of the coverage plan in its own worktree, against a brief the run wrote for it, and reports back |
+| `delivery-auditor` | Judges captured screens against the design and writes findings, never `findings.json` itself |
+
+**Skills:**
+
+| Skill | Description |
+|-------|-------------|
+| `deliver-from-design` | The umbrella. Names which skill owns each phase and what may never happen in any of them — deliberately short, because a summary is what gets followed instead of the skill |
+| `design-inventory` | Turns a design into a complete list of its screens, states, controls and exact words before anything is planned, and lists what an existing page already does before it is redesigned |
+| `coverage-plan` | Turns that inventory into one row per state and per capability, each with a class, an owning build unit and how a capture reaches it |
+| `epic-build` | Builds the plan's units with parallel builders, wave by wave, into one integration branch and one draft pull request |
+| `design-audit` | Captures the built screens and judges them against the design, with severity floors nobody may lower to get a green |
+
+**CLI:** `delivery <command>` — 37 commands holding the run's state and its gates, from `intake`
+through `ready` and `land`. `delivery status` prints the one NEXT line the whole system is steered
+by.
+
 ## Releases
 
 Releases are automated via GitHub Actions. When a plugin version is bumped in `plugin.json` and pushed to `main`, a GitHub Release is created automatically with the tag `{plugin-name}/v{version}`.

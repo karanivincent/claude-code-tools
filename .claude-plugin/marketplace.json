@@ -13,6 +13,11 @@
       "name": "general-tools",
       "source": "./general-tools",
       "description": "General-purpose skills for git workflows, repository maintenance, and developer productivity"
+    },
+    {
+      "name": "delivery-tools",
+      "source": "./delivery-tools",
+      "description": "Build a designed feature into one pull request with agents: design inventory, coverage plan, build waves, per-wave audit and a readiness gate"
     }
   ]
 }
