@@ -28,6 +28,7 @@ request in its report and works around it locally.
 | Path | Owner |
 |---|---|
 | `docs/ARCHITECTURE.md` | F |
+| `docs/**` | F |
 | `bin/delivery.mjs` | F |
 | `scripts/build-manifest.mjs` | F |
 | `MANIFEST.sha256` | F |
@@ -100,6 +101,7 @@ request in its report and works around it locally.
 | `tests/capture/**` | C |
 | `tests/report/**` | C |
 | `tests/fixtures/design/**` | C |
+| `tests/fixtures/capture/**` | C |
 | `skills/**` | — |
 | `agents/**` | — |
 | `briefs/**` | — |
@@ -422,6 +424,11 @@ cross-slice call not in this table is a request to F, not a private agreement be
 
 ## Tests
 
+- **The whole suite is two globs**, because a skill carries its own script tests beside the
+  script rather than under `tests/`: `node --test 'tests/**/*.test.mjs' 'skills/**/*.test.mjs'`.
+  A `*.test.mjs` file neither glob reaches is a test nobody runs, which is how
+  `skills/design-inventory/scripts/assemble-inventory.test.mjs` went unrun for the whole build;
+  `tests/core/suite-globs.test.mjs` fails on any such file.
 - `node --test tests/<area>/` per slice; `node --test tests/core/` must stay green for everyone.
   No network; each file under about five seconds. Node 22 and later treat a directory argument
   to `--test` as a module path, so `tests/core/` carries a two-file shim (`package.json` whose
