@@ -107,7 +107,7 @@ function guard(backend, { projectRef, write }) {
         }
         if (!ID.test(String(r.id ?? ''))) throw new DeliveryError(EXIT.USAGE, `upsert into ${table}: every row needs an id`, { code: 'seed' });
       }
-      return backend.upsert(table, rows);
+      return backend.upsert(table, rows, o);
     } : refuse('upsert'),
     deleteByIds: allowed.has('deleteByIds') ? async (table, ids) => {
       assertTable(table);
@@ -179,8 +179,11 @@ function httpBackend(env, projectRef, fetchImpl) {
       if (!Array.isArray(body)) throw new DeliveryError(EXIT.RED, 'read query: the Management API did not return rows', { code: 'db' });
       return body;
     },
-    async upsert(table, rows) {
+    async upsert(table, rows, o = {}) {
       const base = rest();
+      // A join table has no id column to conflict on; leaving on_conflict off makes PostgREST use
+      // the table's own primary key, which for a join table is the pair of columns it joins.
+      const conflict = o.idless ? '' : '?on_conflict=id';
       const groups = new Map();
       for (const r of rows) {
         const k = Object.keys(r).sort().join(',');
@@ -189,7 +192,7 @@ function httpBackend(env, projectRef, fetchImpl) {
       }
       for (const group of groups.values()) {
         for (let i = 0; i < group.length; i += 500) {
-          const res = await call(`${base}/rest/v1/${table}?on_conflict=id`, {
+          const res = await call(`${base}/rest/v1/${table}${conflict}`, {
             method: 'POST',
             headers: restHeaders({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
             body: JSON.stringify(group.slice(i, i + 500)),
