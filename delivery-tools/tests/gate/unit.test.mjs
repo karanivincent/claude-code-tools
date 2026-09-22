@@ -173,6 +173,19 @@ test('a report the builder left in its own worktree is adopted, not treated as n
     assert.ok(!st.failures.some((f) => f.code === 'gate-no-report'), JSON.stringify(st.failures));
     assert.ok(existsSync(canonical), 'it is copied into place');
     assert.deepEqual(JSON.parse(readFileSync(canonical, 'utf8')).unit, 'U1');
+
+    // A stale copy here and a further-along one there: the further-along one wins, because it
+    // carries every commit this one does and more. A builder put an old report back exactly so.
+    writeFileSync(canonical, JSON.stringify({ ...report, commits: report.commits.slice(0, 1), unitCheck: { command: 'x', exit: 1 } }));
+    writeFileSync(stranded, JSON.stringify({ ...report, commits: [...report.commits, 'f'.repeat(40)] }));
+    await unitGateStatusWith(s.ctx, 'U1', { validateCaptureItems: async () => [] });
+    assert.equal(JSON.parse(readFileSync(canonical, 'utf8')).commits.length, report.commits.length + 1);
+
+    // Divergent rather than further along: left alone, so the gate fails on what is really here.
+    writeFileSync(canonical, JSON.stringify({ ...report, commits: ['a'.repeat(40)] }));
+    writeFileSync(stranded, JSON.stringify({ ...report, commits: ['b'.repeat(40), 'c'.repeat(40)] }));
+    await unitGateStatusWith(s.ctx, 'U1', { validateCaptureItems: async () => [] });
+    assert.deepEqual(JSON.parse(readFileSync(canonical, 'utf8')).commits, ['a'.repeat(40)]);
   } finally { s.repo.cleanup(); }
 });
 
