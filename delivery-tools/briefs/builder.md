@@ -55,6 +55,13 @@ the cause, fix it, add a render test that asserts the marker the gate missed (or
 one it found), run the unit check, commit, and rewrite the report. Reproducing the gate yourself
 with a server or a browser is not part of your job; the next gate run is.
 
+When the gate says your branch is **behind its base** (`gate-behind-base`): `git fetch origin`,
+then `git merge <baseRef>` into your unit branch, resolve anything it names inside your file list,
+run the unit check, commit, and rewrite the report. Your capture serves your branch's own tree, so
+a sibling unit's words, routes or components reach it only once you have merged them: without
+that, every message key renders as its own name and every call to a new route answers 404, and
+none of it is yours to fix.
+
 When the main session says `wave merge` hit a conflict: `git fetch origin`, then
 `git merge origin/<integration branch>` into your unit branch, resolve the files it names inside
 your file list, run the unit check, commit, and rewrite the report.

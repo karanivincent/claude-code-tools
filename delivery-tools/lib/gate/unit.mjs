@@ -210,6 +210,33 @@ async function stubStillRegistered(ctx, ref, plan, unitId) {
   return out;
 }
 
+/**
+ * The unit's branch must already contain the integration branch's head.
+ *
+ * A branch capture serves the unit's own tree, and in a wave built in parallel the siblings'
+ * work reaches that tree only through the integration branch. A screen gated on a branch cut
+ * before its words and its API routes landed is judged with neither: every message key renders as
+ * its own name and every fetch answers 404, which reads as a broken screen and is a stale branch.
+ * @param {import('../core/ctx.mjs').Ctx} ctx
+ * @param {object|null} unitFile
+ * @param {string|null} headSha
+ * @returns {Promise<{ code: string, message: string }|null>}
+ */
+async function behindBase(ctx, unitFile, headSha) {
+  const base = unitFile?.baseRef;
+  if (!base || !headSha) return null;
+  const at = await ctx.git.raw(['rev-parse', base]);
+  if (at.code !== 0) return null;
+  const baseSha = String(at.stdout).trim();
+  if ((await ctx.git.raw(['merge-base', '--is-ancestor', baseSha, headSha])).code === 0) return null;
+  const counted = await ctx.git.raw(['rev-list', '--count', `${headSha}..${baseSha}`]);
+  const n = Number(String(counted.stdout).trim() || 0) || 0;
+  return {
+    code: 'gate-behind-base',
+    message: `${unitFile.branch ?? 'the unit branch'} is behind ${base}${n ? ` by ${n} commit(s)` : ''}: a branch capture serves this branch's own tree, so whatever a sibling unit has merged is missing from it. Merge ${base} into your branch, run the unit check again and rewrite your report`,
+  };
+}
+
 async function contractFiles(ctx, ref, plan) {
   const out = [];
   for (const c of plan.contracts ?? []) {
@@ -280,9 +307,11 @@ export async function unitGateStatusWith(ctx, unitId, deps = {}) {
   const failures = reportFailures(unitId, report, rows, unitFile);
   const head = await unitHead(ctx, report);
   if (report && !head) failures.push({ code: 'gate-no-head', message: `unit ${unitId}: branch ${report.branch} and its commits are not in this repository` });
+  const stale = await behindBase(ctx, unitFile, head?.sha ?? null);
+  if (stale) failures.push(stale);
   if (head) {
     const cap = capturedBy(rows);
-    if (cap.length) {
+    if (cap.length && !stale) {
       const runId = await branchCaptureFor(paths, head.sha, cap.map((r) => r.id));
       if (!runId) failures.push({ code: 'gate-no-capture', message: `no branch capture of ${head.sha.slice(0, 12)} covers ${unitId}'s states; run delivery gate ${unitId}` });
       else failures.push(...reachFailures(cap, await (deps.validateCaptureItems ?? validateCaptureItems)(ctx, runId)));
@@ -314,10 +343,14 @@ export async function runUnitGate(ctx, unitId, deps = {}) {
   let captureRunId = null;
   if (report && !head) failures.push({ code: 'gate-no-head', message: `unit ${unitId}: branch ${report.branch} and its commits are not in this repository` });
 
+  const stale = await behindBase(ctx, unitFile, head?.sha ?? null);
+  // Before the capture, not after: six minutes spent grading a tree that is missing its siblings'
+  // work answers a question nobody asked.
+  if (stale) failures.push(stale);
   if (head) {
     const wt = (await ctx.git.worktrees()).find((w) => w.branch === report.branch);
     const cap = capturedBy(rows);
-    if (cap.length) {
+    if (cap.length && !stale) {
       const res = await (deps.runCapture ?? runCapture)(ctx, { mode: 'branch', unit: unitId, states: cap.map((r) => r.id), sha: head.sha });
       captureRunId = res.runId;
       const checked = await (deps.runChecks ?? realRunChecks)(ctx, [...GATE_CHECKS], { captureRunId });

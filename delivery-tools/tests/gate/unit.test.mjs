@@ -10,7 +10,7 @@ import { runUnitGate, unitGateStatus, unitGateStatusWith, commonDir, lastLines, 
 import { featurePaths } from '../../lib/core/paths.mjs';
 import { makeTempRepo } from '../helpers/tmp-repo.mjs';
 import { makeTestCtx } from '../helpers/ctx.mjs';
-import { makeProfile } from '../helpers/fixtures.mjs';
+import { makeProfile, validExample } from '../helpers/fixtures.mjs';
 import { planWith, row, writeCapture } from '../checks/helpers.mjs';
 
 const GIT_ENV = { GIT_AUTHOR_NAME: 'T', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 'T', GIT_COMMITTER_EMAIL: 't@example.invalid' };
@@ -226,5 +226,27 @@ test('a screen unit whose registry still imports its stub is named as such, not 
     assert.equal(stub.length, 1, JSON.stringify(r.failures, null, 1));
     assert.match(stub[0].message, /registry\.ts still imports src\/widgets\/list\.stub\.tsx/);
     assert.match(stub[0].message, /the capture rendered the stub/);
+  } finally { s.repo.cleanup(); }
+});
+
+test('a unit branch behind its base is refused before the capture runs, not graded without its siblings', async () => {
+  const s = await setup({ testFiles: GOOD, captureLines: ['Widgets'] });
+  try {
+    // The integration branch moves on (another unit of the wave merged); this unit's branch does
+    // not. Its capture would serve a tree with neither that unit's words nor its routes.
+    const plan = JSON.parse(readFileSync(s.paths.plan, 'utf8'));
+    const unitFile = validExample('unit-file');
+    put(s.paths.unitFile('U1'), { ...unitFile, unit: plan.units[1], rows: [], baseRef: 'main', branch: 'unit/u1' });
+    put(join(s.repo.dir, 'sibling.txt'), 'merged by another unit\n');
+    gitIn(s.repo.dir, 'add', '-A');
+    gitIn(s.repo.dir, 'commit', '-q', '-m', 'sibling unit');
+
+    let captured = false;
+    const r = await runUnitGate(s.ctx, 'U1', { runCapture: async (...a) => { captured = true; return s.runCapture(...a); } });
+    const behind = r.failures.filter((f) => f.code === 'gate-behind-base');
+    assert.equal(behind.length, 1, JSON.stringify(r.failures, null, 1));
+    assert.match(behind[0].message, /is behind main by 1 commit/);
+    assert.match(behind[0].message, /Merge main into your branch/);
+    assert.equal(captured, false, 'nothing is captured against a stale branch');
   } finally { s.repo.cleanup(); }
 });
