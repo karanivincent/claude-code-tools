@@ -12,6 +12,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { BUILD_CLASSES } from '../plan/check.mjs';
+import { MEMBER_VARIANT_MODES } from '../capture/job.mjs';
 
 const ALWAYS = new Set(['', 'always']);
 
@@ -95,7 +96,11 @@ export default {
     const findings = [];
     const seen = new Set();
     let clicked = 0;
-    const capturesMembers = env.capture.items.some((i) => i.item.role === 'member');
+    // Only a mode that adds a member variant of every permission row can be judged for missing
+    // one. A branch capture adds none: its only member items are rows whose own reach is a member,
+    // and reading that as "this run captures members" made every other permission row a P1 the
+    // unit gate could never clear -- eight of them, on a screen with a single member row.
+    const capturesMembers = MEMBER_VARIANT_MODES.has(env.capture.doc?.mode);
     const memberStates = new Set(env.capture.items.filter((i) => i.item.role === 'member').map((i) => i.item.state));
     for (const it of env.capture.items) {
       const { item } = it;

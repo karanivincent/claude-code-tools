@@ -10,7 +10,7 @@
 // its states, its component tests at its head. It never captures, builds or runs anything.
 
 import { readdir } from 'node:fs/promises';
-import { isAbsolute, join, relative } from 'node:path';
+import { basename, isAbsolute, join, relative } from 'node:path';
 import { readArtefact } from '../core/artefacts.mjs';
 import { readJson, writeJsonAtomic } from '../core/fs.mjs';
 import { readFindings } from '../core/findings.mjs';
@@ -183,6 +183,33 @@ async function stubImports(ctx, ref) {
   return String(r.stdout).split('\n').map((l) => l.replace(new RegExp(`^${ref}:`), '')).filter((f) => f && !TEST_FILE_RE.test(f) && !/\.stub\./.test(f));
 }
 
+/**
+ * A captured unit whose screen is still registered as a stub: the capture graded the stub, not the
+ * unit's work. The plan's contracts say which stub this unit replaces (`consumers`), so another
+ * screen's stub, still legitimately in place, is never named here.
+ * Found on a real run: the wave-2 stub-swap unit owned the registry, so every wave-1 screen state
+ * came back as its neighbour's text and four P1s described a symptom nobody could act on.
+ * @param {import('../core/ctx.mjs').Ctx} ctx
+ * @param {string} ref
+ * @param {object} plan
+ * @param {string} unitId
+ * @returns {Promise<{ code: string, message: string }[]>}
+ */
+async function stubStillRegistered(ctx, ref, plan, unitId) {
+  const mine = (plan.contracts ?? []).filter((c) => c.stub && (c.consumers ?? []).includes(unitId));
+  if (!mine.length) return [];
+  const stubs = new Set(mine.map((c) => c.stub));
+  const out = [];
+  for (const f of await stubImports(ctx, ref)) {
+    const buf = await ctx.git.show(ref, f);
+    if (buf === null) continue;
+    const text = buf.toString('utf8');
+    const hit = [...stubs].find((stub) => text.includes(basename(stub).replace(/\.[jt]sx?$/, '')));
+    if (hit) out.push({ code: 'gate-stub-registered', message: `${f} still imports ${hit} at ${ref.slice(0, 12)}, so the capture rendered the stub and not this unit's screen: the unit that builds a screen also points the registry at it` });
+  }
+  return out;
+}
+
 async function contractFiles(ctx, ref, plan) {
   const out = [];
   for (const c of plan.contracts ?? []) {
@@ -259,6 +286,7 @@ export async function unitGateStatusWith(ctx, unitId, deps = {}) {
       const runId = await branchCaptureFor(paths, head.sha, cap.map((r) => r.id));
       if (!runId) failures.push({ code: 'gate-no-capture', message: `no branch capture of ${head.sha.slice(0, 12)} covers ${unitId}'s states; run delivery gate ${unitId}` });
       else failures.push(...reachFailures(cap, await (deps.validateCaptureItems ?? validateCaptureItems)(ctx, runId)));
+      if (unit.kind !== 'stub-swap') failures.push(...(await stubStillRegistered(ctx, head.sha, plan, unitId)));
     }
     failures.push(...(await componentTestFiles(ctx, head.sha, rows)).failures);
     if (unit.kind === 'contract') failures.push(...(await contractFiles(ctx, head.sha, plan)));
@@ -301,6 +329,7 @@ export async function runUnitGate(ctx, unitId, deps = {}) {
         const { severity } = effectiveSeverity(f, byId);
         if (severity !== 'P3') failures.push({ code: 'gate-finding', message: `${severity} ${f.id} ${f.state} ${f.where}: ${f.rule ?? ''} ${f.live}`.trim() });
       }
+      if (unit.kind !== 'stub-swap') failures.push(...(await stubStillRegistered(ctx, head.sha, plan, unitId)));
     }
 
     const tests = await componentTestFiles(ctx, head.sha, rows);

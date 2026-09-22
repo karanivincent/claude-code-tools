@@ -114,8 +114,8 @@ match a worker's query unless a founder-approved guard covers it; `delivery seed
 | `backend` | 1 by default, **0 for a table the worlds seed** | one per missing backend piece; `risk: "high"` on the voice or payment path. `delivery seed --apply` runs at the end of wave 0, so the unit that creates a table the fixtures need has to be in wave 0; wave 1 is right for a route, or a column on a table that already exists |
 | `shared-ui` | 1 | header, menus, dialogs, shared components |
 | `words` | 1 | the only unit that edits message files, all locales |
-| `screen` | 1 | builds inside the stub shell against the contracts |
-| `stub-swap` | 2 | removes the stubs; its gate fails while a non-test file imports a `*.stub.*` module |
+| `screen` | 1 | builds inside the stub shell against the contracts, **and owns the registry entry that names its screen**: its gate captures through the real route, which renders whatever the registry names, so a screen still registered as a stub is graded as the stub |
+| `stub-swap` | 2 | deletes the stub files once every screen is registered; its gate fails while a non-test file imports a `*.stub.*` module |
 | `fix` | later | P1 and P2 findings of the previous wave |
 
 Size: roughly one builder session, 60 to 120 minutes. Two units in the same wave never share a
@@ -128,9 +128,12 @@ the builder stays inside that list.
 
 - the shell contract: the context every tab reads, a stub provider filled from the design world,
   the real route files mounting the stub shell;
-- the tab and dialog registry: one file mapping every tab value and dialog key to a component;
-  each entry points at a stub its screen unit later replaces (the unit edits its own file, never
-  the registry);
+- the tab and dialog registry, **one file per entry**, each mapping one tab value or dialog key to
+  a component and pointing at that entry's stub. The screen unit that builds the component swaps
+  its own entry when it lands, which is why the entries are separate files: two screen units in one
+  wave may not share a file, and a single registry file makes every screen of a wave collide on it.
+  A screen whose entry still names the stub captures as the stub, and its gate says so
+  (`gate-stub-registered`) rather than reporting each of its states as its neighbour's text;
 - the API contracts: request and response schemas for every new or changed route, and stub
   handlers returning design-world fixtures validated against them;
 - the copy keys: every key the plan names, owned by the words unit.

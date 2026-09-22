@@ -19,6 +19,9 @@ export const REAL_ORG_WORLD = 'real-org';
 export const BASELINE_WORLD = 'baseline';
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 export const MODES = Object.freeze(['baseline', 'branch', 'wave', 'full', 'staging', 'real-org']);
+// The modes that add a member variant of every permission row (below). M9's member-not-captured
+// rule reads the same set: a mode that never adds the variant must not be judged for missing it.
+export const MEMBER_VARIANT_MODES = Object.freeze(new Set(['wave', 'full', 'staging']));
 
 /**
  * The file-name key of one capture item.
@@ -174,7 +177,7 @@ export function buildItems(o) {
         }
       }
       // M9: a member sees each control as the plan's permission says.
-      if (!o.smoke && ['wave', 'full', 'staging'].includes(mode) && row.permission && role === 'admin' && profile.audit.roles.includes('member')) {
+      if (!o.smoke && MEMBER_VARIANT_MODES.has(mode) && row.permission && role === 'admin' && profile.audit.roles.includes('member')) {
         const member = userOf(plan, world, 'member');
         if (member) {
           add({

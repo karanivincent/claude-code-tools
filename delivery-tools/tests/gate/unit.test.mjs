@@ -204,3 +204,27 @@ test('helpers: common directory, which rows a capture or a component test verifi
   assert.deepEqual(capturedBy(rows).map((r) => r.id), ['WL-01', 'WL-02']);
   assert.deepEqual(testedBy(rows).map((r) => r.id), ['WL-03']);
 });
+
+test('a screen unit whose registry still imports its stub is named as such, not left as four mystery P1s', async () => {
+  const s = await setup({ testFiles: GOOD, captureLines: ['Widgets'] });
+  try {
+    // The registry the contract owns still points at the stub this unit replaces, so the capture
+    // rendered the stub. The plan says so: the contract names the stub and this unit as a consumer.
+    const plan = JSON.parse(readFileSync(s.paths.plan, 'utf8'));
+    plan.contracts = [{ id: 'C-registry', file: 'src/widgets/registry.ts', stub: 'src/widgets/list.stub.tsx', consumers: ['U1', 'U2'] }];
+    put(s.paths.plan, plan);
+    put(join(s.wt, 'src/widgets/registry.ts'), "import { ListStub } from './list.stub';\nexport const List = ListStub;\n");
+    put(join(s.wt, 'src/widgets/list.stub.tsx'), 'export const ListStub = () => null;\n');
+    gitIn(s.wt, 'add', '-A');
+    gitIn(s.wt, 'commit', '-q', '-m', 'registry');
+    const head = gitIn(s.wt, 'rev-parse', 'HEAD');
+    const report = JSON.parse(readFileSync(s.paths.unitReport('U1'), 'utf8'));
+    put(s.paths.unitReport('U1'), { ...report, commits: [head] });
+
+    const r = await runUnitGate(s.ctx, 'U1', { runCapture: async (c, o) => s.runCapture(c, { ...o, sha: head }) });
+    const stub = r.failures.filter((f) => f.code === 'gate-stub-registered');
+    assert.equal(stub.length, 1, JSON.stringify(r.failures, null, 1));
+    assert.match(stub[0].message, /registry\.ts still imports src\/widgets\/list\.stub\.tsx/);
+    assert.match(stub[0].message, /the capture rendered the stub/);
+  } finally { s.repo.cleanup(); }
+});

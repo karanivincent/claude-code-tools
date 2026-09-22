@@ -181,6 +181,33 @@ test('M9: controls present, enabled unless enabledWhen says otherwise, and as th
   } finally { run.cleanup(); }
 });
 
+test('M9: member-not-captured only in a mode that adds member variants, not in a branch capture', async () => {
+  const controls = [{ label: 'New widget', testid: 'w-new', effect: 'free', target: 'WL-02' }];
+  // WL-01 and WL-02 both declare a member rule; only WL-02's own reach is a member, which is all a
+  // branch capture ever produces. The unit gate runs in branch mode, so WL-01 is not owed a member
+  // capture there; the same capture in wave mode is, because wave mode adds the variant itself.
+  const rows = [
+    row('WL-01', { controls, permission: { member: 'hidden' } }),
+    row('WL-02', { controls, permission: { member: 'hidden' }, reach: { class: 'seeded', world: 'design', role: 'member', steps: [{ goto: '/widgets/wl-02' }] } }),
+  ];
+  const plan = planWith(rows, { worlds: [world('design')] });
+  const items = [
+    { state: 'WL-01', lines: ['Widgets'], dom: domFor(['Widgets'], { extra: [{ text: 'New widget', testid: 'w-new' }] }) },
+    { state: 'WL-02', role: 'member', lines: ['Widgets'], dom: domFor(['Widgets']) },
+  ];
+  const branch = await makeRun({ plan, profile: profile(), captures: [{ runId: 'c-6b', mode: 'branch', items }] });
+  try {
+    const res = await runChecks(branch.ctx, ['M9'], { captureRunId: 'c-6b' });
+    assert.deepEqual(res.findings.filter((f) => f.rule === 'member-not-captured'), []);
+  } finally { branch.cleanup(); }
+
+  const wave = await makeRun({ plan, profile: profile(), captures: [{ runId: 'c-6w', mode: 'wave', items }] });
+  try {
+    const res = await runChecks(wave.ctx, ['M9'], { captureRunId: 'c-6w' });
+    assert.deepEqual(res.findings.filter((f) => f.rule === 'member-not-captured').map((f) => f.state), ['WL-01']);
+  } finally { wave.cleanup(); }
+});
+
 test('M10, M16, M17 from the capture logs; intercepted and aborted requests are never findings', async () => {
   const log = {
     schemaVersion: 1,
