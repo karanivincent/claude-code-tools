@@ -119,6 +119,26 @@ test('dry run writes the job and names the command, running nothing', async () =
   } finally { s.repo.cleanup(); }
 });
 
+test('branch mode refuses a capture whose worktree has moved past the SHA it is for', async () => {
+  const s = await setup();
+  try {
+    const wt = s.repo.addWorktree('u3', 'unit/U3');
+    const plan = widgetsPlan();
+    const unitFile = validExample('unit-file');
+    unitFile.unit = plan.units[1];
+    unitFile.rows = plan.rows.filter((r) => plan.units[1].states.includes(r.id));
+    unitFile.branch = 'unit/U3';
+    mkdirSync(join(s.repo.dir, '.delivery/widgets/units'), { recursive: true });
+    writeFileSync(join(s.repo.dir, '.delivery/widgets/units/U3.json'), JSON.stringify(unitFile));
+    const stale = 'a'.repeat(40);
+    await assert.rejects(
+      () => captureRun(s.ctx, { mode: 'branch', unit: 'U3', sha: stale }, hooks().hooks),
+      (e) => /is at [0-9a-f]{12} and this capture is for aaaaaaaaaaaa/.test(e.message) && /re-run the gate/.test(e.message),
+    );
+    assert.equal(s.seen.length, 0, 'nothing is captured against a tree that is not at that SHA');
+  } finally { s.repo.cleanup(); }
+});
+
 test('branch mode serves the unit\'s own worktree with a dev server the capture owns', async () => {
   const s = await setup();
   try {
@@ -138,6 +158,10 @@ test('branch mode serves the unit\'s own worktree with a dev server the capture 
     assert.match(job.webServer.command, new RegExp(`^npm --prefix ${wt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} run dev -- --port \\d+$`));
     assert.equal(job.webServer.env.BUILD_SHA, wtHead);
     assert.equal(job.webServer.url, job.baseUrl);
+    // The tree the server runs in is the tree that is graded. A profile whose dev-server command
+    // carries no {dir} -- most of them -- has nothing but cwd to say which tree that is, and
+    // serving the integration worktree instead graded code the unit had never written.
+    assert.equal(job.webServer.cwd, wt);
     // localhost, never 127.0.0.1: a dev server rebuilds its redirects around `localhost`, so a
     // capture arriving as 127.0.0.1 crosses an origin on the first hop and loses its session
     // cookie. The widgets rehearsal's wave-0 smoke failed three times on exactly that.

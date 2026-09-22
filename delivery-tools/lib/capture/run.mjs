@@ -67,16 +67,26 @@ export async function resolveTarget(ctx, o) {
       if (!wt) throw new UsageError(`no worktree has the unit's branch ${branch} checked out; branch mode serves the unit's own tree`);
       dir = wt.path;
     }
-    const expectedSha = o.sha ?? (await revParse(ctx, 'HEAD', dir));
-    if (!expectedSha) throw new UsageError(`cannot read HEAD in ${dir}`);
+    // The tree the server runs in is the tree that is graded. Serving the integration worktree
+    // while claiming the unit's SHA made every branch capture grade code the unit had not written:
+    // the unit's screen was still registered as a stub there, so eleven states came back as the
+    // stub's, and the version probe agreed because the capture had handed it the SHA to report.
+    const dirHead = await revParse(ctx, 'HEAD', dir);
+    if (!dirHead) throw new UsageError(`cannot read HEAD in ${dir}`);
+    if (o.sha && o.sha !== dirHead) {
+      throw new UsageError(`${dir} is at ${dirHead.slice(0, 12)} and this capture is for ${o.sha.slice(0, 12)}: the worktree moved since the report was written, so re-run the gate once the builder has rewritten its report`);
+    }
+    const expectedSha = o.sha ?? dirHead;
     const port = o.port ?? (await freePort());
     const baseUrl = o.baseUrl ?? `http://${CAPTURE_HOST}:${port}`;
     const webServer = o.baseUrl ? null : {
       command: fillCommand(profile.commands.devServer, { dir, port }),
       url: baseUrl,
-      cwd: ctx.repoRoot,
+      cwd: dir,
       timeoutMs: 300_000,
-      env: { BUILD_SHA: expectedSha, PORT: String(port) },
+      // Read from that tree, never from what this capture expects: a SHA the capture supplies is a
+      // SHA the version probe can only agree with, whatever the server is actually serving.
+      env: { BUILD_SHA: dirHead, PORT: String(port) },
     };
     return { baseUrl, expectedSha, webServer, detail: `dev server for ${dir}` };
   }
