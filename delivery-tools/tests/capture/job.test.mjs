@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildItems, modeMatrix, localisePath, parseVersionProbe, itemKey, checkFor, capturable, newCaptureRunId, profileLocales, oneStepApart } from '../../lib/capture/job.mjs';
+import { buildItems, modeMatrix, localisePath, parseVersionProbe, itemKey, checkFor, capturable, newCaptureRunId, profileLocales, oneStepApart, hiddenFromMembers, stepsNameTheirData } from '../../lib/capture/job.mjs';
 import { validateAgainst } from '../../lib/core/schema.mjs';
 import { makeProfile } from '../helpers/fixtures.mjs';
 import { fakeClock } from '../helpers/clock.mjs';
@@ -143,4 +143,21 @@ test("a control's target is only judged where the plan says that target is one s
   assert.equal(oneStepApart(plan, at('EMPTY-L'), 'DIALOG'), false);
   assert.equal(oneStepApart(plan, at('MEMBER-L'), 'DIALOG'), false);
   assert.equal(oneStepApart(plan, at('L'), 'none'), false);
+});
+
+test('no variant is built that the plan itself says cannot exist', () => {
+  // A member cannot be taken to a state the admin reaches by clicking a control the plan hides
+  // from members, and a step that names its own world's data cannot be replayed in another world.
+  const plan = {
+    rows: [
+      { id: 'DENIED', permission: { member: 'hidden' }, controls: [{ label: 'New widget', testid: 'w-new' }] },
+      { id: 'DIALOG', permission: { member: 'enabled' }, controls: [], reach: { steps: [{ goto: '/w' }, { click: { testid: 'w-new' } }] } },
+      { id: 'ROW', reach: { steps: [{ goto: '/w' }, { click: { role: 'button', name: 'Blue widget 4 left' } }] } },
+      { id: 'PLAIN', reach: { steps: [{ goto: '/w' }, { click: { testid: 'w-tab' } }] } },
+    ],
+  };
+  assert.deepEqual([...hiddenFromMembers(plan)], ['w-new']);
+  assert.equal(stepsNameTheirData(plan.rows[2].reach.steps), true);
+  assert.equal(stepsNameTheirData(plan.rows[3].reach.steps), false);
+  assert.equal(stepsNameTheirData(plan.rows[1].reach.steps), false);
 });

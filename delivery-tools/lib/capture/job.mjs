@@ -108,6 +108,21 @@ export function oneStepApart(plan, row, targetId) {
   return short.every((s, i) => JSON.stringify(s) === JSON.stringify(long[i]));
 }
 
+/** Test ids the plan says a member does not see, from every row that says so. */
+export function hiddenFromMembers(plan) {
+  const out = new Set();
+  for (const r of plan?.rows ?? []) {
+    if (r.permission?.member !== 'hidden') continue;
+    for (const c of r.controls ?? []) if (c.testid) out.add(c.testid);
+  }
+  return out;
+}
+
+/** Whether these reach steps address something by what it says, rather than by structure. */
+export function stepsNameTheirData(steps) {
+  return (steps ?? []).some((s) => Boolean(s.click?.name) || Boolean(s.waitFor?.text) || Boolean(s.type?.text));
+}
+
 function userOf(plan, world, role) {
   const w = plan.worlds.find((x) => x.id === world);
   return w?.users.find((u) => u.role === role)?.email ?? null;
@@ -206,7 +221,11 @@ export function buildItems(o) {
       // M9: a member sees each control as the plan's permission says.
       if (!o.smoke && MEMBER_VARIANT_MODES.has(mode) && row.permission && role === 'admin' && profile.audit.roles.includes('member')) {
         const member = userOf(plan, world, 'member');
-        if (member) {
+        // A state an admin reaches by clicking a control a member does not have is a state no
+        // member can be taken to: the plan says so itself, in the row that hides the control.
+        const shut = [...hiddenFromMembers(plan)].find((t) => (row.reach.steps ?? []).some((st) => st.click?.testid === t));
+        if (shut) skipped.push({ state: row.id, why: `member check: reaching it clicks "${shut}", which the plan hides from a member` });
+        else if (member) {
           add({
             state: row.id, world, role: 'member', email: member, width: widths[0], height, locale: primary, theme: themes[0],
             // what the member sees of each control is read from dom.json; nothing is clicked
@@ -218,7 +237,11 @@ export function buildItems(o) {
       // The messy world seeds the same shapes on purpose, so a row's invariants are also checked on
       // data the suite controls (spec 9, M12): the row again, in each messy world, judged as data.
       if (!o.smoke && row.invariants?.length && ['wave', 'full', 'staging'].includes(mode)) {
-        const fixtureIds = row.reach.steps.some((s) => Object.values(s).some((v) => UUID.test(JSON.stringify(v))));
+        // Steps that name their own world's data cannot be replayed in another world: a click on
+        // "Blue widget 4 left" finds nothing in a world seeded with a nameless widget and a
+        // negative stock. Ids were already excluded; what a row SAYS is just as much its world's.
+        const fixtureIds = row.reach.steps.some((s) => Object.values(s).some((v) => UUID.test(JSON.stringify(v))))
+          || stepsNameTheirData(row.reach.steps);
         for (const m of plan.worlds.filter((w) => w.kind === 'messy' && w.id !== world)) {
           const email = userOf(plan, m.id, role);
           if (fixtureIds) { skipped.push({ state: row.id, why: `messy world ${m.id}: the steps name the ${world} world's own ids` }); continue; }
