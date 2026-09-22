@@ -56,6 +56,16 @@ test('the draft validates, infers what the repo shows, and marks the rest to fil
   assert.equal(p.safetyFile, '.claude/delivery-safety.json');
 });
 
+test('a workspace gets no guessed unit check: npx at the root resolves the root\'s runner', () => {
+  const single = draftProfile({ ...FACTS, files: ['package.json', ...FACTS.files] });
+  assert.equal(single.commands.unitCheck, 'npm run typecheck && npm run lint && npx vitest run {spec}');
+
+  const workspace = draftProfile({ ...FACTS, files: ['package.json', 'apps/web/package.json', ...FACTS.files] });
+  assert.match(workspace.commands.unitCheck, /^<fill in: /);
+  assert.match(workspace.commands.unitCheck, /its own test runner, not the root's/);
+  assert.ok(unfilled(workspace).includes('/commands/unitCheck'), 'P1 reports it, so it cannot be left as drafted');
+});
+
 test('a bare repo still gives a valid draft', () => {
   const p = draftProfile({ packageJson: null, claudeMd: '', lockfiles: [], files: [], remoteUrl: null, defaultBranch: null });
   assert.deepEqual(draftIssues(p), []);

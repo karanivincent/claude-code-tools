@@ -112,7 +112,9 @@ test('wave start from anywhere but the integration worktree is a usage error', a
 
 test('pure helpers', () => {
   assert.equal(commonDir(['a/b/c.ts', 'a/b/d/e.ts']), 'a/b');
-  assert.equal(commonDir(['a/x.ts']), 'a/x.ts');
+  assert.equal(commonDir(['a/x.ts']), 'a', 'one file gives its directory: a test filter cannot match a source file by name');
+  assert.equal(commonDir(['x.ts']), '.');
+  assert.equal(commonDir([]), '.');
   assert.equal(commonDir(['a/x.ts', 'b/y.ts']), '.');
   assert.deepEqual(unmergedEntries('DU a.ts\nUU b.ts\n M c.ts\n'), [{ code: 'DU', path: 'a.ts' }, { code: 'UU', path: 'b.ts' }]);
 });

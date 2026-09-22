@@ -69,6 +69,13 @@ export function draftProfile({ packageJson, claudeMd, lockfiles, files, remoteUr
   const flight = find(cmds, /\bflight\b/);
   const tried = find(cmds, /\btried\b/)?.replace(/\s+<[^>]+>.*$/, '');
 
+  // A workspace has one package.json per package, and `npx <runner>` at the root resolves the
+  // ROOT's copy of that runner. One consuming repo pinned vitest ^1.2.0 at the root and ^2.1.8 in
+  // the app: the drafted `npx vitest run {spec}` ran 1.6.1 against a suite written for 2.x and
+  // crashed on every file, twice, before anyone looked at the version. A guess that silently runs
+  // the wrong tool is worse than no guess, so a workspace gets a FILL naming what it has to say.
+  const workspace = files.filter((f) => /(^|\/)package\.json$/.test(f)).length > 1;
+
   const messages = files.filter((f) => /(^|\/)messages\/[a-z]{2}(-[A-Z]{2})?\.json$/.test(f)).sort()
     .map((f) => ({ locale: f.match(/([a-z]{2}(-[A-Z]{2})?)\.json$/)[1], file: f }));
   const e2eDir = files.map((f) => f.match(/^(.*\/e2e)\//)?.[1]).find(Boolean) ?? FILL('the directory of the e2e specs');
@@ -84,7 +91,9 @@ export function draftProfile({ packageJson, claudeMd, lockfiles, files, remoteUr
       bootstrap: FILL('a command that prepares a fresh worktree at {dir} with a dev server on {port}'),
       heavy,
       gate: gateInner,
-      unitCheck: scripts.typecheck ? `${run} typecheck && ${run} lint && npx vitest run {spec}` : FILL('typecheck, lint and the unit tests for {spec}'),
+      unitCheck: !scripts.typecheck || workspace
+        ? FILL(`typecheck, lint and the unit tests for {spec}${workspace ? ', run by the workspace package that owns {spec} and with its own test runner, not the root\'s' : ''}`)
+        : `${run} typecheck && ${run} lint && npx vitest run {spec}`,
       devServer: scripts.dev ? `${run} dev -- --port {port}` : FILL('the dev server on {port}'),
       prodBuild: scripts.build ? `${run} build` : FILL('the production build'),
       prodStart: scripts.start ? `${run} start -- -p {port}` : FILL('the production server on {port}'),

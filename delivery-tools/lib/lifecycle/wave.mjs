@@ -54,10 +54,17 @@ export function unmergedEntries(porcelain) {
   return out;
 }
 
-/** The longest directory every file shares, or the file itself when there is one. */
+/**
+ * The longest directory every file shares, '.' when none. Always a directory, never a file: {spec}
+ * names the area a unit works in, and both commands it fills - the unit check and `tried` - match
+ * a path prefix. A single unit file used to fill {spec} with the file itself, and a test filter
+ * can never match a source file's own name (`route.ts` is not a substring of `route.test.ts`), so
+ * such a unit's check could not pass however correct its code. `lib/gate/unit.mjs` has always
+ * read {spec} as a directory; these two now agree.
+ */
 export function commonDir(files) {
   if (!files.length) return '.';
-  if (files.length === 1) return files[0];
+  if (files.length === 1) return files[0].split('/').slice(0, -1).join('/') || '.';
   const parts = files.map((f) => f.split('/'));
   const out = [];
   for (let i = 0; i < parts[0].length - 1; i++) {
