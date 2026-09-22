@@ -79,6 +79,19 @@ Derived from the design render and the state's place in the plan:
 the safety file's `fixtureOrgPrefix`; users match its `fixtureUserPattern` and belong to exactly
 one world. The repo's e2e robot is never in a fixture world.
 
+**Each world file joins its own users to its organisation.** `delivery seed --apply` creates the
+users in the auth system and nothing more — only the repo knows which table and columns a
+membership lives in — so the world file carries one row per user:
+
+```json
+{ "key": "m-admin", "table": "organization_members",
+  "values": { "organization_id": { "$ref": "org" }, "user_id": { "$ref": "user:admin" }, "role": "admin" } }
+```
+
+`seed --plan` refuses a world that declares a user no row references. Without the join the capture
+signs that user in and they belong to no organisation, so every world renders the same page and
+the differences the worlds exist to show are invisible.
+
 | Kind | Holds |
 |---|---|
 | `design` | the design's own numbers and names |

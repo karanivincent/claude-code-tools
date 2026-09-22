@@ -108,6 +108,7 @@ export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safet
     const orgId = fixtureId(feature, w.id, 'org');
     worlds.push({ id: w.id, orgId });
     const userIds = new Map();
+    const usedRoles = new Set();
     for (const u of w.users ?? []) {
       if (userIds.has(u.role)) { problems.push(`world ${w.id} has two ${u.role} users`); continue; }
       const id = fixtureId(feature, w.id, `user:${u.role}`);
@@ -127,8 +128,10 @@ export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safet
         if (k.length === 1 && k[0] === '$ref') {
           const target = String(v.$ref);
           if (target.startsWith('user:')) {
-            const id = userIds.get(target.slice(5));
-            if (!id) problems.push(`world ${w.id} ${where}: no ${target.slice(5)} user in the plan's world`);
+            const role = target.slice(5);
+            const id = userIds.get(role);
+            if (!id) problems.push(`world ${w.id} ${where}: no ${role} user in the plan's world`);
+            else usedRoles.add(role);
             return id ?? null;
           }
           if (!keys.has(target)) problems.push(`world ${w.id} ${where}: $ref "${target}" names no row of this world`);
@@ -152,6 +155,15 @@ export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safet
       if (Object.prototype.hasOwnProperty.call(r.values, 'id')) problems.push(`world ${w.id} row "${r.key}": sets its own id; ids are derived`);
       const id = keys.get(r.key);
       rows.push({ world: w.id, table: r.table, id, values: { id, ...resolve(r.values, `row "${r.key}"`) } });
+    }
+    // A world's users are created in the auth system by seed --apply and joined to its organisation
+    // by the world file, because only the repo knows which table and columns that join lives in.
+    // A world file that never references a user leaves that user belonging to nothing, and nothing
+    // said so: the widgets rehearsal's wave-0 smoke signed each fixture user in, every world
+    // resolved to no organisation, and all four captures came back byte-identical.
+    for (const role of userIds.keys()) {
+      if (usedRoles.has(role)) continue;
+      problems.push(`world ${w.id}: the plan declares a ${role} user and no row of its world file references it; join it to the organisation with {"$ref": "user:${role}"}, or the capture signs that user in and they belong to nothing`);
     }
   }
   if (problems.length) {

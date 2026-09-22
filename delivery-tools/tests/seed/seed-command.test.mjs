@@ -93,7 +93,27 @@ test('seed --plan: a reference to a row the world does not have is a usage error
   assert.throws(() => buildSeedPlan({
     feature: 'widgets', runId: 'r-1', project: 'p', plan: validExample('plan'), safety: makeSafety(),
     worldFiles: { design: { schemaVersion: 1, world: 'design', rows: [{ key: 'org', table: 'organizations', values: { id: 'mine', x: { $ref: 'nope' } } }] } },
-  }), (err) => err.exit === 2 && err.failures.length === 2);
+    // Three: the bad $ref, the row setting its own id, and the fixture user this world file
+    // never joins to the organisation.
+  }), (err) => err.exit === 2 && err.failures.length === 3);
+});
+
+// A world's users are created in the auth system by the seed and joined to the organisation by the
+// world file, because only the repo knows the table that join lives in. A world file that never
+// references a user leaves that user belonging to nothing, and the capture then signs in somebody
+// with no organisation: the widgets rehearsal's four wave-0 smoke captures came back identical.
+test('seed --plan: a fixture user no row of the world file references is refused', () => {
+  const plan = validExample('plan');
+  const world = (rows) => ({ design: { schemaVersion: 1, world: 'design', rows } });
+  const org = { key: 'org', table: 'organizations', values: { name: { $orgName: true } } };
+  const build = (rows) => buildSeedPlan({ feature: 'widgets', runId: 'r-1', project: 'p', plan, safety: makeSafety(), worldFiles: world(rows) });
+
+  assert.throws(() => build([org]), (err) => err.exit === 2 && err.failures.some((x) =>
+    /world design: the plan declares a admin user and no row of its world file references it; join it to the organisation with \{"\$ref": "user:admin"\}/.test(x.message)));
+
+  const joined = build([org, { key: 'm-admin', table: 'organization_members', values: { organization_id: { $ref: 'org' }, user_id: { $ref: 'user:admin' }, role: 'admin' } }]);
+  assert.equal(joined.rows.length, 2);
+  assert.equal(joined.rows[1].values.user_id, joined.users[0].id);
 });
 
 test('seed --plan: a $key that is not a placeholder is refused, never written through', () => {
