@@ -43,6 +43,8 @@ export interface CaptureControl {
   effect: string;
   target: string;
   enabledWhen?: string;
+  /** False when this run cannot judge arriving at the target: it is reached another way. */
+  verifyTarget?: boolean;
 }
 
 export interface CaptureIntercept {
@@ -128,6 +130,8 @@ interface ControlResult {
   target: string;
   reached: boolean;
   why?: string;
+  /** False when this run could not judge arriving at the target; it is not a failure to reach it. */
+  verifyTarget?: boolean;
 }
 
 export const JOB_ENV = 'DELIVERY_CAPTURE_JOB';
@@ -647,7 +651,7 @@ async function namedOne(all: Locator, label: string): Promise<number> {
 async function clickControls(context: BrowserContext, job: CaptureJob, item: CaptureItem, meta: Meta, marks: { intercepted: Set<Request>; aborted: Set<Request> }): Promise<ControlResult[]> {
   const results: ControlResult[] = [];
   for (const c of item.controls) {
-    const r: ControlResult = { testid: c.testid, target: c.target, reached: false };
+    const r: ControlResult = { testid: c.testid, target: c.target, reached: false, ...(c.verifyTarget === false ? { verifyTarget: false } : {}) };
     const page = await context.newPage();
     const scratch: ErrorLog = { schemaVersion: 1, console: [], requests: [], perf: { requestCount: 0, loadMs: 0 }, axe: null };
     watch(page, job, scratch, marks, meta, { n: 0 });
@@ -674,10 +678,13 @@ async function clickControls(context: BrowserContext, job: CaptureJob, item: Cap
       else {
         await one.click({ timeout: 10_000 });
         await settled(page, job);
-        const target = job.targets[c.target];
+        // A target this run cannot judge is not a target this click failed to reach: the state is
+        // reached another way (another world, another pane), and its markers describe that way.
+        const target = c.verifyTarget === false ? null : job.targets[c.target];
         const missing = target ? await markersShown(page, target) : [];
         r.reached = missing.length === 0;
-        if (missing.length) r.why = `after the click, missing ${missing.slice(0, 4).join(', ')} (now at ${page.url()})`;
+        if (!target) r.why = `clicked; its target ${c.target} is reached another way, so this run does not judge arriving there`;
+        else if (missing.length) r.why = `after the click, missing ${missing.slice(0, 4).join(', ')} (now at ${page.url()})`;
       }
     } catch (e) {
       r.why = message(e);

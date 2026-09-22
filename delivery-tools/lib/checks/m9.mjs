@@ -70,7 +70,7 @@ export async function clickResults(env, item) {
   try { list = JSON.parse(await readFile(join(env.capture.dir, `${base}.controls.json`), 'utf8')); } catch { return null; }
   if (!Array.isArray(list)) return null;
   return list.filter((c) => c && typeof c.testid === 'string').map((c) => ({
-    testid: c.testid, target: c.target ?? null, reached: c.reached ?? c.ok ?? null, why: c.why ?? c.reason ?? null,
+    testid: c.testid, target: c.target ?? null, reached: c.reached ?? c.ok ?? null, why: c.why ?? c.reason ?? null, verifyTarget: c.verifyTarget,
   }));
 }
 
@@ -81,6 +81,8 @@ export function clickProblems(row, clicks) {
     if (!c.testid || !(c.effect === 'none' || c.effect === 'free')) continue;
     const r = clicks.find((x) => x.testid === c.testid);
     if (!r || r.reached !== false) continue;
+    // A control whose target this run could not judge is not a control that failed to reach it.
+    if (r.verifyTarget === false) continue;
     const leadsSomewhere = c.target !== 'none' && c.target !== 'external';
     out.push({
       rule: leadsSomewhere && r.target && r.target !== c.target ? 'wrong-target' : 'dead-control',

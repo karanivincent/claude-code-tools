@@ -200,7 +200,10 @@ export function buildItems(o) {
       // component can show.
       const controls = (row.controls ?? [])
         .filter((c) => (c.effect === 'none' || c.effect === 'free') && c.testid)
-        .map((c) => (oneStepApart(plan, row, c.target) ? c : { ...c, target: 'none' }));
+        // The control keeps the target the plan gives it, and says separately whether this run can
+        // judge arriving there. Blanking the target instead wrote "leads nowhere" into the record,
+        // and two auditors read it back as a dead control.
+        .map((c) => (oneStepApart(plan, row, c.target) ? c : { ...c, verifyTarget: false }));
       for (const width of o.smoke ? [widths[0]] : widths) {
         for (const locale of o.smoke ? [primary] : locales) {
           for (const theme of o.smoke ? [themes[0]] : themes) {
