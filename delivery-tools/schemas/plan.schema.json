@@ -287,7 +287,13 @@
               "testid": { "type": "string" },
               "effect": { "$ref": "common.schema.json#/$defs/Effect" },
               "target": { "$ref": "common.schema.json#/$defs/Target" },
-              "enabledWhen": { "type": "string" }
+              "enabledWhen": { "type": "string" },
+              "permission": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["member"],
+                "properties": { "member": { "enum": ["hidden", "disabled", "enabled"] } }
+              }
             }
           }
         },

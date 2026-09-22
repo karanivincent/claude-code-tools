@@ -12,7 +12,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { BUILD_CLASSES } from '../plan/check.mjs';
-import { MEMBER_VARIANT_MODES } from '../capture/job.mjs';
+import { MEMBER_VARIANT_MODES, hiddenFromMembers } from '../capture/job.mjs';
 
 const ALWAYS = new Set(['', 'always']);
 
@@ -29,9 +29,12 @@ function controlsIn(dom, testid) {
  */
 export function controlProblems(row, dom, role) {
   const out = [];
-  const member = role === 'member' ? row.permission?.member ?? null : null;
   for (const c of row.controls ?? []) {
     if (!c.testid) continue;
+    // A control may carry its own member rule, and it wins: a screen where a member sees the tabs
+    // and the rows but not the button that creates one cannot be described by a single rule for
+    // the whole row, and the row's rule then says a member sees a control that is not there.
+    const member = role === 'member' ? c.permission?.member ?? row.permission?.member ?? null : null;
     const els = controlsIn(dom, c.testid);
     const present = els.length > 0;
     const disabled = present && els.every((e) => e.disabled === true);
@@ -106,6 +109,10 @@ export default {
       const { item } = it;
       if (env.isRealOrg(item) || item.status !== 'reached' || item.locale !== env.primaryLocale || item.theme !== 'light') continue;
       const row = env.rows.get(item.state);
+      // A copy of a row in a world the row does not name is captured as data, not as this state:
+      // the messy world's copy exists to test the row's invariants, and its controls belong to the
+      // world the row names. Asking the messy world for the one-widget line found no such element.
+      if (row?.reach?.world && item.world !== row.reach.world) continue;
       if (!row || !BUILD_CLASSES.has(row.class) || !(row.controls ?? []).length) continue;
       const dom = await it.dom();
       if (!dom) continue;
@@ -120,9 +127,13 @@ export default {
       }
     }
     if (capturesMembers) {
+      const shutToMembers = hiddenFromMembers(env.plan);
       for (const row of env.plan?.rows ?? []) {
         if (!row.permission || !BUILD_CLASSES.has(row.class) || !(row.controls ?? []).length) continue;
         if (!env.capture.items.some((i) => i.item.state === row.id) || memberStates.has(row.id)) continue;
+        // The same rule the job builds by: a state an admin reaches by clicking a control the plan
+        // hides from members is a state no member capture can exist for, so it is not owed one.
+        if ((row.reach?.steps ?? []).some((st) => st.click?.testid && shutToMembers.has(st.click.testid))) continue;
         findings.push(env.finding('M9', {
           rule: 'member-not-captured', state: row.id, where: `${row.id}#member`,
           design: `captured as a member (controls ${row.permission.member})`, live: 'no member capture of this state in this run',

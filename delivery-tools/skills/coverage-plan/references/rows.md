@@ -27,8 +27,8 @@ listed there fails validation. This page says what goes in each field.
 | `backend[]` | `{ method, route, discriminator?, exists, verifiedBy, unit? }`, one per route or mutation called; every `exists: false` names the backend `unit` that builds it |
 | `reach` | `{ class, world, role, steps, intercept?, test?, why? }`; see below |
 | `markers` | `{ text, testids, forbidden, sameAs? }`; see below |
-| `controls[]` | `{ label, testid, effect, target, enabledWhen? }`: every control, its effect class (`none`, `free`, `metered`, `dials`, `destructive`) and the state it leads to |
-| `permission` | `{ member }`: `hidden`, `disabled` or `enabled`, taken from the route's own authorisation rule, not from the design |
+| `controls[]` | `{ label, testid, effect, target, enabledWhen?, permission? }`: every control, its effect class (`none`, `free`, `metered`, `dials`, `destructive`) and the state it leads to. A control's own `permission` overrides the row's, which is how a screen says a member sees the tabs and the rows and not the button that creates one |
+| `permission` | `{ member }`: `hidden`, `disabled` or `enabled`, taken from the route's own authorisation rule, not from the design. It applies to every control the row lists that does not carry its own |
 | `copy[]` | `{ key, en, plural }`: every message key the state uses, English taken from the design render's `.txt`; `plural: true` for every string that carries a count (an ICU plural) |
 | `dayOne` | `true` when a read-only count query (counts only, no rows) across the test environment's real organisations shows the state is what most of them will see first; day-one states have their severity raised one level |
 | `invariants` | statements a capture can check on messy data, in the grammar `plan check` parses (see below) |

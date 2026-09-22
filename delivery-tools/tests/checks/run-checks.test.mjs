@@ -208,6 +208,32 @@ test('M9: member-not-captured only in a mode that adds member variants, not in a
   } finally { wave.cleanup(); }
 });
 
+test("M9: a control's own member rule wins, and a row's copy in another world is data, not this state", async () => {
+  const controls = [
+    { label: 'List', testid: 'w-tab', effect: 'none', target: 'WL-01' },
+    // A member sees the tabs and the rows, and not the button that creates one. One rule for the
+    // whole row cannot say that, and saying "enabled" made the member's page a P1 four times over.
+    { label: 'New widget', testid: 'w-new', effect: 'free', target: 'WL-02', permission: { member: 'hidden' } },
+  ];
+  const rows = [row('WL-01', { controls, permission: { member: 'enabled' } }), row('WL-02')];
+  const plan = planWith(rows, { worlds: [world('design'), { ...world('messy'), kind: 'messy' }] });
+  const dom = domFor(['Widgets'], { extra: [{ text: 'List', testid: 'w-tab' }] });
+  const run = await makeRun({
+    plan, profile: profile(),
+    captures: [{ runId: 'c-6m', mode: 'wave', items: [
+      { state: 'WL-01', lines: ['Widgets'], dom: domFor(['Widgets'], { extra: [{ text: 'List', testid: 'w-tab' }, { text: 'New widget', testid: 'w-new' }] }) },
+      { state: 'WL-01', role: 'member', lines: ['Widgets'], dom },
+      // The same row again in the messy world, captured for its invariants, not as this state.
+      { state: 'WL-01', world: 'messy', lines: ['Widgets'], dom: domFor(['Widgets']) },
+    ] }],
+  });
+  try {
+    const res = await runChecks(run.ctx, ['M9'], { captureRunId: 'c-6m' });
+    const got = res.findings.map((f) => `${f.rule} ${f.where.split('#')[1] ?? f.where}`).sort();
+    assert.deepEqual(got, [], JSON.stringify(res.findings, null, 1));
+  } finally { run.cleanup(); }
+});
+
 test('M10, M16, M17 from the capture logs; intercepted and aborted requests are never findings', async () => {
   const log = {
     schemaVersion: 1,
