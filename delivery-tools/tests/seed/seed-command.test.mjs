@@ -12,6 +12,7 @@ import seedCommand from '../../lib/commands/seed.mjs';
 import { seedCheckGate } from '../../lib/seed/safety.mjs';
 import { teardownRows, refreshWorld } from '../../lib/seed/scan.mjs';
 import { buildSeedPlan, uuidv5, fixtureId } from '../../lib/seed/plan.mjs';
+import { applyRows } from '../../lib/seed/apply.mjs';
 import { createStubDb } from './stub-db.mjs';
 import { WORKER_FILES } from '../sidefx/fixtures.mjs';
 
@@ -271,4 +272,33 @@ test('an empty seed plan passes seedCheckGate (preflight P6), and a mode is requ
     await assert.rejects(seedCommand.run(ctx, []), (err) => err.exit === 2);
     await assert.rejects(seedCommand.run(ctx, ['--check', '--scan']), (err) => err.exit === 2);
   } finally { repo.cleanup(); }
+});
+
+// A membership is a join table: its key is the pair of columns it joins and it has no id column
+// to derive one into. Every row used to be written with an id, so the one row a world needs to
+// make its fixture users members of its organisation was the one row that could not be seeded.
+test('seed --plan: a table the types show with no id column is written without one', async () => {
+  const plan = validExample('plan');
+  const worldFiles = { design: SAFE_WORLD };
+  const built = (tablesWithoutId) => buildSeedPlan({ feature: 'widgets', runId: 'r-1', project: 'p', plan, safety: makeSafety(), worldFiles, tablesWithoutId });
+
+  const withId = built(new Set());
+  const member = withId.rows.find((r) => r.table === 'organization_members');
+  assert.equal(member.idless, undefined);
+  assert.equal(member.values.id, member.id);
+
+  const idless = built(new Set(['organization_members']));
+  const joined = idless.rows.find((r) => r.table === 'organization_members');
+  assert.equal(joined.idless, true);
+  assert.equal('id' in joined.values, false, 'no id is written into a table that has no id column');
+  assert.ok(joined.id, 'the row still has a derived id, so $ref and the reports can name it');
+  // Every other row is unchanged.
+  assert.equal(idless.rows.find((r) => r.table === 'widgets').values.id, idless.rows.find((r) => r.table === 'widgets').id);
+
+  const upserts = [];
+  await applyRows({ createUser: async () => 'created', upsert: async (table, rows, o) => upserts.push({ table, ids: rows.map((r) => r.id ?? null), idless: Boolean(o?.idless) }) }, idless, { now: new Date(NOW) });
+  const call = upserts.find((u) => u.table === 'organization_members');
+  assert.deepEqual(call.ids, [null]);
+  assert.equal(call.idless, true);
+  assert.equal(upserts.find((u) => u.table === 'widgets').idless, false);
 });

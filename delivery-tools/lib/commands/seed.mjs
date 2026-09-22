@@ -11,6 +11,9 @@ import { buildSeedPlan, readWorldFile } from '../seed/plan.mjs';
 import { seedCheck } from '../seed/safety.mjs';
 import { seedScan, refreshWorld, teardownSeed } from '../seed/scan.mjs';
 import { applyRows } from '../seed/apply.mjs';
+import { parseDatabaseTypes } from '../plan/verify.mjs';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 
 const MODES = ['plan', 'check', 'apply', 'scan', 'refresh', 'teardown'];
 
@@ -77,6 +80,7 @@ async function planMode(ctx) {
     runId: state?.runId ?? newRunId(ctx.clock),
     project: profile.environments.test.projectRef,
     plan, worldFiles, safety,
+    tablesWithoutId: await tablesWithoutId(paths, profile),
   });
   await writeArtefact(paths, 'seedplan', seedPlan);
   ctx.out.line(`seed plan: ${seedPlan.worlds.length} world(s), ${seedPlan.rows.length} row(s), ${seedPlan.users.length} fixture user(s) -> ${paths.seedplan}`);
@@ -84,6 +88,19 @@ async function planMode(ctx) {
   ctx.out.set('seedplan', { worlds: seedPlan.worlds, rows: seedPlan.rows.length, users: seedPlan.users.length });
   await ctx.journal({ command: 'seed --plan', exit: 0, counts: { worlds: seedPlan.worlds.length, rows: seedPlan.rows.length }, outputs: seedPlan });
   return EXIT.PASS;
+}
+
+/**
+ * The tables the generated database types show with no `id` column: a join table, whose key is the
+ * pair of columns it joins. Those rows are written without a derived id. Types that cannot be read
+ * give an empty set, which is the behaviour every run had before this existed.
+ */
+async function tablesWithoutId(paths, profile) {
+  const path = profile?.paths?.databaseTypes;
+  if (!path) return new Set();
+  let types;
+  try { types = parseDatabaseTypes(await readFile(join(paths.repoRoot, path), 'utf8')); } catch { return new Set(); }
+  return new Set([...types.entries()].filter(([, cols]) => !cols.has('id')).map(([t]) => t));
 }
 
 function report(ctx, gate, evaluation, label) {

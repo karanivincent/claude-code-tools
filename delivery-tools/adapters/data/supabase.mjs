@@ -94,9 +94,19 @@ function guard(backend, { projectRef, write }) {
       assertReadOnlySql(sql);
       return backend.query(sql, params);
     },
-    upsert: allowed.has('upsert') ? async (table, rows) => {
+    // `idless` is for a join table, whose primary key is the pair of columns it joins and which
+    // has no id column to derive one into. Everything else still needs its derived id: that is
+    // what makes a re-seed an upsert rather than a second row, and a teardown a delete by id.
+    upsert: allowed.has('upsert') ? async (table, rows, o = {}) => {
       assertTable(table);
-      for (const r of rows) if (!r || typeof r !== 'object' || !ID.test(String(r.id ?? ''))) throw new DeliveryError(EXIT.USAGE, `upsert into ${table}: every row needs an id`, { code: 'seed' });
+      for (const r of rows) {
+        if (!r || typeof r !== 'object') throw new DeliveryError(EXIT.USAGE, `upsert into ${table}: every row is an object`, { code: 'seed' });
+        if (o.idless) {
+          if ('id' in r) throw new DeliveryError(EXIT.USAGE, `upsert into ${table}: the table has no id column, so a row may not carry one`, { code: 'seed' });
+          continue;
+        }
+        if (!ID.test(String(r.id ?? ''))) throw new DeliveryError(EXIT.USAGE, `upsert into ${table}: every row needs an id`, { code: 'seed' });
+      }
       return backend.upsert(table, rows);
     } : refuse('upsert'),
     deleteByIds: allowed.has('deleteByIds') ? async (table, ids) => {

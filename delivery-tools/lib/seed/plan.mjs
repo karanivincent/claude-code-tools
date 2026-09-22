@@ -94,10 +94,17 @@ export async function readWorldFile(paths, worldId) {
 
 /**
  * Pure: plan worlds and world files to a seed plan.
- * @param {{ feature: string, runId: string, project: string, plan: object, worldFiles: Record<string, object>, safety: object }} input
+ *
+ * `tablesWithoutId` names the tables the generated database types show with no `id` column — a
+ * join table such as a membership, whose primary key is the pair of columns it joins. Every other
+ * row carries a derived id, which is what makes a re-seed an idempotent upsert and a teardown a
+ * delete by id list. A join row is written without one and goes when its organisation does, so a
+ * world can say who its fixture users are members of. Nothing could, before: `applyRows` set `id`
+ * on every row and the database refused the insert.
+ * @param {{ feature: string, runId: string, project: string, plan: object, worldFiles: Record<string, object>, safety: object, tablesWithoutId?: Set<string> }} input
  * @returns {object} seedplan.json value
  */
-export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safety }) {
+export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safety, tablesWithoutId }) {
   const worlds = [];
   const rows = [];
   const users = [];
@@ -154,7 +161,9 @@ export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safet
     for (const r of file.rows) {
       if (Object.prototype.hasOwnProperty.call(r.values, 'id')) problems.push(`world ${w.id} row "${r.key}": sets its own id; ids are derived`);
       const id = keys.get(r.key);
-      rows.push({ world: w.id, table: r.table, id, values: { id, ...resolve(r.values, `row "${r.key}"`) } });
+      const idless = Boolean(tablesWithoutId?.has(r.table));
+      const values = resolve(r.values, `row "${r.key}"`);
+      rows.push({ world: w.id, table: r.table, id, ...(idless ? { idless: true } : {}), values: idless ? values : { id, ...values } });
     }
     // A world's users are created in the auth system by seed --apply and joined to its organisation
     // by the world file, because only the repo knows which table and columns that join lives in.

@@ -146,7 +146,10 @@ export async function teardownSeed(ctx) {
   const userRe = new RegExp(safety.fixtureUserPattern);
   const writer = await adapter(ctx, 'seed-teardown');
   const orgIds = new Set(seedPlan.worlds.map((w) => w.orgId));
-  const ordered = [...seedPlan.rows].reverse();
+  // A join row has no id to delete by. It carries the organisation's id, so it goes when the
+  // organisation does — which is why organisations are deleted last. If a repo's join table does
+  // not cascade, that organisation's delete fails loudly rather than leaving the row unnoticed.
+  const ordered = [...seedPlan.rows].reverse().filter((r) => !r.idless);
   const nonOrg = ordered.filter((r) => !orgIds.has(r.id));
   const orgs = ordered.filter((r) => orgIds.has(r.id));
   let deleted = 0;
