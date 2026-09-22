@@ -156,6 +156,31 @@ test('capabilities: every baseline capability has a row; route and control rows 
   assert.ok(f.filter((x) => x.code !== 'M1-missing-row').every((x) => x.message.includes('CAP-001')), 'only the route capability needs reach and markers');
 });
 
+test('planGate refuses a plan whose worlds have no world file, or an invalid one', async () => {
+  const plan = planWith([withMarkers('WL-01')]);
+  const inventory = inv(['WL-01']);
+
+  const missing = await makeRun({ profile, plan, inventory, worldFiles: false });
+  try {
+    const r = await planGate(missing.ctx);
+    assert.deepEqual(r.failures.map((f) => f.code), ['M1-no-world-file']);
+    assert.match(r.failures[0].message, /world design has no world file at .*worlds\/design\.json/);
+  } finally { missing.cleanup(); }
+
+  const wrong = await makeRun({ profile, plan, inventory, worldFiles: { design: { schemaVersion: 1, world: 'day-one', rows: [] } } });
+  try {
+    const r = await planGate(wrong.ctx);
+    assert.deepEqual(r.failures.map((f) => f.code), ['M1-world-file']);
+    assert.match(r.failures[0].message, /says world "day-one", not "design"/);
+  } finally { wrong.cleanup(); }
+
+  const bad = await makeRun({ profile, plan, inventory, worldFiles: { design: { schemaVersion: 1, world: 'design' } } });
+  try {
+    const r = await planGate(bad.ctx);
+    assert.deepEqual(r.failures.map((f) => f.code), ['M1-world-file']);
+  } finally { bad.cleanup(); }
+});
+
 test('planGate reads the files: no plan, no inventory, a redesign without a baseline', async () => {
   const empty = await makeRun({ profile });
   try {

@@ -6,6 +6,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { validateAgainst } from '../../lib/core/schema.mjs';
 import { featurePaths } from '../../lib/core/paths.mjs';
+import { worldFilePath } from '../../lib/seed/plan.mjs';
 import { sha256 } from '../../lib/core/hash.mjs';
 import { makeTestCtx } from '../helpers/ctx.mjs';
 import { makeTempDir } from '../helpers/tmp-repo.mjs';
@@ -118,6 +119,13 @@ export async function makeRun(o = {}) {
   const put = (abs, v) => { mkdirSync(join(abs, '..'), { recursive: true }); writeFileSync(abs, typeof v === 'string' ? v : `${JSON.stringify(v, null, 2)}\n`); };
   mkdirSync(paths.runDir, { recursive: true });
   if (o.plan) put(paths.plan, o.plan);
+  // A plan's worlds each need a world file, and the phase-3 gate says so. Write a minimal valid
+  // one per world unless the case under test supplies or withholds it (worldFiles: false).
+  if (o.plan && o.worldFiles !== false) {
+    for (const w of o.plan.worlds ?? []) {
+      put(worldFilePath(paths, w.id), o.worldFiles?.[w.id] ?? { schemaVersion: 1, world: w.id, rows: [{ key: 'org', table: 'organizations', values: { name: { $orgName: true } } }] });
+    }
+  }
   if (o.inventory) put(paths.inventory, o.inventory);
   for (const [rel, text] of Object.entries(o.files ?? {})) put(join(t.dir, rel), text);
   for (const [id, d] of Object.entries(o.designs ?? {})) {

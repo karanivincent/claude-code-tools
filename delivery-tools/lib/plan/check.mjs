@@ -3,6 +3,9 @@
 // or line it is about, so the plan's author can fix it without rereading the spec.
 
 import { readArtefact } from '../core/artefacts.mjs';
+import { readJson } from '../core/fs.mjs';
+import { schemaRegistry } from '../core/schema.mjs';
+import { WORLD_SCHEMA, worldFilePath } from '../seed/plan.mjs';
 import { gateResult } from '../core/gate.mjs';
 import { parseInvariant } from '../checks/invariants.mjs';
 
@@ -269,5 +272,30 @@ export async function planGate(ctx) {
   if (intent?.redesign && !baseline) failures.push({ code: 'M1-no-baseline', message: `the intent says redesign, but there is no baseline at ${paths.baseline}` });
   if (plan.feature !== paths.feature) failures.push({ code: 'M1-feature', message: `plan.json is for feature ${plan.feature}, not ${paths.feature}` });
   failures.push(...checkPlan({ plan, inventory, baseline, intent, profile }));
+  failures.push(...(await worldFileFailures(paths, plan)));
   return gateResult(failures);
+}
+
+/**
+ * Every world the plan declares has a world file the seed step can read (spec 7.4).
+ *
+ * The coverage-plan step writes one per world, and nothing used to check it: a plan could declare
+ * five worlds, go green here, advance, open a draft pull request and run four builders, and the
+ * omission surfaced two phases later at `seed --plan`, as a usage error naming one world at a
+ * time. It belongs in this gate, where the worlds are written.
+ */
+async function worldFileFailures(paths, plan) {
+  const out = [];
+  for (const w of plan.worlds ?? []) {
+    const path = worldFilePath(paths, w.id);
+    const value = await readJson(path, { optional: true });
+    if (value === null) {
+      out.push({ code: 'M1-no-world-file', message: `world ${w.id} has no world file at ${path}; the coverage-plan step writes one per world` });
+      continue;
+    }
+    const { ok, errors } = schemaRegistry().validate(WORLD_SCHEMA, value);
+    if (!ok) for (const e of errors.slice(0, 3)) out.push({ code: 'M1-world-file', message: `${path}${e.path === '/' ? '' : e.path}: ${e.message}` });
+    else if (value.world !== w.id) out.push({ code: 'M1-world-file', message: `${path} says world "${value.world}", not "${w.id}"` });
+  }
+  return out;
 }
