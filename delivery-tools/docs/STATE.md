@@ -88,6 +88,17 @@ colour comparison was repaired on 2026-09-21: `parseColor` read `rgb()` alone wh
 measures ship `oklch()`, so one colour written two ways came back `Infinity` apart and every colour
 difference M5 reported was noise.
 
+## Known defects, not yet fixed
+
+- **The raw-seed guard fires on any inline code containing the word.** `lib/run/hook-match.mjs:303`
+  classifies `node -e <code>` as a seed whenever the program text contains the substring `seed`
+  anywhere — a filename, a unit id, a comment, a quoted string. The module's own header promises
+  the opposite ("quoted text ... never counts"), and every other branch of that lexer resolves a
+  real command word first. Found on 2026-09-22 when a read-only command naming the unit
+  `T-seed-safe` was refused during the 20.5 rehearsal. It is a safety guard, so it is **not**
+  narrowed in the change that trips it: it gets its own commit, a test pinning the case it should
+  no longer catch, and a `why` line naming this. Until then, do not put the word in inline code.
+
 ## How to continue cheaply
 
 Run at most 3 to 4 agents at once. Use sonnet for narrow tasks. Everything cheap is done: the five
