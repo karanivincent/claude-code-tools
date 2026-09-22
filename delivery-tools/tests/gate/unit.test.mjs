@@ -125,6 +125,35 @@ test('no report, states not done, a failed unit check: red before anything runs'
   } finally { s.repo.cleanup(); }
 });
 
+test('a unit check the unit file has since changed is named as stale, with the command to run now', async () => {
+  const s = await setup({ testFiles: GOOD, captureLines: ['Widgets'] });
+  try {
+    const report = JSON.parse(readFileSync(s.paths.unitReport('U1'), 'utf8'));
+    put(s.paths.unitReport('U1'), { ...report, unitCheck: { command: 'npx vitest run src/x.ts', exit: 1 } });
+
+    // No unit file yet: the old wording, because there is nothing to compare against.
+    let st = await unitGateStatusWith(s.ctx, 'U1', { validateCaptureItems: async () => [] });
+    let hit = st.failures.find((f) => f.code === 'gate-unit-check');
+    assert.match(hit.message, /exited 1 \(npx vitest run src\/x\.ts\)/);
+
+    // A unit file holding the SAME command: still the old wording.
+    const unitFile = { schemaVersion: 1, unit: { id: 'U1', title: 'U1', issue: null, kind: 'screen', wave: 0, files: [], states: [], capabilities: [], risk: 'normal', model: 'sonnet' },
+      rows: [], contracts: [], commands: { bootstrap: 'npm ci', unitCheck: 'npx vitest run src/x.ts' },
+      baseRef: 'origin/main', branch: 'unit/u1', reportPath: s.paths.unitReport('U1'), flight: '', tried: '' };
+    put(s.paths.unitFile('U1'), unitFile);
+    st = await unitGateStatusWith(s.ctx, 'U1', { validateCaptureItems: async () => [] });
+    hit = st.failures.find((f) => f.code === 'gate-unit-check');
+    assert.doesNotMatch(hit.message, /not the unit check any more/);
+
+    // The unit file corrected since the builder ran: say so, and name what to run.
+    put(s.paths.unitFile('U1'), { ...unitFile, commands: { ...unitFile.commands, unitCheck: 'cd app && npx vitest run x' } });
+    st = await unitGateStatusWith(s.ctx, 'U1', { validateCaptureItems: async () => [] });
+    hit = st.failures.find((f) => f.code === 'gate-unit-check');
+    assert.match(hit.message, /not the unit check any more/);
+    assert.match(hit.message, /re-read your unit file and run "cd app && npx vitest run x"/);
+  } finally { s.repo.cleanup(); }
+});
+
 test('helpers: common directory, which rows a capture or a component test verifies', () => {
   assert.equal(commonDir(['src/a/b/x.test.tsx', 'src/a/c/y.test.tsx']), 'src/a');
   assert.equal(commonDir(['x.ts']), '.');

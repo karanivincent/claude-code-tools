@@ -46,8 +46,13 @@ that file. Several gates may be queued at once; the heavy wrapper hands out the 
 Preferred: SendMessage to the same builder:
 
 ```
-The gate for <UNIT> is red. Its failures are in <RUN>/units/<UNIT>.gate.json. Continue on your branch as the brief says, then rewrite your report.
+The gate for <UNIT> is red. Its failures are in <RUN>/units/<UNIT>.gate.json. Read your unit file again first - a correction reaches you by rewriting it, so its commands may have changed since you last read it. Then continue on your branch as the brief says, and rewrite your report.
 ```
+
+The first sentence of that message is load-bearing. When the correction **is** a command, a
+builder that re-runs the one its gate file quotes gets the same failure for ever: three builders
+did exactly that at once, each reasoning correctly from a stale line. The gate now says so itself
+whenever the unit file's command has changed, and this message says it too.
 
 If that builder is gone (a new session, a crash), dispatch fresh with the same fields and:
 

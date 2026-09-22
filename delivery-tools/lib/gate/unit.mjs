@@ -69,7 +69,9 @@ async function loadUnit(ctx, unitId) {
   const unit = (plan.units ?? []).find((u) => u.id === unitId);
   if (!unit) throw new UsageError(`unit ${unitId} is not in the plan; units: ${(plan.units ?? []).map((u) => u.id).join(', ') || 'none'}`);
   const report = await readArtefact(paths, 'unit-report', { key: unitId, optional: true });
-  return { paths, plan, unit, report, rows: unitRows(plan, unit) };
+  let unitFile = null;
+  try { unitFile = await readArtefact(paths, 'unit-file', { key: unitId, optional: true }); } catch { unitFile = null; }
+  return { paths, plan, unit, report, unitFile, rows: unitRows(plan, unit) };
 }
 
 /** The unit's head: its branch, else the branch on origin, else its last reported commit. */
@@ -83,7 +85,7 @@ async function unitHead(ctx, report) {
   return null;
 }
 
-function reportFailures(unitId, report, rows) {
+function reportFailures(unitId, report, rows, unitFile = null) {
   const out = [];
   if (!report) return [{ code: 'gate-no-report', message: `unit ${unitId} has no report; the builder writes it when it finishes` }];
   if (report.unit !== unitId) out.push({ code: 'gate-report', message: `the report for ${unitId} names unit ${report.unit}` });
@@ -93,7 +95,20 @@ function reportFailures(unitId, report, rows) {
     if (/^CAP-/.test(r.id)) continue;
     if (!done.has(r.id) && !report.statesNotDone.some((s) => s.id === r.id)) out.push({ code: 'gate-not-done', message: `${r.id} is owned by ${unitId} but the report does not say it is done` });
   }
-  if (report.unitCheck.exit !== 0) out.push({ code: 'gate-unit-check', message: `the builder's unit check exited ${report.unitCheck.exit} (${report.unitCheck.command})` });
+  if (report.unitCheck.exit !== 0) {
+    // Name the command the unit file holds NOW whenever it differs from the one the report ran.
+    // Without this the failure quotes a command that no longer exists, and a builder resuming from
+    // this file re-runs it and reports the same failure for ever - which is exactly what happened
+    // to three builders at once when the correction WAS the command.
+    const now = unitFile?.commands?.unitCheck ?? null;
+    const stale = now && now !== report.unitCheck.command;
+    out.push({
+      code: 'gate-unit-check',
+      message: stale
+        ? `the builder's unit check exited ${report.unitCheck.exit} running "${report.unitCheck.command}", which is not the unit check any more: re-read your unit file and run "${now}"`
+        : `the builder's unit check exited ${report.unitCheck.exit} (${report.unitCheck.command})`,
+    });
+  }
   return out;
 }
 
@@ -187,8 +202,8 @@ export async function unitGateStatus(ctx, unitId) {
 
 /** unitGateStatus with an injectable validator (tests). */
 export async function unitGateStatusWith(ctx, unitId, deps = {}) {
-  const { paths, plan, unit, report, rows } = await loadUnit(ctx, unitId);
-  const failures = reportFailures(unitId, report, rows);
+  const { paths, plan, unit, report, unitFile, rows } = await loadUnit(ctx, unitId);
+  const failures = reportFailures(unitId, report, rows, unitFile);
   const head = await unitHead(ctx, report);
   if (report && !head) failures.push({ code: 'gate-no-head', message: `unit ${unitId}: branch ${report.branch} and its commits are not in this repository` });
   if (head) {
@@ -217,9 +232,9 @@ export async function unitGateStatusWith(ctx, unitId, deps = {}) {
  * @returns {Promise<{ ok: boolean, failures: { code: string, message: string }[], captureRunId: string|null, head: string|null, file: string }>}
  */
 export async function runUnitGate(ctx, unitId, deps = {}) {
-  const { paths, plan, unit, report, rows } = await loadUnit(ctx, unitId);
+  const { paths, plan, unit, report, unitFile, rows } = await loadUnit(ctx, unitId);
   const profile = await ctx.profile();
-  const failures = reportFailures(unitId, report, rows);
+  const failures = reportFailures(unitId, report, rows, unitFile);
   const head = await unitHead(ctx, report);
   let captureRunId = null;
   if (report && !head) failures.push({ code: 'gate-no-head', message: `unit ${unitId}: branch ${report.branch} and its commits are not in this repository` });
