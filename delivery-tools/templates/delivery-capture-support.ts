@@ -412,6 +412,32 @@ async function runStep(page: Page, step: CaptureStep): Promise<void> {
 }
 
 /** Reach the item's state: sign in (or reuse this user's session), then every step. */
+/** How long to wait out an app's own rate limit before giving up on an item. */
+export const RATE_LIMIT_MAX_WAIT_MS = 16 * 60 * 1000;
+
+/**
+ * Go to a path, waiting out the app's own request budget rather than working around it.
+ *
+ * An app that budgets requests per client sees one client here: a capture drives every state and
+ * every control click from one machine, and one state costs a document, its payloads and its
+ * prefetches. When the app says 429 it also says for how long, and the honest answer is to wait
+ * that long and ask again -- the alternative is to make the product count this traffic as
+ * somebody else's, which is the limit's whole job.
+ */
+async function gotoWaitingOutLimits(page: Page, path: string, meta: Meta): Promise<void> {
+  let waited = 0;
+  for (;;) {
+    const res = await page.goto(path);
+    if (res?.status() !== 429) return;
+    const after = Number(res.headers()['retry-after'] ?? '0');
+    const wait = Math.min(Math.max(after, 1) * 1000 + 1000, RATE_LIMIT_MAX_WAIT_MS - waited);
+    if (wait <= 0) return;
+    meta.steps.push({ n: 0, step: `the app's rate limit answered 429: waiting ${Math.round(wait / 1000)}s`, ok: true });
+    await new Promise((r) => setTimeout(r, wait));
+    waited += wait;
+  }
+}
+
 async function reach(page: Page, job: CaptureJob, item: CaptureItem, meta: Meta, signInFirst: boolean): Promise<void> {
   const steps = item.steps.slice();
   const first = steps.length && steps[0].goto !== undefined ? (steps.shift() as CaptureStep).goto as string : '/';
@@ -423,7 +449,7 @@ async function reach(page: Page, job: CaptureJob, item: CaptureItem, meta: Meta,
     }
     meta.steps.push({ n: 0, step: `sign in as ${item.email}, land on ${first}`, ok: true });
   } else {
-    await page.goto(first);
+    await gotoWaitingOutLimits(page, first, meta);
     meta.steps.push({ n: 0, step: `goto ${first}`, ok: true });
   }
   for (const [i, s] of steps.entries()) {
@@ -685,7 +711,11 @@ export async function captureItem(browser: Browser, job: CaptureJob, item: Captu
     await reach(page, job, item, meta, saved === undefined);
     await settled(page, job);
     log.perf.loadMs = Date.now() - t0;
-    if (saved === undefined) saveSession(job, item.email, await context.storageState());
+    // Always, not only after a sign-in: the session the page came back with carries the tokens as
+    // they now are. A stored session whose access token has expired makes every later item refresh
+    // it again, and a rotating refresh token used twice is refused -- which arrives as 429s on the
+    // sign-in exchange and then on the page itself, for the last states of a run only.
+    saveSession(job, item.email, await context.storageState());
     meta.finalUrl = page.url();
     await probeVersion(page, job, meta);
     const { lines, dom } = await extract(page, job);

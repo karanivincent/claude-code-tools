@@ -13,7 +13,7 @@
  * nothing is left running.
  */
 import { test } from '@playwright/test';
-import { captureItem, readJob } from './delivery-capture-support';
+import { captureItem, readJob, RATE_LIMIT_MAX_WAIT_MS } from './delivery-capture-support';
 
 const job = readJob();
 
@@ -27,7 +27,9 @@ test.describe('delivery capture', () => {
 
   for (const item of job?.items ?? []) {
     test(item.key, async ({ browser }) => {
-      test.setTimeout(90_000 + 30_000 * item.controls.length);
+      // Plus the longest an item may spend waiting out the app's own request budget, which it
+      // does rather than making the product count its traffic as somebody else's.
+      test.setTimeout(90_000 + 30_000 * item.controls.length + RATE_LIMIT_MAX_WAIT_MS);
       if (!job) return;
       await captureItem(browser, job, item);
     });
