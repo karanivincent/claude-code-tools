@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { runUnitGate, unitGateStatus, unitGateStatusWith, commonDir, testedBy, capturedBy, RENDER_EMPTY_ENV } from '../../lib/gate/unit.mjs';
+import { runUnitGate, unitGateStatus, unitGateStatusWith, commonDir, lastLines, testedBy, capturedBy, RENDER_EMPTY_ENV } from '../../lib/gate/unit.mjs';
 import { featurePaths } from '../../lib/core/paths.mjs';
 import { makeTempRepo } from '../helpers/tmp-repo.mjs';
 import { makeTestCtx } from '../helpers/ctx.mjs';
@@ -152,6 +152,13 @@ test('a unit check the unit file has since changed is named as stale, with the c
     assert.match(hit.message, /not the unit check any more/);
     assert.match(hit.message, /re-read your unit file and run "cd app && npx vitest run x"/);
   } finally { s.repo.cleanup(); }
+});
+
+test('a failed command carries the last of what it printed into the failure', () => {
+  assert.match(lastLines({ code: 1, stdout: '', stderr: "Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'scripts/delivery/unit-check.mjs'" }),
+    /it ended with: Error \[ERR_MODULE_NOT_FOUND\]/);
+  assert.equal(lastLines({ code: 1, stdout: '   \n\n', stderr: '' }), ' (it printed nothing)');
+  assert.match(lastLines({ code: 1, stdout: 'a\nb\nc\nd\ne\n', stderr: '' }), /c \/ d \/ e$/);
 });
 
 test('helpers: common directory, which rows a capture or a component test verifies', () => {

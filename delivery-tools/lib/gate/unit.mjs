@@ -53,6 +53,14 @@ export function markerStrings(row) {
   return [...(row.markers?.text ?? []), ...(row.markers?.testids ?? [])].filter((s) => s && s.trim());
 }
 
+/** The last few non-blank lines a failed command printed, for a failure message. */
+export function lastLines(result, n = 3, width = 300) {
+  const text = `${String(result?.stdout ?? '')}\n${String(result?.stderr ?? '')}`;
+  const lines = text.split('\n').map((l) => l.trimEnd()).filter((l) => l.trim());
+  if (!lines.length) return ' (it printed nothing)';
+  return `; it ended with: ${lines.slice(-n).join(' / ').slice(-width)}`;
+}
+
 /** The deepest directory every file shares ("." when none). */
 export function commonDir(files) {
   const dirs = files.map((f) => f.split('/').slice(0, -1));
@@ -267,7 +275,10 @@ export async function runUnitGate(ctx, unitId, deps = {}) {
       const spec = tests.files.length ? commonDir(tests.files) : commonDir((unit.files ?? []).filter((f) => !/[*?]/.test(f)));
       const r = await run(spec, {});
       const green = r.code === 0;
-      if (!green) failures.push({ code: 'gate-unit-check', message: `unit check on ${spec} exited ${r.code}${r.timedOut ? ' (timed out)' : ''}` });
+      // Carry the last of what it printed. "exited 1" alone sent four builders off to re-derive a
+      // cause the output named outright: the check was a repo script their branches predated, and
+      // node said MODULE_NOT_FOUND on the first line.
+      if (!green) failures.push({ code: 'gate-unit-check', message: `unit check on ${spec} exited ${r.code}${r.timedOut ? ' (timed out)' : ''}${lastLines(r)}` });
       if (green) {
         for (const file of tests.files) {
           const r = await run(file, { [RENDER_EMPTY_ENV]: '1' });
