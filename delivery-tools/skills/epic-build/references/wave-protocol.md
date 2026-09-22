@@ -44,7 +44,7 @@ writes the unit files and records each dispatch.
 | another conflict | resolve it (the refresh has already run), `git add`, run `wave start` again |
 | an unmapped Scope reply | the scope-reply extractor (`dispatch.md`), then `delivery scope read --apply "<Sn word>" --comment <id>` for each mapped decision, or `--ignore <id>` |
 | `claims verify` red | a claimed child is in the planner's queue: `delivery claims open` refreshes the claim; dispatch nothing until verify is green |
-| `dupes` red | another PR references a claimed child or touches a claimed path: the affected unit stops merging; write a Tier 1 decision (adopt that PR's branch into the integration branch, or ask on it that it be closed); the refresh classes anything it added |
+| `dupes` red | another PR references a claimed child or touches a claimed path: the affected unit stops merging; write a Tier 1 decision (adopt that PR's branch into the integration branch, ask on it that it be closed, or — for an overlap that is only a shared file two features both append to — `delivery dupes --decide <pr> --note "<what you decided>"`, which pins that PR's head SHA and lets the run past it while still listing it); the refresh classes anything it added |
 | exit 4 | GitHub or the base is unavailable: wait, run it again |
 
 A Scope reply applies at the wave its line names. One that arrives after its wave started still

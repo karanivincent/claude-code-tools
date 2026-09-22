@@ -45,6 +45,22 @@
         }
       }
     },
+    "dupeDecisions": {
+      "description": "One per other PR whose overlap with this run the main session has decided (spec 12.3). Pins that PR's head SHA: a new commit on it is a fresh decision.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["pr", "sha", "note", "units", "at"],
+        "properties": {
+          "pr": { "type": "integer", "minimum": 1 },
+          "sha": { "$ref": "common.schema.json#/$defs/GitSha" },
+          "note": { "$ref": "common.schema.json#/$defs/Text" },
+          "units": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/FileId" } },
+          "at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+        }
+      }
+    },
     "readyRecords": {
       "type": "array",
       "items": {

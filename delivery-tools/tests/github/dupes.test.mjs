@@ -11,7 +11,7 @@ import { featurePaths } from '../../lib/core/paths.mjs';
 import { createState } from '../../lib/core/state.mjs';
 import { writeArtefact } from '../../lib/core/artefacts.mjs';
 import { makeMarker } from '../../lib/core/markers.mjs';
-import { findDupes, branchIssues } from '../../lib/github/dupes.mjs';
+import { findDupes, branchIssues, undecided } from '../../lib/github/dupes.mjs';
 import dupesCommand from '../../lib/commands/dupes.mjs';
 import { makePlan, FEATURE } from '../lifecycle/support.mjs';
 
@@ -57,4 +57,44 @@ test('dupes finds references and path overlaps since the run began, and nothing 
 test('branchIssues reads the pool\'s branch names', () => {
   assert.deepEqual([...branchIssues('night/1733-make-the-list')], [1733]);
   assert.deepEqual([...branchIssues('feature/add-12-things')], []);
+});
+
+test('a decision at the PR\'s head SHA lets the run past the hit, and a new commit on it re-reds', async () => {
+  const dir = makeTempDir();
+  try {
+    const paths = featurePaths(dir.dir, FEATURE, {});
+    const plan = makePlan();
+    await writeArtefact(paths, 'plan', plan);
+    await createState(paths, { feature: FEATURE, runId: 'r-20260115-2000-abcd', worktree: dir.dir, branch: 'epic/101-widgets', epic: 101, at: '2026-01-15T20:00:00.000Z' });
+    const clock = fakeClock('2026-01-15T22:00:00.000Z');
+    const gh = createGhStub({ clock, startAt: 200 });
+    const other = await gh.prCreate({ title: 'Another feature adding copy', body: '', base: 'main', head: 'night/500-other' });
+    gh.setFiles(other.number, ['apps/web/src/widgets/shell.stub.tsx']);
+    const { ctx, stdout } = await makeTestCtx({ repoRoot: dir.dir, feature: FEATURE, profile: makeProfile(), gh, clock });
+
+    // Red before the decision, and the hit names the unit that claims the file.
+    let hits = await findDupes(ctx);
+    assert.equal(hits.length, 1);
+    assert.equal(hits[0].decided, false);
+    assert.deepEqual(hits[0].units, ['U2'], 'the stub is the contract\'s, so its consumer is the unit affected');
+    assert.equal(await dupesCommand.run(ctx, []), 1);
+
+    // --decide needs a note, and refuses a PR that is not a hit.
+    await assert.rejects(() => dupesCommand.run(ctx, ['--decide', String(other.number)]), /--note/);
+    await assert.rejects(() => dupesCommand.run(ctx, ['--decide', '9999', '--note', 'x']), /not a duplicate/);
+
+    assert.equal(await dupesCommand.run(ctx, ['--decide', String(other.number), '--note', 'a shared registry file; the overlap is a text merge']), 0);
+    hits = await findDupes(ctx);
+    assert.equal(hits.length, 1, 'the hit is still found, never silenced');
+    assert.equal(hits[0].decided, true);
+    assert.equal(undecided(hits).length, 0);
+    assert.equal(await dupesCommand.run(ctx, []), 0);
+    assert.match(stdout.lines().join('\n'), /decided #\d+ \([0-9a-f]{7}\): a shared registry file/);
+
+    // A new commit on that PR expires the decision.
+    gh.setHead(other.number, 'f'.repeat(40));
+    hits = await findDupes(ctx);
+    assert.equal(hits[0].decided, false, 'a new head SHA is a fresh decision');
+    assert.equal(await dupesCommand.run(ctx, []), 1);
+  } finally { dir.cleanup(); }
 });

@@ -374,7 +374,7 @@ signature; if it must change, say so under "Requests for other slices" in your r
 | `scopeGate` | `lib/github/scope.mjs` | A2 | `(ctx) => Promise<GateResult>` | phase-3 (A1) |
 | `lateChanges` | `lib/github/scope.mjs` | A2 | `(ctx) => Promise<{ row, from, to, scopeLine }[]>` | ready (A1), report (C) |
 | `claimsGate` | `lib/github/claims.mjs` | A2 | `(ctx) => Promise<GateResult>` | phase-4 (A1) |
-| `findDupes` | `lib/github/dupes.mjs` | A2 | `(ctx) => Promise<{ pr, reason }[]>` | ready (A1) |
+| `findDupes` | `lib/github/dupes.mjs` | A2 | `(ctx) => Promise<{ pr, sha, units, decided, note, reason }[]>` | ready (A1) |
 | `ciStatus` | `lib/github/ci.mjs` | A2 | `(ctx, { pr, wait? }) => Promise<{ state, headSha, detail }>` | ready, phase-5 (A1) |
 | `inventoryGate` | `lib/plan/inventory-check.mjs` | B1 | `(ctx) => Promise<GateResult>` | phase-2 (A1) |
 | `planGate` | `lib/plan/check.mjs` | B1 | `(ctx) => Promise<GateResult>` | phase-3 (A1) |

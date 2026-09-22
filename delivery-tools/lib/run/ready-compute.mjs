@@ -12,7 +12,7 @@ import { sha256File } from '../core/hash.mjs';
 import { fillCommand } from '../core/profile.mjs';
 import { formatEvent, parseEvent, updateState } from '../core/state.mjs';
 import { ciStatus } from '../github/ci.mjs';
-import { findDupes } from '../github/dupes.mjs';
+import { findDupes, undecided } from '../github/dupes.mjs';
 import { lateChanges } from '../github/scope.mjs';
 import { resolvePreview } from '../lifecycle/preview.mjs';
 import { refreshBaseline } from '../baseline/refresh.mjs';
@@ -154,7 +154,10 @@ export async function computeReady(ctx, { pr }) {
 
   await attempt('dupes', async () => {
     const hits = await dep(ctx, 'findDupes', findDupes)(ctx);
-    if (hits.length) return add('dupes', false, `${hits.length} other PR(s) claim this run's work: ${hits.slice(0, 5).map((h) => `#${h.pr} (${h.reason})`).join(', ')}`);
+    const red = undecided(hits);
+    if (red.length) return add('dupes', false, `${red.length} other PR(s) claim this run's work: ${red.slice(0, 5).map((h) => `#${h.pr} (${h.reason})`).join(', ')}`);
+    const decided = hits.filter((h) => h.decided);
+    if (decided.length) return add('dupes', true, `${decided.length} overlap(s) decided: ${decided.map((h) => `#${h.pr} (${h.note})`).join('; ')}`);
     add('dupes', true, 'no other PR references a claimed child or touches a claimed path');
   });
 

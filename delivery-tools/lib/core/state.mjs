@@ -101,7 +101,7 @@ export function initState({ feature, runId, worktree, branch, epic = null, at })
   const genesis = makeEntry(null, { at, event: formatEvent({ command: 'genesis', counts: { run: runId } }), inputs: { feature, runId }, outputs: {} });
   return {
     schemaVersion: 1, feature, runId, epic, pr: null, worktree, branch,
-    phase: 'intake', wave: 0, inFlight: [], waivers: [], readyRecords: [], journal: [genesis],
+    phase: 'intake', wave: 0, inFlight: [], waivers: [], dupeDecisions: [], readyRecords: [], journal: [genesis],
   };
 }
 

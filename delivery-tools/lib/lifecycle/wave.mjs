@@ -185,7 +185,10 @@ export async function waveStart(ctx, { wave = null } = {}) {
       for (const q of v.queued) failures.push({ code: 'claims', message: `the planner still queues #${q.issue} (${q.unit}); its claim is not holding` });
     }
   }
-  for (const dup of await findDupes(ctx)) failures.push({ code: 'dupe', message: dup.reason });
+  for (const dup of await findDupes(ctx)) {
+    if (dup.decided) lines.push(`decided #${dup.pr} (${dup.sha.slice(0, 7)}): ${dup.note}`);
+    else failures.push({ code: 'dupe', message: dup.reason });
+  }
 
   // 4. Unit files for this wave's units not yet merged, flight and tried for the builders.
   const units = planNow.units.filter((u) => u.wave === n && !built.has(u.id));
@@ -314,7 +317,10 @@ export async function waveEnd(ctx, { final = false } = {}) {
     failures.push({ code: 'claims', message: 'the run has no draft PR; run delivery claims open' });
     return endResult(ctx, { failures, lines, exit: EXIT.RED });
   }
-  for (const dup of await findDupes(ctx)) failures.push({ code: 'dupe', message: dup.reason });
+  for (const dup of await findDupes(ctx)) {
+    if (dup.decided) lines.push(`decided #${dup.pr} (${dup.sha.slice(0, 7)}): ${dup.note}`);
+    else failures.push({ code: 'dupe', message: dup.reason });
+  }
   const ci = await ciStatus(ctx, { pr: pr.number, wait: true });
   lines.push(ci.detail);
   if (ci.state === 'conflicting' || ci.state === 'red') failures.push({ code: ci.state === 'conflicting' ? 'mergeable' : 'ci', message: ci.detail });
