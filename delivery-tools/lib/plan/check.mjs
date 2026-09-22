@@ -3,7 +3,10 @@
 // or line it is about, so the plan's author can fix it without rereading the spec.
 
 import { readArtefact } from '../core/artefacts.mjs';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { readJson } from '../core/fs.mjs';
+import { parseDatabaseTypes } from './verify.mjs';
 import { schemaRegistry } from '../core/schema.mjs';
 import { WORLD_SCHEMA, worldFilePath } from '../seed/plan.mjs';
 import { gateResult } from '../core/gate.mjs';
@@ -272,7 +275,7 @@ export async function planGate(ctx) {
   if (intent?.redesign && !baseline) failures.push({ code: 'M1-no-baseline', message: `the intent says redesign, but there is no baseline at ${paths.baseline}` });
   if (plan.feature !== paths.feature) failures.push({ code: 'M1-feature', message: `plan.json is for feature ${plan.feature}, not ${paths.feature}` });
   failures.push(...checkPlan({ plan, inventory, baseline, intent, profile }));
-  failures.push(...(await worldFileFailures(paths, plan)));
+  failures.push(...(await worldFileFailures(paths, plan, profile)));
   return gateResult(failures);
 }
 
@@ -283,9 +286,20 @@ export async function planGate(ctx) {
  * five worlds, go green here, advance, open a draft pull request and run four builders, and the
  * omission surfaced two phases later at `seed --plan`, as a usage error naming one world at a
  * time. It belongs in this gate, where the worlds are written.
+ *
+ * The tables those files seed are checked here too. A world seeding a table that does not exist
+ * and that no row declares missing is a plan with no backend unit for it: the seed step would
+ * have found out from the database, after the draft pull request and the builders.
  */
-async function worldFileFailures(paths, plan) {
+async function worldFileFailures(paths, plan, profile) {
   const out = [];
+  const databaseTypes = profile?.paths?.databaseTypes;
+  let typesText = null;
+  if (databaseTypes) { try { typesText = await readFile(join(paths.repoRoot, databaseTypes), 'utf8'); } catch { typesText = null; } }
+  const types = typesText === null ? null : parseDatabaseTypes(typesText);
+  // A plan says a table is missing through a row's data claim; that is how it asks for a backend
+  // unit to build one. Any other table a world seeds has to exist already.
+  const declaredMissing = new Set((plan.rows ?? []).flatMap((r) => (r.data ?? []).filter((d) => d.exists === false).map((d) => d.table)));
   for (const w of plan.worlds ?? []) {
     const path = worldFilePath(paths, w.id);
     const value = await readJson(path, { optional: true });
@@ -294,8 +308,15 @@ async function worldFileFailures(paths, plan) {
       continue;
     }
     const { ok, errors } = schemaRegistry().validate(WORLD_SCHEMA, value);
-    if (!ok) for (const e of errors.slice(0, 3)) out.push({ code: 'M1-world-file', message: `${path}${e.path === '/' ? '' : e.path}: ${e.message}` });
-    else if (value.world !== w.id) out.push({ code: 'M1-world-file', message: `${path} says world "${value.world}", not "${w.id}"` });
+    if (!ok) { for (const e of errors.slice(0, 3)) out.push({ code: 'M1-world-file', message: `${path}${e.path === '/' ? '' : e.path}: ${e.message}` }); continue; }
+    if (value.world !== w.id) { out.push({ code: 'M1-world-file', message: `${path} says world "${value.world}", not "${w.id}"` }); continue; }
+    // No types file to read: that is its own problem, reported by preflight, and this rule has
+    // nothing to say about a table it cannot look up.
+    if (!types) continue;
+    for (const t of new Set((value.rows ?? []).map((r) => r.table))) {
+      if (types.has(t) || declaredMissing.has(t)) continue;
+      out.push({ code: 'M1-world-table', message: `${path} seeds ${t}, which ${databaseTypes} does not have and no row of the plan declares missing; a table nobody builds is a backend unit, not a seed row` });
+    }
   }
   return out;
 }

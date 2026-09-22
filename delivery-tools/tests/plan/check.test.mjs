@@ -181,6 +181,44 @@ test('planGate refuses a plan whose worlds have no world file, or an invalid one
   } finally { bad.cleanup(); }
 });
 
+test('planGate refuses a world that seeds a table nobody builds, and allows one a row declares missing', async () => {
+  const TYPES = `export type Database = {
+  public: {
+    Tables: {
+      organizations: { Row: { id: string, name: string } }
+    }
+  }
+}`;
+  const world = (table) => ({ schemaVersion: 1, world: 'design', rows: [
+    { key: 'org', table: 'organizations', values: { name: { $orgName: true } } },
+    { key: 'w1', table, values: { organization_id: { $ref: 'org' } } },
+  ] });
+  const files = { [profile.paths.databaseTypes]: TYPES };
+
+  const unbuilt = await makeRun({ profile, plan: planWith([withMarkers('WL-01')]), inventory: inv(['WL-01']), files, worldFiles: { design: world('widgets') } });
+  try {
+    const r = await planGate(unbuilt.ctx);
+    assert.deepEqual(r.failures.map((f) => f.code), ['M1-world-table']);
+    assert.match(r.failures[0].message, /seeds widgets, which .* does not have and no row of the plan declares missing/);
+  } finally { unbuilt.cleanup(); }
+
+  // Declaring the table missing is the plan asking for a backend unit, and the gate's existing
+  // rule then demands one. So the new rule's whole job is to force the declaration: it hands the
+  // case straight to M1-backend-no-unit instead of letting a silent plan through.
+  const planned = planWith([withMarkers('WL-01', { data: [{ table: 'widgets', column: 'stock', exists: false, verifiedBy: 'types' }] })]);
+  const declared = await makeRun({ profile, plan: planned, inventory: inv(['WL-01']), files, worldFiles: { design: world('widgets') } });
+  try {
+    const r = await planGate(declared.ctx);
+    assert.deepEqual(r.failures.map((f) => f.code), ['M1-backend-no-unit']);
+  } finally { declared.cleanup(); }
+
+  // A table the types already have is fine with no claim at all.
+  const exists = await makeRun({ profile, plan: planWith([withMarkers('WL-01')]), inventory: inv(['WL-01']), files, worldFiles: { design: world('organizations') } });
+  try {
+    assert.deepEqual(await planGate(exists.ctx), { ok: true, failures: [] });
+  } finally { exists.cleanup(); }
+});
+
 test('planGate reads the files: no plan, no inventory, a redesign without a baseline', async () => {
   const empty = await makeRun({ profile });
   try {

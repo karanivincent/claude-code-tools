@@ -136,6 +136,12 @@ export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safet
         }
         if (k.length === 1 && k[0] === '$orgName') return w.orgName.startsWith(safety.fixtureOrgPrefix) ? w.orgName : `${safety.fixtureOrgPrefix}${w.orgName}`;
         if (typeof v.$rel === 'string') return v; // resolved when written
+        // An unrecognised $key is a typo or an invented placeholder, never a value anyone meant.
+        // It used to fall through and be written literally, so a world file could put
+        // {"$orgSlug": true} where a slug belongs and nothing said so until the database refused
+        // the insert - or, for a permissive column, did not.
+        const dollar = k.filter((key) => key.startsWith('$'));
+        if (dollar.length) problems.push(`world ${w.id} ${where}: ${dollar.map((key) => `"${key}"`).join(', ')} ${dollar.length === 1 ? 'is not a' : 'are not'} placeholder${dollar.length === 1 ? '' : 's'}; the world file placeholders are $ref, $orgName and $rel`);
         const out = {};
         for (const [kk, vv] of Object.entries(v)) out[kk] = resolve(vv, `${where}.${kk}`);
         return out;

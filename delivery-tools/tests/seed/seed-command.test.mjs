@@ -96,6 +96,25 @@ test('seed --plan: a reference to a row the world does not have is a usage error
   }), (err) => err.exit === 2 && err.failures.length === 2);
 });
 
+test('seed --plan: a $key that is not a placeholder is refused, never written through', () => {
+  const world = { schemaVersion: 1, world: 'design', rows: [
+    { key: 'org', table: 'organizations', values: { name: { $orgName: true }, slug: { $orgSlug: true } } },
+  ] };
+  assert.throws(() => buildSeedPlan({
+    feature: 'widgets', runId: 'r-1', project: 'p', plan: validExample('plan'), safety: makeSafety(), worldFiles: { design: world },
+  }), (err) => err.exit === 2 && err.failures.some((x) => /"\$orgSlug" is not a placeholder; the world file placeholders are \$ref, \$orgName and \$rel/.test(x.message)));
+
+  // The three real ones still resolve.
+  const ok = buildSeedPlan({
+    feature: 'widgets', runId: 'r-1', project: 'p', plan: validExample('plan'), safety: makeSafety(),
+    worldFiles: { design: { schemaVersion: 1, world: 'design', rows: [
+      { key: 'org', table: 'organizations', values: { name: { $orgName: true } } },
+      { key: 'w1', table: 'widgets', values: { organization_id: { $ref: 'org' }, owner: { $ref: 'user:admin' }, created_at: { $rel: 'now-1d' } } },
+    ] } },
+  });
+  assert.equal(ok.rows.length, 2);
+});
+
 test('seed --check: a safe world passes, reading only; an unsafe one is refused and says why', async () => {
   const safe = await setup();
   try {
