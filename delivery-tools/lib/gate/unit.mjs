@@ -241,6 +241,28 @@ async function behindBase(ctx, unitFile, headSha) {
   };
 }
 
+/**
+ * Where to judge a unit's work from.
+ *
+ * A merged unit's own branch head is frozen, and a later wave may rewrite the very rows it was
+ * built to satisfy: a fix wave that gives a state real words leaves the unit that first built it
+ * red for ever, against a capture taken before those words existed and a test file that has since
+ * been corrected on the base. The base is where that unit's work lives now, so the base is what
+ * answers for it.
+ * @returns {Promise<{ ref: string, merged: boolean }>}
+ */
+async function judgeAt(ctx, unitFile, headSha) {
+  const base = unitFile?.baseRef;
+  if (base && headSha) {
+    const at = await ctx.git.raw(['rev-parse', base]);
+    const baseSha = at.code === 0 ? String(at.stdout).trim() : null;
+    if (baseSha && (await ctx.git.raw(['merge-base', '--is-ancestor', headSha, baseSha])).code === 0) {
+      return { ref: baseSha, merged: true };
+    }
+  }
+  return { ref: headSha, merged: false };
+}
+
 async function contractFiles(ctx, ref, plan) {
   const out = [];
   for (const c of plan.contracts ?? []) {
@@ -313,18 +335,21 @@ export async function unitGateStatusWith(ctx, unitId, deps = {}) {
   if (report && !head) failures.push({ code: 'gate-no-head', message: `unit ${unitId}: branch ${report.branch} and its commits are not in this repository` });
   const stale = await behindBase(ctx, unitFile, head?.sha ?? null);
   if (stale) failures.push(stale);
+  const { ref, merged } = await judgeAt(ctx, unitFile, head?.sha ?? null);
   if (head) {
     const cap = capturedBy(rows);
-    if (cap.length && !stale) {
+    // A merged unit's states are judged by the wave capture and the checks, which run against the
+    // branch everything has landed on; its own branch capture answers about a tree nobody serves.
+    if (cap.length && !stale && !merged) {
       const runId = await branchCaptureFor(paths, head.sha, cap.map((r) => r.id));
       if (!runId) failures.push({ code: 'gate-no-capture', message: `no branch capture of ${head.sha.slice(0, 12)} covers ${unitId}'s states; run delivery gate ${unitId}` });
       else failures.push(...reachFailures(cap, await (deps.validateCaptureItems ?? validateCaptureItems)(ctx, runId)));
       if (unit.kind !== 'stub-swap') failures.push(...(await stubStillRegistered(ctx, head.sha, plan, unitId)));
     }
-    failures.push(...(await componentTestFiles(ctx, head.sha, rows)).failures);
-    if (unit.kind === 'contract') failures.push(...(await contractFiles(ctx, head.sha, plan)));
+    failures.push(...(await componentTestFiles(ctx, ref, rows)).failures);
+    if (unit.kind === 'contract') failures.push(...(await contractFiles(ctx, ref, plan)));
     if (unit.kind === 'stub-swap') {
-      for (const f of await stubImports(ctx, head.sha)) failures.push({ code: 'gate-stub-import', message: `${f} still imports a stub at ${head.sha.slice(0, 12)}` });
+      for (const f of await stubImports(ctx, ref)) failures.push({ code: 'gate-stub-import', message: `${f} still imports a stub at ${ref.slice(0, 12)}` });
     }
   }
   const state = await readJson(paths.state, { optional: true, exit: 5 }).catch(() => null);

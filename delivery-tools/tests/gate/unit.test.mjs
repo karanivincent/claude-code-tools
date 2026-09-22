@@ -256,3 +256,25 @@ test('a unit branch behind its base is refused before the capture runs, not grad
     assert.deepEqual(after.failures.filter((f) => f.code === 'gate-behind-base'), []);
   } finally { s.repo.cleanup(); }
 });
+
+test("a merged unit is judged where its work now lives, not at the head it was frozen at", async () => {
+  const s = await setup({ testFiles: GOOD, captureLines: ['Widgets'] });
+  try {
+    const plan = JSON.parse(readFileSync(s.paths.plan, 'utf8'));
+    const unitFile = validExample('unit-file');
+    put(s.paths.unitFile('U1'), { ...unitFile, unit: plan.units[1], rows: [], baseRef: 'main', branch: 'unit/u1' });
+
+    // The unit merges; a later wave then rewrites the words one of its states asserts, and fixes
+    // the test on the base. Judged at the unit's own head, that unit is red for ever: its branch
+    // predates the correction and can never carry it.
+    gitIn(s.repo.dir, 'merge', '--no-ff', '-m', 'merge U1', 'unit/u1');
+    plan.rows = plan.rows.map((r) => (r.id === 'WL-02' ? { ...r, markers: { ...r.markers, text: ['No widgets here yet'] } } : r));
+    put(s.paths.plan, plan);
+    put(join(s.repo.dir, 'src/widgets/empty.test.tsx'), "it('renders', () => { expect(screen.getByText('No widgets here yet')); expect(screen.getByTestId('widgets-empty')); });\n");
+    gitIn(s.repo.dir, 'add', '-A');
+    gitIn(s.repo.dir, 'commit', '-q', '-m', 'fix wave: real words');
+
+    const r = await unitGateStatus(s.ctx, 'U1');
+    assert.deepEqual(r.failures.filter((f) => f.code === 'gate-component-test'), [], JSON.stringify(r.failures, null, 1));
+  } finally { s.repo.cleanup(); }
+});
