@@ -8,17 +8,20 @@ import { isAbsolute, join } from 'node:path';
 import { readArtefact } from '../core/artefacts.mjs';
 import { exists } from '../core/fs.mjs';
 import { gateResult } from '../core/gate.mjs';
+import { designTreeSha256 } from '../../adapters/design/index.mjs';
 
 const RENDER_EXTS = Object.freeze(['txt', 'dom.json', 'png']);
 
 /**
  * @param {{
  *   inventory: object, candidates?: object|null, intent?: object|null, baseline?: object|null,
+ *   snapshotTree?: string|null,
  *   renderExists?: (stateId: string, ext: string, declared: string|undefined) => boolean,
- * }} input  renderExists defaults to "yes" (pure callers that do not check the disk)
+ * }} input  snapshotTree is the snapshot's own designTreeSha256, hashed the way the candidates
+ *   were; renderExists defaults to "yes" (pure callers that do not check the disk)
  * @returns {import('../core/gate.mjs').GateFailure[]}
  */
-export function checkInventory({ inventory, candidates = null, intent = null, baseline = null, renderExists = () => true }) {
+export function checkInventory({ inventory, candidates = null, intent = null, baseline = null, snapshotTree = null, renderExists = () => true }) {
   const out = [];
   const fail = (code, message) => out.push({ code, message });
   const states = new Map();
@@ -30,8 +33,14 @@ export function checkInventory({ inventory, candidates = null, intent = null, ba
   if (candidates && candidates.designTreeSha256 !== inventory.designTreeSha256) {
     fail('inventory-stale', `inventory is for design tree ${inventory.designTreeSha256.slice(0, 12)}, candidates for ${candidates.designTreeSha256.slice(0, 12)}: re-run the inventory on the current design`);
   }
-  if (intent?.design?.treeSha256 && intent.design.treeSha256 !== inventory.designTreeSha256) {
-    fail('inventory-stale', `inventory is for design tree ${inventory.designTreeSha256.slice(0, 12)}, but the snapshot is ${intent.design.treeSha256.slice(0, 12)}`);
+  // TWO HASHES OF TWO DIFFERENT THINGS ARE NOT A FRESHNESS CHECK. This used to compare
+  // `intent.design.treeSha256` — intake's hash of the EXPORT as delivered, `support.js` and all —
+  // with the inventory's, which is `designTreeSha256(snapshotDir)`: the SNAPSHOT, whose runtime is
+  // zipped, with every loose `.js` ignored. The two can never be equal, so `inventory check` could
+  // never pass, for any design. Found on the first real run of phase 2, 2026-09-21. The caller now
+  // hashes the snapshot the same way the candidates did, and that is what is compared.
+  if (snapshotTree && snapshotTree !== inventory.designTreeSha256) {
+    fail('inventory-stale', `inventory is for design tree ${inventory.designTreeSha256.slice(0, 12)}, but the snapshot is ${snapshotTree.slice(0, 12)}: re-run the inventory on the current design`);
   }
 
   const inv = new Map();
@@ -50,10 +59,14 @@ export function checkInventory({ inventory, candidates = null, intent = null, ba
 
   for (const s of states.values()) {
     const where = `state ${s.id} (${s.screen}: ${s.name})`;
+    // A SHOT IS A DESIGN REFERENCE WHATEVER THE REACH KIND, which is what this rule's own message
+    // has always said and what the code did not do. Every design has exactly one state you reach by
+    // arriving — a click-path with no steps — and it is referenced by its picture. Under the old
+    // reading that state could never pass, for any design. Found on the first real run, 2026-09-21.
     const reachOk = (s.reach.kind === 'click-path' && (s.reach.steps ?? []).length)
       || (s.reach.kind === 'prop' && s.reach.props && Object.keys(s.reach.props).length)
-      || (s.reach.kind === 'shot-only' && (s.shots ?? []).length)
-      || (s.reach.kind === 'unspecified' && s.reach.unspecified);
+      || (s.reach.kind === 'unspecified' && s.reach.unspecified)
+      || (s.shots ?? []).length > 0;
     if (!reachOk) fail('state-no-reference', `${where} has no design reference: click steps, prop values, a shot, or the kind of undrawn state`);
     if (s.render.status === 'impossible') {
       if (!s.render.why?.trim()) fail('state-no-render', `${where} is impossible to render but gives no reason`);
@@ -116,6 +129,7 @@ export async function inventoryGate(ctx) {
       for (const p of candidatesPaths) if (await exists(p)) { present.add(`${s.id}|${ext}`); break; }
     }
   }
-  failures.push(...checkInventory({ inventory, candidates, intent, baseline, renderExists: (id, ext) => present.has(`${id}|${ext}`) }));
+  const snapshotTree = await designTreeSha256(paths.designSnapshot).catch(() => null);
+  failures.push(...checkInventory({ inventory, candidates, intent, baseline, snapshotTree, renderExists: (id, ext) => present.has(`${id}|${ext}`) }));
   return gateResult(failures);
 }

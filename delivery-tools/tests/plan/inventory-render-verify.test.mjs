@@ -147,3 +147,36 @@ test('verifyPlanClaims: true claims pass, false ones in either direction fail, t
     assert.ok(msgs.some((m) => /GET \/api\/widgets\/\[id\] is claimed missing/.test(m)));
   } finally { run.cleanup(); }
 });
+
+// Two rules that made `inventory check` unpassable for every design, found on the first real run of
+// phase 2 rather than by any test here: the tests all built their fixtures the way the code
+// happened to read them.
+test('a state reached by arriving passes on its picture, as the rule always said it would', () => {
+  // Every design has exactly one state you reach by loading the page: a click-path with no steps,
+  // referenced by its shot. The message named a shot as a reference; the code accepted one only
+  // for `shot-only`, so that state could never pass.
+  const inv = inventory([state('WL-01', { reach: { kind: 'click-path', steps: [] }, shots: ['shots/list.png'] })]);
+  assert.deepEqual(checkInventory({ inventory: inv }).map((x) => x.code), []);
+
+  // Without a picture it is still a state nobody can point at.
+  const noShot = inventory([state('WL-01', { reach: { kind: 'click-path', steps: [] }, shots: [] })]);
+  assert.deepEqual(checkInventory({ inventory: noShot }).map((x) => x.code), ['state-no-reference']);
+});
+
+test('the snapshot freshness check compares the snapshot, not the export it came from', () => {
+  // It used to compare intake's hash of the EXPORT as delivered — support.js and all — with the
+  // inventory's, which is the SNAPSHOT with its runtime zipped and every loose .js ignored. Two
+  // hashes of two different things, so they could never be equal and the gate could never pass.
+  const inv = inventory([state('WL-01')]);
+  const tree = inv.designTreeSha256;
+
+  // The export hash arriving as `intent` must no longer fail it on its own.
+  const intent = { design: { treeSha256: 'f'.repeat(64) } };
+  assert.deepEqual(checkInventory({ inventory: inv, intent }).map((x) => x.code), []);
+
+  // The snapshot's own hash is what decides.
+  assert.deepEqual(checkInventory({ inventory: inv, snapshotTree: tree }).map((x) => x.code), []);
+  const stale = checkInventory({ inventory: inv, snapshotTree: 'a'.repeat(64) });
+  assert.deepEqual(stale.map((x) => x.code), ['inventory-stale']);
+  assert.match(stale[0].message, /re-run the inventory on the current design/);
+});
