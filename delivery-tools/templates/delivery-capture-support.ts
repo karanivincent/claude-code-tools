@@ -216,6 +216,9 @@ function loadSession(job: CaptureJob, email: string): StoredSession | undefined 
 }
 
 function saveSession(job: CaptureJob, email: string, state: StoredSession): void {
+  // A sign-in that failed leaves an empty state behind. Storing it would hand every later run a
+  // session that is not signed in, and the capture would grade the login page.
+  if (!state.cookies?.length && !state.origins?.length) return;
   sessions.set(email, state);
   const path = sessionFile(job, email);
   try {

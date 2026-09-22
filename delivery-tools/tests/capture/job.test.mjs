@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildItems, modeMatrix, localisePath, parseVersionProbe, itemKey, checkFor, capturable, newCaptureRunId, profileLocales } from '../../lib/capture/job.mjs';
+import { buildItems, modeMatrix, localisePath, parseVersionProbe, itemKey, checkFor, capturable, newCaptureRunId, profileLocales, oneStepApart } from '../../lib/capture/job.mjs';
 import { validateAgainst } from '../../lib/core/schema.mjs';
 import { makeProfile } from '../helpers/fixtures.mjs';
 import { fakeClock } from '../helpers/clock.mjs';
@@ -121,4 +121,26 @@ test('helpers: keys, probes, localised paths, check rules, run ids', () => {
   assert.deepEqual(plan.rows.map(capturable), [true, true, true, true, false, false, false]);
   assert.equal(newCaptureRunId(fakeClock('2026-01-15T20:01:02.000Z'), 'branch', 'U2'), 'c-20260115-200102-branch-U2');
   assert.equal(newCaptureRunId(fakeClock('2026-01-15T20:01:02.000Z'), 'wave', null, 's'), 's-20260115-200102-wave');
+});
+
+test("a control's target is only judged where the plan says that target is one step from here", () => {
+  const goto = { goto: '/widgets' };
+  const plan = { rows: [
+    { id: 'L', reach: { world: 'design', role: 'admin', steps: [goto] } },
+    { id: 'DIALOG', reach: { world: 'design', role: 'admin', steps: [goto, { click: { testid: 'new' } }] } },
+    { id: 'SETTINGS', reach: { world: 'design', role: 'admin', steps: [goto, { click: { testid: 'tab-settings' } }] } },
+    { id: 'EMPTY-L', reach: { world: 'empty', role: 'admin', steps: [goto] } },
+    { id: 'MEMBER-L', reach: { world: 'design', role: 'member', steps: [goto] } },
+  ] };
+  const at = (id) => plan.rows.find((r) => r.id === id);
+  // Forwards: the control that opens it. Backwards: the Close that returns to where it opened.
+  assert.equal(oneStepApart(plan, at('L'), 'DIALOG'), true);
+  assert.equal(oneStepApart(plan, at('DIALOG'), 'L'), true);
+  // The same dialog opened from the settings pane shows the settings pane behind it, not the list
+  // the target was drawn over; neither list of steps is a prefix of the other.
+  assert.equal(oneStepApart(plan, at('SETTINGS'), 'DIALOG'), false);
+  // Another world's page, and another role's page, are not this page.
+  assert.equal(oneStepApart(plan, at('EMPTY-L'), 'DIALOG'), false);
+  assert.equal(oneStepApart(plan, at('MEMBER-L'), 'DIALOG'), false);
+  assert.equal(oneStepApart(plan, at('L'), 'none'), false);
 });

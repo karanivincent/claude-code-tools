@@ -89,6 +89,25 @@ function whyNotCaptured(row) {
   return `${row.reach.class}: verified by a component render test${row.reach.why ? ` (${row.reach.why})` : ''}`;
 }
 
+/**
+ * Whether the plan says `targetId` is one step from `row`: same world and role, and one list of
+ * reach steps a prefix of the other (forwards for the control that opens it, backwards for the
+ * one that closes it). Anything else is reached another way, and its markers describe that way.
+ * @param {object} plan
+ * @param {object} row the state the control is clicked in
+ * @param {string} targetId
+ */
+export function oneStepApart(plan, row, targetId) {
+  const target = (plan.rows ?? []).find((r) => r.id === targetId);
+  if (!target?.reach || !row?.reach) return false;
+  if (target.reach.world !== row.reach.world || target.reach.role !== row.reach.role) return false;
+  const a = row.reach.steps ?? [];
+  const b = target.reach.steps ?? [];
+  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
+  if (long.length - short.length > 1) return false;
+  return short.every((s, i) => JSON.stringify(s) === JSON.stringify(long[i]));
+}
+
 function userOf(plan, world, role) {
   const w = plan.worlds.find((x) => x.id === world);
   return w?.users.find((u) => u.role === role)?.email ?? null;
@@ -158,18 +177,15 @@ export function buildItems(o) {
       }
       const email = userOf(plan, world, role);
       if (!email) { skipped.push({ state: row.id, why: `world ${world} has no ${role} user in the plan` }); continue; }
-      // A control whose target state lives in another world is still clicked, but its target's
-      // markers are not required: they describe that other world's page. WG-02's "New widget" is
-      // the case -- it opens the same dialog as the design world's, over an empty list, and asking
-      // for the design world's three widgets after the click is asking for something the empty
-      // world can never show.
-      const worldOfState = (id) => (plan.rows ?? []).find((r) => r.id === id)?.reach?.world ?? null;
+      // A control is always clicked; its target's markers are required only where the plan itself
+      // says that target is one step from here (or a state on the way here, for a Close). A target
+      // reached another way describes another page: its own world's rows, or the pane it was drawn
+      // over. Asking the empty world for the design world's three widgets after a click, or the
+      // settings pane for the list behind the dialog it just opened, is asking for something no
+      // component can show.
       const controls = (row.controls ?? [])
         .filter((c) => (c.effect === 'none' || c.effect === 'free') && c.testid)
-        .map((c) => {
-          const tw = worldOfState(c.target);
-          return tw && tw !== world ? { ...c, target: 'none' } : c;
-        });
+        .map((c) => (oneStepApart(plan, row, c.target) ? c : { ...c, target: 'none' }));
       for (const width of o.smoke ? [widths[0]] : widths) {
         for (const locale of o.smoke ? [primary] : locales) {
           for (const theme of o.smoke ? [themes[0]] : themes) {
