@@ -110,6 +110,23 @@ test('the capture smoke gate: one reached state per world and role, re-validated
   } finally { s.repo.cleanup(); }
 });
 
+test('the smoke gate takes a later capture that reached every world and role in place of a stale smoke', async () => {
+  // The smoke asks whether the capture can sign in as each world and role and reach a page. It is
+  // taken before any screen exists, and a fix wave that rewrites a marker leaves it failing for
+  // ever against words it was never captured with -- which sent a finished run back to wave 0.
+  const s = await setup((it) => (s.bad && it.world === 'empty' ? { lines: ['Error'], testids: [] } : null));
+  try {
+    s.bad = true;
+    await captureRun(s.ctx, { mode: 'branch', smoke: true });
+    assert.equal((await captureSmokeGate(s.ctx)).ok, false, 'a smoke that did not reach every world is red on its own');
+
+    s.bad = false;
+    s.clock.advance(60_000);
+    await captureRun(s.ctx, { mode: 'wave' });
+    assert.deepEqual(await captureSmokeGate(s.ctx), { ok: true, failures: [] }, 'a later capture that reached them all answers the same question');
+  } finally { s.repo.cleanup(); }
+});
+
 test('spot recapture: a stored capture that no longer matches the page is red; a moved clock is not', async () => {
   const s = await setup((it) => {
     if (s.phase === 'spot' && it.state === 'WG-03') return { lines: ['Widgets', 'Something else entirely'], testids: ['widget-list'] };

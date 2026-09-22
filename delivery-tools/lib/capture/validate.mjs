@@ -162,16 +162,40 @@ export async function latestCaptureRun(ctx, opts = {}) {
  */
 export async function captureSmokeGate(ctx) {
   const paths = ctx.requirePaths();
-  const runId = await latestCaptureRun(ctx, { smoke: true });
-  if (!runId) return gateResult([{ code: 'capture-smoke', message: 'no capture smoke run; run "delivery capture --mode branch --smoke"' }]);
-  const verdicts = await validateCaptureItems(ctx, runId);
-  const failures = verdicts.filter((v) => v.status !== 'reached')
-    .map((v) => ({ code: 'capture-smoke', message: `${runId} ${v.state} (${v.world}, ${v.role}): ${v.why}` }));
   const plan = await readArtefact(paths, 'plan');
-  const reached = new Set(verdicts.filter((v) => v.status === 'reached').map((v) => `${v.world}/${v.role}`));
   const needed = new Set(plan.rows.filter(capturable).map((r) => `${r.reach.world}/${r.reach.role}`));
-  for (const wr of [...needed].sort()) {
-    if (!reached.has(wr)) failures.push({ code: 'capture-smoke', message: `${runId}: nothing reached as ${wr.replace('/', ' ')} (world/role); sign-in for it is unproven` });
+  const runId = await latestCaptureRun(ctx, { smoke: true });
+  const failures = [];
+  if (!runId) failures.push({ code: 'capture-smoke', message: 'no capture smoke run; run "delivery capture --mode branch --smoke"' });
+  else {
+    const verdicts = await validateCaptureItems(ctx, runId);
+    failures.push(...verdicts.filter((v) => v.status !== 'reached')
+      .map((v) => ({ code: 'capture-smoke', message: `${runId} ${v.state} (${v.world}, ${v.role}): ${v.why}` })));
+    const reached = new Set(verdicts.filter((v) => v.status === 'reached').map((v) => `${v.world}/${v.role}`));
+    for (const wr of [...needed].sort()) {
+      if (!reached.has(wr)) failures.push({ code: 'capture-smoke', message: `${runId}: nothing reached as ${wr.replace('/', ' ')} (world/role); sign-in for it is unproven` });
+    }
   }
+  if (!failures.length) return gateResult([]);
+  // The smoke asks one question -- can the capture sign in as each world and role and reach a page
+  // -- before any screen exists. A later capture of the merged branch answers it better, and is
+  // what the run has been standing on since. Judging the frozen smoke against a plan whose words a
+  // fix wave has since rewritten sends a finished run back to wave 0 for ever, so a later capture
+  // that reached every world and role is accepted in its place, read as it was recorded.
+  const covered = await worldRolesReached(ctx, paths, needed);
+  if (covered) return gateResult([]);
   return gateResult(failures);
+}
+
+/**
+ * Whether some later capture reached every world and role the plan needs, by its own record.
+ * @returns {Promise<string|null>} that run's id, or null
+ */
+async function worldRolesReached(ctx, paths, needed) {
+  const newest = await latestCaptureRun(ctx, {});
+  if (!newest) return null;
+  let doc;
+  try { doc = await readArtefact(paths, 'capture', { key: newest }); } catch { return null; }
+  const reached = new Set((doc.items ?? []).filter((i) => i.status === 'reached').map((i) => `${i.world}/${i.role}`));
+  return [...needed].every((wr) => reached.has(wr)) ? newest : null;
 }

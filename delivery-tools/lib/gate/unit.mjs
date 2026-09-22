@@ -263,10 +263,14 @@ async function judgeAt(ctx, unitFile, headSha) {
   return { ref: headSha, merged: false };
 }
 
-async function contractFiles(ctx, ref, plan) {
+async function contractFiles(ctx, ref, plan, o = {}) {
   const out = [];
   for (const c of plan.contracts ?? []) {
-    for (const f of [c.file, c.stub]) {
+    // The contract file always. Its stub only while it is still the thing the route renders: the
+    // stub-swap unit exists to delete it, so once that has merged, a missing stub is the run
+    // working. Asking for it afterwards made the contract unit red at the end of every run.
+    const want = o.stubsGone ? [c.file] : [c.file, c.stub];
+    for (const f of want) {
       if ((await ctx.git.show(ref, f)) === null) out.push({ code: 'gate-contract', message: `contract ${c.id}: ${f} does not exist at ${ref.slice(0, 12)}` });
     }
   }
@@ -347,7 +351,7 @@ export async function unitGateStatusWith(ctx, unitId, deps = {}) {
       if (unit.kind !== 'stub-swap') failures.push(...(await stubStillRegistered(ctx, head.sha, plan, unitId)));
     }
     failures.push(...(await componentTestFiles(ctx, ref, rows)).failures);
-    if (unit.kind === 'contract') failures.push(...(await contractFiles(ctx, ref, plan)));
+    if (unit.kind === 'contract') failures.push(...(await contractFiles(ctx, ref, plan, { stubsGone: merged })));
     if (unit.kind === 'stub-swap') {
       for (const f of await stubImports(ctx, ref)) failures.push({ code: 'gate-stub-import', message: `${f} still imports a stub at ${ref.slice(0, 12)}` });
     }
@@ -416,7 +420,7 @@ export async function runUnitGate(ctx, unitId, deps = {}) {
         }
       }
     }
-    if (unit.kind === 'contract') failures.push(...(await contractFiles(ctx, head.sha, plan)));
+    if (unit.kind === 'contract') failures.push(...(await contractFiles(ctx, head.sha, plan, { stubsGone: false })));
     if (unit.kind === 'stub-swap') {
       for (const f of await stubImports(ctx, head.sha)) failures.push({ code: 'gate-stub-import', message: `${f} still imports a stub` });
     }
