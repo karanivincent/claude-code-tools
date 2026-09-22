@@ -31,7 +31,7 @@ const REF = /^[a-z0-9][a-z0-9-]{2,63}$/;
  * @property {(sql: string, params?: unknown[]) => Promise<object[]>} query  read-only SQL
  * @property {(table: string, rows: object[]) => Promise<void>} upsert      by primary key `id`
  * @property {(table: string, ids: string[]) => Promise<number>} deleteByIds
- * @property {(user: { id: string, email: string }) => Promise<'created'|'exists'>} createUser
+ * @property {(user: { id: string, email: string, name?: string }) => Promise<'created'|'exists'>} createUser
  * @property {(id: string) => Promise<boolean>} deleteUser
  * @property {() => Promise<{ read: boolean, write: boolean, detail: string }>} probeAccess   preflight P3
  * @property {() => Promise<{ ok: boolean, detail: string }>} probeMigrationApply          preflight P4
@@ -216,17 +216,30 @@ function httpBackend(env, projectRef, fetchImpl) {
       }
       return n;
     },
-    async createUser({ id, email }) {
+    async createUser({ id, email, name }) {
       const base = rest();
+      // A design draws a person's name, and a product reads it from the account. A fixture user
+      // with no name renders its own email address where the design says "Sam", and the state's
+      // own marker is what fails -- so the world's user carries the name the design gives them.
+      const body = { id, email, email_confirm: true, ...(name ? { user_metadata: { full_name: name, name } } : {}) };
       const res = await call(`${base}/auth/v1/admin/users`, {
-        method: 'POST', headers: restHeaders(), body: JSON.stringify({ id, email, email_confirm: true }),
+        method: 'POST', headers: restHeaders(), body: JSON.stringify(body),
       }, `create user ${email}`);
       if (res.ok) return 'created';
       if (res.status === 422 || res.status === 409 || res.status === 400) {
         const got = await call(`${base}/auth/v1/admin/users/${encodeURIComponent(id)}`, { method: 'GET', headers: restHeaders() }, `read user ${id}`);
         if (got.ok) {
           const u = await got.json();
-          if (String(u.email ?? '').toLowerCase() === String(email).toLowerCase()) return 'exists';
+          if (String(u.email ?? '').toLowerCase() === String(email).toLowerCase()) {
+            // A world that gains a name for a user it already created would otherwise keep
+            // rendering that user's email address where the design draws their name.
+            if (name && String(u.user_metadata?.full_name ?? '') !== name) {
+              await call(`${base}/auth/v1/admin/users/${encodeURIComponent(id)}`, {
+                method: 'PUT', headers: restHeaders(), body: JSON.stringify({ user_metadata: { full_name: name, name } }),
+              }, `name user ${email}`);
+            }
+            return 'exists';
+          }
           throw new DeliveryError(EXIT.RED, `user ${id} exists with a different email; refusing to reuse it`, { code: 'seed' });
         }
       }

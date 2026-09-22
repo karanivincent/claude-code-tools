@@ -30,7 +30,8 @@
               "required": ["role", "email"],
               "properties": {
                 "role": { "$ref": "common.schema.json#/$defs/Role" },
-                "email": { "$ref": "common.schema.json#/$defs/Text" }
+                "email": { "$ref": "common.schema.json#/$defs/Text" },
+                "name": { "$ref": "common.schema.json#/$defs/Text" }
               }
             }
           },

@@ -302,3 +302,19 @@ test('seed --plan: a table the types show with no id column is written without o
   assert.equal(call.idless, true);
   assert.equal(upserts.find((u) => u.table === 'widgets').idless, false);
 });
+
+test("a world's user carries the name the design gives them, all the way to the account", async () => {
+  // A design draws a person's name and the product reads it off the account, so a fixture user
+  // with no name renders its own email address where the design says "Sam" -- and the state's own
+  // marker is what fails, which reads as a screen bug and is a fixture with no name.
+  const plan = validExample('plan');
+  plan.worlds[0].users = plan.worlds[0].users.map((u) => (u.role === 'admin' ? { ...u, name: 'Sam' } : u));
+  const seed = buildSeedPlan({ feature: 'widgets', runId: 'r-1', project: 'p', plan, safety: makeSafety(), worldFiles: { design: SAFE_WORLD } });
+  const admin = seed.users.find((u) => u.world === plan.worlds[0].id && u.role === 'admin');
+  assert.equal(admin.name, 'Sam');
+  assert.equal(seed.users.find((u) => u.world === plan.worlds[0].id && u.role === 'member')?.name, undefined, 'a user the plan does not name carries no name');
+
+  const made = [];
+  await applyRows({ createUser: async (u) => { made.push(u); return 'created'; }, upsert: async () => undefined }, seed, { now: new Date(NOW) });
+  assert.equal(made.find((u) => u.email === admin.email).name, 'Sam');
+});

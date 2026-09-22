@@ -158,7 +158,18 @@ export function buildItems(o) {
       }
       const email = userOf(plan, world, role);
       if (!email) { skipped.push({ state: row.id, why: `world ${world} has no ${role} user in the plan` }); continue; }
-      const controls = (row.controls ?? []).filter((c) => (c.effect === 'none' || c.effect === 'free') && c.testid);
+      // A control whose target state lives in another world is still clicked, but its target's
+      // markers are not required: they describe that other world's page. WG-02's "New widget" is
+      // the case -- it opens the same dialog as the design world's, over an empty list, and asking
+      // for the design world's three widgets after the click is asking for something the empty
+      // world can never show.
+      const worldOfState = (id) => (plan.rows ?? []).find((r) => r.id === id)?.reach?.world ?? null;
+      const controls = (row.controls ?? [])
+        .filter((c) => (c.effect === 'none' || c.effect === 'free') && c.testid)
+        .map((c) => {
+          const tw = worldOfState(c.target);
+          return tw && tw !== world ? { ...c, target: 'none' } : c;
+        });
       for (const width of o.smoke ? [widths[0]] : widths) {
         for (const locale of o.smoke ? [primary] : locales) {
           for (const theme of o.smoke ? [themes[0]] : themes) {

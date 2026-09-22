@@ -97,6 +97,9 @@
           },
           "id": {
             "$ref": "common.schema.json#/$defs/Text"
+          },
+          "name": {
+            "$ref": "common.schema.json#/$defs/Text"
           }
         }
       }

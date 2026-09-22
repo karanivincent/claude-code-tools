@@ -120,7 +120,7 @@ export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safet
       if (userIds.has(u.role)) { problems.push(`world ${w.id} has two ${u.role} users`); continue; }
       const id = fixtureId(feature, w.id, `user:${u.role}`);
       userIds.set(u.role, id);
-      users.push({ world: w.id, role: u.role, email: u.email, id });
+      users.push({ world: w.id, role: u.role, email: u.email, id, ...(u.name ? { name: u.name } : {}) });
     }
     const keys = new Map();
     for (const r of file.rows) {

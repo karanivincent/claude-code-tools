@@ -16,7 +16,7 @@ export async function applyRows(db, seedPlan, opts) {
   const userCounts = { created: 0, existing: 0 };
   if (opts.users !== false) {
     for (const u of seedPlan.users.filter((x) => inScope(x.world))) {
-      const r = await db.createUser({ id: u.id, email: u.email });
+      const r = await db.createUser({ id: u.id, email: u.email, ...(u.name ? { name: u.name } : {}) });
       if (r === 'created') userCounts.created++;
       else userCounts.existing++;
     }

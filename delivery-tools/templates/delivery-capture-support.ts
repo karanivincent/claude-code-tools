@@ -23,7 +23,7 @@
  * branch-mode capture starts and stops the dev server it captures (it returns undefined
  * otherwise and changes nothing about the repo's own e2e runs).
  */
-import type { Browser, BrowserContext, Page, Request, Response } from '@playwright/test';
+import type { Browser, BrowserContext, Locator, Page, Request, Response } from '@playwright/test';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'fs';
 import { createRequire } from 'module';
 import { join } from 'path';
@@ -580,6 +580,29 @@ async function controlState(page: Page, c: CaptureControl): Promise<{ found: boo
  * down); the click pages' console is not the state's, so it is not logged against the capture.
  * Whether a member sees a control, and whether it is enabled, is read from dom.json instead.
  */
+/**
+ * Which of several elements sharing one test id is the one the plan's label names.
+ * Returns its index, -1 when none is, -2 when more than one is. Names are read the way a person
+ * reads them: the visible text, or the aria-label when the element has no text of its own.
+ */
+async function namedOne(all: Locator, label: string): Promise<number> {
+  const want = label.replace(/\s+/g, ' ').trim().toLowerCase();
+  if (!want) return -1;
+  const names: string[] = await all.evaluateAll((els) =>
+    els.map((el) => {
+      const e = el as HTMLElement;
+      const text = (e.innerText || e.textContent || '').replace(/\s+/g, ' ').trim();
+      return (text || e.getAttribute('aria-label') || '').toLowerCase();
+    })
+  );
+  const exact = names.reduce<number[]>((out, n, i) => (n === want ? [...out, i] : out), []);
+  if (exact.length === 1) return exact[0];
+  if (exact.length > 1) return -2;
+  const partial = names.reduce<number[]>((out, n, i) => (n.includes(want) ? [...out, i] : out), []);
+  if (partial.length === 1) return partial[0];
+  return partial.length > 1 ? -2 : -1;
+}
+
 async function clickControls(context: BrowserContext, job: CaptureJob, item: CaptureItem, meta: Meta, marks: { intercepted: Set<Request>; aborted: Set<Request> }): Promise<ControlResult[]> {
   const results: ControlResult[] = [];
   for (const c of item.controls) {
@@ -593,14 +616,22 @@ async function clickControls(context: BrowserContext, job: CaptureJob, item: Cap
       // a target whose panel is still a skeleton has not failed to be reached.
       await settled(page, job);
       const st = await controlState(page, c);
-      const hits = await page.getByTestId(c.testid).count();
+      const all = page.getByTestId(c.testid);
+      const hits = await all.count();
+      // Every row of a list carries the list's one test id, and the design tells them apart by
+      // what they say -- which is how this row's own reach step reaches it. So when the test id
+      // matches several, the control's label picks one, exactly as a person would; only a label
+      // that matches none of them, or more than one, is an address that reaches no control.
+      const named = hits > 1 ? await namedOne(all, c.label) : 0;
+      const one = hits > 1 ? all.nth(named) : all;
       if (!st.found) r.why = 'no element has this test id';
-      else if (hits > 1) r.why = `${hits} elements carry this test id, so it does not address one control`;
+      else if (hits > 1 && named < 0) r.why = `${hits} elements carry this test id and none is named "${c.label}", so it does not address one control`;
+      else if (hits > 1 && named === -2) r.why = `${hits} elements carry this test id and more than one is named "${c.label}"`;
       else if (!st.visible) r.why = 'not visible';
       else if (!st.enabled) r.why = 'disabled';
       else if (c.effect !== 'none' && c.effect !== 'free') r.why = `not clicked: its effect is ${c.effect}`;
       else {
-        await page.getByTestId(c.testid).click({ timeout: 10_000 });
+        await one.click({ timeout: 10_000 });
         await settled(page, job);
         const target = job.targets[c.target];
         const missing = target ? await markersShown(page, target) : [];

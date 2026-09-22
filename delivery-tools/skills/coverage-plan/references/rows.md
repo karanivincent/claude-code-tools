@@ -75,9 +75,14 @@ Derived from the design render and the state's place in the plan:
 
 ## Worlds (`worlds[]`)
 
-`{ id, kind, orgName, users: [{ role, email }], notes }`. One organisation per world, named with
+`{ id, kind, orgName, users: [{ role, email, name? }], notes }`. One organisation per world, named with
 the safety file's `fixtureOrgPrefix`; users match its `fixtureUserPattern` and belong to exactly
 one world. The repo's e2e robot is never in a fixture world.
+
+**Give a user the `name` the design draws.** A design that says "Settings for Sam" is read back
+from the account, so a fixture user with no name renders its own email address there and the
+state's own marker fails — which reads as a screen bug and is a fixture nobody named. `seed
+--apply` sets it on the account, and sets it on a user it had already created.
 
 **Each world file joins its own users to its organisation.** `delivery seed --apply` creates the
 users in the auth system and nothing more — only the repo knows which table and columns a
