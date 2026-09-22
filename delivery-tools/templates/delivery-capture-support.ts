@@ -331,6 +331,12 @@ async function settled(page: Page, job: CaptureJob): Promise<void> {
  * marker the checks then reported missing was really present, somewhere else. A step that names
  * two controls has not said what it meant; the state is `unavailable` until it does.
  */
+/** Give a client-rendered control time to appear before counting how many of it there are. */
+async function waitForFirst(locator: Locator): Promise<void> {
+  if (await locator.first().isVisible().catch(() => false)) return;
+  await locator.first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => undefined);
+}
+
 async function resolveClick(page: Page, c: NonNullable<CaptureStep['click']>) {
   if (c.testid) {
     const byTestId = page.getByTestId(c.testid);
@@ -351,12 +357,18 @@ async function resolveClick(page: Page, c: NonNullable<CaptureStep['click']>) {
   }
   if (c.role) {
     const byRole = page.getByRole(c.role as Parameters<Page['getByRole']>[0], c.name ? { name: c.name, exact: true } : {});
+    // Wait before counting, for the same reason the test-id branch does: a control the browser
+    // renders once its data arrives is not in the DOM when the navigation settles, and counting
+    // then reports it missing. Learned on the test-id branch and not applied here, which is why a
+    // row of a fetched list could be clicked by test id and not by the name beside it.
+    await waitForFirst(byRole);
     const n = await byRole.count();
     if (n > 1) throw new Error(`role ${c.role}${c.name ? ` named "${c.name}"` : ''} matches ${n} visible controls, so this step is ambiguous`);
     if (n === 0) throw new Error(`no visible ${c.role}${c.name ? ` named "${c.name}"` : ''} on ${page.url()}`);
     return byRole;
   }
   const byText = page.getByText(c.name ?? '', { exact: true });
+  await waitForFirst(byText);
   const n = await byText.count();
   if (n > 1) throw new Error(`"${c.name}" matches ${n} visible elements by text, so this step is ambiguous`);
   if (n === 0) throw new Error(`nothing reads exactly "${c.name}" on ${page.url()}`);

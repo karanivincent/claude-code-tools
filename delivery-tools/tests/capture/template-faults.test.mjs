@@ -83,3 +83,19 @@ test('an element with a test id and no text of its own is still captured', async
   assert.match(src, /if \(!owner && !control && !testid\) continue;/,
     'an element is kept when it carries a test id, whatever else it is');
 });
+
+// 7. A control the browser renders once its data arrives is counted before it exists.
+test('every way of resolving a click waits before counting', () => {
+  // The test-id branch learned this and said so in a comment; the role and text branches counted
+  // immediately, so a row of a fetched list could be clicked by its test id and not by the name
+  // printed beside it -- and the capture reported the state unreachable, which reads as a screen
+  // that has no such control (widgets WG-09).
+  assert.match(support, /async function waitForFirst\(/, 'a shared wait-then-count helper must exist');
+  const resolve = support.slice(support.indexOf('async function resolveClick('));
+  const body = resolve.slice(0, resolve.indexOf('\n}\n'));
+  for (const branch of ['byRole', 'byText']) {
+    const at = body.indexOf(`const n = await ${branch}.count();`);
+    assert.ok(at > 0, `resolveClick has no ${branch} count`);
+    assert.match(body.slice(Math.max(0, at - 400), at), new RegExp(`waitForFirst\\(${branch}\\)`), `${branch} counts without waiting first`);
+  }
+});
