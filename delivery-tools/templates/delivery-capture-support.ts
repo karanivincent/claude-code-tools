@@ -24,7 +24,7 @@
  * otherwise and changes nothing about the repo's own e2e runs).
  */
 import type { Browser, BrowserContext, Page, Request, Response } from '@playwright/test';
-import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'fs';
 import { createRequire } from 'module';
 import { join } from 'path';
 
@@ -178,7 +178,53 @@ export async function signIn(page: Page, job: CaptureJob, email: string, next: s
 }
 // ---- End of the project adapter. ----
 
-const sessions = new Map<string, Awaited<ReturnType<BrowserContext['storageState']>>>();
+type StoredSession = Awaited<ReturnType<BrowserContext['storageState']>>;
+
+const sessions = new Map<string, StoredSession>();
+
+/**
+ * Where a signed-in session is kept between capture runs: beside the captures, not inside one, so
+ * a gate re-run reuses it instead of minting another magic link.
+ *
+ * Signing in costs a one-time token, and a project's auth endpoints are rate limited per hour. One
+ * gate run over eleven states signs in once per world user; four runs in an hour reached the limit
+ * and the capture recorded 429s on `/auth/confirm` and on the page itself, which reads as a broken
+ * screen and is a spent allowance.
+ */
+const SESSION_MAX_AGE_MS = 20 * 60 * 1000;
+
+function sessionFile(job: CaptureJob, email: string): string {
+  const safe = email.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+  return join(job.outDir, '..', '..', 'sessions', `${safe}.json`);
+}
+
+/** A stored session, when one was written recently enough to still be signed in. */
+function loadSession(job: CaptureJob, email: string): StoredSession | undefined {
+  const inMemory = sessions.get(email);
+  if (inMemory) return inMemory;
+  const path = sessionFile(job, email);
+  try {
+    if (!existsSync(path)) return undefined;
+    const { mtimeMs } = statSync(path);
+    if (Date.now() - mtimeMs > SESSION_MAX_AGE_MS) return undefined;
+    const state = JSON.parse(readFileSync(path, 'utf8')) as StoredSession;
+    sessions.set(email, state);
+    return state;
+  } catch {
+    return undefined;
+  }
+}
+
+function saveSession(job: CaptureJob, email: string, state: StoredSession): void {
+  sessions.set(email, state);
+  const path = sessionFile(job, email);
+  try {
+    mkdirSync(join(path, '..'), { recursive: true });
+    writeFileSync(path, `${JSON.stringify(state)}\n`);
+  } catch {
+    // A session that cannot be written is a session signed in again next run, nothing worse.
+  }
+}
 
 function message(e: unknown): string {
   return (e instanceof Error ? e.message : String(e)).split('\n')[0].slice(0, 300);
@@ -585,7 +631,7 @@ export async function captureItem(browser: Browser, job: CaptureJob, item: Captu
   const log: ErrorLog = { schemaVersion: 1, console: [], requests: [], perf: { requestCount: 0, loadMs: 0 }, axe: null };
   const marks = { intercepted: new Set<Request>(), aborted: new Set<Request>() };
   const counter = { n: 0 };
-  const saved = sessions.get(item.email);
+  const saved = loadSession(job, item.email);
   const context = await browser.newContext({
     baseURL: job.baseUrl,
     viewport: { width: item.width, height: item.height },
@@ -605,7 +651,7 @@ export async function captureItem(browser: Browser, job: CaptureJob, item: Captu
     await reach(page, job, item, meta, saved === undefined);
     await settled(page, job);
     log.perf.loadMs = Date.now() - t0;
-    if (saved === undefined) sessions.set(item.email, await context.storageState());
+    if (saved === undefined) saveSession(job, item.email, await context.storageState());
     meta.finalUrl = page.url();
     await probeVersion(page, job, meta);
     const { lines, dom } = await extract(page, job);
