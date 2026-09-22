@@ -158,6 +158,21 @@ test('served SHA: read from JSON or text; a missing route or a network failure i
   assert.equal(await probeServedSha(ctx, 'https://preview.example.invalid/', { fetch: fake(404, 'not found') }), null);
   assert.equal(await probeServedSha(ctx, 'https://preview.example.invalid', { fetch: async () => { throw new Error('ENOTFOUND'); } }), null);
   assert.equal(await probeServedSha(ctx, '', { fetch: fake(200, sha) }), null);
+
+  // A version route that redirects is not answering, and the page it redirects to must not answer
+  // in its place. A sign-in page's build id read as a served SHA, and the capture refused a
+  // deployment that was serving the very commit it had been asked for.
+  const login = `<!DOCTYPE html><html><body><script src="/_next/static/${'d1e58d753c78'}${'9'.repeat(20)}/main.js"></script>${'x'.repeat(400)}</body></html>`;
+  assert.equal(shaFromBody(login), null, 'a page is never a version answer');
+  const withType = (status, body, type) => async () => ({ ok: status < 400, status, headers: { get: () => type }, text: async () => body });
+  assert.equal(await probeServedSha(ctx, 'https://preview.example.invalid', { fetch: withType(200, login, 'text/html; charset=utf-8') }), null);
+  assert.equal(await probeServedSha(ctx, 'https://preview.example.invalid', { fetch: withType(307, '', 'text/plain') }), null, 'a redirect is not an answer');
+  // The redirect must not be followed at all: following it is how the page got to answer.
+  let sawRedirectMode = null;
+  await probeServedSha(ctx, 'https://preview.example.invalid', {
+    fetch: async (url, init) => { sawRedirectMode = init.redirect; return { ok: true, status: 200, headers: { get: () => 'application/json' }, text: async () => JSON.stringify({ sha }) }; },
+  });
+  assert.equal(sawRedirectMode, 'manual');
 });
 
 test('smoke without a plan world user is skipped, not captured as someone else', async () => {

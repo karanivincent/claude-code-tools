@@ -23,6 +23,11 @@ export function shaFromBody(body) {
     if (typeof v === 'string') return /^[0-9a-f]{7,40}$/i.test(v.trim()) ? v.trim().toLowerCase() : null;
     return pick(v);
   } catch {
+    // Not JSON: a short answer that is a SHA, or names one ("commit <sha>"). Never a page.
+    // Reading a hex token out of arbitrary text finds one in any HTML: a sign-in page's build id
+    // answered for a version route that had redirected there, and the capture then refused a
+    // deployment that was serving exactly the commit it had been asked for.
+    if (text.length > 200) return null;
     const m = /\b[0-9a-f]{40}\b/i.exec(text) ?? /\b[0-9a-f]{7,39}\b/i.exec(text);
     return m ? m[0].toLowerCase() : null;
   }
@@ -45,8 +50,11 @@ export async function probeServedSha(ctx, baseUrl, opts = {}) {
   try { url = new URL(probe.path, baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`); } catch { return null; }
   const doFetch = opts.fetch ?? globalThis.fetch;
   try {
-    const res = await doFetch(url, { method: probe.method, headers: { accept: 'application/json, text/plain' }, redirect: 'follow', signal: AbortSignal.timeout(opts.timeoutMs ?? 15000) });
+    // Never follow: a version route that redirects is not answering, and where it redirects to
+    // answers in its place. The one that sent this probe to a sign-in page cost an hour.
+    const res = await doFetch(url, { method: probe.method, headers: { accept: 'application/json, text/plain' }, redirect: 'manual', signal: AbortSignal.timeout(opts.timeoutMs ?? 15000) });
     if (!res.ok) return null;
+    if (/html/i.test(String(res.headers?.get?.('content-type') ?? ''))) return null;
     return shaFromBody(await res.text());
   } catch {
     return null;
