@@ -291,6 +291,12 @@ export async function planGate(ctx) {
  * and that no row declares missing is a plan with no backend unit for it: the seed step would
  * have found out from the database, after the draft pull request and the builders.
  */
+/** The backend units of a plan that name a table, the way M1-backend-no-unit matches them. */
+function buildersOf(plan, table) {
+  const needle = String(table).toLowerCase();
+  return (plan.units ?? []).filter((u) => u.kind === 'backend' && [u.title, ...(u.files ?? []), ...(u.capabilities ?? [])].some((x) => String(x).toLowerCase().includes(needle)));
+}
+
 async function worldFileFailures(paths, plan, profile) {
   const out = [];
   const databaseTypes = profile?.paths?.databaseTypes;
@@ -314,8 +320,18 @@ async function worldFileFailures(paths, plan, profile) {
     // nothing to say about a table it cannot look up.
     if (!types) continue;
     for (const t of new Set((value.rows ?? []).map((r) => r.table))) {
-      if (types.has(t) || declaredMissing.has(t)) continue;
-      out.push({ code: 'M1-world-table', message: `${path} seeds ${t}, which ${databaseTypes} does not have and no row of the plan declares missing; a table nobody builds is a backend unit, not a seed row` });
+      if (types.has(t)) continue;
+      if (!declaredMissing.has(t)) {
+        out.push({ code: 'M1-world-table', message: `${path} seeds ${t}, which ${databaseTypes} does not have and no row of the plan declares missing; a table nobody builds is a backend unit, not a seed row` });
+        continue;
+      }
+      // `delivery seed --apply` runs at the end of wave 0, so a table the worlds seed has to be
+      // created in wave 0 too. A backend unit defaults to wave 1, which is right for a route or a
+      // column on a table that already exists and wrong for the table the fixtures need.
+      const builders = buildersOf(plan, t);
+      if (builders.length && builders.every((u) => u.wave > 0)) {
+        out.push({ code: 'M1-world-table-wave', message: `${path} seeds ${t}, which ${builders.map((u) => `${u.id} (wave ${u.wave})`).join(', ')} creates; wave 0 seeds, so the unit that creates a seeded table belongs in wave 0` });
+      }
     }
   }
   return out;

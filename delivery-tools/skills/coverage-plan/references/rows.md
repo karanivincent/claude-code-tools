@@ -98,7 +98,7 @@ match a worker's query unless a founder-approved guard covers it; `delivery seed
 |---|---|---|
 | `contract` | 0 | always present; `risk: "high"`, `model: "opus"`; typed contracts and stubs for the whole feature |
 | `tooling` | 0 | repo prerequisites preflight turned into tasks |
-| `backend` | 1 by default | one per missing backend piece; `risk: "high"` on the voice or payment path |
+| `backend` | 1 by default, **0 for a table the worlds seed** | one per missing backend piece; `risk: "high"` on the voice or payment path. `delivery seed --apply` runs at the end of wave 0, so the unit that creates a table the fixtures need has to be in wave 0; wave 1 is right for a route, or a column on a table that already exists |
 | `shared-ui` | 1 | header, menus, dialogs, shared components |
 | `words` | 1 | the only unit that edits message files, all locales |
 | `screen` | 1 | builds inside the stub shell against the contracts |

@@ -212,6 +212,25 @@ test('planGate refuses a world that seeds a table nobody builds, and allows one 
     assert.deepEqual(r.failures.map((f) => f.code), ['M1-backend-no-unit']);
   } finally { declared.cleanup(); }
 
+  // A backend unit that creates it, but in wave 1: wave 0 is what seeds, so that is too late.
+  const backendUnit = (wave) => ({ id: 'U-back', title: 'The widgets table', issue: null, kind: 'backend', wave, files: ['supabase/migrations/1_widgets.sql'], states: [], capabilities: [], risk: 'normal', model: 'sonnet' });
+  const late = planWith([withMarkers('WL-01', { data: [{ table: 'widgets', column: 'stock', exists: false, verifiedBy: 'types' }] })]);
+  late.units.push(backendUnit(1));
+  const lateRun = await makeRun({ profile, plan: late, inventory: inv(['WL-01']), files, worldFiles: { design: world('widgets') } });
+  try {
+    const r = await planGate(lateRun.ctx);
+    assert.deepEqual(r.failures.map((f) => f.code), ['M1-world-table-wave']);
+    assert.match(r.failures[0].message, /U-back \(wave 1\) creates; wave 0 seeds/);
+  } finally { lateRun.cleanup(); }
+
+  // The same unit in wave 0 is green.
+  const early = planWith([withMarkers('WL-01', { data: [{ table: 'widgets', column: 'stock', exists: false, verifiedBy: 'types' }] })]);
+  early.units.push(backendUnit(0));
+  const earlyRun = await makeRun({ profile, plan: early, inventory: inv(['WL-01']), files, worldFiles: { design: world('widgets') } });
+  try {
+    assert.deepEqual(await planGate(earlyRun.ctx), { ok: true, failures: [] });
+  } finally { earlyRun.cleanup(); }
+
   // A table the types already have is fine with no claim at all.
   const exists = await makeRun({ profile, plan: planWith([withMarkers('WL-01')]), inventory: inv(['WL-01']), files, worldFiles: { design: world('organizations') } });
   try {
