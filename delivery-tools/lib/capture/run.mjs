@@ -24,6 +24,19 @@ import { probeServedSha } from './served-sha.mjs';
 /** Cross-slice calls, injectable so tests never need another slice's implementation. */
 export const DEFAULT_HOOKS = Object.freeze({ resolvePreview, refreshWorld, seedScanGate, teardownRows, probeServedSha });
 
+/**
+ * The host a capture's own server is reached by.
+ *
+ * `localhost`, never `127.0.0.1`, even though the server binds the loopback address. A dev server
+ * that redirects — a sign-in exchange does, every time — rebuilds the absolute URL from its own
+ * idea of the host and hands back `localhost`, so a capture that arrived as `127.0.0.1` is thrown
+ * across an origin boundary on the first hop and loses the session cookie it had just been given.
+ * The widgets rehearsal's wave-0 smoke failed three times on exactly that: the magic-link exchange
+ * succeeded, the cookie was set for 127.0.0.1, the redirect landed on localhost, and the
+ * middleware bounced an unauthenticated page to /login.
+ */
+export const CAPTURE_HOST = 'localhost';
+
 /** A free loopback port. */
 export function freePort() {
   return new Promise((resolve, reject) => {
@@ -57,7 +70,7 @@ export async function resolveTarget(ctx, o) {
     const expectedSha = o.sha ?? (await revParse(ctx, 'HEAD', dir));
     if (!expectedSha) throw new UsageError(`cannot read HEAD in ${dir}`);
     const port = o.port ?? (await freePort());
-    const baseUrl = o.baseUrl ?? `http://127.0.0.1:${port}`;
+    const baseUrl = o.baseUrl ?? `http://${CAPTURE_HOST}:${port}`;
     const webServer = o.baseUrl ? null : {
       command: fillCommand(profile.commands.devServer, { dir, port }),
       url: baseUrl,
@@ -76,7 +89,7 @@ export async function resolveTarget(ctx, o) {
     if (pv.url) return { baseUrl: pv.url, expectedSha, webServer: null, detail: pv.detail || 'preview by SHA' };
     // No previews: a local production build stands in (spec 4.5), owned by the capture's webServer.
     const port = o.port ?? (await freePort());
-    const baseUrl = `http://127.0.0.1:${port}`;
+    const baseUrl = `http://${CAPTURE_HOST}:${port}`;
     return {
       baseUrl, expectedSha,
       webServer: {

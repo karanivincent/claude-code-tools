@@ -135,6 +135,10 @@ test('branch mode serves the unit\'s own worktree with a dev server the capture 
     assert.match(job.webServer.command, new RegExp(`^npm --prefix ${wt.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} run dev -- --port \\d+$`));
     assert.equal(job.webServer.env.BUILD_SHA, wtHead);
     assert.equal(job.webServer.url, job.baseUrl);
+    // localhost, never 127.0.0.1: a dev server rebuilds its redirects around `localhost`, so a
+    // capture arriving as 127.0.0.1 crosses an origin on the first hop and loses its session
+    // cookie. The widgets rehearsal's wave-0 smoke failed three times on exactly that.
+    assert.match(job.baseUrl, /^http:\/\/localhost:\d+$/);
     assert.deepEqual(job.items.map((i) => i.state), ['WG-01', 'WG-02', 'WG-03']);
     assert.match(r.runId, /-branch-U2$/);
     assert.equal(r.notReached, 0);
