@@ -229,6 +229,10 @@ async function behindBase(ctx, unitFile, headSha) {
   if (at.code !== 0) return null;
   const baseSha = String(at.stdout).trim();
   if ((await ctx.git.raw(['merge-base', '--is-ancestor', baseSha, headSha])).code === 0) return null;
+  // A merged unit's branch is behind by definition and never catches up: its work is in the base
+  // already, and nothing is captured against it again. Only a unit still waiting to merge can be
+  // missing what a sibling merged.
+  if ((await ctx.git.raw(['merge-base', '--is-ancestor', headSha, baseSha])).code === 0) return null;
   const counted = await ctx.git.raw(['rev-list', '--count', `${headSha}..${baseSha}`]);
   const n = Number(String(counted.stdout).trim() || 0) || 0;
   return {

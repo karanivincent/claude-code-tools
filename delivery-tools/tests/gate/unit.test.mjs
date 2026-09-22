@@ -248,5 +248,11 @@ test('a unit branch behind its base is refused before the capture runs, not grad
     assert.match(behind[0].message, /is behind main by 1 commit/);
     assert.match(behind[0].message, /Merge main into your branch/);
     assert.equal(captured, false, 'nothing is captured against a stale branch');
+
+    // Once the unit has merged, its branch is behind by definition and never catches up. Saying so
+    // every time would leave every merged unit of the run red for the rest of it.
+    gitIn(s.repo.dir, 'merge', '--no-ff', '-m', 'merge U1', 'unit/u1');
+    const after = await runUnitGate(s.ctx, 'U1', { runCapture: s.runCapture });
+    assert.deepEqual(after.failures.filter((f) => f.code === 'gate-behind-base'), []);
   } finally { s.repo.cleanup(); }
 });
