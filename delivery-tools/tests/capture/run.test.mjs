@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { captureRun } from '../../lib/capture/run.mjs';
+import { captureRun, captureExcerpt } from '../../lib/capture/run.mjs';
 import { validateAgainst } from '../../lib/core/schema.mjs';
 import { gateResult } from '../../lib/core/gate.mjs';
 import { makeTempRepo } from '../helpers/tmp-repo.mjs';
@@ -176,4 +176,29 @@ test('usage: a mode is required, --unit is branch-only, and a baseline needs a b
     const { ctx } = await makeTestCtx({ repoRoot: empty.dir, feature: 'widgets', profile: makeProfile(), safety: makeSafety(), passthrough: ['git'] });
     await assert.rejects(captureRun(ctx, { mode: 'baseline' }, hooks().hooks), (e) => e.exit === 2 && /needs baseline\.json/.test(e.message));
   } finally { empty.cleanup(); }
+});
+
+// The last line of a failed Playwright run is the package manager's epitaph, not the fault. The
+// widgets rehearsal's wave-0 smoke reported "exited 1 and wrote nothing: Exit status 1" over a
+// plain connection refusal twenty-five lines above it.
+test('captureExcerpt leads with the line that names the error, not the last line', () => {
+  const playwright = [
+    '> @example/dashboard@0.0.1 e2e',
+    '> playwright test "apps/web/e2e/delivery-capture.spec.ts"',
+    '',
+    'Error: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1:53920/auth/confirm',
+    'Call log:',
+    '  - navigating to "http://127.0.0.1:53920/auth/confirm", waiting until "load"',
+    '    at globalSetup (apps/web/e2e/support/global-setup.ts:27:5)',
+    ' ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @example/dashboard@0.0.1 e2e',
+    'Exit status 1',
+  ].join('\n');
+  const said = captureExcerpt({ stdout: playwright, stderr: '' });
+  assert.match(said, /ERR_CONNECTION_REFUSED/);
+  assert.ok(said.startsWith('Error: page.goto'), said);
+  assert.match(said, /Exit status 1$/);
+
+  assert.equal(captureExcerpt({ stdout: '', stderr: '   \n\n' }), '');
+  // Nothing names an error: the last two lines are still better than one.
+  assert.equal(captureExcerpt({ stdout: 'one\ntwo\nthree\n', stderr: '' }), 'two / three');
 });

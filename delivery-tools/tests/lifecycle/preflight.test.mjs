@@ -93,3 +93,25 @@ test('P4 asks the database types whether a plan\'s missing column is still missi
     assert.match(p4.detail, /red-circle once the plan adds a migration/);
   } finally { built.repo.cleanup(); }
 });
+
+// Committing the spec is not the wiring. One line in the Playwright config is what gives a
+// branch-mode capture a server, and P7 used to go green without it: the widgets rehearsal ran the
+// wave-0 smoke against a port nothing was serving and got ERR_CONNECTION_REFUSED.
+test('P7 is not green until a playwright.config.* calls deliveryWebServer()', async () => {
+  const profile = makeProfile();
+  const present = { [profile.paths.captureSpec]: 'export {};\n', [profile.paths.versionRoute]: 'export {};\n' };
+
+  const unwired = await setup({ profile, files: { ...present, 'apps/dashboard/playwright.config.ts': 'export default { testDir: "e2e" };\n' } });
+  try {
+    const p7 = (await runProbes(unwired.ctx)).doc.probes.find((p) => p.id === 'P7');
+    assert.equal(p7.status, 'task');
+    assert.match(p7.detail, /no playwright\.config\.\* calls deliveryWebServer\(\)/);
+  } finally { unwired.repo.cleanup(); }
+
+  const wired = await setup({ profile, files: { ...present, 'apps/dashboard/playwright.config.ts': 'export default { webServer: deliveryWebServer() };\n' } });
+  try {
+    const p7 = (await runProbes(wired.ctx)).doc.probes.find((p) => p.id === 'P7');
+    assert.equal(p7.status, 'green');
+    assert.match(p7.detail, /the capture spec, the version route and the capture's webServer are committed/);
+  } finally { wired.repo.cleanup(); }
+});

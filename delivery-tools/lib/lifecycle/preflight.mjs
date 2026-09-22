@@ -130,6 +130,22 @@ async function stillMissing(env) {
   });
 }
 
+/**
+ * The repo's Playwright config calls deliveryWebServer(), so branch mode has a server to capture.
+ *
+ * Committing the spec and the support file is not the whole wiring: one line in the Playwright
+ * config is what lets the capture own a dev server, and nothing checked it. The widgets rehearsal
+ * finished wave 0, ran the smoke, and got ERR_CONNECTION_REFUSED on a port nothing was serving —
+ * at the end of the phase, from a task that had been marked done. Playwright only ever reads a
+ * file named playwright.config.*, so that is exactly where the call has to be.
+ */
+async function webServerWired(env) {
+  const r = await env.ctx.git.raw(['grep', '-l', '-e', 'deliveryWebServer', '--', '*playwright.config.*']);
+  const hits = r.code === 0 ? String(r.stdout).split('\n').filter(Boolean) : [];
+  if (hits.length) return { ok: true, detail: `${hits[0]} calls deliveryWebServer()` };
+  return { ok: false, detail: 'no playwright.config.* calls deliveryWebServer(), so branch-mode captures have no server: add `webServer: deliveryWebServer()` to the Playwright config, importing it from the capture support file' };
+}
+
 const PROBE_FNS = {
   async P1(env) {
     if (!env.profileBytes) return redP(`no ${PROFILE_PATH}`, { blocking: true, fix: 'Run `delivery init`, review the draft and merge it in the profile PR' });
@@ -191,7 +207,9 @@ const PROBE_FNS = {
     const missing = [];
     if (!(await exists(join(env.ctx.repoRoot, env.profile.paths.captureSpec)))) missing.push(['T-capture', `no capture spec at ${env.profile.paths.captureSpec}`]);
     if (!(await exists(join(env.ctx.repoRoot, env.profile.paths.versionRoute)))) missing.push(['T-version', `no version route at ${env.profile.paths.versionRoute}`]);
-    if (!missing.length) return green('the capture spec and the version route are committed');
+    const wired = await webServerWired(env);
+    if (!wired.ok) missing.push(['T-capture', wired.detail]);
+    if (!missing.length) return green('the capture spec, the version route and the capture\'s webServer are committed');
     return { ...task(missing[0][0], missing.map((m) => m[1]).join('; ')), tasks: missing.map((m) => m[0]) };
   },
   async P8(env) {

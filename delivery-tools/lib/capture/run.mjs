@@ -201,8 +201,8 @@ export async function captureRun(ctx, opts, hooks = ctx.captureHooks ?? DEFAULT_
   for (const w of plan?.worlds ?? []) kinds[w.id] = w.kind;
   const verdicts = judgeItems({ items: inputs, rows, worldKinds: kinds, expectedSha: target.expectedSha, primaryLocale: profile.audit.primaryLocale });
   if (res.code !== 0 && !inputs.some((i) => i.written)) {
-    const tail = String(res.stderr || res.stdout || '').trim().split('\n').filter(Boolean).slice(-1)[0] ?? '';
-    failures.push({ code: 'capture-run', message: `the capture command exited ${res.code}${res.timedOut ? ' (timed out)' : ''} and wrote nothing${tail ? `: ${tail.slice(0, 200)}` : ''}` });
+    const tail = captureExcerpt(res);
+    failures.push({ code: 'capture-run', message: `the capture command exited ${res.code}${res.timedOut ? ' (timed out)' : ''} and wrote nothing${tail ? `: ${tail}` : ''}` });
   }
 
   const items = job.items.map((it, n) => {
@@ -265,4 +265,22 @@ export async function runCapture(ctx, opts) {
   const r = await captureRun(ctx, opts);
   for (const f of r.failures) ctx.out.warn(`${f.code}: ${f.message}`);
   return { runId: r.runId, capture: r.capture, notReached: r.notReached };
+}
+
+/**
+ * What a failed capture command actually said, for the capture-run failure.
+ *
+ * The last line alone is worth nothing here. A Playwright run prints its error near the TOP and
+ * ends with the package manager's own epitaph, so the wave-0 smoke reported "exited 1 and wrote
+ * nothing: Exit status 1" over a plain ERR_CONNECTION_REFUSED twenty-five lines above it: the
+ * Playwright config had no `webServer: deliveryWebServer()` and nothing was serving the base URL.
+ * So the first line that names an error comes first, and the last two lines follow it.
+ */
+export function captureExcerpt(res, width = 400) {
+  const lines = `${String(res?.stdout ?? '')}\n${String(res?.stderr ?? '')}`
+    .split('\n').map((l) => l.trimEnd()).filter((l) => l.trim());
+  if (!lines.length) return '';
+  const first = lines.find((l) => /^\s*(Error\b|✘|✗|FAIL\b)|\bError:\s/.test(l));
+  const picked = [...new Set([...(first ? [first] : []), ...lines.slice(-2)])];
+  return picked.join(' / ').slice(0, width);
 }
