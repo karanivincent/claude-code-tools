@@ -10,7 +10,7 @@
 // its states, its component tests at its head. It never captures, builds or runs anything.
 
 import { readdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { isAbsolute, join, relative } from 'node:path';
 import { readArtefact } from '../core/artefacts.mjs';
 import { readJson, writeJsonAtomic } from '../core/fs.mjs';
 import { readFindings } from '../core/findings.mjs';
@@ -76,10 +76,35 @@ async function loadUnit(ctx, unitId) {
   const plan = await readArtefact(paths, 'plan');
   const unit = (plan.units ?? []).find((u) => u.id === unitId);
   if (!unit) throw new UsageError(`unit ${unitId} is not in the plan; units: ${(plan.units ?? []).map((u) => u.id).join(', ') || 'none'}`);
-  const report = await readArtefact(paths, 'unit-report', { key: unitId, optional: true });
+  let report = await readArtefact(paths, 'unit-report', { key: unitId, optional: true });
+  if (!report) report = await adoptStrandedReport(ctx, paths, unitId);
   let unitFile = null;
   try { unitFile = await readArtefact(paths, 'unit-file', { key: unitId, optional: true }); } catch { unitFile = null; }
   return { paths, plan, unit, report, unitFile, rows: unitRows(plan, unit) };
+}
+
+/**
+ * A report the builder wrote inside its own worktree instead of at the unit file's reportPath.
+ *
+ * A builder runs in an isolated worktree and its write to an absolute path in ANOTHER worktree can
+ * be refused, silently as far as this session is concerned: the gate then says the unit has no
+ * report and the only remedy that looks available is re-dispatching a builder that has already
+ * finished. The report is the unit's own evidence either way, so it is adopted where it lies and
+ * copied into place, and the line says so rather than pretending it arrived correctly.
+ */
+async function adoptStrandedReport(ctx, paths, unitId) {
+  const rel = relative(paths.repoRoot, paths.unitReport(unitId));
+  if (rel.startsWith('..') || isAbsolute(rel)) return null;
+  for (const wt of await ctx.git.worktrees()) {
+    if (!wt.path || wt.path === paths.repoRoot) continue;
+    const candidate = join(wt.path, rel);
+    const value = await readJson(candidate, { optional: true });
+    if (value === null || value.unit !== unitId) continue;
+    await writeJsonAtomic(paths.unitReport(unitId), value);
+    ctx.out.line(`adopted ${unitId}'s report from ${wt.path}: the builder could not write it to ${paths.unitReport(unitId)}`);
+    return value;
+  }
+  return null;
 }
 
 /** The unit's head: its branch, else the branch on origin, else its last reported commit. */

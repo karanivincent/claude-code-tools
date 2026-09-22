@@ -4,8 +4,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
+import { dirname, join, relative } from 'node:path';
 import { runUnitGate, unitGateStatus, unitGateStatusWith, commonDir, lastLines, testedBy, capturedBy, RENDER_EMPTY_ENV } from '../../lib/gate/unit.mjs';
 import { featurePaths } from '../../lib/core/paths.mjs';
 import { makeTempRepo } from '../helpers/tmp-repo.mjs';
@@ -151,6 +151,28 @@ test('a unit check the unit file has since changed is named as stale, with the c
     hit = st.failures.find((f) => f.code === 'gate-unit-check');
     assert.match(hit.message, /not the unit check any more/);
     assert.match(hit.message, /re-read your unit file and run "cd app && npx vitest run x"/);
+  } finally { s.repo.cleanup(); }
+});
+
+test('a report the builder left in its own worktree is adopted, not treated as no report', async () => {
+  const s = await setup({ testFiles: GOOD, captureLines: ['Widgets'] });
+  try {
+    const canonical = s.paths.unitReport('U1');
+    const report = JSON.parse(readFileSync(canonical, 'utf8'));
+    rmSync(canonical);
+    assert.deepEqual((await unitGateStatusWith(s.ctx, 'U1', { validateCaptureItems: async () => [] })).failures.map((f) => f.code), ['gate-no-report']);
+
+    // The same relative path, but inside the builder's own worktree.
+    const wt = (await s.ctx.git.worktrees()).find((w) => w.path && w.path !== s.paths.repoRoot);
+    assert.ok(wt, 'the fixture has a unit worktree');
+    const stranded = join(wt.path, relative(s.paths.repoRoot, canonical));
+    mkdirSync(dirname(stranded), { recursive: true });
+    writeFileSync(stranded, JSON.stringify(report));
+
+    const st = await unitGateStatusWith(s.ctx, 'U1', { validateCaptureItems: async () => [] });
+    assert.ok(!st.failures.some((f) => f.code === 'gate-no-report'), JSON.stringify(st.failures));
+    assert.ok(existsSync(canonical), 'it is copied into place');
+    assert.deepEqual(JSON.parse(readFileSync(canonical, 'utf8')).unit, 'U1');
   } finally { s.repo.cleanup(); }
 });
 
