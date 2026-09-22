@@ -8,7 +8,7 @@ import { makeProfile, makeSafety } from '../helpers/fixtures.mjs';
 import { readArtefact } from '../../lib/core/artefacts.mjs';
 import { runProbes, preflightGate, preflightExit, scriptOf, PROBES } from '../../lib/lifecycle/preflight.mjs';
 import preflightCommand from '../../lib/commands/preflight.mjs';
-import { makeRunRepo, ctxFor, json, fakeDataAdapter as adapter, preflightSetup as setup } from './support.mjs';
+import { makeRunRepo, ctxFor, json, fakeDataAdapter as adapter, preflightSetup as setup, makePlan } from './support.mjs';
 
 test('a fresh repo: prerequisites become wave-0 tasks, nothing needs the founder, preflight.json validates', async () => {
   const { repo, ctx, stdout } = await setup();
@@ -65,4 +65,31 @@ test('scriptOf and the probe table', () => {
   assert.equal(scriptOf("node scripts/agent-up.mjs --dir {dir}"), 'scripts/agent-up.mjs');
   assert.equal(scriptOf('pnpm flight'), null);
   assert.deepEqual(PROBES.filter((p) => p.waivable).map((p) => p.id), ['P13']);
+});
+
+// P4 reads the schema, not the plan's memory of it. The plan is frozen at the Scope snapshot, so
+// a row keeps saying `exists: false` after the backend unit that built the column has merged; the
+// widgets rehearsal applied its table, regenerated the types and still got a red-circle P4 at
+// every later preflight, which no amount of building could clear.
+test('P4 asks the database types whether a plan\'s missing column is still missing', async () => {
+  const profile = makeProfile();
+  const noApply = { ...adapter(), probeMigrationApply: async () => ({ ok: false, detail: 'HTTP 403' }) };
+  const plan = makePlan();
+  plan.rows[0].data = [{ table: 'widgets', column: 'stock', exists: false, verifiedBy: 'types' }];
+  const types = (tables) => `export type Database = { public: { Tables: { ${tables} } } }`;
+
+  const absent = await setup({ profile, data: noApply, plan, files: { [profile.paths.databaseTypes]: types('organizations: { Row: { id: string } }') } });
+  try {
+    const p4 = (await runProbes(absent.ctx)).doc.probes.find((p) => p.id === 'P4');
+    assert.equal(p4.status, 'red');
+    assert.equal(p4.blocking, true);
+    assert.match(p4.detail, /the plan adds data the schema lacks \(widgets\.stock\)/);
+  } finally { absent.repo.cleanup(); }
+
+  const built = await setup({ profile, data: noApply, plan, files: { [profile.paths.databaseTypes]: types('widgets: { Row: { id: string, stock: number } }') } });
+  try {
+    const p4 = (await runProbes(built.ctx)).doc.probes.find((p) => p.id === 'P4');
+    assert.equal(p4.status, 'warning');
+    assert.match(p4.detail, /red-circle once the plan adds a migration/);
+  } finally { built.repo.cleanup(); }
 });

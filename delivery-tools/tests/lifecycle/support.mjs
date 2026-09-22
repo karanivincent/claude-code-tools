@@ -166,8 +166,8 @@ export function fakeDataAdapter({ read = true, write = true, members = { 'robot-
   };
 }
 
-export async function preflightSetup({ profile = makeProfile(), safety = makeSafety(), data = fakeDataAdapter(), files = {} } = {}) {
-  const repo = await makeRunRepo({ files: { '.claude/delivery-profile.json': json(profile), '.claude/delivery-safety.json': json(safety), ...files } });
+export async function preflightSetup({ profile = makeProfile(), safety = makeSafety(), data = fakeDataAdapter(), files = {}, plan } = {}) {
+  const repo = await makeRunRepo({ plan, files: { '.claude/delivery-profile.json': json(profile), '.claude/delivery-safety.json': json(safety), ...files } });
   const baseSha = repo.git('rev-parse', 'origin/main');
   const rules = [
     { match: `DEPLOY_SHA=${baseSha} node scripts/wait-for-deploy.mjs`, result: ok('live') },

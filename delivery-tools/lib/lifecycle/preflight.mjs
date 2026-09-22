@@ -19,6 +19,7 @@ import { deps, isNotImplemented } from './deps.mjs';
 import { readState, readPlan, matchesAny, lastLine, findRunPr, clip } from './run-info.mjs';
 import { resolvePreview } from './preview.mjs';
 import { unfilled } from './init.mjs';
+import { parseDatabaseTypes } from '../plan/verify.mjs';
 
 /**
  * Every probe, whether the founder may waive it, and whether red means the founder must act
@@ -103,6 +104,32 @@ async function dataAdapter(env) {
   return env.adapter;
 }
 
+/**
+ * The columns a plan's rows declare missing that the generated database types still lack.
+ *
+ * A row's `exists: false` is a statement about the base at planning time, and the plan is frozen
+ * at the Scope snapshot, so it keeps saying "missing" after the backend unit that builds it has
+ * merged. Reading the plan alone therefore makes P4 red-circle forever once any row ever asked
+ * for a migration: the widgets rehearsal applied its table, regenerated the types and still got
+ * "the plan adds data the schema lacks" at every later preflight. The schema is the thing P4 is
+ * actually about, so it is what gets asked; an unreadable types file answers "assume missing",
+ * which is the safe direction and is its own probe's problem.
+ */
+async function stillMissing(env) {
+  const declared = [...new Set((env.plan?.rows ?? []).flatMap((row) => (row.data ?? []).filter((x) => !x.exists).map((x) => `${x.table}.${x.column}`)))];
+  if (!declared.length) return [];
+  const path = env.profile?.paths?.databaseTypes;
+  let types = null;
+  if (path) {
+    try { types = parseDatabaseTypes(await readFile(join(env.ctx.repoRoot, path), 'utf8')); } catch { types = null; }
+  }
+  if (!types) return declared;
+  return declared.filter((claim) => {
+    const [table, column] = claim.split('.');
+    return !types.get(table)?.has(column);
+  });
+}
+
 const PROBE_FNS = {
   async P1(env) {
     if (!env.profileBytes) return redP(`no ${PROFILE_PATH}`, { blocking: true, fix: 'Run `delivery init`, review the draft and merge it in the profile PR' });
@@ -137,8 +164,8 @@ const PROBE_FNS = {
     const a = await dataAdapter(env);
     const r = await a.probeMigrationApply();
     if (r.ok) return green(r.detail);
-    const needs = (env.plan?.rows ?? []).some((row) => row.data.some((x) => !x.exists));
-    if (needs) return redP(`the plan adds data the schema lacks, and migrations cannot be applied to the test environment: ${r.detail}`, { blocking: true, fix: 'Authorise the migration path for the test project (an access token for its management API), then `delivery preflight --only P4`' });
+    const missing = await stillMissing(env);
+    if (missing.length) return redP(`the plan adds data the schema lacks (${missing.slice(0, 3).join(', ')}${missing.length > 3 ? `, +${missing.length - 3} more` : ''}), and migrations cannot be applied to the test environment: ${r.detail}`, { blocking: true, fix: 'Authorise the migration path for the test project (an access token for its management API), then `delivery preflight --only P4`' });
     return warning(`migrations cannot be applied to the test environment (${r.detail}); red-circle once the plan adds a migration`);
   },
   async P5(env) {
