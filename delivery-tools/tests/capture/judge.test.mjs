@@ -121,3 +121,35 @@ test('an error state reached by an intercept may log its failure; a thrown page 
   const thrown = judge([item('WG-04', ['Refresh failed'], { errors: errs([{ type: 'pageerror', text: 'TypeError: boom' }]) })], [row]);
   assert.match(thrown[0].why, /console error: TypeError: boom/);
 });
+
+// A world exists to make the data differ. Two worlds rendering the same text mean the world never
+// reached the app, and every marker those two states share then passes. The widgets rehearsal's
+// wave-0 smoke captured four items, every one byte-identical, and the design state was reported
+// reached.
+test('two worlds that render the same text are both refused, unless the plan says same-as', () => {
+  const shell = ['Widgets', 'List', 'Settings', '3 WIDGETS IN STOCK'];
+  const design = { id: 'WG-01', markers: { text: ['Widgets', 'List'], testids: [], forbidden: [] }, reach: { class: 'seeded', world: 'design' } };
+  const empty = { id: 'WG-02', markers: { text: ['Widgets', 'List'], testids: [], forbidden: [] }, reach: { class: 'seeded', world: 'empty' } };
+
+  const v = judge(
+    [item('WG-01', shell, { world: 'design' }), item('WG-02', shell, { world: 'empty' })],
+    [design, empty],
+  );
+  assert.deepEqual(v.map((x) => x.status), ['not-reached', 'not-reached']);
+  assert.match(v[0].why, /identical text to WG-02 \(empty\) in another world, so the world made no difference/);
+  assert.match(v[1].why, /identical text to WG-01 \(design\) in another world/);
+
+  // The plan may declare that two states really are one page.
+  const declared = judge(
+    [item('WG-01', shell, { world: 'design' }), item('WG-02', shell, { world: 'empty' })],
+    [design, { ...empty, markers: { ...empty.markers, sameAs: { state: 'WG-01', why: 'the same shell' } } }],
+  );
+  assert.deepEqual(declared.map((x) => x.status), ['reached', 'reached']);
+
+  // Different text in two worlds is the normal case and says nothing.
+  const differing = judge(
+    [item('WG-01', shell, { world: 'design' }), item('WG-02', ['Widgets', 'List', 'Settings', 'NO WIDGETS YET'], { world: 'empty' })],
+    [design, empty],
+  );
+  assert.deepEqual(differing.map((x) => x.status), ['reached', 'reached']);
+});

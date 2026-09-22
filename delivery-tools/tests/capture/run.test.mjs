@@ -65,7 +65,10 @@ test('a state showing its neighbour is not reached; rows its clicks created are 
     const wg2 = r.capture.items.filter((i) => i.state === 'WG-02');
     assert.ok(wg2.every((i) => i.status === 'not-reached'));
     assert.match(wg2[0].why, /missing markers "No widgets yet", testid widget-empty; forbidden marker present testid widget-list/);
-    assert.equal(r.notReached, 2);
+    // Four, not two: WG-02 is in another world and now shows WG-01's text, so both are suspect.
+    // The capture cannot tell which of the pair moved, and reporting only one of them would pick.
+    assert.equal(r.notReached, 4);
+    assert.match(wg2[0].why, /identical text to WG-01 \(design\) in another world/);
     assert.deepEqual(h.calls.teardown, [[{ table: 'widgets', id: 'w-9' }]]);
     assert.equal(h.calls.scan, 2);
     assert.deepEqual(r.capture.items.find((i) => i.state === 'WG-01' && i.width === 1440 && i.role === 'admin').createdRowIds, ['w-9']);

@@ -1,7 +1,9 @@
 // The capture validator's rules (spec 6.2), as pure functions over what a capture wrote. A capture
 // is refused (not-reached) when a required marker is missing or a forbidden one is present, when its
-// text is identical to another state's in the same world and role (unless the plan says same-as),
-// when the served SHA is not the expected one, or when a console error or a failed request occurred.
+// text is identical to another state's in the same world and role, or to another state's in a
+// DIFFERENT world (unless the plan says same-as, which is how a plan declares two states really are
+// one page), when the served SHA is not the expected one, or when a console error or a failed
+// request occurred.
 // M3 and M15 (slice B1) and ready (A1) reach these rules through validateCaptureItems.
 
 import { sha256 } from '../core/hash.mjs';
@@ -107,6 +109,7 @@ export function judgeItems(input) {
   const kinds = input.worldKinds ?? {};
   const verdicts = new Map();
   const hashes = new Map();
+  const acrossWorlds = new Map();
 
   for (const it of input.items) {
     const reasons = [];
@@ -144,18 +147,36 @@ export function judgeItems(input) {
         const g = JSON.stringify([it.world, it.role, it.width, it.locale, it.theme, textHash(it.lines)]);
         if (!hashes.has(g)) hashes.set(g, []);
         hashes.get(g).push(it);
+        const w = JSON.stringify([it.width, it.locale, it.theme, textHash(it.lines)]);
+        if (!acrossWorlds.has(w)) acrossWorlds.set(w, []);
+        acrossWorlds.get(w).push(it);
       }
     }
     verdicts.set(it.key, reasons);
   }
 
-  const sameAs = (a, b) => rows.get(a)?.markers?.sameAs?.state === b || rows.get(b)?.markers?.sameAs?.state === a;
+  const sameAsPairs = (a, b) => rows.get(a)?.markers?.sameAs?.state === b || rows.get(b)?.markers?.sameAs?.state === a;
   for (const group of hashes.values()) {
     const states = [...new Set(group.map((i) => i.state))];
     if (states.length < 2) continue;
     for (const it of group) {
-      const others = states.filter((s) => s !== it.state && !sameAs(it.state, s));
+      const others = states.filter((s) => s !== it.state && !sameAsPairs(it.state, s));
       if (others.length) verdicts.get(it.key).push(`identical text to ${others.slice(0, 3).join(', ')} (same world and role)`);
+    }
+  }
+
+  // A world exists to make the data differ. Two worlds that render the same text at the same
+  // width, locale and theme mean the world never reached the app, and every marker those two
+  // states happen to share then passes: the widgets rehearsal's wave-0 smoke signed each fixture
+  // user in, none of them belonged to an organisation, all four captures came back byte-identical,
+  // and the design state was reported as reached. The plan says two states really are the same
+  // page with markers.sameAs; that is the only way past this.
+  for (const group of acrossWorlds.values()) {
+    const worlds = [...new Set(group.map((i) => i.world))];
+    if (worlds.length < 2) continue;
+    for (const it of group) {
+      const others = [...new Set(group.filter((o) => o.world !== it.world && !sameAsPairs(it.state, o.state)).map((o) => `${o.state} (${o.world})`))];
+      if (others.length) verdicts.get(it.key).push(`identical text to ${others.slice(0, 3).join(', ')} in another world, so the world made no difference`);
     }
   }
 
