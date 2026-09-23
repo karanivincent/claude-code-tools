@@ -202,6 +202,32 @@ test('runChecks asking for exit 3 is blocked on the founder and 5 an inconsisten
   } finally { h.repo.cleanup(); }
 });
 
+test('a version route that answers only a signed-in session is proven by the full capture, which signed in', async () => {
+  // A version route behind sign-in redirects a signed-out caller to /login, so ready's own probe could never
+  // answer and ready could never be green. The full capture of the head read the served SHA on every
+  // item after signing in; that is the proof, provided no item saw another build.
+  const f = await fixture({ deps: {
+    probeServedSha: async () => null,
+    validateCaptureItems: async () => [{ state: 'WL-01', status: 'reached', servedSha: 'x' }, { state: 'WL-02', status: 'reached', servedSha: 'x' }],
+  } });
+  try {
+    f.ctx.deps.validateCaptureItems = async () => [{ state: 'WL-01', status: 'reached', servedSha: f.head }, { state: 'WL-02', status: 'reached', servedSha: f.head }];
+    const { ready } = await computeReady(f.ctx, { pr: f.pr });
+    const served = ready.checks.find((c) => c.id === 'served-sha');
+    assert.equal(served.ok, true, served.detail);
+    assert.match(served.detail, /c-full-1 signed in and saw the head .* on 2 item/);
+
+    f.ctx.deps.validateCaptureItems = async () => [{ state: 'WL-01', status: 'reached', servedSha: f.head }, { state: 'WL-02', status: 'reached', servedSha: 'b'.repeat(40) }];
+    const mixed = (await computeReady(f.ctx, { pr: f.pr })).ready.checks.find((c) => c.id === 'served-sha');
+    assert.equal(mixed.ok, false, 'one item served by another build proves nothing');
+
+    f.ctx.deps.validateCaptureItems = async () => [{ state: 'WL-01', status: 'reached', servedSha: null }];
+    const none = (await computeReady(f.ctx, { pr: f.pr })).ready.checks.find((c) => c.id === 'served-sha');
+    assert.equal(none.ok, false);
+    assert.match(none.detail, /unproven/);
+  } finally { f.repo.cleanup(); }
+});
+
 test('ready is red when the capture is of another SHA, a state is not reached, or HEAD is not the PR head', async () => {
   const f = await fixture({ deps: { validateCaptureItems: async () => [{ state: 'WL-01', status: 'not-reached', why: 'forbidden marker present' }] } });
   try {

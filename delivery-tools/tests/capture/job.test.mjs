@@ -85,6 +85,13 @@ test('rows with invariants are captured again in each messy world, as data (spec
   assert.ok(messy.every((i) => i.check === 'none' && !i.clicks && i.email === 'delivery+widgets-messy-admin@example.invalid'));
   assert.equal(checkFor(messy[0], 'wave', plan.rows[0]), 'none', 're-judged as data, never against the design world\'s markers');
   assert.ok(skipped.some((x) => x.state === 'WG-03' && /the steps name the design world's own ids/.test(x.why)));
+  // A state made by its own world's data (the empty list) is a different state in a messy world
+  // that holds widgets: its invariant "no widget row shows 'left'" was judged on a full list and
+  // raised two P1s on a page that was right.
+  plan.rows[1].invariants = ['no widget row shows "left"'];
+  const data = buildItems({ mode: 'wave', profile, plan });
+  assert.equal(data.items.filter((i) => i.world === 'messy' && i.state === 'WG-02').length, 0);
+  assert.ok(data.skipped.some((x) => x.state === 'WG-02' && /made by the empty world's own data/.test(x.why)));
   assert.equal(buildItems({ mode: 'branch', profile, plan, unit: { states: ['WG-01'], capabilities: [] } }).items.filter((i) => i.world === 'messy').length, 0, 'a unit gate stays in its own worlds');
 });
 

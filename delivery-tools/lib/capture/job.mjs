@@ -258,7 +258,12 @@ export function buildItems(o) {
         // negative stock. Ids were already excluded; what a row SAYS is just as much its world's.
         const fixtureIds = row.reach.steps.some((s) => Object.values(s).some((v) => UUID.test(JSON.stringify(v))))
           || stepsNameTheirData(row.reach.steps);
+        // A state made by its own world's data (an empty list, a first day, a spent allowance) is a
+        // different state in a messy world, which holds other data: the empty list's "no row shows
+        // 'left'" was judged on a full list and raised two P1s on a page that was right.
+        const worldKind = plan.worlds.find((w) => w.id === world)?.kind ?? 'design';
         for (const m of plan.worlds.filter((w) => w.kind === 'messy' && w.id !== world)) {
+          if (worldKind !== 'design') { skipped.push({ state: row.id, why: `messy world ${m.id}: the state is made by the ${world} world's own data, which a messy world does not hold` }); continue; }
           const email = userOf(plan, m.id, role);
           if (fixtureIds) { skipped.push({ state: row.id, why: `messy world ${m.id}: the steps name the ${world} world's own ids` }); continue; }
           if (!email) { skipped.push({ state: row.id, why: `messy world ${m.id} has no ${role} user` }); continue; }

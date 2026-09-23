@@ -69,6 +69,19 @@ export function loopTestEvidence(journal, headSha) {
   return found;
 }
 
+/** The served SHA as the newest full capture of the head saw it, signed in, on every item. */
+async function servedByCapture(ctx, headSha) {
+  const runId = await dep(ctx, 'latestCaptureRun', latestCaptureRun)(ctx, { mode: 'full' });
+  if (!runId) return { ok: false, why: 'and no full capture exists to prove it' };
+  const cap = await readArtefact(ctx.requirePaths(), 'capture', { key: runId }).catch(() => null);
+  if (!cap || !sameSha(cap.expectedSha, headSha)) return { ok: false, why: `and the newest full capture is not of the head` };
+  const seen = (await dep(ctx, 'validateCaptureItems', validateCaptureItems)(ctx, runId)).filter((v) => v.servedSha);
+  const other = seen.find((v) => !sameSha(v.servedSha, headSha));
+  if (other) return { ok: false, why: `capture ${runId} saw ${shortSha(other.servedSha)} on ${other.state}` };
+  if (!seen.length) return { ok: false, why: `capture ${runId} recorded no served SHA` };
+  return { ok: true, runId, items: seen.length };
+}
+
 async function changedPaths(git, base) {
   for (const ref of [`origin/${base}`, base]) {
     const mb = await git.mergeBase(ref, 'HEAD');
@@ -146,7 +159,14 @@ export async function computeReady(ctx, { pr }) {
   if (previewUrl) {
     await attempt('served-sha', async () => {
       const served = await dep(ctx, 'probeServedSha', probeServedSha)(ctx, previewUrl);
-      if (!served) return add('served-sha', false, `the version route of ${previewUrl} did not answer, so the served commit is unproven`);
+      if (!served) {
+        // A version route behind sign-in never answers this anonymous probe (a repository whose
+        // middleware sends it to /login). The full capture of the head read the served SHA on every item after signing
+        // in, so it is the proof, provided every item that recorded one saw the head.
+        const proof = await servedByCapture(ctx, headSha);
+        if (proof.ok) return add('served-sha', true, `the version route answers a signed-in session only; the full capture ${proof.runId} signed in and saw the head ${head} on ${proof.items} item(s)`, proof.runId);
+        return add('served-sha', false, `the version route of ${previewUrl} did not answer, so the served commit is unproven${proof.why ? ` (${proof.why})` : ''}`);
+      }
       if (!sameSha(served, headSha)) return add('served-sha', false, `the preview serves ${shortSha(served)}, not the head ${head}`, served);
       add('served-sha', true, `the preview serves the head ${head}`, served);
     });
