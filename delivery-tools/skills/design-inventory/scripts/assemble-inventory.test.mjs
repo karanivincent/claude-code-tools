@@ -96,13 +96,14 @@ test('an out-of-scope exclusion must name an out-of-scope screen, and never cove
     intent: SCOPED_INTENT,
     parts: [{ file: 'extract/calls.json', doc: part('calls', [
       { id: 'C-001', mappedTo: null, excluded: { reason: 'out of scope: Scripts' } },
-      { id: 'C-004', mappedTo: 'CL-01' },
+      { id: 'C-004', mappedTo: null, excluded: { reason: 'out of scope: Scripts' } },
       { id: 'C-005', mappedTo: null, excluded: { reason: 'out of scope: Knowledge' } },
-    ], [state('CL-01')]) }],
+    ], []) }],
   });
   const bad = res.failures.filter((f) => f.code === 'bad-scope').map((f) => f.message);
-  assert.equal(bad.length, 2, JSON.stringify(res.failures));
-  assert.match(bad.join('\n'), /C-001 .*only on in-scope screens \(calls\)/);
+  assert.equal(bad.length, 3, JSON.stringify(res.failures));
+  assert.match(bad.join('\n'), /C-001 .*shows on in-scope screens \(calls\)/);
+  assert.match(bad.join('\n'), /C-004 .*shows on in-scope screens \(calls\)/, 'shown on Calls and Scripts, it is a Calls state');
   assert.match(bad.join('\n'), /C-005 .*"Knowledge" is not an out-of-scope screen/);
 });
 

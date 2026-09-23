@@ -110,6 +110,33 @@ test('any use outside a screen block unties a value, and nothing untied is ever 
   assert.equal(map.templateLine(2), null);
 });
 
+test('a value read where no search can see it, or read by the markup directly, is never tied by its script reads alone', () => {
+  const script = (extra) => [
+    'class C extends DCLogic {',
+    "  state = { screen: 'a', mode: 'x' }",
+    '  renderVals() {',
+    '    const screen = this.state.screen;',
+    '    ' + extra,
+    '    return {',
+    "      onA: screen === 'a',",
+    "      aLine: this.props.tone === 'loud' ? 'Loud' : 'Quiet',",
+    "      go: () => this.set({ screen: 'b', mode: 'y' }),",
+    '    };',
+    '  }',
+    '}',
+  ].join('\n');
+  const tpl = '<sc-if value="{{ onA }}"><p>{{ aLine }}</p></sc-if>';
+  const toneOf = (text) => claudeDesignCandidates({ file: 'p.dc.html', text }).find((x) => x.id === 'prop:tone:loud');
+  const props = '<script data-dc-script data-props="{&quot;tone&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;quiet&quot;,&quot;loud&quot;],&quot;default&quot;:&quot;quiet&quot;}}">';
+  const withProps = (t, s) => proto(t, s).replace('<script data-dc-script>', props);
+  assert.deepEqual(toneOf(withProps(tpl, script(''))).screens, ['a'], 'read only by aLine, shown only on a');
+  assert.equal(toneOf(withProps(tpl, script('const k = pick(); const v = this.props[k];'))).screens, undefined, 'a computed read could read tone anywhere');
+  assert.equal(toneOf(withProps(tpl, script('const { tone } = this.props;'))).screens, undefined, 'a destructured read has no dot to find');
+  assert.equal(toneOf(withProps(`${tpl}\n<footer>{{ props.tone }}</footer>`, script(''))).screens, undefined, 'the markup reads it outside every screen block');
+  assert.deepEqual(toneOf(withProps('<sc-if value="{{ screen === &quot;a&quot; &amp;&amp; ready }}"><p>{{ aLine }}</p></sc-if>', script(''))).screens, ['a'],
+    'a condition written with HTML entities is read decoded');
+});
+
 test('inventory check refuses an out-of-scope exclusion for a screen intent.json does not leave out', () => {
   const intent = {
     inScope: [{ screen: 'Calls', routes: [], designScreens: ['calls'] }],
@@ -134,6 +161,6 @@ test('inventory check refuses an out-of-scope exclusion for a screen intent.json
   };
   const scope = checkInventory({ inventory, candidates, intent }).filter((f) => f.code === 'candidate-scope').map((f) => f.message);
   assert.equal(scope.length, 2, scope.join('\n'));
-  assert.match(scope[0], /list:callRows .*only on in-scope screens \(calls\)/);
+  assert.match(scope[0], /list:callRows .*shows on in-scope screens \(calls\)/);
   assert.match(scope[1], /ternary:9 .*"Home" is not an out-of-scope screen/);
 });

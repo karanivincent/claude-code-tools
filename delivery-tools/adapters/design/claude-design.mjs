@@ -142,7 +142,7 @@ export function claudeDesignCandidates({ file, text, shots = [] }) {
         source: `${file}:${parts.props.line}`,
         detail: `data-props ${p.key} = ${show(p.value)}${p.isDefault ? ' (the default)' : ''}${p.section ? ` · ${p.section}` : ''}`,
         values: [show(p.value)],
-      }, map.scriptOffsets(map.propSites(p.key)));
+      }, map.readScreens(p.key));
     }
   }
 
@@ -171,7 +171,7 @@ export function claudeDesignCandidates({ file, text, shots = [] }) {
       // wherever the key is read, since a value set on one screen can be read on another.
       const screens = screen && t.key === screen.key
         ? (!t.computed && typeof t.value === 'string' ? [t.value] : null)
-        : unionOf([...t.writes.map(writeScreens), map.scriptOffsets(map.propSites(t.key))]);
+        : unionOf([...t.writes.map(writeScreens), map.readScreens(t.key)]);
       add({
         id: `${dialog ? 'dialog' : 'set'}:${idPart(t.key)}:${t.computed ? 'computed' : idPart(show(t.value))}`,
         kind: dialog ? 'dialog' : 'set-target',

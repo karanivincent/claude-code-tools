@@ -43,7 +43,8 @@ export function outOfScopeReason(candidate, scope) {
 
 /**
  * An extractor's `out of scope: <screen>` exclusion is valid only for screens intent.json lists
- * as out of scope, and never for a candidate the adapter tied to in-scope screens alone.
+ * as out of scope, and never for a candidate the adapter tied to any in-scope screen: shown on
+ * Calls and Scripts, it is a Calls state.
  * @returns {string | null} what is wrong, or null
  */
 export function checkOutOfScopeClaim(reason, candidate, scope) {
@@ -52,8 +53,8 @@ export function checkOutOfScopeClaim(reason, candidate, scope) {
   const named = scope.names.has(rest) ? [rest] : rest.split(' and ').map((s) => s.trim());
   const unknown = named.filter((n) => !scope.names.has(n));
   if (unknown.length) return `"${unknown.join('", "')}" is not an out-of-scope screen in intent.json (${[...scope.names].join(', ') || 'none listed'})`;
-  const screens = candidate.screens ?? [];
-  if (screens.length && screens.every((k) => scope.inKeys.has(k))) return `it shows only on in-scope screens (${screens.join(', ')})`;
+  const shown = (candidate.screens ?? []).filter((k) => scope.inKeys.has(k));
+  if (shown.length) return `it shows on in-scope screens (${shown.join(', ')})`;
   return null;
 }
 

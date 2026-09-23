@@ -13,7 +13,7 @@
 // and any site that could render on a screen the analysis cannot name makes the answer "unknown".
 
 import { tokenize, isOpen, isClose, matchBracket } from './js-tokens.mjs';
-import { lineIndex } from './claude-dc.mjs';
+import { htmlUnescape, lineIndex } from './claude-dc.mjs';
 
 /** State keys a prototype uses to pick its screen, in the order they are tried. */
 export const SCREEN_KEYS = ['screen', 'page', 'view', 'route'];
@@ -119,7 +119,7 @@ const size = (s) => s.end - s.start;
  * @param {{ key: string, values: string[] } | null} screen from screenKey
  */
 export function screenMap(parts, screen) {
-  const none = { key: null, values: [], templateLine: () => null, scriptOffsets: () => null, propSites: () => [] };
+  const none = { key: null, values: [], templateLine: () => null, scriptOffsets: () => null, readScreens: () => null };
   if (!screen || !parts.script) return none;
   const key = screen.key;
   const src = parts.script.text;
@@ -206,6 +206,7 @@ export function screenMap(parts, screen) {
   // ---- the template: which screens each line can show, and where each name is used ------------
   const blocks = [];
   const uses = new Map(); // name -> [template line]
+  const templateReads = new Map(); // prop or state key -> [template line]
   if (parts.template) {
     const t = parts.template;
     const lineOf = lineIndex(t.text);
@@ -223,19 +224,24 @@ export function screenMap(parts, screen) {
     for (const b of stack) blocks.push(b);
     for (const m of t.text.matchAll(/\{\{([\s\S]*?)\}\}/g)) {
       const line = at(m.index);
-      const names = flatten(tokenize(m[1]));
+      const names = flatten(tokenize(htmlUnescape(m[1])));
       for (let i = 0; i < names.length; i++) {
         const n = names[i];
         // `{{ x.label }}`: label is a property of x, not the render value named label
         if (n.t !== 'name' || names[i - 1]?.v === '.' || names[i - 1]?.v === '?.') continue;
         if (!uses.has(n.v)) uses.set(n.v, []);
         uses.get(n.v).push(line);
+        // `{{ props.tone }}` and `{{ state.dlg }}` read a value where the markup sits
+        if ((n.v === 'props' || n.v === 'state') && names[i + 1]?.v === '.' && names[i + 2]?.t === 'name') {
+          if (!templateReads.has(names[i + 2].v)) templateReads.set(names[i + 2].v, []);
+          templateReads.get(names[i + 2].v).push(line);
+        }
       }
     }
   }
 
   function templateCondition(expr) {
-    const et = tokenize(expr);
+    const et = tokenize(htmlUnescape(expr));
     const direct = conditionScreens(et, key);
     if (direct) return direct;
     // {{ onCalls }}: a name the render values define as a screen condition
@@ -315,7 +321,7 @@ export function screenMap(parts, screen) {
     return c ? nameScreens(c) : null;
   }
 
-  /** Every offset where `.name` is read: a prop or state value the prototype uses. */
+  /** Every offset where `.name` (or `['name']`) is read, on any object. */
   function propSites(name) {
     const out = [];
     for (let k = 1; k < all.length; k++) {
@@ -325,12 +331,31 @@ export function screenMap(parts, screen) {
     return out;
   }
 
+  // Reads no search can see: `props[k]` with a computed key reads every key, and `const { a } =
+  // this.props` reads a without a dot. Either makes the keys concerned unplaceable.
+  let computedRead = false;
+  const destructured = new Set();
+  for (let k = 0; k < all.length; k++) {
+    const t = all[k];
+    if (t.t === 'name' && (t.v === 'props' || t.v === 'state') && all[k + 1]?.v === '[' && all[k + 2]?.t !== 'str') computedRead = true;
+    if (t.t === 'name' && (t.v === 'const' || t.v === 'let' || t.v === 'var') && all[k + 1]?.v === '{') {
+      for (let j = k + 2; j < all.length && all[j].v !== '}'; j++) if (all[j].t === 'name') destructured.add(all[j].v);
+    }
+  }
+
+  /** Screens that can show a prop or state value: wherever the script or the markup reads it. */
+  function readScreens(name) {
+    if (computedRead || destructured.has(name)) return null;
+    const sites = [...propSites(name).map(offset), ...(templateReads.get(name) ?? []).map(templateLine)];
+    return sites.length ? union(sites) : null;
+  }
+
   return {
     key,
     values: screen.values,
     templateLine,
     scriptOffsets: (offsets) => (offsets.length ? union(offsets.map(offset)) : null),
-    propSites,
+    readScreens,
   };
 }
 
