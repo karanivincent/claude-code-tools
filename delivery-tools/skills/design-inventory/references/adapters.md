@@ -21,6 +21,16 @@ Where candidates come from:
 | `ternary` | every conditional expression whose branches produce different visible text |
 | `list` | every list or table, as its `empty` candidate |
 
+**Screens.** An export is the whole project, every screen in one prototype. The adapter finds the
+state key that picks the screen (`screen`, else `page`, `view` or `route`, whichever is set to two
+values or more) and ties a candidate to screens only when every place it comes from provably shows
+on them alone. A place is inside an `<sc-if>` whose value is a screen condition (`screen ===
+'calls'`, or a render value defined as one); inside a render value, or a method, or a constant,
+that only such places read; or inside `if (screen === 'x') { ... }` in the script. A value that
+switches the screen shows that screen. Anything read by markup outside every screen block, or by
+code it cannot place, leaves the candidate untied, and an untied candidate is read by an
+extractor as before. On the first real export, 314 of 479 candidates were tied.
+
 **Prop-only states.** Some states have no click path: the prototype shows them only when a prop
 has a certain value (a transient mode, a variant the designer switched on while drawing). They are
 still states. The extractor writes them as `reach.kind: "prop"` with every value they need in

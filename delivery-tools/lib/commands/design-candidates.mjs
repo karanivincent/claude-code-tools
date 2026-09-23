@@ -7,6 +7,7 @@ import { readArtefact, writeArtefact } from '../core/artefacts.mjs';
 import { exists } from '../core/fs.mjs';
 import { UsageError } from '../core/exit.mjs';
 import { getDesignAdapter, designTreeSha256 } from '../../adapters/design/index.mjs';
+import { outOfScopeOnly } from '../design/scope.mjs';
 
 export default defineCommand({
   name: "design candidates",
@@ -38,17 +39,27 @@ common options:
     const intent = await readArtefact(paths, 'intent', { optional: true });
     const adapter = await getDesignAdapter(paths.designSnapshot, { adapter: values.adapter ?? intent?.design?.adapter });
     const candidates = await adapter.candidates(paths.designSnapshot);
+    const screens = adapter.screens ? await adapter.screens(paths.designSnapshot) : null;
     const doc = {
       schemaVersion: 1,
       feature: paths.feature,
       adapter: adapter.name,
       designTreeSha256: await designTreeSha256(paths.designSnapshot),
+      ...(screens ? { screens } : {}),
       candidates,
     };
     const written = await writeArtefact(paths, 'candidates', doc);
     const counts = {};
     for (const c of candidates) counts[c.kind] = (counts[c.kind] ?? 0) + 1;
     ctx.out.line(`${candidates.length} candidates from the ${adapter.name} design: ${Object.entries(counts).map(([k, n]) => `${n} ${k}`).join(', ') || 'none'}`);
+    if (screens) {
+      const out = outOfScopeOnly(candidates, intent);
+      ctx.out.line(`screens (${screens.key}): ${screens.values.join(', ')}; ${candidates.filter((c) => c.screens).length} candidates tied to particular screens`);
+      if (out.unnamed.length) ctx.out.line(`intent.json names no design screen for ${out.unnamed.join(', ')}: add designScreens to its inScope and outOfScope entries`);
+      if (out.count) ctx.out.line(`${out.count} candidates show only on out-of-scope screens; the inventory assembler excludes them`);
+      ctx.out.set('screens', screens);
+      ctx.out.set('outOfScope', out.count);
+    }
     ctx.out.line(`wrote ${written}`);
     ctx.out.set('candidates', candidates.length);
     ctx.out.set('counts', counts);

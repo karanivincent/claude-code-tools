@@ -16,6 +16,7 @@ import { findDupes, undecided } from '../github/dupes.mjs';
 import { lateChanges } from '../github/scope.mjs';
 import { resolvePreview } from '../lifecycle/preview.mjs';
 import { refreshBaseline } from '../baseline/refresh.mjs';
+import { outOfScopeFiles } from '../baseline/scope.mjs';
 import { CHECK_IDS, runChecks } from '../checks/index.mjs';
 import { readyBlockers } from '../checks/severity.mjs';
 import { latestCaptureRun, validateCaptureItems } from '../capture/validate.mjs';
@@ -179,6 +180,22 @@ export async function computeReady(ctx, { pr }) {
     const decided = hits.filter((h) => h.decided);
     if (decided.length) return add('dupes', true, `${decided.length} overlap(s) decided: ${decided.map((h) => `#${h.pr} (${h.note})`).join('; ')}`);
     add('dupes', true, 'no other PR references a claimed child or touches a claimed path');
+  });
+
+  // A design export holds every screen of the project; the run was asked for some of them. A
+  // page it was not asked for is left as it is, so a changed file in that page's route directory
+  // is work outside the run: revert it, or put that screen in scope and plan it.
+  await attempt('scope', async () => {
+    const intent = await readArtefact(paths, 'intent', { optional: true }).catch(() => null);
+    const outs = (intent?.outOfScope ?? []).filter((s) => s.routes?.length);
+    if (!outs.length) return add('scope', true, 'no out-of-scope screen names a route');
+    const changed = await changedPaths(ctx.git, profile.repo.base);
+    if (changed === null) return add('scope', false, `cannot list the paths this branch changes against ${profile.repo.base}`);
+    const hits = outOfScopeFiles(changed, profile, intent);
+    if (hits.length) {
+      return add('scope', false, `${hits.length} changed file(s) belong to out-of-scope pages; revert them, or put the screen in scope and plan it: ${hits.slice(0, 5).map((h) => `${h.file} (${h.screen})`).join(', ')}`, 'intent.json');
+    }
+    add('scope', true, `no changed file belongs to an out-of-scope page (${outs.map((s) => s.screen).join(', ')})`, 'intent.json');
   });
 
   const owedAfterMerge = [];

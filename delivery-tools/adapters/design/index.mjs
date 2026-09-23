@@ -19,6 +19,8 @@ const BY_NAME = Object.freeze({ 'claude-design': claudeDesign, 'image-folder': i
  *   relative paths intake copies as-is, and runtime scripts it zips into runtime.zip
  * @property {(snapshotDir: string) => Promise<object[]>} candidates
  *   candidates.json items (schemas/candidates.schema.json)
+ * @property {(snapshotDir: string) => Promise<{ key: string, values: string[] } | null>} [screens]
+ *   the design's screens, when it holds several and the adapter can tell them apart
  */
 
 /**

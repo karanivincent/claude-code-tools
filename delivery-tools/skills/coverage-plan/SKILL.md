@@ -59,6 +59,8 @@ repo's tier test. Never stop for its approval step, and never write a second pro
 | A shipped capability nobody wants | `remove` only with a reason, a decision file and a Scope line |
 | The design breaks a product rule | `adapt`, naming the rule and the product text |
 | A designed state not built now | `cut` only with one of five reason codes, an issue and budget |
+| A shared part (`screen: "Shared"`) the design changes | `change`: build it. It shows on every page, and the report lists it; no Scope line |
+| A screen `intent.json` leaves out | no rows at all: the inventory holds none of its states, and it is not a `cut` |
 | How the capture reaches a state | `seeded`, unless no world, intercept or guard can produce it |
 
 Before any state is `prop` or `unseedable`, try in order: a world that seeds it (counters and

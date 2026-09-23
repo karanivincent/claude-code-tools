@@ -11,6 +11,16 @@
     "feature": { "$ref": "common.schema.json#/$defs/Slug" },
     "adapter": { "enum": ["claude-design", "image-folder"] },
     "designTreeSha256": { "$ref": "common.schema.json#/$defs/Sha256" },
+    "screens": {
+      "description": "The prototype's screens: the state key that picks one and every value it takes. Absent when the design has one screen, or the adapter cannot tell.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "values"],
+      "properties": {
+        "key": { "type": "string" },
+        "values": { "$ref": "common.schema.json#/$defs/Strings" }
+      }
+    },
     "candidates": {
       "type": "array",
       "items": {
@@ -22,7 +32,8 @@
           "kind": { "$ref": "inventory.schema.json#/$defs/CandidateKind" },
           "source": { "description": "file:line in the snapshot, or the shot's file name.", "$ref": "common.schema.json#/$defs/Text" },
           "detail": { "type": "string" },
-          "values": { "$ref": "common.schema.json#/$defs/Strings" }
+          "values": { "$ref": "common.schema.json#/$defs/Strings" },
+          "screens": { "description": "The only screens (values of screens.key) that can show this candidate. Absent when it could show on any other, or the adapter cannot tell.", "$ref": "common.schema.json#/$defs/Strings" }
         }
       }
     }

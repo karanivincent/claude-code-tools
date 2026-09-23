@@ -30,6 +30,12 @@ invent. The project's `scripts/delivery.mjs` shim finds the installed plugin.
 2. Open a new session on the project's repository.
 3. `/deliver-from-design <archive>.zip "<one sentence: what the page is for>"`
 
+The export holds the whole design project, pages already built included. The sentence decides
+which screens the run builds; every other screen in the export is left as it is, and `ready` goes
+red if the branch changes one of their route files. Parts several screens share (a header, a
+sidebar) follow the design, and the report lists each that changed. To bring an already built page
+up to a newer design, start a separate run with the same export and a sentence naming that page.
+
 The run asks nothing in chat. Decisions only the owner can make go on one Scope issue, each with a
 default. It ends with one draft pull request whose generated report leads with what is still red.
 
@@ -61,6 +67,7 @@ default. It ends with one draft pull request whose generated report leads with w
 | A version route may sit behind sign-in | `ready` then proves the served commit from the full capture, which signed in and read it on every item |
 | Reads and sign-ins retry on a dropped connection; writes never do | an upsert whose response was lost may already have landed |
 | A run whose pull request was closed unmerged closes with `advance closed` | otherwise the session-start hook tells every later session to resume it |
+| A run builds the screens its sentence names, and no other screen in the export | an export is the whole project; without this a Calls run would inventory, plan and rebuild Scripts too |
 
 ## The Trust rule
 
