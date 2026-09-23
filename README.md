@@ -78,12 +78,12 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### delivery-tools `v0.3.1`
+### delivery-tools `v0.3.2`
 
 Turns a design export into one reviewed, verified pull request built by agents. Released after a
 full seeded-defect rehearsal on a throwaway screen, which found and fixed 57 bugs. An export holds
 the whole design project; a run builds only the screens its sentence names and leaves the rest as
-they are. A project enables it in its own `.claude/settings.json` and supplies a profile and a
+they are. An export may carry components the page pulls in with `<dc-import>` beside its one page. A project enables it in its own `.claude/settings.json` and supplies a profile and a
 safety file; how to install it, start a run and keep it current is in
 [`delivery-tools/docs/OPERATING.md`](delivery-tools/docs/OPERATING.md).
 
