@@ -120,6 +120,9 @@ export async function validateCaptureItems(ctx, runId) {
   return capture.items.map((it, n) => ({
     state: it.state, world: it.world, role: it.role, width: it.width, locale: it.locale, theme: it.theme,
     status: verdicts[n].status, why: verdicts[n].why,
+    // What the item was served, as the capture read it signed in: ready's proof of the served commit
+    // when the version route answers no anonymous caller.
+    servedSha: inputs[n].servedSha,
   }));
 }
 

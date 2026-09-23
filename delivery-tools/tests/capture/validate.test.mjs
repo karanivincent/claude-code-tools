@@ -29,6 +29,10 @@ test('re-validation recomputes from the files and the current plan, never from c
     let v = await validateCaptureItems(s.ctx, r.runId);
     assert.equal(v.length, 9);
     assert.ok(v.every((x) => x.status === 'reached'));
+    // Each verdict carries what the item was served, read signed in: ready's proof of the served
+    // commit when the version route answers no anonymous caller.
+    const expected = JSON.parse(readFileSync(join(s.repo.dir, '.delivery/widgets/captures', r.runId, 'capture.json'), 'utf8')).expectedSha;
+    assert.ok(v.every((x) => x.servedSha === expected), JSON.stringify(v.map((x) => x.servedSha)));
     // an agent adds a marker to a stored capture: the text hash no longer matches
     const dir = join(s.repo.dir, '.delivery/widgets/captures', r.runId);
     appendFileSync(join(dir, 'WG-03.design.admin.1440.en.light.txt'), 'Copy made\n');
