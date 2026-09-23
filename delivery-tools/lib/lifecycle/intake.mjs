@@ -128,6 +128,15 @@ async function unpack(source) {
     return { dir: source, archiveSha256: await sha256Tree(source), cleanup: async () => {} };
   }
   const bytes = await readFile(source);
+  // A zip starts with a local file header. Anything else is refused here, by name: a single HTML
+  // file is Claude Design's standalone download, a rendered page with none of the design's source,
+  // so no state could be listed from it.
+  if (bytes.subarray(0, 4).toString('latin1') !== 'PK\x03\x04') {
+    if (/\.html?$/i.test(source)) {
+      throw new UsageError(`${basename(source)} is a standalone HTML download: a rendered page without the design's source, so its states cannot be listed. Export the Claude Design project as a .zip archive and pass that instead.`);
+    }
+    throw new UsageError(`${basename(source)} is not a .zip archive or a directory: pass the Claude Design project's .zip export, or its unpacked folder.`);
+  }
   const entries = stripCommonRoot(readZip(bytes));
   const dir = await mkdtemp(join(tmpdir(), 'delivery-intake-'));
   for (const e of entries) {

@@ -154,6 +154,20 @@ test('--epic adopts the founder\'s issue; an unrecognised export is a usage erro
   } finally { repo.cleanup(); }
 });
 
+test('a standalone HTML download is refused by name, with what to export instead', async () => {
+  const repo = await makeRunRepo({ run: false });
+  try {
+    const { ctx } = await ctxFor(repo.primary, { feature: null, deps });
+    const html = join(repo.root, 'Calls (standalone).html');
+    writeFileSync(html, '<!DOCTYPE html><script type="__bundler/manifest">{}</script>');
+    await assert.rejects(runIntake(ctx, { source: html, sentence: 'x' }),
+      (e) => e.exit === 2 && /standalone HTML/.test(e.message) && /\.zip/.test(e.message) && !/zip entry|central directory/i.test(e.message));
+    const other = join(repo.root, 'notes.txt');
+    writeFileSync(other, 'hi');
+    await assert.rejects(runIntake(ctx, { source: other, sentence: 'x' }), (e) => e.exit === 2 && /not a \.zip archive/.test(e.message));
+  } finally { repo.cleanup(); }
+});
+
 test('a feature named on the first intake is kept by later runs inside its worktree', async () => {
   const repo = await makeRunRepo({ run: false });
   try {
