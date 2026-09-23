@@ -182,6 +182,26 @@ export async function signIn(page: Page, job: CaptureJob, email: string, next: s
 }
 // ---- End of the project adapter. ----
 
+/** Errors that mean the connection dropped, not that signing in is wrong. */
+const TRANSIENT = /fetch failed|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|socket hang up/i;
+
+/**
+ * signIn, tried again when the connection drops. On a flaky line one lost request while minting a
+ * magic link made a correct state not-reached and a gate red. Anything else fails at once: a wrong
+ * password or a missing user does not get better by asking three times.
+ */
+async function signInRetrying(page: Page, job: CaptureJob, email: string, next: string): Promise<void> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await signIn(page, job, email, next);
+      return;
+    } catch (e) {
+      if (attempt >= 3 || !TRANSIENT.test(message(e))) throw e;
+      await page.waitForTimeout(2000 * attempt);
+    }
+  }
+}
+
 type StoredSession = Awaited<ReturnType<BrowserContext['storageState']>>;
 
 const sessions = new Map<string, StoredSession>();
@@ -480,7 +500,7 @@ async function reach(page: Page, job: CaptureJob, item: CaptureItem, meta: Meta,
   const first = steps.length && steps[0].goto !== undefined ? (steps.shift() as CaptureStep).goto as string : '/';
   if (signInFirst) {
     try {
-      await signIn(page, job, item.email, first);
+      await signInRetrying(page, job, item.email, first);
     } catch (e) {
       throw new Error(`sign-in as ${item.email} failed: ${message(e)}`);
     }

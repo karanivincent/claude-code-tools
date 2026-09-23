@@ -114,3 +114,15 @@ test('the load time is the landing page\'s own, not sign-in plus clicks plus the
   assert.ok(reachBody.indexOf('landingLoadMs(') > -1 && reachBody.indexOf('landingLoadMs(') < reachBody.indexOf('for (const [i, s] of steps.entries())'),
     'measured when the page lands, before any step clicks');
 });
+
+// 8. One dropped request while minting a sign-in link failed a whole state.
+test('a sign-in that fails on a dropped connection is tried again; any other failure is not', () => {
+  // On a flaky line, "Could not mint a magic link: fetch failed" made a correct state not-reached,
+  // and the gate red. The retry wraps the adapter rather than living in it: signIn is the one
+  // function a repository edits, and its copy must not have to learn this.
+  assert.match(support, /async function signInRetrying\(/);
+  assert.match(support, /fetch failed/);
+  const reachBody = support.slice(support.indexOf('async function reach('), support.indexOf('function watch('));
+  assert.match(reachBody, /await signInRetrying\(page, job, item\.email, first\)/);
+  assert.doesNotMatch(reachBody, /await signIn\(page/);
+});
