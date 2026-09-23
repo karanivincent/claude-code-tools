@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "feature": "widgets",
+  "adapter": "claude-design",
+  "designTreeSha256": "2222222222222222222222222222222222222222222222222222222222222222",
+  "candidates": [
+    {
+      "id": "C-001",
+      "kind": "set-target",
+      "source": "Widgets.dc.html:120",
+      "detail": "this.set({ screen: \"list\" })",
+      "values": [
+        "list"
+      ]
+    },
+    {
+      "id": "C-002",
+      "kind": "list",
+      "source": "Widgets.dc.html:300"
+    }
+  ]
+}

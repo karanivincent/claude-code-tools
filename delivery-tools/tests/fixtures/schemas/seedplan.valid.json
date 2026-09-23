@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "runId": "r-20260115-2000-ab12",
+  "project": "testprojectref",
+  "worlds": [
+    {
+      "id": "design",
+      "orgId": "00000000-0000-5000-8000-000000000001"
+    }
+  ],
+  "rows": [
+    {
+      "world": "design",
+      "table": "widgets",
+      "id": "00000000-0000-5000-8000-000000000002",
+      "values": {
+        "name": "Blue widget",
+        "owner_phone": "999700000001"
+      }
+    }
+  ],
+  "users": [
+    {
+      "world": "design",
+      "role": "admin",
+      "email": "delivery+widgets-design-admin@example.invalid",
+      "id": "00000000-0000-5000-8000-000000000003"
+    }
+  ]
+}

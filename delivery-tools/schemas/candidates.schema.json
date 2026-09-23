@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delivery-tools.invalid/schemas/candidates.schema.json",
+  "title": "Design candidates (.delivery/<feature>/candidates.json)",
+  "description": "Supplementary schema (spec 17 is silent; shape from 4.2 step 1). The mechanical list design candidates writes; inventory check requires every id here to appear in inventory.candidates, mapped or excluded.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "feature", "adapter", "designTreeSha256", "candidates"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "feature": { "$ref": "common.schema.json#/$defs/Slug" },
+    "adapter": { "enum": ["claude-design", "image-folder"] },
+    "designTreeSha256": { "$ref": "common.schema.json#/$defs/Sha256" },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "source"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$" },
+          "kind": { "$ref": "inventory.schema.json#/$defs/CandidateKind" },
+          "source": { "description": "file:line in the snapshot, or the shot's file name.", "$ref": "common.schema.json#/$defs/Text" },
+          "detail": { "type": "string" },
+          "values": { "$ref": "common.schema.json#/$defs/Strings" }
+        }
+      }
+    }
+  }
+}

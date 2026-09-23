@@ -1,0 +1,19 @@
+[
+  {
+    "testid": "widgets-new",
+    "target": "WL-03",
+    "reached": true
+  },
+  {
+    "testid": "widgets-close",
+    "target": "none",
+    "reached": false,
+    "why": "the dialog was still open after the click"
+  },
+  {
+    "testid": "widgets-tab-settings",
+    "target": "WL-06",
+    "reached": true,
+    "verifyTarget": false
+  }
+]

@@ -1,0 +1,13 @@
+[
+  {
+    "testid": "widgets-new",
+    "target": "WL-03",
+    "reached": "yes"
+  },
+  {
+    "testid": "widgets-close",
+    "target": "none",
+    "reached": false,
+    "why": "the dialog was still open after the click"
+  }
+]

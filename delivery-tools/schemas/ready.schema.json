@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delivery-tools.invalid/schemas/ready.schema.json",
+  "title": "Ready record (.delivery/<feature>/ready.json)",
+  "description": "The recomputed ready verdict for one head SHA (spec 4.6, 11.6, 17.13). Every consumer recomputes; this file is evidence, never authority. inputs holds the sha256 of each input artefact.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "headSha", "previewUrl", "generatedAt", "cli", "inputs", "checks", "counts", "lateChanges", "waivers", "owedAfterMerge", "ok"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "headSha": { "$ref": "common.schema.json#/$defs/GitSha" },
+    "previewUrl": { "type": "string" },
+    "generatedAt": { "$ref": "common.schema.json#/$defs/Timestamp" },
+    "cli": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "manifestSha256"],
+      "properties": {
+        "version": { "$ref": "common.schema.json#/$defs/Text" },
+        "manifestSha256": { "type": "string", "pattern": "^([0-9a-f]{64}|none)$" }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["plan", "inventory", "baseline", "capture", "findings", "safety"],
+      "properties": {
+        "plan": { "$ref": "#/$defs/InputHash" },
+        "inventory": { "$ref": "#/$defs/InputHash" },
+        "baseline": { "$ref": "#/$defs/InputHash" },
+        "capture": { "$ref": "#/$defs/InputHash" },
+        "findings": { "$ref": "#/$defs/InputHash" },
+        "safety": { "$ref": "#/$defs/InputHash" }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "ok", "detail", "evidence"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/Text" },
+          "ok": { "type": "boolean" },
+          "detail": { "type": "string" },
+          "evidence": { "type": "string" }
+        }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["statesBuilt", "cut", "adapted", "invented", "removed", "acceptedP2", "p3Filed", "notReached", "propOrUnseedable", "reAudits"],
+      "properties": {
+        "statesBuilt": { "$ref": "common.schema.json#/$defs/Count" },
+        "cut": { "$ref": "common.schema.json#/$defs/Count" },
+        "adapted": { "$ref": "common.schema.json#/$defs/Count" },
+        "invented": { "$ref": "common.schema.json#/$defs/Count" },
+        "removed": { "$ref": "common.schema.json#/$defs/Count" },
+        "acceptedP2": { "$ref": "common.schema.json#/$defs/Count" },
+        "p3Filed": { "$ref": "common.schema.json#/$defs/Count" },
+        "notReached": { "$ref": "common.schema.json#/$defs/Count" },
+        "propOrUnseedable": { "$ref": "common.schema.json#/$defs/Count" },
+        "reAudits": { "$ref": "common.schema.json#/$defs/Count" }
+      }
+    },
+    "lateChanges": { "$ref": "common.schema.json#/$defs/Strings" },
+    "waivers": { "$ref": "common.schema.json#/$defs/Strings" },
+    "owedAfterMerge": { "$ref": "common.schema.json#/$defs/Strings" },
+    "ok": { "type": "boolean" }
+  },
+  "$defs": {
+    "InputHash": {
+      "description": "sha256 of the input file, or \"absent\" when the run has none (for example no baseline outside a redesign).",
+      "type": "string",
+      "pattern": "^([0-9a-f]{64}|absent)$"
+    }
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delivery-tools.invalid/schemas/capture-errors.schema.json",
+  "title": "Capture log (the file capture.json names as files.errors)",
+  "description": "Supplementary schema (spec 17 is silent; shape from M10, M16, M17). Console messages, every request with its outcome, timing, and axe results for one captured item.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "console", "requests", "perf", "axe"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "console": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "text"],
+        "properties": {
+          "type": { "enum": ["error", "warning", "pageerror"] },
+          "text": { "type": "string" },
+          "location": { "type": "string" }
+        }
+      }
+    },
+    "requests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["method", "url", "status", "failure", "intercepted", "aborted"],
+        "properties": {
+          "method": { "type": "string" },
+          "url": { "type": "string" },
+          "status": { "type": ["integer", "null"] },
+          "failure": { "type": ["string", "null"] },
+          "intercepted": { "description": "Answered by a plan intercept; never a finding.", "type": "boolean" },
+          "aborted": { "description": "Aborted on purpose by the real-org read-only guard; never a finding.", "type": "boolean" }
+        }
+      }
+    },
+    "perf": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requestCount", "loadMs"],
+      "properties": {
+        "requestCount": { "$ref": "common.schema.json#/$defs/Count" },
+        "loadMs": { "type": "number", "minimum": 0 }
+      }
+    },
+    "axe": {
+      "description": "null when axe did not run for this item (it runs on desktop captures only).",
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "impact", "nodes", "help"],
+            "properties": {
+              "id": { "type": "string" },
+              "impact": { "enum": ["minor", "moderate", "serious", "critical"] },
+              "nodes": { "$ref": "common.schema.json#/$defs/Count" },
+              "help": { "type": "string" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

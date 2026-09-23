@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "approvedBy": "founder-login",
+  "approvedAt": "2026-01-10",
+  "productionRefs": [
+    "prodprojectref"
+  ],
+  "neverDial": [
+    "15550100001",
+    "15550100002"
+  ],
+  "neverDialQueries": [
+    "select phone_number from org_phone_numbers"
+  ],
+  "fakeNumbers": {
+    "pattern": "^\\+?999\\d{9}$",
+    "sample": "999700000001",
+    "probeSql": "select country_for_phone_number('999700000001')"
+  },
+  "fakeEmailDomain": "example.invalid",
+  "fixtureUserPattern": "^delivery\\+[a-z0-9-]+@example\\.invalid$",
+  "fixtureOrgPrefix": "Delivery fixture · ",
+  "workers": {
+    "tsGlobs": [
+      "apps/server/src/jobs/**/*.ts"
+    ],
+    "sqlGlobs": [
+      "db/migrations/*.sql"
+    ]
+  },
+  "forbiddenStates": [
+    {
+      "table": "practice_runs",
+      "filters": [
+        {
+          "column": "status",
+          "op": "in",
+          "value": [
+            "queued",
+            "running"
+          ]
+        }
+      ],
+      "source": "hand: runs are dialled by a sweep"
+    }
+  ],
+  "guards": [
+    {
+      "id": "no-line",
+      "covers": [
+        "outbound_calls:*"
+      ],
+      "why": "the claim function returns nothing for an organisation with no phone line",
+      "probes": [
+        {
+          "sql": "select count(*) from org_lines where organization_id = any($fixtureOrgs)",
+          "expect": 0
+        }
+      ]
+    }
+  ],
+  "realOrg": {
+    "id": "org-real-0001",
+    "observerEmail": "delivery+observer@example.invalid",
+    "role": "admin"
+  }
+}

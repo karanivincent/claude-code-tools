@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "headSha": "ffffffffffffffffffffffffffffffffffffffff",
+  "previewUrl": "https://preview.example.invalid",
+  "generatedAt": "2026-01-15T20:00:00.000Z",
+  "cli": {
+    "version": "0.1.0",
+    "manifestSha256": "none"
+  },
+  "inputs": {
+    "plan": "deadbeef",
+    "inventory": "8888888888888888888888888888888888888888888888888888888888888888",
+    "baseline": "absent",
+    "capture": "9999999999999999999999999999999999999999999999999999999999999999",
+    "findings": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "safety": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "checks": [
+    {
+      "id": "ci",
+      "ok": true,
+      "detail": "all checks green",
+      "evidence": "wait-for-checks exit 0"
+    },
+    {
+      "id": "M3",
+      "ok": false,
+      "detail": "1 state not reached",
+      "evidence": "captures/c-1/capture.json"
+    }
+  ],
+  "counts": {
+    "statesBuilt": 2,
+    "cut": 1,
+    "adapted": 0,
+    "invented": 0,
+    "removed": 0,
+    "acceptedP2": 1,
+    "p3Filed": 0,
+    "notReached": 1,
+    "propOrUnseedable": 1,
+    "reAudits": 1
+  },
+  "lateChanges": [],
+  "waivers": [
+    "P13: no observer yet"
+  ],
+  "owedAfterMerge": [],
+  "ok": false
+}

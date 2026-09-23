@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delivery-tools.invalid/schemas/sidefx.schema.json",
+  "title": "Side-effect map (.delivery/<feature>/sidefx.json)",
+  "description": "Every predicate a worker, database function or hand-listed state acts on, derived from the code each run (spec 7.1, 17.8).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "derivedAt", "files", "predicates"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "derivedAt": { "$ref": "common.schema.json#/$defs/Timestamp" },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "sha256"],
+        "properties": {
+          "path": { "$ref": "common.schema.json#/$defs/Text" },
+          "sha256": { "$ref": "common.schema.json#/$defs/Sha256" }
+        }
+      }
+    },
+    "predicates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "origin", "table", "filters", "source"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:#-]*$" },
+          "origin": { "enum": ["ts", "sql", "hand"] },
+          "table": { "$ref": "common.schema.json#/$defs/Text" },
+          "filters": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/Filter" } },
+          "source": { "$ref": "common.schema.json#/$defs/Text" }
+        }
+      }
+    }
+  }
+}

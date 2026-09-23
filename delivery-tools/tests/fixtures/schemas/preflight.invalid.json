@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-01-15T20:00:00.000Z",
+  "profileSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "safetySha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "probes": [
+    {
+      "id": "Probe1",
+      "status": "green",
+      "waivable": false,
+      "blocking": false,
+      "detail": "profile valid"
+    },
+    {
+      "id": "P7",
+      "status": "task",
+      "waivable": false,
+      "blocking": false,
+      "detail": "no capture spec",
+      "task": "T-capture"
+    },
+    {
+      "id": "P13",
+      "status": "waived",
+      "waivable": true,
+      "blocking": false,
+      "detail": "no observer user",
+      "fix": "Your laptop, Terminal: create the observer user"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "T-capture",
+      "title": "Commit the capture spec",
+      "probe": "P7",
+      "issue": null
+    }
+  ]
+}

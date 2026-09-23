@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delivery-tools.invalid/schemas/findings.schema.json",
+  "title": "Findings (.delivery/<feature>/findings.json)",
+  "description": "Every finding from the mechanical checks and the auditors, with its status (spec 8, 17.11). source is check:<Mn>, auditor:<group> or review.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "runId", "findings"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "runId": { "$ref": "common.schema.json#/$defs/FileId" },
+    "findings": { "type": "array", "items": { "$ref": "#/$defs/Finding" } }
+  },
+  "$defs": {
+    "Finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "source", "severity", "dayOne", "state", "group", "where", "design", "live", "evidence", "status", "reAudits"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
+        "source": { "type": "string", "pattern": "^[a-z-]+(:[A-Za-z0-9._-]+)?$" },
+        "rule": { "type": "string" },
+        "severity": { "enum": ["P1", "P2", "P3"] },
+        "dayOne": { "type": "boolean" },
+        "state": { "type": "string" },
+        "group": { "type": "string" },
+        "where": { "type": "string" },
+        "design": { "type": "string" },
+        "live": { "type": "string" },
+        "cause": { "type": "string" },
+        "evidence": { "enum": ["seen", "code-read", "test"] },
+        "status": { "enum": ["open", "fixed", "accepted", "filed", "cut", "duplicate"] },
+        "accept": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reasonClass", "issue", "text"],
+          "properties": {
+            "reasonClass": { "enum": ["adapt", "data-not-in-product", "platform-limit", "shared-component-follow-up"] },
+            "issue": { "$ref": "common.schema.json#/$defs/IssueNumber" },
+            "text": { "$ref": "common.schema.json#/$defs/Text" }
+          }
+        },
+        "fixedIn": { "type": "string" },
+        "reAudits": { "$ref": "common.schema.json#/$defs/Count" }
+      }
+    }
+  }
+}

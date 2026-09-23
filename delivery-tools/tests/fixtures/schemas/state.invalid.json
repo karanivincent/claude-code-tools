@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "feature": "widgets",
+  "runId": "r-20260115-2000-ab12",
+  "epic": 101,
+  "pr": null,
+  "worktree": "/work/example-repo/.claude/worktrees/delivery-widgets",
+  "branch": "epic/101-widgets",
+  "phase": "done",
+  "wave": 0,
+  "inFlight": [
+    {
+      "unit": "U2",
+      "agent": "delivery-builder",
+      "branch": "epic/101-widgets-U2",
+      "brief": ".delivery/widgets/units/U2.json",
+      "report": ".delivery/widgets/units/U2.report.json",
+      "at": "2026-01-15T20:00:00.000Z"
+    }
+  ],
+  "waivers": [
+    {
+      "probe": "P13",
+      "note": "no observer yet",
+      "at": "2026-01-15T20:06:00.000Z"
+    }
+  ],
+  "readyRecords": [
+    {
+      "sha": "ffffffffffffffffffffffffffffffffffffffff",
+      "ok": false,
+      "at": "2026-01-15T20:00:00.000Z",
+      "readySha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+    }
+  ],
+  "journal": [
+    {
+      "seq": 0,
+      "at": "2026-01-15T20:00:00.000Z",
+      "event": "genesis | run=r-20260115-2000-ab12",
+      "inputs": "28e3c0ccb95ab3d742499a6b2c9adfc36328eb78ab8294119050c65876c16ead",
+      "outputs": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+      "prev": "0000000000000000000000000000000000000000000000000000000000000000",
+      "hash": "1a5fb8d98c79fcb1d092851ecc920a86d4344591c5cb1cef96c34a7c82041c74"
+    },
+    {
+      "seq": 1,
+      "at": "2026-01-15T20:05:00.000Z",
+      "event": "preflight | exit=0 | green=14 | tasks=2",
+      "inputs": "f6abdbd16493370662f16bcc0d9fb2dc0412ae1b1b5009f8138458e8150b5484",
+      "outputs": "8e3068f6be2fb118db68aec4f8256e3c3baab6a8c0b34a8043b4f504b9f3e259",
+      "prev": "1a5fb8d98c79fcb1d092851ecc920a86d4344591c5cb1cef96c34a7c82041c74",
+      "hash": "d54c2f361fd76eaec533ef6731501b8189eaf7283054a57109a98bc3ac0ddb4f"
+    }
+  ]
+}

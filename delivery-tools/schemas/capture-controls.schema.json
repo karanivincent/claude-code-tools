@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delivery-tools.invalid/schemas/capture-controls.schema.json",
+  "title": "Click results (the file capture.json names as files.controls, <key>.controls.json)",
+  "description": "Supplementary schema (spec 17 is silent; shape from M9). What each control of one captured item did when the capture clicked it, one entry per control. A bare array, as check M9 reads it, so it carries no schemaVersion; the capture manifest that names it does.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["testid", "target", "reached"],
+    "properties": {
+      "testid": { "$ref": "common.schema.json#/$defs/Text" },
+      "target": { "$ref": "common.schema.json#/$defs/Target" },
+      "reached": { "description": "true when every marker of the target state appeared after the click.", "type": "boolean" },
+      "why": { "description": "When not reached: what was missing or what went wrong, in one line.", "type": "string" },
+      "verifyTarget": { "description": "false when the plan puts the target out of one click's reach from this item (another world, pane or role): the click is still made, `reached` then says only that it landed, and M9 does not judge the target. Absent means the target was checked.", "type": "boolean" }
+    }
+  }
+}

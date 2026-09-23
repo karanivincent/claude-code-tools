@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delivery-tools.invalid/schemas/state.schema.json",
+  "title": "Run state (.delivery/<feature>/state.json)",
+  "description": "A cache and a log, never an authority (spec 11.1, 17.12). Written only by the CLI. Each journal entry carries the previous entry's hash; inputs and outputs are sha256 of canonical JSON; event is a one-line summary (see docs/ARCHITECTURE.md).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "feature", "runId", "epic", "pr", "worktree", "branch", "phase", "wave", "inFlight", "waivers", "readyRecords", "journal"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "feature": { "$ref": "common.schema.json#/$defs/Slug" },
+    "runId": { "$ref": "common.schema.json#/$defs/FileId" },
+    "epic": { "type": ["integer", "null"], "minimum": 1 },
+    "pr": { "type": ["integer", "null"], "minimum": 1 },
+    "worktree": { "$ref": "common.schema.json#/$defs/Text" },
+    "branch": { "$ref": "common.schema.json#/$defs/Text" },
+    "phase": { "enum": ["intake", "preflight", "inventory", "plan", "wave0", "build", "pr", "ready", "merged", "landed", "closed"] },
+    "wave": { "$ref": "common.schema.json#/$defs/Count" },
+    "inFlight": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["unit", "agent", "branch", "brief", "report", "at"],
+        "properties": {
+          "unit": { "$ref": "common.schema.json#/$defs/FileId" },
+          "agent": { "type": "string" },
+          "branch": { "$ref": "common.schema.json#/$defs/Text" },
+          "brief": { "$ref": "common.schema.json#/$defs/Text" },
+          "report": { "$ref": "common.schema.json#/$defs/Text" },
+          "at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+        }
+      }
+    },
+    "waivers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["probe", "note", "at"],
+        "properties": {
+          "probe": { "type": "string", "pattern": "^P\\d{1,2}$" },
+          "note": { "$ref": "common.schema.json#/$defs/Text" },
+          "at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+        }
+      }
+    },
+    "dupeDecisions": {
+      "description": "One per other PR whose overlap with this run the main session has decided (spec 12.3). Pins that PR's head SHA: a new commit on it is a fresh decision.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["pr", "sha", "note", "units", "at"],
+        "properties": {
+          "pr": { "type": "integer", "minimum": 1 },
+          "sha": { "$ref": "common.schema.json#/$defs/GitSha" },
+          "note": { "$ref": "common.schema.json#/$defs/Text" },
+          "units": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/FileId" } },
+          "at": { "$ref": "common.schema.json#/$defs/Timestamp" }
+        }
+      }
+    },
+    "readyRecords": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sha", "ok", "at", "readySha256"],
+        "properties": {
+          "sha": { "$ref": "common.schema.json#/$defs/GitSha" },
+          "ok": { "type": "boolean" },
+          "at": { "$ref": "common.schema.json#/$defs/Timestamp" },
+          "readySha256": { "$ref": "common.schema.json#/$defs/Sha256" }
+        }
+      }
+    },
+    "journal": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["seq", "at", "event", "inputs", "outputs", "prev", "hash"],
+        "properties": {
+          "seq": { "$ref": "common.schema.json#/$defs/Count" },
+          "at": { "$ref": "common.schema.json#/$defs/Timestamp" },
+          "event": { "$ref": "common.schema.json#/$defs/Text" },
+          "inputs": { "$ref": "common.schema.json#/$defs/Sha256" },
+          "outputs": { "$ref": "common.schema.json#/$defs/Sha256" },
+          "prev": { "$ref": "common.schema.json#/$defs/Sha256" },
+          "hash": { "$ref": "common.schema.json#/$defs/Sha256" }
+        }
+      }
+    }
+  }
+}

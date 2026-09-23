@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "runId": "r-20260115-2000-ab12",
+  "findings": [
+    {
+      "id": "F-0123456789ab",
+      "source": "check:M7",
+      "rule": "interpolation-leftover",
+      "severity": "P1",
+      "dayOne": false,
+      "state": "WL-01",
+      "group": "Widgets list",
+      "where": "WL-01.design.admin.1440.en.light.txt:4",
+      "design": "Last edited on 3 Jan.",
+      "live": "Last edited on .",
+      "evidence": "seen",
+      "status": "open",
+      "reAudits": 0
+    },
+    {
+      "id": "F-abcdef012345",
+      "source": "auditor:widgets-list",
+      "severity": "P2",
+      "dayOne": false,
+      "state": "WL-01",
+      "group": "Widgets list",
+      "where": "header",
+      "design": "mono label",
+      "live": "sans label",
+      "evidence": "seen",
+      "status": "accepted",
+      "accept": {
+        "reasonClass": "platform-limit",
+        "issue": 105,
+        "text": "the mono font is not licensed for the web"
+      },
+      "reAudits": 1
+    }
+  ]
+}

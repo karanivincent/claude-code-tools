@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "base": {
+    "ref": "origin/main",
+    "sha": "cccccccccccccccccccccccccccccccccccccccc"
+  },
+  "capabilities": [
+    {
+      "id": "CAP-1",
+      "kind": "route",
+      "signature": "route:/widgets",
+      "screen": "Widgets list",
+      "evidence": [
+        {
+          "file": "apps/web/src/app/widgets/page.tsx",
+          "line": 1
+        }
+      ]
+    },
+    {
+      "id": "CAP-002",
+      "kind": "api-call",
+      "signature": "api:POST /api/widgets mode=draft",
+      "screen": "Widgets list",
+      "evidence": [
+        {
+          "file": "apps/web/src/components/widgets/new.tsx",
+          "line": 42
+        }
+      ]
+    }
+  ],
+  "refreshes": [
+    {
+      "sha": "dddddddddddddddddddddddddddddddddddddddd",
+      "at": "2026-01-15T20:00:00.000Z",
+      "added": []
+    }
+  ]
+}

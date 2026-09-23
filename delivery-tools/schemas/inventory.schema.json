@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delivery-tools.invalid/schemas/inventory.schema.json",
+  "title": "Inventory (docs/delivery/<feature>/inventory.json)",
+  "description": "Every design candidate mapped or excluded, and every state with its reach, render and controls (spec 4.2, 17.4).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "feature", "designTreeSha256", "candidates", "states"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "feature": { "$ref": "common.schema.json#/$defs/Slug" },
+    "designTreeSha256": { "$ref": "common.schema.json#/$defs/Sha256" },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "source", "mappedTo"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/Text" },
+          "kind": { "$ref": "#/$defs/CandidateKind" },
+          "source": { "$ref": "common.schema.json#/$defs/Text" },
+          "mappedTo": { "type": ["string", "null"], "pattern": "^[A-Z]{1,6}-\\d{2,3}$" },
+          "excluded": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["reason"],
+            "properties": { "reason": { "$ref": "common.schema.json#/$defs/Text" } }
+          }
+        }
+      }
+    },
+    "states": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "screen", "name", "reach", "shots", "render", "controls"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/Id" },
+          "screen": { "$ref": "common.schema.json#/$defs/Text" },
+          "name": { "$ref": "common.schema.json#/$defs/Text" },
+          "reach": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind"],
+            "properties": {
+              "kind": { "enum": ["click-path", "prop", "shot-only", "unspecified"] },
+              "steps": { "type": "array", "items": { "$ref": "#/$defs/DesignStep" } },
+              "props": { "type": "object", "additionalProperties": true },
+              "unspecified": { "enum": ["loading", "empty", "error", "permission", "one", "many"] }
+            }
+          },
+          "shots": { "$ref": "common.schema.json#/$defs/Strings" },
+          "render": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["status"],
+            "properties": {
+              "status": { "enum": ["ok", "impossible"] },
+              "why": { "type": "string" },
+              "txt": { "type": "string" },
+              "png": { "type": "string" },
+              "dom": { "type": "string" }
+            }
+          },
+          "controls": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["label", "role", "target", "effect"],
+              "properties": {
+                "label": { "type": "string" },
+                "role": { "type": "string" },
+                "target": { "$ref": "common.schema.json#/$defs/Target" },
+                "effect": { "$ref": "common.schema.json#/$defs/Effect" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "CandidateKind": { "enum": ["set-target", "prop-value", "dialog", "shot", "ternary", "list"] },
+    "DesignStep": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["click"],
+          "properties": { "click": { "$ref": "common.schema.json#/$defs/Text" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["set"],
+          "properties": { "set": { "type": "object", "minProperties": 1, "additionalProperties": true } }
+        }
+      ]
+    }
+  }
+}

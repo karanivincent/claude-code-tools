@@ -1,0 +1,86 @@
+{
+  "profile": {
+    "path": "/commands/review",
+    "contains": "unknown property \"extra\""
+  },
+  "safety": {
+    "path": "/realOrg",
+    "contains": "must match at least one"
+  },
+  "intent": {
+    "path": "/rollout",
+    "contains": "exactly one"
+  },
+  "inventory": {
+    "path": "/states/0/id",
+    "contains": "must match pattern"
+  },
+  "baseline": {
+    "path": "/capabilities/0/id",
+    "contains": "must match pattern"
+  },
+  "plan": {
+    "path": "/rows/0/class",
+    "contains": "must be one of"
+  },
+  "unit-file": {
+    "path": "/",
+    "contains": "missing required property \"reportPath\""
+  },
+  "unit-report": {
+    "path": "/unitCheck/exit",
+    "contains": "must be integer"
+  },
+  "sidefx": {
+    "path": "/predicates/0/filters/0/op",
+    "contains": "must be one of"
+  },
+  "seedplan": {
+    "path": "/schemaVersion",
+    "contains": "must equal 1"
+  },
+  "capture": {
+    "path": "/items/0/width",
+    "contains": "must be >= 200"
+  },
+  "findings": {
+    "path": "/findings/0/severity",
+    "contains": "must be one of"
+  },
+  "state": {
+    "path": "/phase",
+    "contains": "must be one of"
+  },
+  "ready": {
+    "path": "/inputs/plan",
+    "contains": "must match pattern"
+  },
+  "preflight": {
+    "path": "/probes/0/id",
+    "contains": "must match pattern"
+  },
+  "candidates": {
+    "path": "/candidates/0/kind",
+    "contains": "must be one of"
+  },
+  "dom": {
+    "path": "/elements/0/style/fontClass",
+    "contains": "must be one of"
+  },
+  "capture-controls": {
+    "path": "/0/reached",
+    "contains": "must be boolean"
+  },
+  "capture-errors": {
+    "path": "/axe",
+    "contains": "must match at least one"
+  },
+  "profile--robot-org": {
+    "path": "/testData/robotOrganizationId",
+    "contains": "at least 1 character"
+  },
+  "capture--controls": {
+    "path": "/items/0/files/controls",
+    "contains": "must be string"
+  }
+}

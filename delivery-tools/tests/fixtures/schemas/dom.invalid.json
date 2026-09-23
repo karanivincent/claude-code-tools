@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "url": "http://localhost:4101/widgets",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "document": {
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "scrollHeight": 1800
+  },
+  "fonts": [
+    {
+      "family": "Inter",
+      "loaded": true
+    }
+  ],
+  "elements": [
+    {
+      "i": 0,
+      "kind": "control",
+      "tag": "button",
+      "role": "button",
+      "name": "New widget",
+      "text": "New widget",
+      "testid": "widgets-new",
+      "box": {
+        "x": 1200,
+        "y": 40,
+        "w": 120,
+        "h": 36
+      },
+      "visible": true,
+      "style": {
+        "fontFamily": "Inter",
+        "fontClass": "cursive",
+        "fontSize": 14,
+        "fontWeight": 500,
+        "textTransform": "none",
+        "letterSpacing": 0,
+        "color": "rgb(255, 255, 255)",
+        "backgroundColor": "rgb(37, 99, 235)"
+      },
+      "icon": true,
+      "clipped": false,
+      "lines": 1,
+      "disabled": false
+    }
+  ]
+}

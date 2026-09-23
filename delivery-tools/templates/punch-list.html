@@ -1,0 +1,214 @@
+<title>%%TITLE%%</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  /* delivery-tools punch list (templates/punch-list.html), filled by `delivery audit compile`. */
+  :root {
+    --ground: #f4f5f2;
+    --surface: #ffffff;
+    --ink: #1b1d1f;
+    --muted: #62676b;
+    --rule: #d9dcd6;
+    --accent: #0f6b66;
+    --accent-soft: #dcefec;
+    --p1: #b3261e;
+    --p1-soft: #fbe3e0;
+    --p2: #9a6200;
+    --p2-soft: #fbefd6;
+    --p3: #56687a;
+    --p3-soft: #e5ebf1;
+    --done: #3c6e47;
+    --done-soft: #e2efe4;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #121414;
+      --surface: #1a1d1d;
+      --ink: #e8eae6;
+      --muted: #a0a6a2;
+      --rule: #2e3332;
+      --accent: #5fbdb4;
+      --accent-soft: #173331;
+      --p1: #ff8a80;
+      --p1-soft: #3b1917;
+      --p2: #f2b857;
+      --p2-soft: #36280f;
+      --p3: #a8bbcf;
+      --p3-soft: #1f2833;
+      --done: #8fc79b;
+      --done-soft: #1a2c1e;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #121414;
+    --surface: #1a1d1d;
+    --ink: #e8eae6;
+    --muted: #a0a6a2;
+    --rule: #2e3332;
+    --accent: #5fbdb4;
+    --accent-soft: #173331;
+    --p1: #ff8a80;
+    --p1-soft: #3b1917;
+    --p2: #f2b857;
+    --p2-soft: #36280f;
+    --p3: #a8bbcf;
+    --p3-soft: #1f2833;
+    --done: #8fc79b;
+    --done-soft: #1a2c1e;
+  }
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font: 15px/1.5 var(--sans);
+    margin: 0;
+    padding-inline: 16px;
+    padding-block: 28px 56px;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 22px; }
+  h1 { font-size: 1.75rem; line-height: 1.2; font-weight: 700; letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+  .meta { color: var(--muted); font-size: 0.875rem; margin: 6px 0 0; }
+  .meta code, .mono { font-family: var(--mono); font-size: 0.8125rem; }
+  .tally { display: flex; flex-wrap: wrap; gap: 10px 28px; margin: 0; padding: 0; list-style: none; }
+  .tally li { display: grid; gap: 2px; }
+  .tally b { font-family: var(--mono); font-size: 1.5rem; font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .tally span { color: var(--muted); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; }
+  .tally .p1 b { color: var(--p1); }
+  .tally .p2 b { color: var(--p2); }
+  .tally .p3 b { color: var(--p3); }
+  .controls {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 2;
+    background: var(--ground);
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+    padding-block: 10px; border-bottom: 1px solid var(--rule);
+  }
+  .group { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .group > span { color: var(--muted); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; margin-right: 2px; }
+  .chip {
+    font: 500 0.8125rem/1 var(--sans); color: var(--ink);
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 999px;
+    padding: 6px 11px; cursor: pointer;
+  }
+  .chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .chip:focus-visible, .search:focus-visible, .shot:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .search {
+    font: 400 0.875rem/1.2 var(--sans); color: var(--ink); background: var(--surface);
+    border: 1px solid var(--rule); border-radius: 6px; padding: 7px 10px; min-width: 0; width: 16rem; max-width: 100%;
+  }
+  .count { color: var(--muted); font-size: 0.8125rem; font-variant-numeric: tabular-nums; }
+  .snags { display: grid; }
+  .snag {
+    display: grid; grid-template-columns: minmax(0, 17rem) minmax(0, 1fr); gap: 14px 24px;
+    padding-block: 20px; border-top: 1px solid var(--rule);
+  }
+  .snag:first-child { border-top: 0; }
+  .facts { display: grid; gap: 6px; align-content: start; }
+  .head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .sev { font: 600 0.75rem/1 var(--mono); padding: 4px 6px; border-radius: 3px; letter-spacing: 0.02em; }
+  .sev.P1 { color: var(--p1); background: var(--p1-soft); }
+  .sev.P2 { color: var(--p2); background: var(--p2-soft); }
+  .sev.P3 { color: var(--p3); background: var(--p3-soft); }
+  .state { font: 500 1.125rem/1.2 var(--mono); }
+  .status { font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); border: 1px solid var(--rule); border-radius: 3px; padding: 3px 6px; }
+  .status.open { color: var(--ink); border-color: var(--ink); }
+  .status.fixed, .status.accepted { color: var(--done); border-color: var(--done); background: var(--done-soft); }
+  .day-one { font-size: 0.75rem; color: var(--p1); }
+  dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 3px 10px; margin: 4px 0 0; font-size: 0.8125rem; }
+  dt { color: var(--muted); }
+  dd { margin: 0; overflow-wrap: anywhere; }
+  .cause { font-size: 0.875rem; color: var(--muted); margin: 4px 0 0; max-width: 65ch; }
+  .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+  figure { margin: 0; display: grid; gap: 6px; align-content: start; }
+  figcaption { display: grid; gap: 2px; }
+  figcaption span { color: var(--muted); font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; }
+  figcaption q { quotes: none; font-size: 0.875rem; overflow-wrap: anywhere; }
+  .shot {
+    display: block; width: 100%; max-width: 100%; height: 240px; object-fit: cover; object-position: top left;
+    border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); cursor: zoom-in; padding: 0;
+  }
+  .shot.full { height: auto; object-fit: contain; cursor: zoom-out; }
+  .none {
+    display: grid; place-items: center; height: 240px; border: 1px dashed var(--rule); border-radius: 4px;
+    color: var(--muted); font-size: 0.8125rem; text-align: center; padding-inline: 12px;
+  }
+  .empty { color: var(--muted); padding-block: 32px; }
+  footer { color: var(--muted); font-size: 0.8125rem; border-top: 1px solid var(--rule); padding-top: 14px; }
+  @media (max-width: 760px) {
+    .snag { grid-template-columns: minmax(0, 1fr); }
+    .pair { grid-template-columns: minmax(0, 1fr); }
+    .shot, .none { height: 200px; }
+    .search { width: 100%; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .chip { transition: background-color 120ms ease, border-color 120ms ease; }
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>%%HEADING%%</h1>
+    <p class="meta">%%META%%</p>
+  </header>
+
+  <ul class="tally" aria-label="Open findings by severity">%%TALLY%%</ul>
+
+  <div class="controls" role="group" aria-label="Filter findings">
+    %%FILTERS%%
+    <input class="search" id="punch-search" type="search" placeholder="Find a state, a word or a check" aria-label="Find in findings">
+    <span class="count" id="punch-count" aria-live="polite"></span>
+  </div>
+
+  <section class="snags" id="punch-snags">
+%%ROWS%%
+  </section>
+  <p class="empty" id="punch-empty" %%EMPTY_HIDDEN%%>%%EMPTY%%</p>
+
+  <footer>%%FOOTER%%</footer>
+</div>
+
+<script>
+  (function () {
+    var rows = Array.prototype.slice.call(document.querySelectorAll('.snag'));
+    var chips = Array.prototype.slice.call(document.querySelectorAll('.chip'));
+    var search = document.getElementById('punch-search');
+    var count = document.getElementById('punch-count');
+    var empty = document.getElementById('punch-empty');
+    function wanted(kind) {
+      return chips.filter(function (c) { return c.dataset.kind === kind && c.getAttribute('aria-pressed') === 'true'; })
+        .map(function (c) { return c.dataset.value; });
+    }
+    function apply() {
+      var sev = wanted('severity'), st = wanted('status'), grp = wanted('group');
+      var q = (search.value || '').trim().toLowerCase();
+      var shown = 0;
+      rows.forEach(function (r) {
+        var ok = sev.indexOf(r.dataset.severity) >= 0 && st.indexOf(r.dataset.status) >= 0 &&
+          (grp.length === 0 || grp.indexOf(r.dataset.group) >= 0) &&
+          (!q || r.textContent.toLowerCase().indexOf(q) >= 0);
+        r.hidden = !ok;
+        if (ok) shown++;
+      });
+      count.textContent = shown + ' of ' + rows.length + ' shown';
+      if (rows.length) {
+        empty.textContent = 'Nothing matches these filters.';
+        empty.hidden = shown > 0;
+      }
+    }
+    chips.forEach(function (c) {
+      c.addEventListener('click', function () {
+        c.setAttribute('aria-pressed', c.getAttribute('aria-pressed') === 'true' ? 'false' : 'true');
+        apply();
+      });
+    });
+    search.addEventListener('input', apply);
+    document.querySelectorAll('.shot').forEach(function (img) {
+      img.addEventListener('click', function () { img.classList.toggle('full'); });
+      img.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); img.classList.toggle('full'); }
+      });
+    });
+    apply();
+  })();
+</script>

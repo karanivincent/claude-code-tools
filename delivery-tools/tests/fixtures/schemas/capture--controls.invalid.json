@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "runId": "c-20260115-2100-branch-U2",
+  "mode": "branch",
+  "expectedSha": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "baseUrl": "http://localhost:4101",
+  "items": [
+    {
+      "state": "WL-01",
+      "world": "design",
+      "role": "admin",
+      "width": 1440,
+      "locale": "en",
+      "theme": "light",
+      "status": "reached",
+      "servedSha": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "files": {
+        "png": "WL-01.design.admin.1440.en.light.png",
+        "txt": "WL-01.design.admin.1440.en.light.txt",
+        "dom": "WL-01.design.admin.1440.en.light.dom.json",
+        "errors": "WL-01.design.admin.1440.en.light.errors.json",
+        "controls": 42
+      },
+      "textSha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "createdRowIds": []
+    },
+    {
+      "state": "WL-02",
+      "world": "empty",
+      "role": "admin",
+      "width": 1440,
+      "locale": "en",
+      "theme": "light",
+      "status": "not-reached",
+      "why": "forbidden marker widgets-list present",
+      "servedSha": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "files": {
+        "png": "WL-02.png",
+        "txt": "WL-02.txt",
+        "dom": "WL-02.dom.json"
+      },
+      "textSha256": "6666666666666666666666666666666666666666666666666666666666666666",
+      "createdRowIds": []
+    }
+  ]
+}

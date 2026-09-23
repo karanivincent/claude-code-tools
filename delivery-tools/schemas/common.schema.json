@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delivery-tools.invalid/schemas/common.schema.json",
+  "title": "Shared definitions",
+  "description": "Definitions the artefact schemas reference. Not an artefact itself.",
+  "$defs": {
+    "Id": { "description": "A state id (spec 17).", "type": "string", "pattern": "^[A-Z]{1,6}-\\d{2,3}$" },
+    "CapId": { "description": "A capability id (spec 17).", "type": "string", "pattern": "^CAP-\\d{3}$" },
+    "RowId": { "description": "A plan row id: a state id or a capability id.", "type": "string", "minLength": 1 },
+    "FileId": { "description": "An id used in a file or branch name (units, worlds, contracts, capture runs).", "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$" },
+    "Slug": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,62}$" },
+    "Text": { "type": "string", "minLength": 1 },
+    "Sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "GitSha": { "type": "string", "pattern": "^[0-9a-f]{7,40}$" },
+    "Timestamp": { "description": "ISO 8601 date-time.", "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?(Z|[+-]\\d{2}:\\d{2})$" },
+    "DateOrTimestamp": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}(T\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?(Z|[+-]\\d{2}:\\d{2})?)?$" },
+    "IssueNumber": { "type": "integer", "minimum": 1 },
+    "Count": { "type": "integer", "minimum": 0 },
+    "Strings": { "type": "array", "items": { "type": "string" } },
+    "Effect": { "enum": ["none", "free", "metered", "dials", "destructive"] },
+    "Role": { "enum": ["admin", "member"] },
+    "Target": {
+      "description": "Where a control leads: a state id, somewhere outside the feature, or nowhere.",
+      "anyOf": [{ "$ref": "#/$defs/Id" }, { "enum": ["external", "none"] }]
+    },
+    "Filter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["column", "op", "value"],
+      "properties": {
+        "column": { "$ref": "#/$defs/Text" },
+        "op": { "enum": ["eq", "in", "is", "not-null", "lt", "lte", "gt", "gte", "neq"] },
+        "value": true
+      }
+    },
+    "Predicate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["table", "filters", "source"],
+      "properties": {
+        "table": { "$ref": "#/$defs/Text" },
+        "filters": { "type": "array", "items": { "$ref": "#/$defs/Filter" } },
+        "source": { "$ref": "#/$defs/Text" }
+      }
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delivery-tools.invalid/schemas/preflight.schema.json",
+  "title": "Preflight result (.delivery/<feature>/preflight.json)",
+  "description": "Supplementary schema (spec 17 is silent; shape from 4.1 and 16). Written by preflight, read by the phase-1 gate, waive and status. A red probe is either blocking (founder, exit 3) or turned into a wave-0 task.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "generatedAt", "profileSha256", "safetySha256", "probes", "tasks"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "generatedAt": { "$ref": "common.schema.json#/$defs/Timestamp" },
+    "profileSha256": { "$ref": "common.schema.json#/$defs/Sha256" },
+    "safetySha256": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+    "probes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "status", "waivable", "blocking", "detail"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^P\\d{1,2}$" },
+          "status": { "enum": ["green", "red", "task", "waived", "warning", "not-applicable"] },
+          "waivable": { "type": "boolean" },
+          "blocking": { "description": "true when red means the founder must act (a red-circle item).", "type": "boolean" },
+          "detail": { "type": "string" },
+          "fix": { "description": "Where the founder fixes it: the device and the app, then the step.", "type": "string" },
+          "task": { "type": "string", "pattern": "^T-[a-z0-9-]+$" }
+        }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "probe", "issue"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^T-[a-z0-9-]+$" },
+          "title": { "$ref": "common.schema.json#/$defs/Text" },
+          "probe": { "type": "string", "pattern": "^P\\d{1,2}$" },
+          "issue": { "type": ["integer", "null"], "minimum": 1 }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "unit": {
+    "id": "U2",
+    "title": "Widgets list",
+    "issue": 103,
+    "kind": "screen",
+    "wave": 1,
+    "files": [
+      "apps/web/src/widgets/list.tsx"
+    ],
+    "states": [
+      "WL-01",
+      "WL-02"
+    ],
+    "capabilities": [
+      "CAP-001"
+    ],
+    "risk": "normal",
+    "model": "sonnet"
+  },
+  "rows": [
+    {
+      "id": "WL-01",
+      "class": "change",
+      "owner": "U2",
+      "requested": null,
+      "invented": false,
+      "data": [
+        {
+          "table": "widgets",
+          "column": "name",
+          "exists": true,
+          "verifiedBy": "types"
+        }
+      ],
+      "backend": [
+        {
+          "method": "POST",
+          "route": "/api/widgets",
+          "discriminator": "mode=draft",
+          "exists": true,
+          "verifiedBy": "route-file"
+        }
+      ],
+      "controls": [
+        {
+          "label": "New widget",
+          "testid": "widgets-new",
+          "effect": "free",
+          "target": "WL-03",
+          "enabledWhen": "always"
+        }
+      ],
+      "copy": [
+        {
+          "key": "widgets.list.title",
+          "en": "Widgets",
+          "plural": false
+        }
+      ],
+      "dayOne": true,
+      "invariants": [
+        "at most one widget row shows Publish"
+      ],
+      "route": "/widgets",
+      "component": "apps/web/src/widgets/list.tsx",
+      "reach": {
+        "class": "seeded",
+        "world": "design",
+        "role": "admin",
+        "steps": [
+          {
+            "goto": "/widgets"
+          },
+          {
+            "waitFor": {
+              "testid": "widgets-list"
+            }
+          }
+        ]
+      },
+      "markers": {
+        "text": [
+          "Widgets",
+          "New widget"
+        ],
+        "testids": [
+          "widgets-list"
+        ],
+        "forbidden": [
+          "widgets-empty"
+        ]
+      },
+      "permission": {
+        "member": "hidden"
+      }
+    }
+  ],
+  "contracts": [
+    "shell"
+  ],
+  "commands": {
+    "bootstrap": "node scripts/bootstrap.mjs --dir . --port 4101",
+    "unitCheck": "npm run typecheck"
+  },
+  "baseRef": "origin/epic/101-widgets",
+  "branch": "epic/101-widgets-U2",
+  "flight": "",
+  "tried": ""
+}

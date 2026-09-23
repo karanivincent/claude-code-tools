@@ -1,0 +1,123 @@
+// Findings read and write (spec 8, 17.11). Ids are deterministic, so re-running a check yields
+// the same id for the same problem and a status someone set (accepted, filed, cut, duplicate)
+// survives the re-run. Severity policy (day-one raise, P1 floors, caps) belongs to lib/checks/
+// (slice B1), not here.
+
+import { assertValid } from './schema.mjs';
+import { readJson, writeJsonAtomic, withLock } from './fs.mjs';
+import { sha256 } from './hash.mjs';
+
+/**
+ * @typedef {{ id: string, source: string, rule?: string, severity: 'P1'|'P2'|'P3', dayOne: boolean,
+ *   state: string, group: string, where: string, design: string, live: string, cause?: string,
+ *   evidence: 'seen'|'code-read'|'test', status: 'open'|'fixed'|'accepted'|'filed'|'cut'|'duplicate',
+ *   accept?: { reasonClass: string, issue: number, text: string }, fixedIn?: string, reAudits: number }} Finding
+ * @typedef {{ schemaVersion: 1, runId: string, findings: Finding[] }} FindingsDoc
+ */
+
+// NUL cannot occur in any of the joined fields, so no two field lists hash alike.
+const FIELD_SEP = String.fromCharCode(0);
+
+/**
+ * F-<12 hex>, from the fields that identify a problem (not its wording or severity).
+ * @param {{ source: string, rule?: string, state: string, where: string }} f
+ */
+export function findingId({ source, rule = '', state, where }) {
+  return `F-${sha256([source, rule, state, where].join(FIELD_SEP)).slice(0, 12)}`;
+}
+
+/**
+ * A finding with defaults filled: open, not day-one, seen, no re-audits, id computed.
+ * @param {Partial<Finding> & { source: string, severity: Finding['severity'], state: string, where: string }} f
+ * @returns {Finding}
+ */
+export function makeFinding(f) {
+  const out = {
+    source: f.source,
+    ...(f.rule !== undefined ? { rule: f.rule } : {}),
+    severity: f.severity,
+    dayOne: f.dayOne ?? false,
+    state: f.state,
+    group: f.group ?? '',
+    where: f.where,
+    design: f.design ?? '',
+    live: f.live ?? '',
+    ...(f.cause !== undefined ? { cause: f.cause } : {}),
+    evidence: f.evidence ?? 'seen',
+    status: f.status ?? 'open',
+    ...(f.accept !== undefined ? { accept: f.accept } : {}),
+    ...(f.fixedIn !== undefined ? { fixedIn: f.fixedIn } : {}),
+    reAudits: f.reAudits ?? 0,
+  };
+  return { id: f.id ?? findingId(out), ...out };
+}
+
+/** @param {string} runId @returns {FindingsDoc} */
+export function emptyFindings(runId) {
+  return { schemaVersion: 1, runId, findings: [] };
+}
+
+/**
+ * @param {{ findings: string }} paths
+ * @param {string} runId used when the file does not exist yet
+ * @returns {Promise<FindingsDoc>}
+ */
+export async function readFindings(paths, runId) {
+  const doc = await readJson(paths.findings, { optional: true });
+  if (!doc) return emptyFindings(runId);
+  return assertValid('findings', doc, { label: paths.findings });
+}
+
+/** @param {{ findings: string }} paths @param {FindingsDoc} doc */
+export async function writeFindings(paths, doc) {
+  assertValid('findings', doc, { label: 'findings' });
+  await writeJsonAtomic(paths.findings, doc);
+}
+
+/**
+ * Replace one source's findings with a fresh run of it (pure).
+ * - a fresh finding with a known id keeps that finding's non-open status, except "fixed", which reopens;
+ * - an open finding of this source that the fresh run no longer produces becomes "fixed" (fixedIn set),
+ *   but only when inScope(finding) is true, so a check run over part of the run fixes only that part.
+ * @param {FindingsDoc} doc
+ * @param {{ source: string, fresh: Finding[], fixedIn: string, inScope?: (f: Finding) => boolean }} run
+ * @returns {{ doc: FindingsDoc, added: number, reopened: number, fixed: number }}
+ */
+export function upsertFindings(doc, { source, fresh, fixedIn, inScope = () => true }) {
+  const freshById = new Map(fresh.map((f) => [f.id, f]));
+  let added = 0, reopened = 0, fixed = 0;
+  const next = [];
+  for (const old of doc.findings) {
+    if (old.source !== source) { next.push(old); continue; }
+    const f = freshById.get(old.id);
+    if (f) {
+      freshById.delete(old.id);
+      if (old.status === 'fixed') { reopened++; const { fixedIn: _drop, ...rest } = f; next.push({ ...rest, status: 'open', reAudits: old.reAudits }); }
+      else next.push({ ...f, status: old.status, ...(old.accept ? { accept: old.accept } : {}), reAudits: old.reAudits });
+    } else if (old.status === 'open' && inScope(old)) {
+      fixed++;
+      next.push({ ...old, status: 'fixed', fixedIn });
+    } else next.push(old);
+  }
+  for (const f of freshById.values()) { added++; next.push(f); }
+  return { doc: { ...doc, findings: next }, added, reopened, fixed };
+}
+
+/**
+ * Read, upsert and write under a lock, so parallel checks cannot lose each other's findings.
+ * @param {{ findings: string, runDir: string }} paths
+ * @param {string} runId
+ * @param {Parameters<typeof upsertFindings>[1]} run
+ */
+export async function recordFindings(paths, runId, run) {
+  return withLock(`${paths.findings}.lock`, async () => {
+    const res = upsertFindings(await readFindings(paths, runId), run);
+    await writeFindings(paths, res.doc);
+    return res;
+  });
+}
+
+/** Open findings, optionally of one severity. */
+export function openFindings(doc, severity) {
+  return doc.findings.filter((f) => f.status === 'open' && (!severity || f.severity === severity));
+}

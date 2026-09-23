@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "derivedAt": "2026-01-15T20:00:00.000Z",
+  "files": [
+    {
+      "path": "apps/server/src/jobs/sweep.ts",
+      "sha256": "4444444444444444444444444444444444444444444444444444444444444444"
+    }
+  ],
+  "predicates": [
+    {
+      "id": "ts:sweep.ts:12",
+      "origin": "ts",
+      "table": "practice_runs",
+      "filters": [
+        {
+          "column": "status",
+          "op": "eq",
+          "value": "queued"
+        },
+        {
+          "column": "deferred_at",
+          "op": "not-null",
+          "value": null
+        }
+      ],
+      "source": "apps/server/src/jobs/sweep.ts:12 resumeRuns"
+    },
+    {
+      "id": "hand:1",
+      "origin": "hand",
+      "table": "practice_runs",
+      "filters": [
+        {
+          "column": "status",
+          "op": "in",
+          "value": [
+            "queued",
+            "running"
+          ]
+        }
+      ],
+      "source": "hand: runs are dialled by a sweep"
+    }
+  ]
+}

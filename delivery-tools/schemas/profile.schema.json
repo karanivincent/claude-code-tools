@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delivery-tools.invalid/schemas/profile.schema.json",
+  "title": "Project profile (.claude/delivery-profile.json)",
+  "description": "Everything specific to one repository (spec 17.1, 18). Command strings are complete; the CLI fills only {port} {sha} {pr} {spec} {dir} {cmd} {epic} {slug} {date} {project} {n}.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "repo", "commands", "paths", "environments", "auth", "issues", "claims", "decisions", "founder", "baseline", "audit", "limits", "release", "safetyFile"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "repo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["slug", "base", "branchPrefix", "worktreeRoot"],
+      "properties": {
+        "slug": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+        "base": { "$ref": "common.schema.json#/$defs/Text" },
+        "branchPrefix": { "type": "string" },
+        "worktreeRoot": { "$ref": "common.schema.json#/$defs/Text" }
+      }
+    },
+    "commands": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bootstrap", "heavy", "gate", "unitCheck", "devServer", "prodBuild", "prodStart", "e2e", "previewUrl", "versionProbe", "ciWait", "stagingDeployWait", "review", "loopTest", "flight", "tried", "planner", "epicClose", "migrationsOwed", "pendingProduction", "ledgerFetch"],
+      "properties": {
+        "bootstrap": { "type": "string" },
+        "heavy": { "type": "string" },
+        "gate": { "type": "string" },
+        "unitCheck": { "type": "string" },
+        "devServer": { "type": "string" },
+        "prodBuild": { "type": "string" },
+        "prodStart": { "type": "string" },
+        "e2e": { "type": "string" },
+        "previewUrl": { "type": "string" },
+        "versionProbe": { "type": "string" },
+        "ciWait": { "type": "string" },
+        "stagingDeployWait": { "type": "string" },
+        "review": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["skill", "args"],
+          "properties": { "skill": { "type": "string" }, "args": { "type": "string" } }
+        },
+        "loopTest": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["command", "when", "stagingCommand"],
+          "properties": {
+            "command": { "type": "string" },
+            "when": { "$ref": "common.schema.json#/$defs/Strings" },
+            "stagingCommand": { "type": "string" }
+          }
+        },
+        "flight": { "type": "string" },
+        "tried": { "type": "string" },
+        "planner": { "type": "string" },
+        "epicClose": { "type": "string" },
+        "migrationsOwed": { "type": "string" },
+        "pendingProduction": { "type": "string" },
+        "ledgerFetch": { "type": "string" }
+      }
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["designRoot", "deliveryRoot", "runRoot", "handovers", "e2eDir", "captureSpec", "versionRoute", "messages", "appRouteGlobs", "apiRouteGlobs", "componentGlobs", "databaseTypes"],
+      "properties": {
+        "designRoot": { "$ref": "common.schema.json#/$defs/Text" },
+        "deliveryRoot": { "$ref": "common.schema.json#/$defs/Text" },
+        "runRoot": { "$ref": "common.schema.json#/$defs/Text" },
+        "handovers": { "$ref": "common.schema.json#/$defs/Text" },
+        "e2eDir": { "$ref": "common.schema.json#/$defs/Text" },
+        "captureSpec": { "$ref": "common.schema.json#/$defs/Text" },
+        "versionRoute": { "$ref": "common.schema.json#/$defs/Text" },
+        "messages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["locale", "file"],
+            "properties": {
+              "locale": { "type": "string", "pattern": "^[a-z]{2}(-[A-Z]{2})?$" },
+              "file": { "$ref": "common.schema.json#/$defs/Text" }
+            }
+          }
+        },
+        "appRouteGlobs": { "$ref": "common.schema.json#/$defs/Strings" },
+        "apiRouteGlobs": { "$ref": "common.schema.json#/$defs/Strings" },
+        "componentGlobs": { "$ref": "common.schema.json#/$defs/Strings" },
+        "databaseTypes": { "type": "string" }
+      }
+    },
+    "environments": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["test", "previews"],
+      "properties": {
+        "test": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "projectRef", "appUrl"],
+          "properties": {
+            "name": { "$ref": "common.schema.json#/$defs/Text" },
+            "projectRef": { "type": "string" },
+            "appUrl": { "type": "string" }
+          }
+        },
+        "previews": { "enum": ["vercel", "none"] },
+        "envFiles": {
+          "description": "Env files every command reads at startup, relative to the repository's MAIN checkout (a worktree has no untracked .env of its own). A variable already set in the shell wins; no value is ever printed.",
+          "$ref": "common.schema.json#/$defs/Strings"
+        }
+      }
+    },
+    "testData": {
+      "description": "Optional (spec 18, Portability). mode tenant: fixture worlds are organisations in a shared test database (the default); database: a separate database per run; none: no seeding, every seeded state falls to component tests. robotOrganizationId: the organisation the repo's e2e robot writes to, whose rows check M14 counts before and after the PR's new e2e specs run.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": { "enum": ["tenant", "database", "none"] },
+        "robotOrganizationId": { "$ref": "common.schema.json#/$defs/Text" }
+      }
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["supportModule", "signInFunction", "robotAdminEmail", "robotMemberEmail"],
+      "properties": {
+        "supportModule": { "type": "string" },
+        "signInFunction": { "type": "string" },
+        "robotAdminEmail": { "type": "string" },
+        "robotMemberEmail": { "type": "string" }
+      }
+    },
+    "issues": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repo", "epicLabels", "epicType", "childLabels", "scopeLabel", "polishLabels", "subIssues", "markerPrefix"],
+      "properties": {
+        "repo": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+        "epicLabels": { "$ref": "common.schema.json#/$defs/Strings" },
+        "epicType": { "type": ["string", "null"] },
+        "childLabels": { "$ref": "common.schema.json#/$defs/Strings" },
+        "scopeLabel": { "$ref": "common.schema.json#/$defs/Text" },
+        "polishLabels": { "$ref": "common.schema.json#/$defs/Strings" },
+        "subIssues": { "type": "boolean" },
+        "markerPrefix": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" }
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "verify", "pathClaims", "runLabel"],
+      "properties": {
+        "mode": { "enum": ["open-draft-pr", "none"] },
+        "verify": { "enum": ["planner", "none"] },
+        "pathClaims": { "enum": ["scope-check", "none"] },
+        "runLabel": { "type": "string" }
+      }
+    },
+    "decisions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "looseEnd", "handoverPattern"],
+      "properties": {
+        "file": { "$ref": "common.schema.json#/$defs/Text" },
+        "looseEnd": { "$ref": "common.schema.json#/$defs/Text" },
+        "handoverPattern": { "$ref": "common.schema.json#/$defs/Text" }
+      }
+    },
+    "founder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["github", "reportFormat", "mergesOwnPRs"],
+      "properties": {
+        "github": { "$ref": "common.schema.json#/$defs/Text" },
+        "reportFormat": { "const": "tldr" },
+        "mergesOwnPRs": { "type": "boolean" }
+      }
+    },
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["discriminators"],
+      "properties": { "discriminators": { "$ref": "common.schema.json#/$defs/Strings" } }
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["widths", "phoneWidth", "themes", "primaryLocale", "roles", "bannedWords", "developerPhrases", "sameAsEnglishOk", "dateShape"],
+      "properties": {
+        "widths": { "type": "array", "minItems": 1, "items": { "type": "integer", "minimum": 200 } },
+        "phoneWidth": { "type": "integer", "minimum": 200 },
+        "themes": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["light", "dark"] } },
+        "primaryLocale": { "type": "string", "pattern": "^[a-z]{2}(-[A-Z]{2})?$" },
+        "roles": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "$ref": "common.schema.json#/$defs/Role" } },
+        "bannedWords": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[a-z]{2}(-[A-Z]{2})?$" },
+          "additionalProperties": { "$ref": "common.schema.json#/$defs/Strings" }
+        },
+        "developerPhrases": { "$ref": "common.schema.json#/$defs/Strings" },
+        "sameAsEnglishOk": { "$ref": "common.schema.json#/$defs/Strings" },
+        "dateShape": { "$ref": "common.schema.json#/$defs/Text" }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["builderParallel", "subagentCommandMinutes", "maxCuts", "overSizeHours", "maxAcceptedP2PerGroup", "maxAcceptedP2", "maxPropOrUnseedablePct", "maxFixWaves", "spotRecapturePct"],
+      "properties": {
+        "builderParallel": { "type": "integer", "minimum": 1 },
+        "subagentCommandMinutes": { "type": "number", "minimum": 1 },
+        "maxCuts": { "$ref": "common.schema.json#/$defs/Count" },
+        "overSizeHours": { "type": "number", "minimum": 0 },
+        "maxAcceptedP2PerGroup": { "$ref": "common.schema.json#/$defs/Count" },
+        "maxAcceptedP2": { "$ref": "common.schema.json#/$defs/Count" },
+        "maxPropOrUnseedablePct": { "type": "number", "minimum": 0, "maximum": 100 },
+        "maxFixWaves": { "$ref": "common.schema.json#/$defs/Count" },
+        "spotRecapturePct": { "type": "number", "minimum": 0, "maximum": 100 }
+      }
+    },
+    "release": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tagFormat", "prodTitlePrefix", "mergeMethod"],
+      "properties": {
+        "tagFormat": { "type": "string" },
+        "prodTitlePrefix": { "type": "string" },
+        "mergeMethod": { "const": "merge-commit" }
+      }
+    },
+    "safetyFile": { "$ref": "common.schema.json#/$defs/Text" }
+  }
+}
