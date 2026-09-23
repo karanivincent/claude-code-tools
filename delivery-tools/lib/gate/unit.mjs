@@ -38,6 +38,22 @@ export function unitRows(plan, unit) {
   return (plan.rows ?? []).filter((r) => ids.has(r.id) && BUILD_CLASSES.has(r.class));
 }
 
+/**
+ * The rows a unit's gate captures and judges. A unit's own, except a fix unit that owns none: it is
+ * judged on the rows of every other unit whose files it changes. Two dialog fixes in a row passed
+ * gates that captured nothing, and each broke the page a wave later, a whole CI and capture cycle
+ * each; a fix to a shared component is judged where that component is drawn.
+ */
+export function judgedRows(plan, unit) {
+  const own = unitRows(plan, unit);
+  if (own.length || unit.kind !== 'fix') return own;
+  const files = new Set(unit.files ?? []);
+  const states = new Set((plan.units ?? [])
+    .filter((u) => u.id !== unit.id && (u.files ?? []).some((f) => files.has(f)))
+    .flatMap((u) => [...(u.states ?? []), ...(u.capabilities ?? [])]));
+  return (plan.rows ?? []).filter((r) => states.has(r.id) && BUILD_CLASSES.has(r.class));
+}
+
 /** Rows a browser capture verifies (spec 6.1): seeded, or an action answered by an intercept. */
 export function capturedBy(rows) {
   return rows.filter((r) => r.reach && (r.reach.class === 'seeded' || (r.reach.class === 'action' && r.reach.intercept)));
@@ -80,7 +96,7 @@ async function loadUnit(ctx, unitId) {
   report = (await adoptStrandedReport(ctx, paths, unitId, report)) ?? report;
   let unitFile = null;
   try { unitFile = await readArtefact(paths, 'unit-file', { key: unitId, optional: true }); } catch { unitFile = null; }
-  return { paths, plan, unit, report, unitFile, rows: unitRows(plan, unit) };
+  return { paths, plan, unit, report, unitFile, rows: unitRows(plan, unit), judged: judgedRows(plan, unit) };
 }
 
 /**
@@ -333,7 +349,7 @@ export async function unitGateStatus(ctx, unitId) {
 
 /** unitGateStatus with an injectable validator (tests). */
 export async function unitGateStatusWith(ctx, unitId, deps = {}) {
-  const { paths, plan, unit, report, unitFile, rows } = await loadUnit(ctx, unitId);
+  const { paths, plan, unit, report, unitFile, rows, judged } = await loadUnit(ctx, unitId);
   const failures = reportFailures(unitId, report, rows, unitFile);
   const head = await unitHead(ctx, report);
   if (report && !head) failures.push({ code: 'gate-no-head', message: `unit ${unitId}: branch ${report.branch} and its commits are not in this repository` });
@@ -341,7 +357,7 @@ export async function unitGateStatusWith(ctx, unitId, deps = {}) {
   if (stale) failures.push(stale);
   const { ref, merged } = await judgeAt(ctx, unitFile, head?.sha ?? null);
   if (head) {
-    const cap = capturedBy(rows);
+    const cap = capturedBy(judged);
     // A merged unit's states are judged by the wave capture and the checks, which run against the
     // branch everything has landed on; its own branch capture answers about a tree nobody serves.
     if (cap.length && !stale && !merged) {
@@ -369,7 +385,7 @@ export async function unitGateStatusWith(ctx, unitId, deps = {}) {
  * @returns {Promise<{ ok: boolean, failures: { code: string, message: string }[], captureRunId: string|null, head: string|null, file: string }>}
  */
 export async function runUnitGate(ctx, unitId, deps = {}) {
-  const { paths, plan, unit, report, unitFile, rows } = await loadUnit(ctx, unitId);
+  const { paths, plan, unit, report, unitFile, rows, judged } = await loadUnit(ctx, unitId);
   const profile = await ctx.profile();
   const failures = reportFailures(unitId, report, rows, unitFile);
   const head = await unitHead(ctx, report);
@@ -382,13 +398,13 @@ export async function runUnitGate(ctx, unitId, deps = {}) {
   if (stale) failures.push(stale);
   if (head) {
     const wt = (await ctx.git.worktrees()).find((w) => w.branch === report.branch);
-    const cap = capturedBy(rows);
+    const cap = capturedBy(judged);
     if (cap.length && !stale) {
       const res = await (deps.runCapture ?? runCapture)(ctx, { mode: 'branch', unit: unitId, states: cap.map((r) => r.id), sha: head.sha });
       captureRunId = res.runId;
       const checked = await (deps.runChecks ?? realRunChecks)(ctx, [...GATE_CHECKS], { captureRunId });
       failures.push(...checked.failures.map((f) => ({ code: 'gate-check', message: `${f.code}: ${f.message}` })));
-      const ids = new Set(rows.map((r) => r.id));
+      const ids = new Set(judged.map((r) => r.id));
       const byId = rowsById(plan);
       for (const f of checked.findings) {
         if (!ids.has(f.state) || f.status !== 'open') continue;

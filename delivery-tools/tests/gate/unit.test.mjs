@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
-import { runUnitGate, unitGateStatus, unitGateStatusWith, commonDir, lastLines, testedBy, capturedBy, RENDER_EMPTY_ENV } from '../../lib/gate/unit.mjs';
+import { runUnitGate, unitGateStatus, unitGateStatusWith, commonDir, lastLines, testedBy, capturedBy, judgedRows, RENDER_EMPTY_ENV } from '../../lib/gate/unit.mjs';
 import { featurePaths } from '../../lib/core/paths.mjs';
 import { makeTempRepo } from '../helpers/tmp-repo.mjs';
 import { makeTestCtx } from '../helpers/ctx.mjs';
@@ -203,6 +203,25 @@ test('helpers: common directory, which rows a capture or a component test verifi
   const rows = [row('WL-01'), row('WL-02', { reach: { class: 'action', world: 'design', role: 'admin', steps: [{ goto: '/w' }], intercept: { method: 'POST', url: '/api/w', status: 200, body: '{}' } } }), row('WL-03', { reach: { class: 'action', world: 'design', role: 'admin', steps: [] } })];
   assert.deepEqual(capturedBy(rows).map((r) => r.id), ['WL-01', 'WL-02']);
   assert.deepEqual(testedBy(rows).map((r) => r.id), ['WL-03']);
+});
+
+test('a fix unit that owns no state is judged where the files it changes are drawn', () => {
+  // Two dialog fixes in a row passed their gates, which captured nothing, and each broke the page a
+  // wave later: the first made the dialogs modal, the second let a click outside close them. The
+  // gate now captures the states owned by every unit whose files the fix changes.
+  const plan = planWith([row('WL-01', { owner: 'U-screen' }), row('WL-02', { owner: 'U-screen' }), row('WL-09', { owner: 'U-api' }), row('WL-05', { owner: 'U-screen', class: 'cut', reach: undefined, reason: { code: 'money', text: 'x' }, issue: 5 })]);
+  plan.units = [
+    { id: 'U-screen', kind: 'screen', files: ['src/w/screen.tsx', 'src/w/dialog.tsx'], states: ['WL-01', 'WL-02', 'WL-05'] },
+    { id: 'U-api', kind: 'backend', files: ['src/api/w.ts'], states: ['WL-09'] },
+    { id: 'F-dialog', kind: 'fix', files: ['src/w/dialog.tsx'], states: [] },
+    { id: 'F-copy', kind: 'fix', files: ['messages/en.json'], states: [] },
+    { id: 'F-own', kind: 'fix', files: ['src/w/dialog.tsx'], states: ['WL-02'] },
+  ];
+  const ids = (u) => judgedRows(plan, plan.units.find((x) => x.id === u)).map((r) => r.id);
+  assert.deepEqual(ids('F-dialog'), ['WL-01', 'WL-02'], 'the screen\'s built states, not its cut one, not the API\'s');
+  assert.deepEqual(ids('F-copy'), [], 'no unit owns the file: nothing to borrow');
+  assert.deepEqual(ids('F-own'), ['WL-02'], 'a fix that names its states is judged on those');
+  assert.deepEqual(ids('U-api'), ['WL-09']);
 });
 
 test('a screen unit whose registry still imports its stub is named as such, not left as four mystery P1s', async () => {
