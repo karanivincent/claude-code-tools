@@ -34,6 +34,11 @@ test('branch mode captures the unit\'s seeded and intercepted states once, and c
   assert.deepEqual(skipped.map((s) => s.state), ['WG-05', 'WG-06']);
   assert.match(skipped[1].why, /unseedable: verified by a component render test \(needs-live-call\)/);
   assert.ok(items.every((i) => i.check === 'markers' && !i.readOnly && i.axe));
+
+  // States named explicitly win over the unit's own: a fix unit that owns none is gated on the
+  // states the files it changes draw, and the unit filter used to drop every one of them.
+  const fix = buildItems({ mode: 'branch', profile, plan: widgetsPlan(), unit: { states: [], capabilities: [] }, states: ['WG-01', 'WG-03'] });
+  assert.deepEqual(fix.items.map((i) => i.key), ['WG-01.design.admin.1440.en.light', 'WG-03.design.admin.1440.en.light']);
 });
 
 test('full mode: every width, locale and theme; paths localised; a member variant; the founder\'s organisation read-only', () => {

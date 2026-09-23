@@ -168,7 +168,9 @@ export function buildItems(o) {
   if (plan) {
     rows = plan.rows;
     for (const r of rows) if (r.markers) targets[r.id] = { text: r.markers.text, testids: r.markers.testids };
-    if (o.unit) {
+    // States named explicitly win over the unit's own: a fix unit that owns none is gated on the
+    // states the files it changes draw (judgedRows), and this filter used to drop every one.
+    if (o.unit && !o.states) {
       const mine = new Set([...(o.unit.states ?? []), ...(o.unit.capabilities ?? [])]);
       rows = rows.filter((r) => mine.has(r.id));
     }
