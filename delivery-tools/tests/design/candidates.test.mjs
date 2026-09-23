@@ -4,7 +4,7 @@ import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tokenize } from '../../lib/design/js-tokens.mjs';
 import { splitDcHtml, propValues, literalResults, stateWrites, textTernaries, templateLists, isVisibleText, idPart, htmlUnescape } from '../../lib/design/claude-dc.mjs';
-import claudeDesign, { claudeDesignCandidates } from '../../adapters/design/claude-design.mjs';
+import claudeDesign, { claudeDesignCandidates, findDcFile } from '../../adapters/design/claude-design.mjs';
 import imageFolder from '../../adapters/design/image-folder.mjs';
 import { getDesignAdapter, ADAPTERS, designTreeSha256 } from '../../adapters/design/index.mjs';
 import { validateAgainst } from '../../lib/core/schema.mjs';
@@ -130,6 +130,13 @@ test('adapters: detect, snapshot layout, and refusing what they do not read', as
     assert.match((await claudeDesign.detect(empty)).reason, /no support\.js/);
     writeFileSync(join(empty, 'b.dc.html'), '<x-dc></x-dc>');
     assert.match((await claudeDesign.detect(empty)).reason, /more than one/);
+    // Components the page imports with <dc-import> do not count as a second page.
+    writeFileSync(join(empty, 'support.js'), '');
+    writeFileSync(join(empty, 'a.dc.html'), '<x-dc><dc-import name="b" open="{{ x }}"></dc-import></x-dc>');
+    assert.deepEqual(await claudeDesign.detect(empty), { ok: true, project: 'a', exportedAt: null });
+    assert.deepEqual(await findDcFile(empty), { file: 'a.dc.html', components: ['b.dc.html'] });
+    writeFileSync(join(empty, 'c.dc.html'), '<x-dc></x-dc>');
+    assert.match((await claudeDesign.detect(empty)).reason, /2 of them imported by no other/);
     assert.deepEqual(ADAPTERS, ['claude-design', 'image-folder']);
   } finally { d.cleanup(); }
 });

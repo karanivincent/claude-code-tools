@@ -1,5 +1,5 @@
-// The Claude Design adapter (spec 4.0 step 1, 4.2 step 1): an export (or its snapshot) with one
-// *.dc.html, its runtime (support.js, zipped into runtime.zip in a snapshot), usually shots/,
+// The Claude Design adapter (spec 4.0 step 1, 4.2 step 1): an export (or its snapshot) with one page
+// *.dc.html (plus any components it dc-imports), its runtime (support.js, zipped into runtime.zip in a snapshot), usually shots/,
 // uploads/ and _ds/. Candidates come from reading the file, never from running it.
 
 import { readdir, readFile, stat } from 'node:fs/promises';
@@ -20,14 +20,27 @@ const DIALOG_KEY = /^(dlg|dialog|modal|sheet|drawer|popover|popup|overlay|confir
 async function isDir(p) { try { return (await stat(p)).isDirectory(); } catch { return false; } }
 async function isFile(p) { try { return (await stat(p)).isFile(); } catch { return false; } }
 
-/** The one *.dc.html at the top of dir, or an error message. */
+const DC_IMPORT = /<dc-import\b[^>]*\bname\s*=\s*["']([^"']+)["']/g;
+
+/**
+ * The page *.dc.html at the top of dir, or an error message. An export can also carry components
+ * (DatePicker.dc.html beside Dashboard.dc.html) that the page pulls in with
+ * <dc-import name="DatePicker">; the page is the one file no other file imports.
+ */
 export async function findDcFile(dir) {
   let names;
   try { names = await readdir(dir); } catch { return { error: `${dir} is not a readable directory` }; }
   const dc = names.filter((n) => n.endsWith('.dc.html') && !n.startsWith('__delivery__'));
   if (dc.length === 0) return { error: 'no *.dc.html at the top of the export' };
-  if (dc.length > 1) return { error: `more than one *.dc.html (${dc.join(', ')})` };
-  return { file: dc[0] };
+  if (dc.length === 1) return { file: dc[0] };
+  const imported = new Set();
+  for (const n of dc) {
+    const text = await readFile(join(dir, n), 'utf8');
+    for (const m of text.matchAll(DC_IMPORT)) if (`${m[1]}.dc.html` !== n) imported.add(`${m[1]}.dc.html`);
+  }
+  const pages = dc.filter((n) => !imported.has(n));
+  if (pages.length !== 1) return { error: `more than one *.dc.html (${dc.join(', ')}), and ${pages.length} of them imported by no other` };
+  return { file: pages[0], components: dc.filter((n) => n !== pages[0]) };
 }
 
 /** Whether dir carries the runtime: support.js loose, or inside runtime.zip. */
