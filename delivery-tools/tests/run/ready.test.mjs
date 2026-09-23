@@ -67,7 +67,7 @@ test('ready writes ready.json for the head SHA, records its hash, and --check th
     assert.equal(ready.ok, true);
     assert.equal(ready.headSha, f.head);
     assert.deepEqual(validateAgainst('ready', JSON.parse(readFileSync(f.paths.ready, 'utf8'))).errors, []);
-    assert.deepEqual(ready.checks.map((c) => c.id), ['baseline-refresh', 'head', 'ci', 'preview', 'served-sha', 'dupes', 'loop-test', 'capture', 'checks', 'spot', 'severity']);
+    assert.deepEqual(ready.checks.map((c) => c.id), ['baseline-refresh', 'head', 'ci', 'preview', 'served-sha', 'dupes', 'scope', 'loop-test', 'capture', 'checks', 'spot', 'severity']);
     assert.equal(captureRunIdOf(ready), 'c-full-1');
     assert.equal(digest, await sha256File(f.paths.ready));
     const state = await loadState(f.paths.state);
@@ -267,6 +267,35 @@ test('the loop test runs once per head when a changed path matches loopTest.when
     g.runner.rules.unshift({ match: /^node scripts\/loop-test\.mjs/, result: { code: 4 } });
     g.gh.setHead(g.pr, 'b'.repeat(40));
     assert.equal((await computeReady(g.ctx, { pr: g.pr })).ready.checks.find((c) => c.id === 'loop-test').ok, false);
+  } finally { g.repo.cleanup(); }
+});
+
+test('a changed file in an out-of-scope page is red; an in-scope page and a shared component are not', async () => {
+  const intent = {
+    ...validExample('intent'),
+    inScope: [{ screen: 'Calls', routes: ['/dashboard/calls'], designScreens: ['calls'] }],
+    outOfScope: [{ screen: 'Scripts', why: 'in the export for context only', designScreens: ['scripts'], routes: ['/dashboard/scripts', '/dashboard/scripts/[id]'] }],
+  };
+  const f = await fixture({ changed: {
+    'docs/delivery/widgets/intent.json': JSON.stringify(intent),
+    'apps/web/src/app/[locale]/dashboard/calls/page.tsx': 'export default function P() { return null; }\n',
+    'apps/web/src/components/shared/sidebar.tsx': 'export const s = 1;\n',
+    'apps/web/src/app/[locale]/dashboard/scripts/[id]/_parts/tabs.tsx': 'export const t = 1;\n',
+  } });
+  try {
+    const { ready } = await computeReady(f.ctx, { pr: f.pr });
+    const scope = ready.checks.find((c) => c.id === 'scope');
+    assert.equal(scope.ok, false);
+    assert.match(scope.detail, /^1 changed file\(s\) belong to out-of-scope pages; revert them, or put the screen in scope and plan it: apps\/web\/src\/app\/\[locale\]\/dashboard\/scripts\/\[id\]\/_parts\/tabs\.tsx \(Scripts\)$/);
+  } finally { f.repo.cleanup(); }
+  const g = await fixture({ changed: {
+    'docs/delivery/widgets/intent.json': JSON.stringify(intent),
+    'apps/web/src/app/[locale]/dashboard/calls/page.tsx': 'export default function P() { return null; }\n',
+  } });
+  try {
+    const scope = (await computeReady(g.ctx, { pr: g.pr })).ready.checks.find((c) => c.id === 'scope');
+    assert.equal(scope.ok, true, scope.detail);
+    assert.match(scope.detail, /no changed file belongs to an out-of-scope page \(Scripts\)/);
   } finally { g.repo.cleanup(); }
 });
 

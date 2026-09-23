@@ -217,7 +217,7 @@ export function objectEntries(toks) {
  * Every this.set({...}) and this.setState({...}) call, and the component's initial `state = {...}`.
  * @param {Token[]} toks
  * @param {string} src the script text the tokens index into
- * @returns {{ line: number, text: string, initial: boolean, entries: { key: string, literals: unknown[], computed: boolean }[] }[]}
+ * @returns {{ line: number, at: number, text: string, initial: boolean, entries: { key: string, literals: unknown[], computed: boolean }[] }[]} at: the call's offset in src
  */
 export function stateWrites(toks, src) {
   const out = [];
@@ -247,7 +247,7 @@ function write(toks, src, at, open, close, initial) {
     const r = literalResults(e.value);
     entries.push({ key: e.key, literals: r.literals, computed: r.computed });
   }
-  return { line: toks[at].line, text: sliceText(src, toks, at, Math.min(close + 1, toks.length - 1)), initial, entries };
+  return { line: toks[at].line, at: toks[at].start, text: sliceText(src, toks, at, Math.min(close + 1, toks.length - 1)), initial, entries };
 }
 
 const TYPOGRAPHIC = /^[\s—–…·•]+$/;
@@ -282,7 +282,7 @@ export function isVisibleText(s) {
  * Every ternary whose branches produce different visible text.
  * @param {Token[]} toks
  * @param {string} src
- * @returns {{ line: number, text: string, whenTrue: string[], whenFalse: string[] }[]}
+ * @returns {{ line: number, at: number, text: string, whenTrue: string[], whenFalse: string[] }[]} at: the `?`'s offset in src
  */
 export function textTernaries(toks, src) {
   const found = [];
@@ -325,7 +325,7 @@ function scanTernaries(toks, src, found) {
     if (!whenTrue.length && !whenFalse.length) continue;
     if (JSON.stringify([...whenTrue].sort()) === JSON.stringify([...whenFalse].sort())) continue;
     const from = conditionStart(toks, sp.q);
-    found.push({ line: toks[sp.q].line, text: sliceText(src, toks, from, sp.end), whenTrue, whenFalse });
+    found.push({ line: toks[sp.q].line, at: toks[sp.q].start, text: sliceText(src, toks, from, sp.end), whenTrue, whenFalse });
   }
 }
 
@@ -390,18 +390,20 @@ function conditionStart(toks, q) {
  * Every <sc-for list="{{ expr }}"> in the template, and every static <table>, <ul> or <ol>.
  * @param {string} template
  * @param {number} firstLine line number of the template's first character
- * @returns {{ expr: string, line: number }[]}
+ * @param {{ uses?: Map<string, number[]> }} [opts] uses: filled with every line each list expression is used on
+ * @returns {{ expr: string, line: number }[]} line: the first use
  */
-export function templateLists(template, firstLine = 1) {
+export function templateLists(template, firstLine = 1, opts = {}) {
   const lineOf = lineIndex(template);
   const out = [];
-  const seen = new Set();
+  const seen = opts.uses ?? new Map();
   const loop = /<sc-for\b[^>]*?\blist\s*=\s*"\{\{\s*([^"]*?)\s*\}\}"/g;
   for (const m of template.matchAll(loop)) {
     const expr = m[1].trim();
-    if (seen.has(expr)) continue;
-    seen.add(expr);
-    out.push({ expr, line: firstLine + lineOf(m.index) - 1 });
+    const line = firstLine + lineOf(m.index) - 1;
+    if (seen.has(expr)) { seen.get(expr).push(line); continue; }
+    seen.set(expr, [line]);
+    out.push({ expr, line });
   }
   const statics = /<(table|ul|ol)\b/gi;
   for (const m of template.matchAll(statics)) {

@@ -45,7 +45,8 @@
         "required": ["screen", "routes"],
         "properties": {
           "screen": { "$ref": "common.schema.json#/$defs/Text" },
-          "routes": { "$ref": "common.schema.json#/$defs/Strings" }
+          "routes": { "$ref": "common.schema.json#/$defs/Strings" },
+          "designScreens": { "description": "The prototype's values of its screen key (candidates.json screens.key) that this screen covers.", "$ref": "common.schema.json#/$defs/Strings" }
         }
       }
     },
@@ -57,7 +58,9 @@
         "required": ["screen", "why"],
         "properties": {
           "screen": { "$ref": "common.schema.json#/$defs/Text" },
-          "why": { "$ref": "common.schema.json#/$defs/Text" }
+          "why": { "$ref": "common.schema.json#/$defs/Text" },
+          "designScreens": { "description": "The prototype's values of its screen key that this screen covers. Candidates shown only on these are excluded without an extractor reading them.", "$ref": "common.schema.json#/$defs/Strings" },
+          "routes": { "description": "The app routes this screen already has. delivery ready goes red when the branch changes a file under one of them.", "$ref": "common.schema.json#/$defs/Strings" }
         }
       }
     },

@@ -35,8 +35,8 @@ Write `docs/delivery/<f>/intent.json` in this shape (every field required):
 | `design` | `adapter` (`claude-design` or `image-folder`), `archiveSha256` and `treeSha256` from the snapshot's README, `project`, `exportedAt`, `snapshotDir` (`docs/design/<f>`) |
 | `job` | one sentence: who uses these screens to get what done |
 | `users` | each role the design shows, with what it can do; `admin` and `member` when the design draws no difference |
-| `inScope` | the screens the sentence and the design's main flow cover, each with the app routes it maps to (an existing route, or the route it will need) |
-| `outOfScope` | every other screen in the export, each with why (for example "in the export for context only") |
+| `inScope` | the screens the sentence names, each with the app routes it maps to (an existing route, or the route it will need) and `designScreens` (below) |
+| `outOfScope` | every other screen in the export, each with why (for example "in the export for context only"), `designScreens`, and `routes`: the app routes it already has (empty when it has none) |
 | `requested` | every item the founder asked for in a round brief under `intent/`: `id` (round and item, as the brief numbers it), `text`, `source` (the brief's file name), `passWhen` (its pass line) |
 | `widths` | per in-scope screen: `no-break` by default, `phone-required` when the sentence or a brief says it must work on a phone, `desktop-only` when a brief says so |
 | `themes`, `locales` | every theme and locale the product ships |
@@ -46,6 +46,15 @@ Write `docs/delivery/<f>/intent.json` in this shape (every field required):
 
 Every default you choose is a proposal the founder may correct, so choose the plain reading and
 say nothing more about it.
+
+**Scope is the sentence's, and the export is the whole project.** An export holds every screen
+ever designed in that project, most of them built already or meant for later runs. A screen is in
+scope only when the sentence names it or it is part of the flow the sentence names (a list and
+the detail page it opens). Every other screen is out of scope, however new it looks.
+`designScreens` are the values the prototype's screen key takes for that screen (usually
+`this.set({ screen: '...' })`: `calls` and `call` for a Calls list and its detail). Every value of
+the key belongs to exactly one entry, in scope or out of it. Shared parts (the header, the sidebar,
+dialogs several screens open) are no screen of their own: leave them out of both lists.
 
 ## Part `states`
 
@@ -60,6 +69,15 @@ snapshot.
 **Every candidate you are given ends mapped to a state or excluded with its own reason.** When the
 prompt says `those of these screens`, claim exactly the candidates that belong to your screens and
 leave the rest for other groups.
+
+A candidate with `screens` shows only on those screens of the prototype. One whose screens are all
+out of scope (`intent.json`) is excluded for you: leave it alone. A candidate with no `screens`
+could show anywhere, so read it. When it belongs only to an out-of-scope screen, exclude it with
+exactly `out of scope: <that screen's name in outOfScope>` and nothing more. That reason is for
+out-of-scope screens only: using it on a candidate an in-scope screen shows fails the assembly.
+
+A state of a shared part (a header, a sidebar, a dialog several screens open) takes `screen:
+"Shared"`, so the report can list every shared part the run changes.
 
 | Kind | Maps to |
 |---|---|

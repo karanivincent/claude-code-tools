@@ -9,6 +9,7 @@ import { readArtefact } from '../core/artefacts.mjs';
 import { exists } from '../core/fs.mjs';
 import { gateResult } from '../core/gate.mjs';
 import { designTreeSha256 } from '../../adapters/design/index.mjs';
+import { scopeScreens, checkOutOfScopeClaim } from '../design/scope.mjs';
 
 const RENDER_EXTS = Object.freeze(['txt', 'dom.json', 'png']);
 
@@ -44,6 +45,8 @@ export function checkInventory({ inventory, candidates = null, intent = null, ba
   }
 
   const inv = new Map();
+  const scope = scopeScreens(intent);
+  const tied = new Map((candidates?.candidates ?? []).map((c) => [c.id, c]));
   for (const c of inventory.candidates ?? []) {
     if (inv.has(c.id)) fail('candidate-duplicate', `candidate ${c.id} is listed twice in the inventory`);
     inv.set(c.id, c);
@@ -51,6 +54,10 @@ export function checkInventory({ inventory, candidates = null, intent = null, ba
       if (!states.has(c.mappedTo)) fail('candidate-mapped-unknown', `candidate ${c.id} (${c.source}) is mapped to ${c.mappedTo}, which is not a state`);
     } else if (!c.excluded?.reason?.trim()) {
       fail('candidate-unmapped', `candidate ${c.id} (${c.kind}, ${c.source}) is neither mapped to a state nor excluded with a reason`);
+    } else {
+      // Leaving a screen out is intent.json's decision, never an exclusion's.
+      const wrong = checkOutOfScopeClaim(c.excluded.reason.trim(), tied.get(c.id) ?? c, scope);
+      if (wrong) fail('candidate-scope', `candidate ${c.id} (${c.kind}, ${c.source}) is excluded as "${c.excluded.reason.trim()}", but ${wrong}`);
     }
   }
   for (const c of candidates?.candidates ?? []) {

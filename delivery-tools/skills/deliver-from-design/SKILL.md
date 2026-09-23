@@ -53,6 +53,16 @@ phase you believe you finished can go red again, and that is the check working.
    shipped, and an `adapt` that changes behaviour a customer sees (wording does not count).
    Everything else is a decision file. `delivery scope post` writes the issue; five lines is the
    ceiling, and needing a sixth means the plan is wrong.
+
+   **Which screens a run builds is decided by the sentence, never by asking.** A design export is
+   the whole project: a Calls run's export also holds Scripts, Home and whatever else was ever
+   designed. `intent.json` lists the screens the sentence covers under `inScope` and every other
+   screen under `outOfScope`, each with the prototype's `designScreens`. The inventory then skips
+   the out-of-scope screens whole, and `delivery ready` goes red on a change to their route files.
+   A sentence that fits two readings gets the likelier one and a decision file. The shared parts of
+   the design (header, sidebar, shared dialogs) follow the design wherever an in-scope screen shows
+   them, and the report lists each one that changed. Bringing a page already built up to a newer
+   design is its own run, with a sentence naming that page.
 4. **Report only through `delivery report`, verbatim, plus the punch-list link.** Not a summary of
    it, not a message you compose from it, not a table you assemble yourself.
 5. **No design, no run.** If there is no design export, this is not a delivery run. Name `/ship`
@@ -94,6 +104,8 @@ Each row is something a previous run actually told itself.
 | "CI never ran, Actions must be down" | `delivery ci` checks `mergeable` first. Last time this cost 40 minutes. |
 | "It's a pre-existing failure" | No waiver exists. The repo requires every check green, pre-existing or not: fix it. Last time a "pre-existing" failure turned out to be caused by the branch. |
 | "He's asleep; I'll ask in the morning" | Decide, log it, move on. A question after preflight is a bug in the profile. |
+| "The export has the Scripts page too, and it looks newer; I'll update it while I'm here" | It is out of scope unless the sentence names it. Its update is its own run, and `ready` goes red on its route files. |
+| "Which screens does he mean? I'll ask" | The sentence decides. Take the likelier reading, write a decision file, and name it in the report. |
 | "The hook is blocking a legitimate ready" | The hook is right until `delivery ready` is green. Fix the red line. |
 
 ## Red flags

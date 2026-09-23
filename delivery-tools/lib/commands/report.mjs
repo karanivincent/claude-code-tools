@@ -52,6 +52,8 @@ common options:
       state = await readJson(paths.state, { optional: true, exit: EXIT.INCONSISTENT }).catch(() => null);
     }
     const plan = await readArtefact(paths, 'plan', { optional: true }).catch(() => null);
+    const intent = await readArtefact(paths, 'intent', { optional: true }).catch(() => null);
+    const inventory = await readArtefact(paths, 'inventory', { optional: true }).catch(() => null);
     const findings = await readFindings(paths, state?.runId ?? 'report').catch(() => null);
     let profile = null;
     try { profile = await ctx.profile(); } catch { profile = null; }
@@ -73,7 +75,7 @@ common options:
     const pr = state?.pr ?? null;
     const repo = profile?.issues?.repo ?? profile?.repo?.slug ?? null;
     const r = buildReport({
-      ready, readyProblem, stale, findings, plan, state, journalBroken, head,
+      ready, readyProblem, stale, findings, plan, state, journalBroken, head, intent, inventory,
       punchList: (await exists(paths.punchList)) ? relative(ctx.cwd, paths.punchList) || paths.punchList : null,
       prUrl: pr && repo ? `https://github.com/${repo}/pull/${pr}` : null,
       cli: ctx.cli,

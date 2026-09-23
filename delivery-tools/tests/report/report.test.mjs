@@ -46,6 +46,19 @@ test('ready and current: the verdict first, accepted differences before the merg
   assert.ok(r.text.split('\n').length <= 30);
 });
 
+test('the done line says which screens were built, which were left as they are, and which shared states changed', () => {
+  const intent = {
+    inScope: [{ screen: 'Calls', routes: ['/dashboard/calls'] }],
+    outOfScope: [{ screen: 'Scripts', why: 'in the export for context only' }, { screen: 'Home', why: 'in the export for context only' }],
+  };
+  const inventory = { states: [{ id: 'SH-01', screen: 'Shared' }, { id: 'SH-02', screen: 'Shared' }, { id: 'CL-01', screen: 'Calls' }] };
+  const plan = { rows: [{ id: 'SH-01', class: 'change' }, { id: 'SH-02', class: 'keep' }, { id: 'CL-01', class: 'new' }], units: [] };
+  const r = buildReport({ ready: greenReady(), findings: { findings: [] }, plan, state: state(), cli, intent, inventory });
+  assert.match(r.done, / · built for Calls; left as they are: Scripts, Home · 1 shared state changed on every page: SH-01 · /);
+  const bare = buildReport({ ready: greenReady(), findings: { findings: [] }, plan, state: state(), cli });
+  assert.ok(!/built for|shared state/.test(bare.done), 'no intent, no inventory: nothing said about scope');
+});
+
 test('not ready: which checks are red, and never the word done or ready for it', () => {
   const ready = validExample('ready');
   const open = makeFinding({ source: 'check:M7', severity: 'P1', state: 'WL-02', where: 'WL-02.design.admin.1440.en.light.txt:3', live: 'No widgets on .', group: 'list' });

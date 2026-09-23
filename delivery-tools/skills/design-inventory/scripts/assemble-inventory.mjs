@@ -12,6 +12,7 @@ import { pathToFileURL } from 'node:url';
 import { validateAgainst } from '../../../lib/core/schema.mjs';
 import { canonicalJson } from '../../../lib/core/hash.mjs';
 import { writeJsonAtomic } from '../../../lib/core/fs.mjs';
+import { OUT_OF_SCOPE, scopeScreens, outOfScopeReason, checkOutOfScopeClaim } from '../../../lib/design/scope.mjs';
 
 const USAGE = `usage: node <plugin>/skills/design-inventory/scripts/assemble-inventory.mjs --feature <slug> [--check] [--json]
 
@@ -32,15 +33,22 @@ const SHARED_REASON_NOTE_AT = 5;
 
 /**
  * Pure assembly: no I/O.
- * @param {{ feature: string, candidates: object, parts: { file: string, doc: object }[], previous?: object|null }} input
+ *
+ * A candidate that shows only on screens intent.json lists as out of scope (candidates.json ties
+ * it to them) is excluded here, with the reason `out of scope: <screen>`, unless a group claims it.
+ * A group may exclude an untied candidate with the same reason; that reason is checked against
+ * intent.json and is exempt from the note about one reason covering many candidates, since one
+ * whole screen left out is exactly one reason.
+ * @param {{ feature: string, candidates: object, parts: { file: string, doc: object }[], previous?: object|null, intent?: object|null }} input
  * @returns {{ inventory: object|null, failures: { code: string, message: string }[], notes: string[],
- *   counts: { candidates: number, mapped: number, excluded: number, states: number },
+ *   counts: { candidates: number, mapped: number, excluded: number, outOfScope: number, states: number },
  *   diff: { added: string[], removed: string[], changed: string[] } | null }}
  */
-export function assembleInventory({ feature, candidates, parts, previous = null }) {
+export function assembleInventory({ feature, candidates, parts, previous = null, intent = null }) {
   const failures = [];
   const fail = (code, message) => failures.push({ code, message });
   const notes = [];
+  const scope = scopeScreens(intent);
 
   const states = [];
   const stateFile = new Map();
@@ -66,6 +74,10 @@ export function assembleInventory({ feature, candidates, parts, previous = null 
       if (c.mappedTo != null && excluded) { fail('bad-claim', `${file}: ${c.id} is both mapped (${c.mappedTo}) and excluded`); continue; }
       if (c.mappedTo == null && !excluded) { fail('bad-claim', `${file}: ${c.id} is neither mapped nor excluded with a reason`); continue; }
       if (c.mappedTo != null && !stateIds.has(c.mappedTo)) { fail('unknown-state', `${file}: ${c.id} maps to ${c.mappedTo}, which no group defines`); continue; }
+      if (excluded) {
+        const wrong = checkOutOfScopeClaim(excluded, known.get(c.id), scope);
+        if (wrong) { fail('bad-scope', `${file}: ${c.id} is excluded as "${excluded}", but ${wrong}`); continue; }
+      }
       const claim = c.mappedTo != null ? { mappedTo: c.mappedTo } : { mappedTo: null, excluded: { reason: excluded } };
       const list = claims.get(c.id) ?? [];
       list.push({ file, claim });
@@ -74,12 +86,22 @@ export function assembleInventory({ feature, candidates, parts, previous = null 
   }
 
   const outCandidates = [];
-  let mapped = 0, excludedCount = 0;
+  let mapped = 0, excludedCount = 0, outOfScope = 0;
   const reasonUse = new Map();
   for (const c of candidates.candidates ?? []) {
     const list = claims.get(c.id) ?? [];
     const distinct = [...new Set(list.map((l) => canonicalJson(l.claim)))];
-    if (list.length === 0) { fail('unclaimed', `${c.id} (${c.kind}, ${c.source}) is neither mapped nor excluded by any group`); continue; }
+    if (list.length === 0) {
+      const reason = outOfScopeReason(c, scope);
+      if (reason) {
+        outCandidates.push({ id: c.id, kind: c.kind, source: c.source, mappedTo: null, excluded: { reason } });
+        excludedCount++;
+        outOfScope++;
+        continue;
+      }
+      fail('unclaimed', `${c.id} (${c.kind}, ${c.source}) is neither mapped nor excluded by any group`);
+      continue;
+    }
     if (distinct.length > 1) {
       fail('claimed-twice', `${c.id} is claimed differently by ${list.map((l) => `${l.file} (${l.claim.mappedTo ?? 'excluded'})`).join(' and ')}`);
       continue;
@@ -87,10 +109,14 @@ export function assembleInventory({ feature, candidates, parts, previous = null 
     const { claim } = list[0];
     outCandidates.push({ id: c.id, kind: c.kind, source: c.source, ...claim });
     if (claim.mappedTo) mapped++;
+    else if (claim.excluded.reason.startsWith(OUT_OF_SCOPE)) { excludedCount++; outOfScope++; }
     else { excludedCount++; reasonUse.set(claim.excluded.reason, (reasonUse.get(claim.excluded.reason) ?? 0) + 1); }
   }
   for (const [reason, n] of reasonUse) {
     if (n >= SHARED_REASON_NOTE_AT) notes.push(`one exclusion reason covers ${n} candidates: "${reason}"`);
+  }
+  if (scope.unnamed.length && candidates.screens) {
+    notes.push(`intent.json names no design screen for ${scope.unnamed.join(', ')}; add designScreens (values of "${candidates.screens.key}") so their candidates are sorted by scope`);
   }
 
   for (const s of states) {
@@ -129,7 +155,7 @@ export function assembleInventory({ feature, candidates, parts, previous = null 
     inventory: failures.length === 0 ? inventory : null,
     failures,
     notes,
-    counts: { candidates: (candidates.candidates ?? []).length, mapped, excluded: excludedCount, states: states.length },
+    counts: { candidates: (candidates.candidates ?? []).length, mapped, excluded: excludedCount, outOfScope, states: states.length },
     diff,
   };
 }
@@ -205,14 +231,20 @@ export async function main(argv, io = {}) {
   if (existsSync(inventoryPath)) {
     try { previous = await readJsonFile(inventoryPath); } catch { previous = null; }
   }
+  const intentPath = resolve(cwd, roots.deliveryRoot, opts.feature, 'intent.json');
+  let intent = null;
+  if (existsSync(intentPath)) {
+    try { intent = await readJsonFile(intentPath); } catch (err) { return usage(`${intentPath}: ${err.message}`); }
+  }
 
-  const res = assembleInventory({ feature: opts.feature, candidates, parts, previous });
+  const res = assembleInventory({ feature: opts.feature, candidates, parts, previous, intent });
   const all = [...failures, ...res.failures];
   const ok = all.length === 0;
   if (ok && !opts.check) await writeJsonAtomic(inventoryPath, res.inventory);
 
   const summary = `${ok ? (opts.check ? 'would write' : 'wrote') : 'not written'} ${inventoryPath}: ` +
-    `${res.counts.candidates} candidates (${res.counts.mapped} mapped, ${res.counts.excluded} excluded), ${res.counts.states} states`;
+    `${res.counts.candidates} candidates (${res.counts.mapped} mapped, ${res.counts.excluded} excluded` +
+    `${res.counts.outOfScope ? `, ${res.counts.outOfScope} of them on out-of-scope screens` : ''}), ${res.counts.states} states`;
   if (opts.json) {
     print(JSON.stringify({ ok, exit: ok ? 0 : 1, failures: all, lines: [summary, ...res.notes], data: { counts: res.counts, diff: res.diff, path: inventoryPath } }));
   } else {

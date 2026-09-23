@@ -15,9 +15,22 @@ const MAX_ITEMS = 5;
  *   findings: { findings: object[] }|null, plan: object|null,
  *   state: { pr: number|null, epic: number|null, journal: { event: string }[] }|null, journalBroken?: string|null,
  *   head?: string|null, punchList?: string|null, cli: { version: string, manifestSha256: string|null },
- *   prUrl?: string|null,
+ *   prUrl?: string|null, intent?: object|null, inventory?: object|null,
  * }} ReportInput
  */
+
+/** The screen name the extractors give a state shown on several screens (header, sidebar, shared dialogs). */
+export const SHARED_SCREEN = 'Shared';
+const CHANGING = new Set(['new', 'change', 'adapt', 'migrate', 'remove']);
+
+/**
+ * Plan rows that change a shared state: a design export's shared parts follow the design, so a
+ * change there shows on every page, including pages the run was not asked to build.
+ */
+export function sharedChanges(plan, inventory) {
+  const shared = new Set((inventory?.states ?? []).filter((s) => s.screen === SHARED_SCREEN).map((s) => s.id));
+  return (plan?.rows ?? []).filter((r) => shared.has(r.id) && CHANGING.has(r.class)).map((r) => r.id);
+}
 
 const short = (sha) => (sha ? `\`${String(sha).slice(0, 12)}\`` : '`unknown`');
 const oneLine = (s, n = 110) => {
@@ -112,6 +125,11 @@ export function buildReport(input) {
     const built = plan.rows.filter((r) => ['new', 'change', 'keep', 'migrate', 'adapt'].includes(r.class)).length;
     parts.push(`${built} rows planned`, `${plan.units.length} units`);
   }
+  const inScope = (input.intent?.inScope ?? []).map((s) => s.screen);
+  const outOfScope = (input.intent?.outOfScope ?? []).map((s) => s.screen);
+  if (inScope.length) parts.push(`built for ${inScope.join(', ')}${outOfScope.length ? `; left as they are: ${outOfScope.join(', ')}` : ''}`);
+  const shared = sharedChanges(plan, input.inventory);
+  if (shared.length) parts.push(`${plural(shared.length, 'shared state')} changed on every page: ${shared.slice(0, 4).join(', ')}${shared.length > 4 ? ', …' : ''}`);
   if (facts.spot) parts.push(`auditor spot check ${facts.spot.disagreed}/${facts.spot.judged} disagreed`);
   for (const o of ready?.owedAfterMerge ?? []) parts.push(`owed after merge: ${oneLine(o, 60)}`);
   parts.push(`delivery ${input.cli.version}${input.cli.manifestSha256 ? ` \`${input.cli.manifestSha256.slice(0, 12)}\`` : ' (no manifest)'}`);

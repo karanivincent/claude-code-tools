@@ -73,6 +73,50 @@ export function inScopePages(allFiles, profile, intent) {
   return out.sort((x, y) => (x.file < y.file ? -1 : 1));
 }
 
+/**
+ * The URL route of the directory a file sits in, when it sits under an app route glob's literal
+ * prefix. A private folder (`_components`) belongs to the route that holds it.
+ * @param {string} file
+ * @param {string[]} globs appRouteGlobs
+ * @returns {string | null}
+ */
+export function dirRoute(file, globs) {
+  for (const g of globs) {
+    const prefix = globLiteralPrefix(g);
+    if (!prefix || !file.startsWith(prefix)) continue;
+    const segs = file.slice(prefix.length).split('/').slice(0, -1);
+    const cut = segs.findIndex((s) => s.startsWith('_'));
+    const kept = cut >= 0 ? segs.slice(0, cut) : segs;
+    return `/${urlSegments(kept.join('/')).join('/')}`.replace(/\/+$/, '') || '/';
+  }
+  return null;
+}
+
+/**
+ * Changed files that belong to a page the run was not asked to change: files in the route
+ * directory of a screen intent.json lists as out of scope (by its `routes`), unless an in-scope
+ * screen claims the same route. Shared components live outside route directories and are never
+ * listed: the design's shared parts follow the design wherever they appear.
+ * @param {string[]} changed
+ * @param {object} profile
+ * @param {object | null} intent
+ * @returns {{ file: string, route: string, screen: string }[]}
+ */
+export function outOfScopeFiles(changed, profile, intent) {
+  const outs = (intent?.outOfScope ?? []).filter((s) => s.routes?.length);
+  if (!outs.length) return [];
+  const globs = profile.paths.appRouteGlobs ?? [];
+  const out = [];
+  for (const file of changed) {
+    const route = dirRoute(file, globs);
+    if (route === null) continue;
+    if ((intent.inScope ?? []).some((s) => (s.routes ?? []).some((r) => routeMatches(route, r)))) continue;
+    const hit = outs.find((s) => s.routes.some((r) => routeMatches(route, r)));
+    if (hit) out.push({ file, route, screen: hit.screen });
+  }
+  return out;
+}
+
 /** Present a page route the way the intent writes it (drop a leading dynamic segment it lacks). */
 function normaliseRoute(route, patterns) {
   const segs = route.split('/').filter(Boolean);
