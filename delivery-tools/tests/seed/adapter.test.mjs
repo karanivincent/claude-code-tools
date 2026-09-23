@@ -109,6 +109,32 @@ test('http: reads go to the Management API with read_only; writes go to REST on 
   } finally { cleanup(); }
 });
 
+test('http: a read survives a dropped connection; a write is never sent twice', async () => {
+  // On a flaky line one dropped request among the never-dial queries refused a whole capture, twice
+  // in a row. A read is safe to repeat; an upsert whose response was lost may already have landed.
+  const { ctx, cleanup } = await ctxWith();
+  try {
+    const slept = [];
+    const sleep = async (ms) => { slept.push(ms); };
+    let drops = 2;
+    const flaky = fetchStub((req) => {
+      if (req.url.includes('/database/query') && drops-- > 0) throw new TypeError('fetch failed');
+      return { status: 200, body: [{ ok: 1 }] };
+    });
+    const db = await createDataAdapter(ctx, { fetch: flaky, sleep, write: 'seed-apply' });
+    assert.deepEqual(await db.query('select 1 as ok'), [{ ok: 1 }]);
+    assert.equal(flaky.requests.length, 3);
+    assert.equal(slept.length, 2);
+
+    const dead = fetchStub(() => { throw new TypeError('fetch failed'); });
+    const db2 = await createDataAdapter(ctx, { fetch: dead, sleep, write: 'seed-apply' });
+    await assert.rejects(db2.query('select 1'), (e) => e.code === 'db-network' && /3 attempts/.test(e.message));
+    assert.equal(dead.requests.length, 3);
+    await assert.rejects(db2.upsert('widgets', [{ id: 'a' }]), (e) => e.code === 'db-network');
+    assert.equal(dead.requests.length, 4, 'the write went once');
+  } finally { cleanup(); }
+});
+
 test('http: a REST host of another project, or missing credentials, refuses', async () => {
   const other = await ctxWith({ ...ENV, SUPABASE_URL: 'https://someoneelse.supabase.co' });
   try {

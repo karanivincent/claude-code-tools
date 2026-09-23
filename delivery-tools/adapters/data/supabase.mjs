@@ -64,7 +64,7 @@ export async function createDataAdapter(ctx, opts = {}) {
   const stub = await testBackend(ctx);
   const backend = stub
     ? await stub(ctx, { projectRef, write })
-    : httpBackend(ctx.env ?? {}, projectRef, opts.fetch ?? globalThis.fetch);
+    : httpBackend(ctx.env ?? {}, projectRef, opts.fetch ?? globalThis.fetch, opts.sleep);
   return guard(backend, { projectRef, write });
 }
 
@@ -134,7 +134,12 @@ export function assertReadOnlySql(sql) {
 
 // ---------------------------------------------------------------------------------------------
 
-function httpBackend(env, projectRef, fetchImpl) {
+/** How many times a read is tried, and the wait before each retry. Writes are tried once. */
+const READ_ATTEMPTS = 3;
+const READ_BACKOFF_MS = [2000, 5000];
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+function httpBackend(env, projectRef, fetchImpl, sleep = wait) {
   const apiBase = String(env.SUPABASE_API_URL ?? 'https://api.supabase.com').replace(/\/+$/, '');
   const token = env.SUPABASE_ACCESS_TOKEN ?? '';
   const serviceKey = env.DELIVERY_SUPABASE_SERVICE_ROLE_KEY ?? env.SUPABASE_SERVICE_ROLE_KEY ?? '';
@@ -169,11 +174,24 @@ function httpBackend(env, projectRef, fetchImpl) {
   return {
     async query(sql) {
       needToken();
-      const res = await call(`${apiBase}/v1/projects/${projectRef}/database/query`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: sql, read_only: true }),
-      }, 'read query');
+      // A read is safe to repeat, and on a flaky line one dropped request used to refuse a whole
+      // capture (the never-dial set is a dozen reads). Writes are never retried: an upsert whose
+      // response was lost may already have landed.
+      let res;
+      for (let attempt = 1; ; attempt++) {
+        try {
+          res = await call(`${apiBase}/v1/projects/${projectRef}/database/query`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: sql, read_only: true }),
+          }, 'read query');
+          break;
+        } catch (err) {
+          if (err?.code !== 'db-network') throw err;
+          if (attempt >= READ_ATTEMPTS) throw new DeliveryError(EXIT.WAIT, `${err.message} (${READ_ATTEMPTS} attempts)`, { code: 'db-network' });
+          await sleep(READ_BACKOFF_MS[attempt - 1] ?? READ_BACKOFF_MS.at(-1));
+        }
+      }
       if (!res.ok) await failWith(res, 'read query');
       const body = await res.json();
       if (!Array.isArray(body)) throw new DeliveryError(EXIT.RED, 'read query: the Management API did not return rows', { code: 'db' });
