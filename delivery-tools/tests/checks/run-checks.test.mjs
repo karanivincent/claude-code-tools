@@ -115,6 +115,25 @@ test('M3 with the capture validator: missing and forbidden markers, identical si
   } finally { run.cleanup(); }
 });
 
+test('M3 closes a reach finding on a state the plan no longer captures, and keeps one it still does', async () => {
+  const prop = { class: 'prop', world: 'design', role: 'admin', steps: [], test: { file: 't.test.tsx', name: 'n' } };
+  const plan = planWith([row('WL-01', { markers: { text: ['Widgets'], testids: [], forbidden: [] } }), row('WL-02', { reach: prop }), row('WL-03')]);
+  const run = await makeRun({ plan, profile: profile(), captures: [{ runId: 'c-2', mode: 'branch', items: [{ state: 'WL-01', lines: ['Widgets'] }] }] });
+  try {
+    // WL-02 was seeded when this finding was recorded; it is a component-tested state now. WL-03 is
+    // still captured, just not by this run.
+    const stale = (state) => ({ id: `F-${state}`, source: 'check:M3', rule: 'not-reached', severity: 'P1', dayOne: false, state, group: 'Widgets',
+      where: `${state}.design.admin`, design: 'the state reached, with its markers', live: 'still loading after 15s', evidence: 'seen', status: 'open', reAudits: 0 });
+    await writeFindings(run.paths, { schemaVersion: 1, runId: 'c-1', findings: [stale('WL-02'), stale('WL-03')] });
+    await runChecks(run.ctx, ['M3'], { captureRunId: 'c-2' });
+    const doc = await readFindings(run.paths, 'x');
+    const by = Object.fromEntries(doc.findings.map((f) => [f.state, f]));
+    assert.equal(by['WL-02'].status, 'fixed');
+    assert.equal(by['WL-02'].fixedIn, 'c-2');
+    assert.equal(by['WL-03'].status, 'open', 'a state still captured stays open until a run that captures it');
+  } finally { run.cleanup(); }
+});
+
 test('M3 (pure): one P1 per state not reached, variants listed; coverage by mode', async () => {
   const plan = planWith([row('WL-01'), row('WL-02'), row('WL-03', { reach: { class: 'prop', world: 'design', role: 'admin', steps: [], test: { file: 't.test.tsx', name: 'n' } } })]);
   const run = await makeRun({ plan, profile: profile(), captures: [{ runId: 'c-4', mode: 'branch', items: [{ state: 'WL-01', lines: ['A'] }] }] });
