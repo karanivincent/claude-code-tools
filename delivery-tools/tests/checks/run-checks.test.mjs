@@ -159,6 +159,33 @@ test('M4: every design element in the live capture, with adapt substitutions and
   } finally { run.cleanup(); }
 });
 
+test('M4 judges the design\'s own viewer: an admin capture before a member one, and no label a member is not shown', async () => {
+  // The design draws what an admin sees. A member capture listed first used to be the one M4
+  // compared, so "New widget" (hidden from members by the plan) and "Settings for Sam" (the
+  // admin's name) read as missing on a page that was right.
+  const add = { label: 'New widget', testid: 'w-new', target: 'none', effect: 'none', permission: { member: 'hidden' } };
+  const plan = planWith([
+    row('WL-01', { permission: { member: 'enabled' }, controls: [add] }),
+    row('WL-11', { permission: { member: 'enabled' }, controls: [add], reach: { class: 'seeded', world: 'design', role: 'member', steps: [{ goto: '/widgets' }] } }),
+  ]);
+  const run = await makeRun({
+    plan, profile: profile(),
+    designs: {
+      'WL-01': { txt: 'Settings for Sam\nNew widget\n', dom: domFor(['Settings for Sam'], { extra: [{ text: 'New widget', testid: 'w-new' }] }) },
+      'WL-11': { txt: 'Widgets\nNew widget\nOnly an owner can add one.\n', dom: domFor(['Widgets', 'Only an owner can add one.'], { extra: [{ text: 'New widget', testid: 'w-new' }] }) },
+    },
+    captures: [{ runId: 'c-5m', items: [
+      { state: 'WL-01', role: 'member', lines: ['Settings for Kim'] },
+      { state: 'WL-01', role: 'admin', lines: ['Settings for Sam', 'New widget'] },
+      { state: 'WL-11', role: 'member', lines: ['Widgets'] },
+    ] }],
+  });
+  try {
+    const res = await runChecks(run.ctx, ['M4'], { captureRunId: 'c-5m' });
+    assert.deepEqual(res.findings.map((f) => `${f.state} ${f.rule} ${f.design}`), ['WL-11 missing-text Only an owner can add one.']);
+  } finally { run.cleanup(); }
+});
+
 test('M9: controls present, enabled unless enabledWhen says otherwise, and as the permission says for a member', async () => {
   const controls = [
     { label: 'New widget', testid: 'w-new', effect: 'free', target: 'WL-02' },

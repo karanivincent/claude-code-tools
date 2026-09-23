@@ -4,6 +4,7 @@
 // belong to a cut row. A missing control label or heading is P1, anything else P2.
 
 import { BUILD_CLASSES } from '../plan/check.mjs';
+import { hiddenFromMembers } from '../capture/job.mjs';
 import { parseElements, elementLocation, parityForm, containsWords, excerpt, foldTypography } from './text.mjs';
 
 /** Words that belong to cut rows: their markers, control labels and copy. */
@@ -66,10 +67,20 @@ export default {
     const notes = [];
     const cut = cutTexts(env.plan);
     const subs = adaptSubs(env.plan);
+    // A member is not shown the controls the plan hides from members, so their labels are not
+    // missing from a member capture.
+    const shut = hiddenFromMembers(env.plan);
+    const memberCut = new Set(cut);
+    for (const r of env.plan?.rows ?? []) {
+      for (const c of r.controls ?? []) if (shut.has(c.testid) && c.label?.trim()) memberCut.add(parityForm(c.label));
+    }
     const designWorlds = new Set((env.plan?.worlds ?? []).filter((w) => w.kind === 'design').map((w) => w.id));
     const checked = new Set();
     let noRender = 0;
-    for (const it of env.capture.items) {
+    // One capture per state, and the design's own viewer first: the design draws what an admin
+    // sees, so a member capture is compared only for a state no admin capture reached.
+    const items = [...env.capture.items].sort((a, b) => (a.item.role === 'member') - (b.item.role === 'member'));
+    for (const it of items) {
       const { item } = it;
       if (!designWorlds.has(item.world) || item.locale !== env.primaryLocale || item.status !== 'reached') continue;
       const row = env.rows.get(item.state);
@@ -79,7 +90,7 @@ export default {
       if (design.txt === null) { noRender++; continue; }
       const liveTxt = await it.txt();
       if (liveTxt === null) continue;
-      for (const m of missingDesignText({ designTxt: design.txt, designDom: design.dom, liveTxt, cut, subs })) {
+      for (const m of missingDesignText({ designTxt: design.txt, designDom: design.dom, liveTxt, cut: item.role === 'member' ? memberCut : cut, subs })) {
         findings.push(env.finding('M4', {
           rule: m.rule,
           state: item.state,

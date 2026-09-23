@@ -157,6 +157,11 @@ test('no variant is built that the plan itself says cannot exist', () => {
     ],
   };
   assert.deepEqual([...hiddenFromMembers(plan)], ['w-new']);
+  // A control's own rule wins over its row's, in both directions.
+  assert.deepEqual([...hiddenFromMembers({ rows: [
+    { id: 'LIST', permission: { member: 'enabled' }, controls: [{ label: 'New widget', testid: 'w-add', permission: { member: 'hidden' } }, { label: 'Settings', testid: 'w-tab' }] },
+    { id: 'SHUT', permission: { member: 'hidden' }, controls: [{ label: 'Help', testid: 'w-help', permission: { member: 'enabled' } }, { label: 'Delete', testid: 'w-del' }] },
+  ] })].sort(), ['w-add', 'w-del']);
   assert.equal(stepsNameTheirData(plan.rows[2].reach.steps), true);
   assert.equal(stepsNameTheirData(plan.rows[3].reach.steps), false);
   assert.equal(stepsNameTheirData(plan.rows[1].reach.steps), false);

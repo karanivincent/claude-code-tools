@@ -108,12 +108,13 @@ export function oneStepApart(plan, row, targetId) {
   return short.every((s, i) => JSON.stringify(s) === JSON.stringify(long[i]));
 }
 
-/** Test ids the plan says a member does not see, from every row that says so. */
+/** Test ids the plan says a member does not see: a control's own rule first, then its row's. */
 export function hiddenFromMembers(plan) {
   const out = new Set();
   for (const r of plan?.rows ?? []) {
-    if (r.permission?.member !== 'hidden') continue;
-    for (const c of r.controls ?? []) if (c.testid) out.add(c.testid);
+    for (const c of r.controls ?? []) {
+      if (c.testid && (c.permission?.member ?? r.permission?.member) === 'hidden') out.add(c.testid);
+    }
   }
   return out;
 }
