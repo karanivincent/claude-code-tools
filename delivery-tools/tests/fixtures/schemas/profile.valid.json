@@ -73,7 +73,10 @@
       "projectRef": "testprojectref",
       "appUrl": "https://test.example.invalid"
     },
-    "previews": "vercel"
+    "previews": "vercel",
+    "envFiles": [
+      ".env"
+    ]
   },
   "testData": {
     "mode": "tenant",

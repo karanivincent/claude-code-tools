@@ -106,7 +106,11 @@
             "appUrl": { "type": "string" }
           }
         },
-        "previews": { "enum": ["vercel", "none"] }
+        "previews": { "enum": ["vercel", "none"] },
+        "envFiles": {
+          "description": "Env files every command reads at startup, relative to the repository's MAIN checkout (a worktree has no untracked .env of its own). A variable already set in the shell wins; no value is ever printed.",
+          "$ref": "common.schema.json#/$defs/Strings"
+        }
       }
     },
     "testData": {

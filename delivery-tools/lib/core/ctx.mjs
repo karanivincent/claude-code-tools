@@ -15,6 +15,7 @@ import { PROFILE_PATH, loadProfile, loadSafety } from './profile.mjs';
 import { formatEvent, updateState } from './state.mjs';
 import { exists } from './fs.mjs';
 import { sha256 } from './hash.mjs';
+import { loadEnvFiles, mainCheckout } from './envfiles.mjs';
 
 export const PLUGIN_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -60,6 +61,13 @@ export async function createCtx(o) {
   }
   const raw = o.profile ?? readRawProfile(repoRoot);
   const roots = raw?.paths ?? {};
+  // The profile's env files, read from the main checkout: a worktree has no untracked .env of its
+  // own. Before anything runs, so every child process inherits them. The shell always wins.
+  const envFiles = o.profile ? [] : (raw?.environments?.envFiles ?? []);
+  if (envFiles.length) {
+    const res = await loadEnvFiles({ files: envFiles, mainRoot: await mainCheckout(o.runner, repoRoot), env });
+    for (const f of res.missing) out.warn(`env file ${f} (profile environments.envFiles) is not in the main checkout`);
+  }
   // An explicit bad --feature is a usage error now; an ambiguous default (two runs in this
   // worktree) only matters to commands that need a feature, so status and hooks still work.
   let feature = null;
