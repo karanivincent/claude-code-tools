@@ -87,6 +87,10 @@ export default {
     const verdicts = await validate(env.ctx, env.capture.runId);
     const expected = expectedRows(env, opts);
     const scope = new Set([...env.capture.items.map((i) => i.item.state), ...expected.map((r) => r.id)]);
-    return { findings: reachFindings(env, verdicts, expected), failures: [], inScope: (f) => scope.has(f.state) };
+    // A state the plan no longer captures (now prop, unseedable or cut, or gone from the plan) can
+    // never be re-captured, so its old reach finding would stay open for ever and hold every gate
+    // and merge of its owner. The row's own verification (a component test, a cut issue) owns it now.
+    const captured = new Set(capturedRows(env.plan).map((r) => r.id));
+    return { findings: reachFindings(env, verdicts, expected), failures: [], inScope: (f) => scope.has(f.state) || !captured.has(f.state) };
   },
 };
