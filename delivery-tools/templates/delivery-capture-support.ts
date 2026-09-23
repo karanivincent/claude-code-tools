@@ -454,7 +454,28 @@ async function gotoWaitingOutLimits(page: Page, path: string, meta: Meta): Promi
   }
 }
 
-async function reach(page: Page, job: CaptureJob, item: CaptureItem, meta: Meta, signInFirst: boolean): Promise<void> {
+/**
+ * How long the page the item lands on took to load, by the browser's own clock.
+ *
+ * NOT A STOPWATCH AROUND THE CAPTURE. That measured the magic-link sign-in, every click that opens
+ * a dialog, and settle's quiet windows, and reported a page that loaded in well under two seconds
+ * at nearly seven. This is the landing document's Navigation Timing instead: from `fetchStart`,
+ * which comes after every redirect (the sign-in's included), to the last response the page had
+ * made once the network went quiet, so the data a client-rendered page fetches counts and nothing
+ * the capture does afterwards does.
+ */
+async function landingLoadMs(page: Page): Promise<number> {
+  await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => undefined);
+  return page.evaluate(() => {
+    const nav = performance.getEntriesByType('navigation').at(-1) as PerformanceNavigationTiming | undefined;
+    if (!nav) return 0;
+    const ends = [nav.loadEventEnd || nav.responseEnd, ...performance.getEntriesByType('resource').map((r) => (r as PerformanceResourceTiming).responseEnd)];
+    return Math.max(0, Math.round(Math.max(...ends) - nav.fetchStart));
+  }).catch(() => 0);
+}
+
+/** Sign in or go to the first page, then run the steps. Returns the landing page's load time. */
+async function reach(page: Page, job: CaptureJob, item: CaptureItem, meta: Meta, signInFirst: boolean): Promise<number> {
   const steps = item.steps.slice();
   const first = steps.length && steps[0].goto !== undefined ? (steps.shift() as CaptureStep).goto as string : '/';
   if (signInFirst) {
@@ -468,6 +489,7 @@ async function reach(page: Page, job: CaptureJob, item: CaptureItem, meta: Meta,
     await gotoWaitingOutLimits(page, first, meta);
     meta.steps.push({ n: 0, step: `goto ${first}`, ok: true });
   }
+  const loadMs = await landingLoadMs(page);
   for (const [i, s] of steps.entries()) {
     try {
       await runStep(page, s);
@@ -478,6 +500,7 @@ async function reach(page: Page, job: CaptureJob, item: CaptureItem, meta: Meta,
       throw new Error(`step ${i + 1} ${JSON.stringify(s)}: ${message(e)}`);
     }
   }
+  return loadMs;
 }
 
 function watch(page: Page, job: CaptureJob, log: ErrorLog, marks: { intercepted: Set<Request>; aborted: Set<Request> }, meta: Meta, counter: { n: number }): void {
@@ -726,10 +749,8 @@ export async function captureItem(browser: Browser, job: CaptureJob, item: Captu
     await guard(context, item, marks);
     const page = await context.newPage();
     watch(page, job, log, marks, meta, counter);
-    const t0 = Date.now();
-    await reach(page, job, item, meta, saved === undefined);
+    log.perf.loadMs = await reach(page, job, item, meta, saved === undefined);
     await settled(page, job);
-    log.perf.loadMs = Date.now() - t0;
     // Always, not only after a sign-in: the session the page came back with carries the tokens as
     // they now are. A stored session whose access token has expired makes every later item refresh
     // it again, and a rotating refresh token used twice is refused -- which arrives as 429s on the

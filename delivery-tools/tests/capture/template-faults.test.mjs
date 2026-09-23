@@ -99,3 +99,18 @@ test('every way of resolving a click waits before counting', () => {
     assert.match(body.slice(Math.max(0, at - 400), at), new RegExp(`waitForFirst\\(${branch}\\)`), `${branch} counts without waiting first`);
   }
 });
+
+// 7. The load time was the capture's own stopwatch.
+test('the load time is the landing page\'s own, not sign-in plus clicks plus the capture\'s waits', () => {
+  // loadMs used to be Date.now() around sign-in, every reach step and settle's quiet windows, so a
+  // page that loaded in 1.5 s was reported at 6.9 s and every state of a run broke M17's ceiling.
+  // It is the landing document's Navigation Timing now: from fetchStart, which comes after the
+  // sign-in redirect, to the last response the page made before the steps begin.
+  assert.doesNotMatch(support, /loadMs = Date\.now\(\) - t0/, 'loadMs must not be a wall clock around the whole capture');
+  assert.match(support, /async function landingLoadMs\(/, 'the landing page is measured on its own');
+  assert.match(support, /fetchStart/, 'measured from the document fetch, after redirects');
+  assert.match(support, /getEntriesByType\('resource'\)/, 'the data a client-rendered page fetches counts');
+  const reachBody = support.slice(support.indexOf('async function reach('), support.indexOf('function watch('));
+  assert.ok(reachBody.indexOf('landingLoadMs(') > -1 && reachBody.indexOf('landingLoadMs(') < reachBody.indexOf('for (const [i, s] of steps.entries())'),
+    'measured when the page lands, before any step clicks');
+});
