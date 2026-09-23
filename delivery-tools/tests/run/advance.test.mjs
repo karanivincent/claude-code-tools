@@ -68,6 +68,26 @@ test('advance refuses to skip a phase, to go back, an unknown phase, and a close
   } finally { c.repo.cleanup(); }
 });
 
+test('a run whose pull request was closed without a merge closes from any phase, and only then', async () => {
+  // The widgets rehearsal's PR was closed at phase pr, and "one phase at a time" left no way to
+  // close the run: the session-start hook would have told every later session to resume it.
+  const s = await setup({ phase: 'pr' });
+  try {
+    const pr = await s.gh.prCreate({ title: 'Widgets', body: '', base: 'main', head: 'epic/101-widgets' });
+    const st = JSON.parse(readFileSync(s.paths.state, 'utf8'));
+    st.pr = pr.number;
+    writeFileSync(s.paths.state, JSON.stringify(st, null, 2) + '\n');
+    assert.equal(await runCommand(s.ctx, ['closed']), 2, 'an open PR cannot be skipped past');
+    s.gh.close(pr.number);
+    assert.equal(await runCommand(s.ctx, ['closed']), 0);
+    const state = await loadState(s.paths.state);
+    assert.equal(state.phase, 'closed');
+    assert.deepEqual(parseEvent(state.journal.at(-1).event), { command: 'advance closed', exit: 0, counts: { from: 'pr', abandoned: 'true' } });
+    assert.match(s.stdout.text(), /closed without a merge/);
+    assert.deepEqual(s.ran, [], 'no gate is asked about a run nobody will land');
+  } finally { s.repo.cleanup(); }
+});
+
 test('a red earlier gate moves the run back to that phase (exit 1); exit 3 too', async () => {
   const s = await setup({ phase: 'build' }, { 'gate:phase-2': redGate('candidate C-04 is neither mapped nor excluded', { part: 'inventory' }) });
   try {

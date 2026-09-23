@@ -134,6 +134,7 @@ export function createGhStub(opts = {}) {
       Object.assign(p, { state: 'merged', mergedAt: now(), mergeCommit });
     },
     addComment(n, body, author) { return gh.commentCreate(n, body, author); },
+    close(n) { need(db.prs, n, 'PR').state = 'closed'; },
   };
   return gh;
 }

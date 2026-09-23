@@ -20,7 +20,8 @@ landed or closed, one at a time. Re-runs the gate of every earlier phase from it
 the new phase. A red earlier gate (exit 1, or 3 when it waits on the founder) moves the run
 back to that phase, and status then names it as NEXT. After the merge only the gates from
 "pr" on are re-run, and nothing moves back. Naming the current phase re-validates the
-earlier gates without advancing.
+earlier gates without advancing. "closed" is reachable from any phase once the run's pull
+request was closed without a merge: the run is abandoned, and no gate is asked.
 
   phase left   gate that must be green
   intake       0: snapshot hashed, intent valid, epic found by marker, state initialised
@@ -51,6 +52,22 @@ common options:
     const ci = phaseIndex(cur);
     const ti = phaseIndex(target);
     if (ti < ci) throw new UsageError(`advance moves forward only; the run is at ${cur}, and the next phase is ${nextPhase(cur)}`);
+    // A run whose pull request the founder closed without a merge is abandoned, from whatever phase
+    // it had reached. Without this the run could never close, and the session-start hook would tell
+    // every later session in the repository to resume it. Only a closed PR opens this door.
+    if (target === 'closed' && ti > ci + 1) {
+      const pr = state.pr ? await ctx.gh.prGet(state.pr) : null;
+      if (pr && pr.state === 'closed') {
+        await updateState(paths, (s) => ({ ...s, phase: 'closed' }), {
+          at: ctx.clock.now().toISOString(),
+          event: formatEvent({ command: 'advance closed', exit: 0, counts: { from: cur, abandoned: true } }),
+          inputs: { from: cur, target }, outputs: { pr: pr.number, state: pr.state },
+        });
+        ctx.out.line(`closed: PR #${pr.number} was closed without a merge, so the run ends at ${cur}`);
+        ctx.out.set('phase', 'closed');
+        return EXIT.PASS;
+      }
+    }
     if (ti > ci + 1) throw new UsageError(`advance one phase at a time; the run is at ${cur}, and the next phase is ${nextPhase(cur)}`);
     const already = ti === ci;
 
