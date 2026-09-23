@@ -51,7 +51,7 @@ test('first intake: epic, worktree, snapshot, intent inputs, state and one commi
     const code = await intakeCommand.run(ctx, [zip, '--intent', 'Redesign the widgets page.', '--brief', join(repo.root, 'round-1-brief.md')]);
     assert.equal(code, 1, 'intent.json not drafted yet');
     const out = stdout.text();
-    assert.match(out, /NEXT: move into .*delivery-widgets; draft docs\/delivery\/widgets\/intent\.json with one delivery-extractor/);
+    assert.match(out, /NEXT: switch this session into .*delivery-widgets with EnterWorktree .*; draft docs\/delivery\/widgets\/intent\.json with one delivery-extractor/);
     const epic = await gh.issueGet(1);
     assert.ok(hasMarker(epic.body, makeMarker({ feature: 'widgets', kind: 'epic' })));
     const wt = join(repo.primary, '.claude', 'worktrees', 'delivery-widgets');

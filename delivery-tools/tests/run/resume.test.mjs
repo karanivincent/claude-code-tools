@@ -67,7 +67,7 @@ test('status from another worktree finds the run and says where to work; --brief
   assert.ok(lines.length <= 12, r.text);
   const next = nextLines(r.text);
   assert.equal(next.length, 1);
-  assert.ok(next[0].startsWith(`NEXT: in ${k.dir} (the run's worktree), dispatch builders in parallel for U3`), next[0]);
+  assert.ok(next[0].startsWith(`NEXT: in ${k.dir} (the run's worktree: enter it with EnterWorktree first), dispatch builders in parallel for U3`), next[0]);
 });
 
 test('unitStatuses reads git and files only: merged by --no-ff, reported, died, dispatched, pending', async () => {

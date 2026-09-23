@@ -288,7 +288,7 @@ export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic 
         if (reexport) next = 'NEXT: re-run design candidates and design render on the new snapshot, then diff the inventory (changed states reopen their plan rows)';
       }
     } else {
-      next = `NEXT: move into ${worktree}; draft ${repoRel(worktree, paths.intentJson)} with one delivery-extractor (briefs/extractor-design.md, intent section; the design facts are in ${repoRel(worktree, readmePath)} and the sentence in ${repoRel(worktree, join(paths.intentDir, 'sentence.txt'))}), then run intake again there`;
+      next = `NEXT: switch this session into ${worktree} with EnterWorktree (path ${worktree}), so it and every agent it dispatches can write there; draft ${repoRel(worktree, paths.intentJson)} with one delivery-extractor (briefs/extractor-design.md, intent section; the design facts are in ${repoRel(worktree, readmePath)} and the sentence in ${repoRel(worktree, join(paths.intentDir, 'sentence.txt'))}), then run intake again there`;
     }
 
     // State, then one commit of the snapshot and the intent.

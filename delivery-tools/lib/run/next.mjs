@@ -37,7 +37,9 @@ import { isPostMerge, nextPhase, stepOf } from './phases.mjs';
 
 /** @returns {{ line: string, text: string, skill: string|null, phase: string }} */
 export function computeNext(f) {
-  const where = f.here ? '' : `in ${f.worktree} (the run's worktree), `;
+  // A session in another worktree is refused every write into the run's own, and so is every agent
+  // it dispatches: enter the run's worktree first (Claude Code's EnterWorktree with this path).
+  const where = f.here ? '' : `in ${f.worktree} (the run's worktree: enter it with EnterWorktree first), `;
   const make = (text, skill, phase) => ({ text: where + text, skill: skill ?? null, phase, line: `NEXT: ${where}${text}${skill ? ` (skill: ${skill})` : ''}` });
 
   if (f.inconsistent) {

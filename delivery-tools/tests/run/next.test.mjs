@@ -77,7 +77,7 @@ test('an unevaluable gate (a slice missing, a bad profile) comes before any work
 });
 
 test('outside the run worktree, NEXT says where to work', () => {
-  assert.match(computeNext(facts('intake', { here: false })).line, /^NEXT: in \/w\/delivery-widgets \(the run's worktree\), delivery advance preflight/);
+  assert.match(computeNext(facts('intake', { here: false })).line, /^NEXT: in \/w\/delivery-widgets \(the run's worktree: enter it with EnterWorktree first\), delivery advance preflight/);
 });
 
 test('phase steps: preflight, inventory, plan', () => {
