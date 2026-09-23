@@ -59,6 +59,18 @@ test('full mode: every width, locale and theme; paths localised; a member varian
   const org = items.filter((i) => i.world === 'real-org');
   assert.deepEqual(org.map((i) => `${i.state}.${i.width}`), ['WG-01.1440', 'WG-01.390'], 'one capture per distinct route, by URL alone');
   assert.ok(org.every((i) => i.readOnly && i.check === 'none' && !i.clicks && i.email === realOrg.observerEmail && i.steps.length === 1));
+
+  // A state reached by clicking a control by its words is captured in the primary locale only:
+  // "Blue widget 4 left" is "Blue widget 4 restants" in French, and twelve full-mode items were
+  // not-reached for it.
+  const plan = widgetsPlan();
+  const wg1row = plan.rows.find((r) => r.id === 'WG-01');
+  wg1row.reach = { ...wg1row.reach, steps: [...wg1row.reach.steps, { click: { role: 'button', name: 'Blue widget 4 left' } }] };
+  const named = buildItems({ mode: 'full', profile, plan, realOrg });
+  const wordy = named.items.filter((i) => i.state === 'WG-01' && i.world === 'design' && i.role === 'admin');
+  assert.deepEqual([...new Set(wordy.map((i) => i.locale))], ['en']);
+  assert.equal(wordy.length, 2 * 2, 'every width and theme, in the primary locale');
+  assert.ok(named.skipped.some((s) => s.state === 'WG-01' && /primary locale only/.test(s.why) && /Blue widget 4 left/.test(s.why)));
 });
 
 test('rows with invariants are captured again in each messy world, as data (spec 9, M12)', () => {

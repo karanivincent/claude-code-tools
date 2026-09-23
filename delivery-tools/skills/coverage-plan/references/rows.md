@@ -38,6 +38,9 @@ listed there fails validation. This page says what goes in each field.
 
 - `steps` are app steps, in order: `{ goto }`, `{ click: { testid | role, name } }`,
   `{ type: { testid, text } }`, `{ select: { testid, value } }`, `{ press }`, `{ waitFor }`.
+- Address controls by `testid` wherever the page has one. A step that names words (a `click` by
+  `name`, a `waitFor` or `type` with text) is written in the primary locale, so the full capture
+  takes that state in the primary locale only, and a messy world cannot replay it at all.
 - `world` and `role` pick the fixture organisation and user.
 - `intercept: { method, url, status, body, timeoutMs? }` answers one request (an AI move, a
   metered start, an error state); its body is built from the real API's response type.

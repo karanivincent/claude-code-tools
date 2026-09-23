@@ -207,8 +207,18 @@ export function buildItems(o) {
         // judge arriving there. Blanking the target instead wrote "leads nowhere" into the record,
         // and two auditors read it back as a dead control.
         .map((c) => (oneStepApart(plan, row, c.target) ? c : { ...c, verifyTarget: false }));
+      // A step that clicks, waits for or types words is written in the primary locale, and the
+      // words change in every other one: "Blue widget 4 left" is "Blue widget 4 restants" in
+      // French. Such a state is captured in the primary locale only, and the capture says why;
+      // the other locales' words are still checked in the message files (M8).
+      const worded = (row.reach.steps ?? []).find((st) => st.click?.name || st.waitFor?.text || st.type?.text);
+      const rowLocales = worded ? [primary] : locales;
+      if (worded && !o.smoke && locales.length > 1) {
+        const words = worded.click?.name ?? worded.waitFor?.text ?? worded.type?.text;
+        skipped.push({ state: row.id, why: `other locales: captured in the primary locale only, because a step names words that translation changes ("${words}"); address the control by test id to capture every locale` });
+      }
       for (const width of o.smoke ? [widths[0]] : widths) {
-        for (const locale of o.smoke ? [primary] : locales) {
+        for (const locale of o.smoke ? [primary] : rowLocales) {
           for (const theme of o.smoke ? [themes[0]] : themes) {
             const first = width === widths[0] && locale === primary && theme === themes[0];
             add({
