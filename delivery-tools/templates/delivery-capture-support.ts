@@ -217,14 +217,23 @@ const sessions = new Map<string, StoredSession>();
  */
 const SESSION_MAX_AGE_MS = 20 * 60 * 1000;
 
+/**
+ * A session belongs to one site as well as one user. Keyed by email alone, a session a branch gate
+ * stored for the local dev server was handed to the next wave capture of a Vercel preview, where
+ * its cookies do not apply: every state was graded on the login page.
+ */
+function sessionKey(job: CaptureJob, email: string): string {
+  return `${new URL(job.baseUrl).host} ${email}`;
+}
+
 function sessionFile(job: CaptureJob, email: string): string {
-  const safe = email.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+  const safe = `${new URL(job.baseUrl).host}-${email}`.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
   return join(job.outDir, '..', '..', 'sessions', `${safe}.json`);
 }
 
 /** A stored session, when one was written recently enough to still be signed in. */
 function loadSession(job: CaptureJob, email: string): StoredSession | undefined {
-  const inMemory = sessions.get(email);
+  const inMemory = sessions.get(sessionKey(job, email));
   if (inMemory) return inMemory;
   const path = sessionFile(job, email);
   try {
@@ -232,7 +241,7 @@ function loadSession(job: CaptureJob, email: string): StoredSession | undefined 
     const { mtimeMs } = statSync(path);
     if (Date.now() - mtimeMs > SESSION_MAX_AGE_MS) return undefined;
     const state = JSON.parse(readFileSync(path, 'utf8')) as StoredSession;
-    sessions.set(email, state);
+    sessions.set(sessionKey(job, email), state);
     return state;
   } catch {
     return undefined;
@@ -243,7 +252,7 @@ function saveSession(job: CaptureJob, email: string, state: StoredSession): void
   // A sign-in that failed leaves an empty state behind. Storing it would hand every later run a
   // session that is not signed in, and the capture would grade the login page.
   if (!state.cookies?.length && !state.origins?.length) return;
-  sessions.set(email, state);
+  sessions.set(sessionKey(job, email), state);
   const path = sessionFile(job, email);
   try {
     mkdirSync(join(path, '..'), { recursive: true });
@@ -604,9 +613,16 @@ async function guard(context: BrowserContext, item: CaptureItem, marks: { interc
 async function probeVersion(page: Page, job: CaptureJob, meta: Meta): Promise<void> {
   if (!job.versionProbe) return;
   try {
-    const res = await page.request.fetch(new URL(job.versionProbe.path, job.baseUrl).toString(), { method: job.versionProbe.method, failOnStatusCode: false, timeout: 15_000 });
+    // The same three rules as the CLI's probe (bug 39): a redirect is an answer, not something to
+    // follow; an HTML body is a page, never a version; and a plain-text body is read only when it is
+    // short. Following /api/version to /login once reported a hex string off the login page as the
+    // served commit.
+    const res = await page.request.fetch(new URL(job.versionProbe.path, job.baseUrl).toString(), { method: job.versionProbe.method, failOnStatusCode: false, maxRedirects: 0, timeout: 15_000 });
     meta.versionStatus = res.status();
-    if (res.ok()) meta.servedSha = shaFrom(await res.text());
+    const type = res.headers()['content-type'] ?? '';
+    const body = res.ok() ? await res.text() : '';
+    const html = /text\/html/i.test(type) || /^\s*</.test(body);
+    if (res.ok() && !html && (/json/i.test(type) || body.trim().length <= 200)) meta.servedSha = shaFrom(body);
   } catch (e) {
     meta.versionStatus = null;
     meta.steps.push({ n: -1, step: 'version probe', ok: false, error: message(e) });

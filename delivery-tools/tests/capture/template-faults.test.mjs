@@ -126,3 +126,17 @@ test('a sign-in that fails on a dropped connection is tried again; any other fai
   assert.match(reachBody, /await signInRetrying\(page, job, item\.email, first\)/);
   assert.doesNotMatch(reachBody, /await signIn\(page/);
 });
+
+// 9. A session from one site was handed to another, and the probe read a SHA off the login page.
+test('a stored session belongs to one site, and the in-page version probe never reads a login page', () => {
+  // A branch gate on the local dev server stored a session for the fixture admin; the next wave
+  // capture of a Vercel preview loaded it, its cookies did not apply there, and every state was
+  // graded on /login. The probe then followed /api/version's redirect to that page and reported
+  // "d1e58d753c785ce2", which is no commit at all: bug 39's fix had reached the CLI's probe only.
+  const sessionBody = support.slice(support.indexOf('function sessionFile('), support.indexOf('function saveSession('));
+  assert.match(sessionBody, /new URL\(job\.baseUrl\)\.host/, 'the session file is named for the site as well as the user');
+  assert.match(support, /sessionKey\(job, email\)/, 'the in-memory cache is keyed the same way');
+  const probe = support.slice(support.indexOf('async function probeVersion('), support.indexOf('async function extract('));
+  assert.match(probe, /maxRedirects: 0/, 'a redirect is an answer, not something to follow');
+  assert.match(probe, /text\\?\/html/, 'an HTML body is never read for a SHA');
+});
