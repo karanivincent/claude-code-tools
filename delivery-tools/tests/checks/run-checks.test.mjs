@@ -178,6 +178,25 @@ test('M4: every design element in the live capture, with adapt substitutions and
   } finally { run.cleanup(); }
 });
 
+test('M4: an adapt row\'s extra pairs apply too, and a whole pair only replaces an element that is exactly its text', async () => {
+  // A call panel drawing an agent's name, an "AI" badge and an order number the product stores
+  // nowhere: one adapt row carries them all, and "AI" must not rewrite "Said again" or "Paid".
+  const plan = planWith([
+    row('WL-01'),
+    row('WL-02', { class: 'adapt', adapt: { rule: 'data-not-in-product', designText: 'Agent Amina', productText: 'Agent',
+      also: [{ designText: 'AI', productText: '', whole: true }, { designText: 'Order 48412', productText: '' }] } }),
+  ]);
+  const run = await makeRun({
+    plan, profile: profile(),
+    designs: { 'WL-01': { txt: 'Agent Amina\nAI\nOrder 48412\nSaid again\nPaid\n', dom: domFor(['Agent Amina', 'AI', 'Order 48412', 'Said again', 'Paid']) } },
+    captures: [{ runId: 'c-6', items: [{ state: 'WL-01', lines: ['Agent', 'Said again'] }] }],
+  });
+  try {
+    const res = await runChecks(run.ctx, ['M4'], { captureRunId: 'c-6' });
+    assert.deepEqual(res.findings.map((f) => `${f.state} ${f.design}`), ['WL-01 Paid']);
+  } finally { run.cleanup(); }
+});
+
 test('M4 judges the design\'s own viewer: an admin capture before a member one, and no label a member is not shown', async () => {
   // The design draws what an admin sees. A member capture listed first used to be the one M4
   // compared, so "New widget" (hidden from members by the plan) and "Settings for Sam" (the
