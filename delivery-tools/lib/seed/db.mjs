@@ -72,18 +72,22 @@ export function tablesRead(sql) {
 /**
  * Run every guard's probes. A guard holds only when every probe returns what it expects; a guard
  * whose probe reads a table the plan itself writes is not trusted for that plan (the seed could
- * be what breaks it).
+ * be what breaks it). A guard's row rules are a property of the fixture rows themselves, so they
+ * are checked against `rows`: the seed plan's rows before a write, the live rows after it.
  * @param {import('../../adapters/data/supabase.mjs').DataAdapter} db
  * @param {object} safety
- * @param {{ fixtureOrgs: string[], plannedTables?: Set<string> }} ctxInfo
+ * @param {{ fixtureOrgs: string[], plannedTables?: Set<string>, rows?: { table: string, id?: string, values: object }[] }} ctxInfo
  * @returns {Promise<{ id: string, covers: string[], holds: boolean, why: string }[]>}
  */
-export async function runGuards(db, safety, { fixtureOrgs, plannedTables = new Set() }) {
+export async function runGuards(db, safety, { fixtureOrgs, plannedTables = new Set(), rows = [] }) {
   const out = [];
   for (const g of safety.guards ?? []) {
     let holds = true;
-    let why = 'every probe holds';
-    for (const probe of g.probes) {
+    let why = 'every probe and row rule holds';
+    if (!(g.probes ?? []).length && !(g.rowRules ?? []).length) { out.push({ id: g.id, covers: g.covers, holds: false, why: 'it has neither a probe nor a row rule' }); continue; }
+    const broken = rowRuleFailure(g.rowRules ?? [], rows);
+    if (broken) { out.push({ id: g.id, covers: g.covers, holds: false, why: broken }); continue; }
+    for (const probe of g.probes ?? []) {
       const read = [...tablesRead(probe.sql)].filter((t) => plannedTables.has(t));
       if (read.length) { holds = false; why = `its probe reads ${read.join(', ')}, which this seed plan writes`; break; }
       let sql;
@@ -101,6 +105,29 @@ export async function runGuards(db, safety, { fixtureOrgs, plannedTables = new S
     out.push({ id: g.id, covers: g.covers, holds, why });
   }
   return out;
+}
+
+/**
+ * The first row rule a row breaks, in words, or null. A row a rule selects (its table, and every
+ * `where` value equal) must carry a string in `column` that the pattern matches; a missing or
+ * non-string value breaks it, since "no address" is not "a fake address".
+ * @param {{ table: string, column: string, pattern: string, where?: object }[]} rules
+ * @param {{ table: string, id?: string, values: object }[]} rows
+ * @returns {string|null}
+ */
+export function rowRuleFailure(rules, rows) {
+  for (const rule of rules) {
+    let re;
+    try { re = new RegExp(rule.pattern); } catch (err) { return `row rule ${rule.table}.${rule.column} has an invalid pattern (${err.message})`; }
+    const selected = rows.filter((r) => r.table === rule.table
+      && Object.entries(rule.where ?? {}).every(([k, v]) => r.values?.[k] === v));
+    const bad = selected.filter((r) => typeof r.values?.[rule.column] !== 'string' || !re.test(r.values[rule.column]));
+    if (bad.length) {
+      const first = bad[0];
+      return `${bad.length} ${rule.table} row(s) break the row rule ${rule.column} ~ ${rule.pattern}, first ${first.id ?? '(no id)'} with ${JSON.stringify(first.values?.[rule.column] ?? null)}`;
+    }
+  }
+  return null;
 }
 
 function sameExpect(actual, expect) {

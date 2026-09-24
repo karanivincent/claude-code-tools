@@ -73,6 +73,7 @@ export async function seedCheck(ctx, opts = {}) {
     guards = await runGuards(db, safety, {
       fixtureOrgs: seedPlan.worlds.map((w) => w.orgId),
       plannedTables: new Set(seedPlan.rows.map((r) => r.table)),
+      rows: seedPlan.rows,
     });
   } catch (err) {
     if (!(err instanceof DeliveryError)) throw err;

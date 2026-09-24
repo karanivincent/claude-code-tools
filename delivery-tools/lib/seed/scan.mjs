@@ -63,7 +63,7 @@ export async function seedScan(ctx) {
     failures.push(...nd.failures.map((f) => ({ code: 'M13-L2', message: f.message })));
     const fake = await fakeRangeProbe(db, safety);
     if (!fake.ok) failures.push({ code: 'M13-L2', message: `fake numbers: ${fake.detail}` });
-    guards = await runGuards(db, safety, { fixtureOrgs: seedPlan.worlds.map((w) => w.orgId) });
+    guards = await runGuards(db, safety, { fixtureOrgs: seedPlan.worlds.map((w) => w.orgId), rows });
     for (const g of guards) if (!g.holds) failures.push({ code: 'M13-L3', message: `guard ${g.id} does not hold: ${g.why}` });
   } catch (err) {
     if (!(err instanceof DeliveryError)) throw err;
