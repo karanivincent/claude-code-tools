@@ -197,6 +197,27 @@ test('M4: an adapt row\'s extra pairs apply too, and a whole pair only replaces 
   } finally { run.cleanup(); }
 });
 
+test('M4: a here pair applies only on its own row\'s state', async () => {
+  // A fact the design files under "People" that the product files under "Other" on one screen;
+  // the real People heading elsewhere must still be checked.
+  const plan = planWith([
+    row('WL-01'),
+    row('WL-02', { class: 'adapt', adapt: { rule: 'data-not-in-product', designText: 'People', productText: 'Other', whole: true, here: true } }),
+  ]);
+  const run = await makeRun({
+    plan, profile: profile(),
+    designs: {
+      'WL-01': { txt: 'People\n', dom: domFor(['People']) },
+      'WL-02': { txt: 'People\n', dom: domFor(['People']) },
+    },
+    captures: [{ runId: 'c-7', items: [{ state: 'WL-01', lines: ['Other'] }, { state: 'WL-02', lines: ['Other'] }] }],
+  });
+  try {
+    const res = await runChecks(run.ctx, ['M4'], { captureRunId: 'c-7' });
+    assert.deepEqual(res.findings.map((f) => `${f.state} ${f.design}`), ['WL-01 People']);
+  } finally { run.cleanup(); }
+});
+
 test('M4 judges the design\'s own viewer: an admin capture before a member one, and no label a member is not shown', async () => {
   // The design draws what an admin sees. A member capture listed first used to be the one M4
   // compared, so "New widget" (hidden from members by the plan) and "Settings for Sam" (the
