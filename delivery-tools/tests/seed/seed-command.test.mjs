@@ -38,8 +38,9 @@ function unsafeWorld() {
   return w;
 }
 
-function stubDb({ guardCount = 0 } = {}) {
+function stubDb({ guardCount = 0, batch = false } = {}) {
   return createStubDb({
+    batch,
     answers: [
       { match: /from org_phone_numbers/, rows: [{ phone_number: '+15550100077' }] },
       { match: /country_for_phone_number/, rows: [{ country_for_phone_number: null }] },
@@ -280,6 +281,61 @@ test('refresh re-applies one world with fresh dates; teardown deletes only rows 
     assert.equal(await seedCommand.run(ctx, ['--teardown']), 0);
     assert.equal(db.tables.get('organizations').length, 0);
     assert.equal(db.users.size, 0);
+  } finally { repo.cleanup(); }
+});
+
+// A capture refreshes a world between clicks, so a refresh has to cost seconds, not the minute and
+// a half it did when every read was its own request and every row was written whatever it held.
+test('refresh writes back only what changed, and every planned row ends as planned', async () => {
+  const { repo, ctx, db, clock, stdout } = await setup({ db: stubDb({ batch: true }) });
+  try {
+    await seedCommand.run(ctx, ['--plan']);
+    await seedCommand.run(ctx, ['--apply']);
+    const plan = await readArtefact(ctx.paths, 'seedplan');
+    const batch = db.tables.get('outbound_batches')[0];
+    const org = db.tables.get('organizations')[0];
+
+    // Nothing changed and no time passed: nothing is written, and the scan still ran whole.
+    let before = db.writes().length;
+    let reads = db.readRoundTrips();
+    assert.equal(await seedCommand.run(ctx, ['--refresh', 'design']), 0);
+    assert.equal(db.writes().length, before, 'a world already as planned is not written again');
+    assert.match(stdout.text(), /rewrote 0 row\(s\); \d+ already as planned/);
+    assert.ok(db.readRoundTrips() - reads <= 8, `a refresh reads in a handful of requests, not one per table (${db.readRoundTrips() - reads})`);
+
+    // A click settled the batch and renamed the organisation; an hour passed, so the relative dates
+    // moved. Exactly those rows are written, and each ends as the plan says.
+    batch.status = 'cancelled';
+    org.name = 'Renamed by a click';
+    clock.advance(3_600_000);
+    before = db.writes().length;
+    assert.equal(await refreshWorld(ctx, 'design').then((g) => g.ok), true);
+    const written = db.writes().slice(before).filter((w) => w.op === 'upsert').map((w) => w.table).sort();
+    assert.deepEqual(written, ['organizations', 'outbound_batches', 'outbound_calls', 'widgets']);
+    assert.equal(db.tables.get('outbound_batches')[0].status, 'completed');
+    assert.equal(db.tables.get('organizations')[0].name, plan.rows.find((r) => r.table === 'organizations').values.name);
+    assert.equal(db.tables.get('widgets')[0].created_at, '2026-01-12T13:00:00.000Z');
+
+    // A row a click deleted comes back.
+    db.tables.set('outbound_batches', []);
+    assert.equal((await refreshWorld(ctx, 'design')).ok, true);
+    assert.equal(db.tables.get('outbound_batches').length, 1);
+  } finally { repo.cleanup(); }
+});
+
+test('refresh still refuses an unsafe row, and writes nothing', async () => {
+  const { repo, ctx, db } = await setup();
+  try {
+    await seedCommand.run(ctx, ['--plan']);
+    await seedCommand.run(ctx, ['--apply']);
+    const plan = await readArtefact(ctx.paths, 'seedplan');
+    plan.rows.find((r) => r.table === 'outbound_calls').values.phone_number = '05550100001';
+    await writeArtefact(ctx.paths, 'seedplan', plan);
+    const before = db.writes().length;
+    const gate = await refreshWorld(ctx, 'design');
+    assert.equal(gate.ok, false);
+    assert.ok(gate.failures.some((f) => f.code === 'M13-L2'), JSON.stringify(gate.failures));
+    assert.equal(db.writes().length, before, 'a refused refresh writes nothing');
   } finally { repo.cleanup(); }
 });
 

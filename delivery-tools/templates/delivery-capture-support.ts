@@ -717,6 +717,8 @@ async function clickControls(context: BrowserContext, job: CaptureJob, item: Cap
     const page = await context.newPage();
     const scratch: ErrorLog = { schemaVersion: 1, console: [], requests: [], perf: { requestCount: 0, loadMs: 0 }, axe: null };
     watch(page, job, scratch, marks, meta, { n: 0 });
+    const sent: Request[] = [];
+    page.on('request', (req) => { sent.push(req); });
     try {
       await reach(page, job, item, { ...meta, steps: [] }, false);
       // `settled`, not `settle`: a control that has not rendered yet is not a missing control, and
@@ -754,24 +756,36 @@ async function clickControls(context: BrowserContext, job: CaptureJob, item: Cap
       await page.close().catch(() => undefined);
     }
     results.push(r);
+    // A click can write (keep, discard, save), and the next control in this state, or the next
+    // state in this world, would then open on changed data: "Keep all" had already kept every
+    // suggestion by the time "Keep" and "Discard" were clicked, so both failed. So a control whose
+    // page sent a write is followed by a refresh of the world, before the next control is clicked
+    // and after the last one; a control that wrote nothing costs nothing.
+    if (sent.some((req) => wrote(req, marks))) refreshWorld(job, item, c.testid);
   }
   return results;
 }
 
 /**
- * A clicked control can write (keep, discard, save), and the next state captured in the same world
- * would then open on changed data: a question already answered, a clash already settled. So after
- * an item whose free controls were clicked, its world is re-applied before anything else runs. A
- * refresh that fails is said on the console, not thrown: the item itself was captured correctly.
+ * A request that could have changed the app's data: not a read, not the sign-in exchange, and not
+ * one this capture answered or refused itself. The same test the read-only guard applies.
  */
-function refreshWorldAfterClicks(job: CaptureJob, item: CaptureItem): void {
-  if (!job.worldRefresh || !item.controls.some((c) => c.effect === 'free')) return;
+function wrote(req: Request, marks: { intercepted: Set<Request>; aborted: Set<Request> }): boolean {
+  return !READS.has(req.method()) && !isSignInExchange(req.url()) && !marks.intercepted.has(req) && !marks.aborted.has(req);
+}
+
+/**
+ * Re-apply the item's world after a control that wrote. A refresh that fails is said on the
+ * console, not thrown: the control itself was judged correctly, and the capture goes on.
+ */
+function refreshWorld(job: CaptureJob, item: CaptureItem, after: string): void {
+  if (!job.worldRefresh) return;
   try {
     execFileSync(job.worldRefresh.command, [...job.worldRefresh.args, item.world], {
       cwd: job.worldRefresh.cwd, stdio: 'pipe', timeout: 180_000,
     });
   } catch (e) {
-    console.warn(`delivery capture: world ${item.world} was not refreshed after ${item.key}'s clicks (${message(e)})`);
+    console.warn(`delivery capture: world ${item.world} was not refreshed after ${item.key}'s control ${after} wrote (${message(e)})`);
   }
 }
 
@@ -821,7 +835,6 @@ export async function captureItem(browser: Browser, job: CaptureJob, item: Captu
     if (item.axe) await runAxe(page, log, meta);
     if (item.clicks && !item.readOnly) {
       writeJson(file('controls.json'), await clickControls(context, job, item, meta, marks));
-      refreshWorldAfterClicks(job, item);
     }
   } catch (e) {
     meta.error = message(e);
