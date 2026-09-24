@@ -193,15 +193,36 @@ const TRANSIENT = /fetch failed|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|socket 
  * magic link made a correct state not-reached and a gate red. Anything else fails at once: a wrong
  * password or a missing user does not get better by asking three times.
  */
-async function signInRetrying(page: Page, job: CaptureJob, email: string, next: string): Promise<void> {
+async function signInRetrying(page: Page, job: CaptureJob, email: string, next: string, meta: Meta): Promise<void> {
+  let waited = 0;
   for (let attempt = 1; ; attempt++) {
+    // The app budgets its auth routes per client (this repo: 10 in 15 minutes), and a capture over
+    // more worlds than that signs in more often. A 429 on the sign-in exchange is the app saying
+    // "wait", not a broken page: wait as long as it says, mint a fresh link, and ask again.
+    let limited: number | undefined;
+    const onResponse = (res: Response): void => {
+      if (res.status() === 429 && /\/auth\//.test(new URL(res.url()).pathname)) {
+        limited = Number(res.headers()['retry-after'] ?? '60');
+      }
+    };
+    page.on('response', onResponse);
     try {
       await signIn(page, job, email, next);
-      return;
+      if (limited === undefined) return;
     } catch (e) {
-      if (attempt >= 3 || !TRANSIENT.test(message(e))) throw e;
-      await page.waitForTimeout(2000 * attempt);
+      if (limited === undefined) {
+        if (attempt >= 3 || !TRANSIENT.test(message(e))) throw e;
+        await page.waitForTimeout(2000 * attempt);
+        continue;
+      }
+    } finally {
+      page.off('response', onResponse);
     }
+    const wait = Math.min(Math.max(limited, 1) * 1000 + 1000, RATE_LIMIT_MAX_WAIT_MS - waited);
+    if (wait <= 0) throw new Error(`the app's auth rate limit answered 429 for ${Math.round(waited / 60000)} minutes`);
+    meta.steps.push({ n: 0, step: `the app's auth rate limit answered 429: waiting ${Math.round(wait / 1000)}s`, ok: true });
+    await page.waitForTimeout(wait);
+    waited += wait;
   }
 }
 
@@ -223,14 +244,16 @@ const SESSION_MAX_AGE_MS = 20 * 60 * 1000;
 /**
  * A session belongs to one site as well as one user. Keyed by email alone, a session a branch gate
  * stored for the local dev server was handed to the next wave capture of a Vercel preview, where
- * its cookies do not apply: every state was graded on the login page.
+ * its cookies do not apply: every state was graded on the login page. Keyed by hostname, not
+ * host: cookies ignore the port, and a branch capture's dev server takes a new port every run, so
+ * a port in the key made every run sign every world in again and ran into the app's auth budget.
  */
 function sessionKey(job: CaptureJob, email: string): string {
-  return `${new URL(job.baseUrl).host} ${email}`;
+  return `${new URL(job.baseUrl).hostname} ${email}`;
 }
 
 function sessionFile(job: CaptureJob, email: string): string {
-  const safe = `${new URL(job.baseUrl).host}-${email}`.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+  const safe = `${new URL(job.baseUrl).hostname}-${email}`.replace(/[^a-z0-9]+/gi, '-').toLowerCase();
   return join(job.outDir, '..', '..', 'sessions', `${safe}.json`);
 }
 
@@ -519,7 +542,7 @@ async function reach(page: Page, job: CaptureJob, item: CaptureItem, meta: Meta,
   const first = steps.length && steps[0].goto !== undefined ? (steps.shift() as CaptureStep).goto as string : '/';
   if (signInFirst) {
     try {
-      await signInRetrying(page, job, item.email, first);
+      await signInRetrying(page, job, item.email, first, meta);
     } catch (e) {
       throw new Error(`sign-in as ${item.email} failed: ${message(e)}`);
     }
