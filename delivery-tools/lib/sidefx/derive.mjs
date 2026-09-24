@@ -41,6 +41,8 @@ export async function deriveWithReport(ctx, opts = {}) {
   const profile = await ctx.profile();
   const { safety } = await ctx.safety();
   const refs = opts.refs?.length ? opts.refs : [`origin/${profile.repo.base}`, 'HEAD'];
+  // The scheduled jobs come from the database and the worker files from git: read both at once.
+  const cronRead = opts.cron === 'skip' ? null : readCronJobs(ctx).then((jobs) => ({ jobs }), (err) => ({ err }));
   const readers = [];
   for (const ref of refs) {
     const reader = await refReader(ctx.git, ref);
@@ -54,12 +56,10 @@ export async function deriveWithReport(ctx, opts = {}) {
   }
   let cronJobs = null;
   const failures = [];
-  if (opts.cron !== 'skip') {
-    try {
-      cronJobs = await readCronJobs(ctx);
-    } catch (err) {
-      failures.push({ code: 'cron-unread', message: `cron.job could not be read from the test database (${err.message}); a scheduled job would go unseen` });
-    }
+  if (cronRead) {
+    const { jobs, err } = await cronRead;
+    if (err) failures.push({ code: 'cron-unread', message: `cron.job could not be read from the test database (${err.message}); a scheduled job would go unseen` });
+    else cronJobs = jobs;
   }
   const result = deriveFromSources({
     tsFiles, sqlFiles, cronJobs, forbiddenStates: safety.forbiddenStates, derivedAt: ctx.clock.now().toISOString(),

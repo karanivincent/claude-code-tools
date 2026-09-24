@@ -184,3 +184,46 @@ test('only the seed code asks for a write mode', async () => {
   for (const f of writers) assert.ok(f.startsWith('lib/seed/') || f === 'lib/commands/seed.mjs', `${f} asks the data adapter for a write mode`);
   assert.ok(writers.includes('lib/commands/seed.mjs'));
 });
+
+// A scan used to send each of its fifty-odd reads as its own request, about a second each: most of
+// the minute and a half a world refresh took. They now travel as one statement.
+test('http: several reads go as one read-only request, each answered on its own', async () => {
+  const { ctx, cleanup } = await ctxWith();
+  try {
+    const fetch = fetchStub(() => ({
+      status: 200,
+      body: [{ i: 1, r: '[{"n":2}]' }, { i: 0, r: [{ phone_number: '+15550100077' }] }],
+    }));
+    const db = await createDataAdapter(ctx, { fetch });
+    const out = await db.queryMany(['select phone_number from org_phone_numbers;', 'select count(*) as n from widgets -- trailing']);
+    assert.deepEqual(out, [{ rows: [{ phone_number: '+15550100077' }] }, { rows: [{ n: 2 }] }]);
+    assert.equal(fetch.requests.length, 1);
+    const { query, read_only: readOnly } = fetch.requests[0].body;
+    assert.equal(readOnly, true);
+    assert.match(query, /^select 0 as i, \(select coalesce\(json_agg\(q\), '\[\]'::json\) from \(\nselect phone_number from org_phone_numbers\n\) q\) as r\nunion all\nselect 1 as i/);
+    assert.match(query, /-- trailing\n\) q\) as r$/, 'a trailing comment cannot swallow the closing bracket');
+    await assert.rejects(db.queryMany(['select 1', 'delete from widgets']), (e) => e.code === 'read-only');
+    assert.equal(fetch.requests.length, 1, 'a batch holding a write is refused before any request');
+  } finally { cleanup(); }
+});
+
+test('http: a batch that fails is asked again query by query, so each failure is its own', async () => {
+  const { ctx, cleanup } = await ctxWith();
+  try {
+    const fetch = fetchStub((req) => {
+      const q = req.body.query;
+      if (q.startsWith('select 0 as i') || q.includes('carrier_dids')) return { status: 400, body: { message: 'relation "carrier_dids" does not exist' } };
+      return { status: 200, body: [{ phone_number: '+15550100077' }] };
+    });
+    const db = await createDataAdapter(ctx, { fetch });
+    const out = await db.queryMany(['select phone_number from org_phone_numbers', 'select phone_number from carrier_dids']);
+    assert.deepEqual(out[0], { rows: [{ phone_number: '+15550100077' }] });
+    assert.match(out[1].error.message, /HTTP 400 .*carrier_dids/);
+    assert.equal(fetch.requests.length, 3);
+  } finally { cleanup(); }
+  const none = await ctxWith({});
+  try {
+    const db = await createDataAdapter(none.ctx, { fetch: fetchStub() });
+    await assert.rejects(db.queryMany(['select 1', 'select 2']), (e) => e.code === 'db-access', 'missing credentials are not asked again one by one');
+  } finally { none.cleanup(); }
+});

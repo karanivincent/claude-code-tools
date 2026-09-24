@@ -146,37 +146,158 @@ function sameExpect(actual, expect) {
 function short(sql) { return String(sql).replace(/\s+/g, ' ').slice(0, 60); }
 
 /**
- * Every row the fixture worlds hold right now, from the live database: rows of every public table
- * with an organisation column naming a fixture organisation, the organisation rows, the plan's
- * global rows by id, the fixture users (auth.users) and rows keyed to them.
+ * Several reads in one round trip where the adapter can batch them, each answered on its own.
+ * Throws the first query's error, in query order: a read the caller needs whole has no partial
+ * answer.
  * @param {import('../../adapters/data/supabase.mjs').DataAdapter} db
- * @param {object} seedPlan
- * @returns {Promise<{ world: string, table: string, id: string, values: object }[]>}
+ * @param {string[]} sqls
+ * @returns {Promise<object[][]>}
  */
-export async function liveWorldRows(db, seedPlan) {
+export async function queryAll(db, sqls) {
+  const results = await settledReads(db, sqls);
+  const failed = results.find((r) => r.error);
+  if (failed) throw failed.error;
+  return results.map((r) => r.rows);
+}
+
+async function settledReads(db, sqls) {
+  if (!sqls.length) return [];
+  if (typeof db.queryMany === 'function') return db.queryMany(sqls);
+  const out = [];
+  for (const sql of sqls) out.push(await db.query(sql).then((rows) => ({ rows }), (error) => ({ error })));
+  return out;
+}
+
+/**
+ * A reader that answers the given queries from one batched round trip, failures included, and
+ * sends any other query on. derivedNeverDial, fakeRangeProbe and runGuards read through it
+ * unchanged, so a batch cannot change what they conclude, only how many requests it took.
+ * @param {import('../../adapters/data/supabase.mjs').DataAdapter} db
+ * @param {string[]} sqls
+ * @returns {Promise<{ query: (sql: string) => Promise<object[]> }>}
+ */
+export async function prefetch(db, sqls) {
+  const unique = [...new Set(sqls)];
+  const results = await settledReads(db, unique);
+  const byText = new Map(unique.map((sql, i) => [sql, results[i]]));
+  return {
+    async query(sql) {
+      const hit = byText.get(sql);
+      if (!hit) return db.query(sql);
+      if (hit.error) throw hit.error;
+      return hit.rows;
+    },
+  };
+}
+
+/**
+ * Every query derivedNeverDial, fakeRangeProbe and runGuards will send for these arguments, so
+ * they can be fetched in one batch first.
+ * @param {object} safety
+ * @param {{ fixtureOrgs: string[], plannedTables?: Set<string> }} opts
+ * @returns {string[]}
+ */
+export function safetyQueries(safety, { fixtureOrgs, plannedTables = new Set() }) {
+  const out = [...(safety.neverDialQueries ?? [])];
+  if (safety.fakeNumbers?.probeSql) out.push(safety.fakeNumbers.probeSql);
+  for (const g of safety.guards ?? []) {
+    for (const probe of g.probes ?? []) {
+      if ([...tablesRead(probe.sql)].some((t) => plannedTables.has(t))) continue;
+      try { out.push(probe.sql.replaceAll('$fixtureOrgs', idArrayLiteral(fixtureOrgs))); } catch { /* runGuards reports it */ }
+    }
+  }
+  return out;
+}
+
+const SCHEMA_SQL = Object.freeze({
+  columns: `select table_name, column_name from information_schema.columns where table_schema = 'public' and column_name in (${[...ORG_COLUMNS, 'user_id'].map((c) => `'${c}'`).join(', ')}) order by table_name, column_name`,
+  profiles: "select table_name from information_schema.columns where table_schema = 'public' and column_name = 'id' and table_name in ('users', 'profiles')",
+});
+
+/** The reads worldSchema sends, so a caller can put them in a batch with its own. */
+export const WORLD_SCHEMA_SQL = Object.freeze([SCHEMA_SQL.columns, SCHEMA_SQL.profiles]);
+
+/**
+ * Which public tables carry an organisation or user column, and which of users and profiles exist:
+ * what liveWorldRows reads by. A seed write never changes it, so a refresh reads it once, before
+ * its write, and hands it to the scan after.
+ * @param {import('../../adapters/data/supabase.mjs').DataAdapter} db
+ * @returns {Promise<{ columns: { table_name: string, column_name: string }[], profiles: string[] }>}
+ */
+export async function worldSchema(db) {
+  const [columns, profiles] = await queryAll(db, [SCHEMA_SQL.columns, SCHEMA_SQL.profiles]);
+  return { columns, profiles: profiles.map((p) => p.table_name) };
+}
+
+/**
+ * The reads plannedRowsNow sends: rows by id, and a join table's rows (no id) by the organisation
+ * column the plan gives them.
+ * @param {{ table: string, id: string, idless?: boolean, values: object }[]} rows
+ * @returns {{ sql: string, table: string, idless: boolean }[]}
+ */
+export function plannedRowReads(rows) {
+  const byId = new Map();
+  const byOrg = new Map();
+  for (const r of rows) {
+    if (!TABLE.test(r.table)) continue;
+    if (!r.idless) {
+      if (!byId.has(r.table)) byId.set(r.table, new Set());
+      byId.get(r.table).add(String(r.id));
+      continue;
+    }
+    const col = ORG_COLUMNS.find((c) => typeof r.values?.[c] === 'string');
+    if (!col) continue;
+    const k = `${r.table}\0${col}`;
+    if (!byOrg.has(k)) byOrg.set(k, { table: r.table, col, ids: new Set() });
+    byOrg.get(k).ids.add(r.values[col]);
+  }
+  const reads = [];
+  for (const [t, ids] of byId) reads.push({ table: t, idless: false, sql: `select * from public."${t}" where id::text = any(${idArrayLiteral([...ids])})` });
+  for (const { table, col, ids } of byOrg.values()) reads.push({ table, idless: true, sql: `select * from public."${table}" where "${col}"::text = any(${idArrayLiteral([...ids])})` });
+  return reads;
+}
+
+/**
+ * What the database holds now for each planned row, in one batched read that needs no schema. A
+ * planned row the reads cannot find (a join row with no organisation column) is simply not found,
+ * which only means it is written.
+ * @param {import('../../adapters/data/supabase.mjs').DataAdapter} db
+ * @param {{ table: string, id: string, idless?: boolean, values: object }[]} rows
+ * @returns {Promise<{ table: string, id: string, values: object }[]>}
+ */
+export async function plannedRowsNow(db, rows) {
+  const reads = plannedRowReads(rows);
+  const answers = await queryAll(db, reads.map((r) => r.sql));
+  const out = [];
+  reads.forEach((read, i) => {
+    for (const row of answers[i]) out.push({ table: read.table, id: read.idless ? '(join row)' : String(row.id), values: row });
+  });
+  return out;
+}
+
+/**
+ * The reads liveWorldRows sends for this plan and schema, each with how to name the world a row
+ * it returns belongs to.
+ * @param {object} seedPlan
+ * @param {{ columns: { table_name: string, column_name: string }[], profiles: string[] }} schema
+ * @returns {{ sql: string, table: string, world: (row: object) => string|undefined }[]}
+ */
+export function liveWorldReads(seedPlan, schema) {
   const worldByOrg = new Map(seedPlan.worlds.map((w) => [w.orgId, w.id]));
   const worldByUser = new Map(seedPlan.users.map((u) => [u.id, u.world]));
   const orgIds = [...worldByOrg.keys()];
   const userIds = [...worldByUser.keys()];
-  const out = [];
-  const seen = new Set();
-  const push = (table, row, world) => {
-    const id = String(row.id ?? row.user_id ?? '(no id)');
-    const k = `${table}\0${id}`;
-    if (seen.has(k)) return;
-    seen.add(k);
-    out.push({ world: world ?? '(unknown)', table, id, values: row });
-  };
-  if (!orgIds.length) return out;
-  const cols = await db.query(
-    `select table_name, column_name from information_schema.columns where table_schema = 'public' and column_name in (${[...ORG_COLUMNS, 'user_id'].map((c) => `'${c}'`).join(', ')}) order by table_name, column_name`,
-  );
-  for (const { table_name: t, column_name: c } of cols) {
+  const reads = [];
+  if (!orgIds.length) return reads;
+  for (const { table_name: t, column_name: c } of schema.columns) {
     if (!TABLE.test(t) || !TABLE.test(c)) continue;
     const ids = c === 'user_id' ? userIds : orgIds;
     if (!ids.length) continue;
-    const rows = await db.query(`select * from public."${t}" where "${c}"::text = any(${idArrayLiteral(ids)})`);
-    for (const r of rows) push(t, r, c === 'user_id' ? worldByUser.get(String(r[c])) : worldByOrg.get(String(r[c])));
+    reads.push({
+      sql: `select * from public."${t}" where "${c}"::text = any(${idArrayLiteral(ids)})`,
+      table: t,
+      world: (r) => (c === 'user_id' ? worldByUser.get(String(r[c])) : worldByOrg.get(String(r[c]))),
+    });
   }
   const byTable = new Map();
   for (const r of seedPlan.rows) {
@@ -187,20 +308,43 @@ export async function liveWorldRows(db, seedPlan) {
   }
   for (const [t, rows] of byTable) {
     if (!TABLE.test(t)) continue;
-    const found = await db.query(`select * from public."${t}" where id::text = any(${idArrayLiteral(rows.map((r) => r.id))})`);
     const worldOf = new Map(rows.map((r) => [r.id, r.world]));
-    for (const r of found) push(t, r, worldOf.get(String(r.id)));
+    reads.push({ sql: `select * from public."${t}" where id::text = any(${idArrayLiteral(rows.map((r) => r.id))})`, table: t, world: (r) => worldOf.get(String(r.id)) });
   }
   if (userIds.length) {
-    const users = await db.query(`select id, email, phone from auth.users where id::text = any(${idArrayLiteral(userIds)})`);
-    for (const u of users) push('auth.users', u, worldByUser.get(String(u.id)));
-    const profiles = await db.query(
-      "select table_name from information_schema.columns where table_schema = 'public' and column_name = 'id' and table_name in ('users', 'profiles')",
-    );
-    for (const { table_name: t } of profiles) {
-      const rows = await db.query(`select * from public."${t}" where id::text = any(${idArrayLiteral(userIds)})`);
-      for (const r of rows) push(t, r, worldByUser.get(String(r.id)));
+    reads.push({ sql: `select id, email, phone from auth.users where id::text = any(${idArrayLiteral(userIds)})`, table: 'auth.users', world: (u) => worldByUser.get(String(u.id)) });
+    for (const t of schema.profiles) {
+      if (!TABLE.test(t)) continue;
+      reads.push({ sql: `select * from public."${t}" where id::text = any(${idArrayLiteral(userIds)})`, table: t, world: (r) => worldByUser.get(String(r.id)) });
     }
   }
+  return reads;
+}
+
+/**
+ * Every row the fixture worlds hold right now, from the live database: rows of every public table
+ * with an organisation column naming a fixture organisation, the organisation rows, the plan's
+ * global rows by id, the fixture users (auth.users) and rows keyed to them. All of it is one
+ * batched read after the schema, which used to be one request per table.
+ * @param {import('../../adapters/data/supabase.mjs').DataAdapter} db
+ * @param {object} seedPlan
+ * @param {{ schema?: { columns: object[], profiles: string[] } }} [opts] a schema already read
+ * @returns {Promise<{ world: string, table: string, id: string, values: object }[]>}
+ */
+export async function liveWorldRows(db, seedPlan, opts = {}) {
+  const out = [];
+  if (!seedPlan.worlds.length) return out;
+  const seen = new Set();
+  const push = (table, row, world) => {
+    const id = String(row.id ?? row.user_id ?? '(no id)');
+    const k = `${table}\0${id}`;
+    if (seen.has(k)) return;
+    seen.add(k);
+    out.push({ world: world ?? '(unknown)', table, id, values: row });
+  };
+  const schema = opts.schema ?? await worldSchema(db);
+  const reads = liveWorldReads(seedPlan, schema);
+  const answers = await queryAll(db, reads.map((r) => r.sql));
+  reads.forEach((read, i) => { for (const row of answers[i]) push(read.table, row, read.world(row)); });
   return out;
 }

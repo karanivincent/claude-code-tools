@@ -9,7 +9,7 @@ import { loadState, newRunId } from '../core/state.mjs';
 import { assertFileId } from '../core/paths.mjs';
 import { buildSeedPlan, readWorldFile } from '../seed/plan.mjs';
 import { seedCheck } from '../seed/safety.mjs';
-import { seedScan, refreshWorld, teardownSeed } from '../seed/scan.mjs';
+import { seedScan, refreshWorldReport, teardownSeed } from '../seed/scan.mjs';
 import { applyRows } from '../seed/apply.mjs';
 import { parseDatabaseTypes } from '../plan/verify.mjs';
 import { readFile } from 'node:fs/promises';
@@ -164,11 +164,12 @@ async function scanMode(ctx) {
 
 async function refreshMode(ctx, world) {
   assertFileId(world, 'world id');
-  const gate = await refreshWorld(ctx, world);
+  const { gate, written, unchanged } = await refreshWorldReport(ctx, world);
   for (const f of gate.failures) ctx.out.fail(f.code, f.message);
+  if (written !== undefined) ctx.out.line(`rewrote ${written} row(s); ${unchanged} already as planned`);
   if (gate.ok) ctx.out.line(`world ${world} refreshed and scanned: safe`);
   const exit = gate.ok ? EXIT.PASS : (gate.exit ?? EXIT.RED);
-  await ctx.journal({ command: `seed --refresh ${world}`, exit, counts: { failures: gate.failures.length } });
+  await ctx.journal({ command: `seed --refresh ${world}`, exit, counts: { failures: gate.failures.length, written: written ?? 0 } });
   return exit;
 }
 

@@ -6,10 +6,12 @@
 import { gateResult, combineGates } from '../core/gate.mjs';
 import { readArtefact } from '../core/artefacts.mjs';
 import { DeliveryError, EXIT, UsageError } from '../core/exit.mjs';
-import { deriveWithReport } from '../sidefx/derive.mjs';
 import { evaluateSeedSafety, ORG_COLUMNS } from './check.mjs';
-import { derivedNeverDial, fakeRangeProbe, runGuards, liveWorldRows, idArrayLiteral } from './db.mjs';
-import { seedCheck } from './safety.mjs';
+import {
+  derivedNeverDial, fakeRangeProbe, runGuards, liveWorldRows, liveWorldReads, idArrayLiteral, prefetch, safetyQueries,
+  worldSchema, WORLD_SCHEMA_SQL, plannedRowsNow, plannedRowReads,
+} from './db.mjs';
+import { seedCheck, deriveForSeed } from './safety.mjs';
 import { applyRows } from './apply.mjs';
 
 async function adapter(ctx, write) {
@@ -34,30 +36,62 @@ export async function seedScanGate(ctx) {
   return (await seedScan(ctx)).gate;
 }
 
-/** The scan with its evaluation, for the seed command's report. */
-export async function seedScan(ctx) {
+/**
+ * The scan with its evaluation, for the seed command's report. A refresh hands in what its own
+ * check already established moments earlier in the same command (the plan, the side-effect map,
+ * the schema, database access); nothing is ever carried from one command to the next. The rows,
+ * the never-dial set, the fake range and every guard probe are always read afresh, in one
+ * batched request (two when the schema has to be read first).
+ * @param {import('../core/ctx.mjs').Ctx} ctx
+ * @param {{ seedPlan?: object, derived?: { predicates: object[], failures: object[] }, schema?: object, accessProven?: boolean, worlds?: string[] }} [opts]
+ *   worlds: read and judge only these worlds' rows (the guard probes still name every fixture organisation)
+ */
+export async function seedScan(ctx, opts = {}) {
   const { safety } = await ctx.safety();
   const failures = [];
-  let seedPlan;
-  try { seedPlan = await requireSeedPlan(ctx); } catch (err) {
-    return { gate: gateResult([{ code: 'M13-scan', message: err.message }], EXIT.USAGE), evaluation: null };
+  let seedPlan = opts.seedPlan;
+  if (!seedPlan) {
+    try { seedPlan = await requireSeedPlan(ctx); } catch (err) {
+      return { gate: gateResult([{ code: 'M13-scan', message: err.message }], EXIT.USAGE), evaluation: null };
+    }
   }
-  let predicates = [];
-  try {
-    const d = await deriveWithReport(ctx, { write: true });
-    predicates = d.sidefx.predicates;
-    for (const f of d.failures) failures.push({ code: 'M13-L1', message: `side-effect map: ${f.message}` });
-  } catch (err) {
-    if (!(err instanceof DeliveryError)) throw err;
-    failures.push(...err.failures.map((f) => ({ code: 'M13-L1', message: `side-effect map: ${f.message}` })));
-  }
+  const derivation = opts.derived ? Promise.resolve(opts.derived) : deriveForSeed(ctx, true);
+  const fixtureOrgs = seedPlan.worlds.map((w) => w.orgId);
+  const only = opts.worlds ? new Set(opts.worlds) : null;
+  const scanned = only
+    ? { ...seedPlan, worlds: seedPlan.worlds.filter((w) => only.has(w.id)), users: seedPlan.users.filter((u) => only.has(u.world)), rows: seedPlan.rows.filter((r) => only.has(r.world)) }
+    : seedPlan;
+  const reading = (async () => {
+    const db = await adapter(ctx, null);
+    // No access fails at the first query of the first request, once, rather than query by query.
+    let access = opts.accessProven ? [] : ['select 1 as ok'];
+    let schema = opts.schema;
+    if (!schema) {
+      const first = await prefetch(db, [...access, ...WORLD_SCHEMA_SQL]);
+      for (const sql of access) await first.query(sql);
+      schema = await worldSchema(first);
+      access = [];
+    }
+    // The rows and every safety input in one request.
+    const reader = await prefetch(db, [
+      ...access,
+      ...liveWorldReads(scanned, schema).map((r) => r.sql),
+      ...safetyQueries(safety, { fixtureOrgs }),
+    ]);
+    for (const sql of access) await reader.query(sql);
+    return { rows: await liveWorldRows(reader, scanned, { schema }), reader };
+  })().then((r) => r, (err) => ({ err }));
+  const derived = await derivation;
+  failures.push(...derived.failures);
+  const predicates = derived.predicates;
   let rows = [];
   let neverDial = [];
   let guards = [];
   try {
-    const db = await adapter(ctx, null);
-    await db.query('select 1 as ok');
-    rows = await liveWorldRows(db, seedPlan);
+    const read = await reading;
+    if (read.err) throw read.err;
+    const db = read.reader;
+    rows = read.rows;
     const nd = await derivedNeverDial(db, safety);
     neverDial = nd.numbers;
     failures.push(...nd.failures.map((f) => ({ code: 'M13-L2', message: f.message })));
@@ -70,7 +104,7 @@ export async function seedScan(ctx) {
     return { gate: gateResult([...failures, { code: 'M13-db', message: `the fixture worlds could not be read (${err.message}); the scan cannot pass unread` }], EXIT.USAGE), evaluation: null };
   }
   const evaluation = evaluateSeedSafety({
-    rows, users: seedPlan.users, worlds: seedPlan.worlds, predicates, safety, neverDial, guards, now: ctx.clock.now(), structure: null,
+    rows, users: scanned.users, worlds: scanned.worlds, predicates, safety, neverDial, guards, now: ctx.clock.now(), structure: null,
   });
   for (const reason of evaluation.reasons) failures.push({ code: `M13-L${reason.layer}`, message: `live: ${reason.message}` });
   return { gate: gateResult(failures), evaluation, rows: rows.length };
@@ -78,21 +112,52 @@ export async function seedScan(ctx) {
 
 /**
  * Re-apply one world from seedplan.json (relative dates refreshed), then scan it.
- * Called by capture (C) before each world's captures.
+ * Called by capture (C) before each world's captures, and by the capture page between clicks that
+ * wrote, so it has to be quick: alongside its safety check it reads what the world holds now, and
+ * writes only the planned rows the database does not already hold exactly as planned. Every
+ * planned row still ends as the plan says; a row a click changed, deleted or never saw is written,
+ * one the click left alone is not written again. The scan after the write reads the whole of this
+ * world as it now is, rows a click created included, with every never-dial query and guard probe;
+ * other worlds are not the refresh's to change, and the capture scans them all before each world.
  * @param {import('../core/ctx.mjs').Ctx} ctx
  * @param {string} worldId
  * @returns {Promise<import('../core/gate.mjs').GateResult>}
  */
 export async function refreshWorld(ctx, worldId) {
+  return (await refreshWorldReport(ctx, worldId)).gate;
+}
+
+/**
+ * The refresh with what it wrote, for the seed command's report.
+ * @param {import('../core/ctx.mjs').Ctx} ctx
+ * @param {string} worldId
+ * @returns {Promise<{ gate: import('../core/gate.mjs').GateResult, written?: number, unchanged?: number }>}
+ */
+export async function refreshWorldReport(ctx, worldId) {
   const seedPlan = await requireSeedPlan(ctx);
-  if (!seedPlan.worlds.some((w) => w.id === worldId)) {
-    return gateResult([{ code: 'M13-refresh', message: `the seed plan has no world "${worldId}"` }], EXIT.USAGE);
+  const world = seedPlan.worlds.find((w) => w.id === worldId);
+  if (!world) {
+    return { gate: gateResult([{ code: 'M13-refresh', message: `the seed plan has no world "${worldId}"` }], EXIT.USAGE) };
   }
+  // Read while the check runs: what this world's planned rows hold now (only this world's rows are
+  // a refresh's to write), and the schema the scan after the write reads by. A read that fails
+  // costs speed, never safety: every row is written, and the scan reads the schema itself.
+  const soft = (p) => p.then((r) => r, (err) => {
+    if (!(err instanceof DeliveryError)) throw err;
+    return null;
+  });
+  const worldRows = seedPlan.rows.filter((r) => r.world === worldId);
+  const before = soft(adapter(ctx, null))
+    .then((db) => db && soft(prefetch(db, [...WORLD_SCHEMA_SQL, ...plannedRowReads(worldRows).map((r) => r.sql)])))
+    .then((reader) => (reader ? Promise.all([soft(worldSchema(reader)), soft(plannedRowsNow(reader, worldRows))]) : [null, null]));
+  before.catch(() => undefined); // awaited below; the check running first does not make it unhandled
   const check = await seedCheck(ctx, { seedPlan, worlds: [worldId] });
-  if (!check.gate.ok) return check.gate;
+  const [schema, live] = await before;
+  if (!check.gate.ok) return { gate: check.gate };
   const db = await adapter(ctx, 'seed-refresh');
-  await applyRows(db, seedPlan, { worlds: [worldId], now: ctx.clock.now(), users: false });
-  return seedScanGate(ctx);
+  const written = await applyRows(db, seedPlan, { worlds: [worldId], now: ctx.clock.now(), users: false, live });
+  const scan = await seedScan(ctx, { seedPlan, worlds: [worldId], derived: check.derived, schema: schema ?? undefined, accessProven: true });
+  return { gate: scan.gate, written: written.rows, unchanged: written.unchanged };
 }
 
 /**

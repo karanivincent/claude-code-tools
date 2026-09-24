@@ -9,7 +9,26 @@ import { readArtefact } from '../core/artefacts.mjs';
 import { DeliveryError, EXIT } from '../core/exit.mjs';
 import { deriveWithReport } from '../sidefx/derive.mjs';
 import { evaluateSeedSafety } from './check.mjs';
-import { derivedNeverDial, fakeRangeProbe, runGuards } from './db.mjs';
+import { derivedNeverDial, fakeRangeProbe, runGuards, prefetch, safetyQueries } from './db.mjs';
+
+/**
+ * Layer 1's input: the side-effect map, derived afresh, with what could not be modelled as M13-L1
+ * failures. One command derives it once: a refresh's scan uses its own check's derivation, seconds
+ * old, rather than reading the same worker files and the same cron table twice.
+ * @param {import('../core/ctx.mjs').Ctx} ctx
+ * @param {boolean} write write sidefx.json
+ * @returns {Promise<{ predicates: object[], failures: { code: string, message: string }[] }>}
+ */
+export async function deriveForSeed(ctx, write) {
+  const l1 = (f) => ({ code: 'M13-L1', message: `side-effect map: ${f.message}` });
+  try {
+    const d = await deriveWithReport(ctx, { write });
+    return { predicates: d.sidefx.predicates, failures: d.failures.map(l1) };
+  } catch (err) {
+    if (!(err instanceof DeliveryError)) throw err;
+    return { predicates: [], failures: (err.failures ?? [{ message: err.message }]).map(l1) };
+  }
+}
 
 /**
  * seed --check as a gate: layers 1 to 3 over seedplan.json (derived predicates, contact values
@@ -46,35 +65,36 @@ export async function seedCheck(ctx, opts = {}) {
   const users = only ? seedPlan.users.filter((u) => only.has(u.world)) : seedPlan.users;
   const worlds = only ? seedPlan.worlds.filter((w) => only.has(w.id)) : seedPlan.worlds;
 
-  // Layer 1 inputs: derived afresh, never read back from a cache.
-  let predicates = [];
-  try {
-    const d = await deriveWithReport(ctx, { write: Boolean(ctx.paths) });
-    predicates = d.sidefx.predicates;
-    for (const f of d.failures) failures.push({ code: 'M13-L1', message: `side-effect map: ${f.message}` });
-  } catch (err) {
-    if (!(err instanceof DeliveryError)) throw err;
-    failures.push(...err.failures.map((f) => ({ code: 'M13-L1', message: `side-effect map: ${f.message}` })));
-  }
+  // Layer 1 inputs: derived afresh, never read back from a cache. The derivation and the database
+  // reads below are independent, so they run at the same time.
+  const derivation = deriveForSeed(ctx, Boolean(ctx.paths));
+  const fixtureOrgs = seedPlan.worlds.map((w) => w.orgId);
+  const plannedTables = new Set(seedPlan.rows.map((r) => r.table));
+  const reading = (async () => {
+    const { createDataAdapter } = await import('../../adapters/data/supabase.mjs');
+    const db = await createDataAdapter(ctx);
+    // One batch; no access fails at its first query, once, rather than query by query.
+    const reader = await prefetch(db, ['select 1 as ok', ...safetyQueries(safety, { fixtureOrgs, plannedTables })]);
+    await reader.query('select 1 as ok');
+    return reader;
+  })().then((reader) => ({ reader }), (err) => ({ err }));
+  const derived = await derivation;
+  failures.push(...derived.failures);
+  const predicates = derived.predicates;
 
   // Database-backed inputs: the derived never-dial set, the fake range, the guards.
   let neverDial = [];
   let guards = (safety.guards ?? []).map((g) => ({ id: g.id, covers: g.covers, holds: false, why: 'not probed' }));
   let exit;
   try {
-    const { createDataAdapter } = await import('../../adapters/data/supabase.mjs');
-    const db = await createDataAdapter(ctx);
-    await db.query('select 1 as ok'); // no access fails here, once, rather than query by query
+    const { reader: db, err: readErr } = await reading;
+    if (readErr) throw readErr;
     const nd = await derivedNeverDial(db, safety);
     neverDial = nd.numbers;
     failures.push(...nd.failures.map((f) => ({ code: 'M13-L2', message: f.message })));
     const fake = await fakeRangeProbe(db, safety);
     if (!fake.ok) failures.push({ code: 'M13-L2', message: `fake numbers: ${fake.detail}` });
-    guards = await runGuards(db, safety, {
-      fixtureOrgs: seedPlan.worlds.map((w) => w.orgId),
-      plannedTables: new Set(seedPlan.rows.map((r) => r.table)),
-      rows: seedPlan.rows,
-    });
+    guards = await runGuards(db, safety, { fixtureOrgs, plannedTables, rows: seedPlan.rows });
   } catch (err) {
     if (!(err instanceof DeliveryError)) throw err;
     exit = err.exit === EXIT.BLOCKED ? EXIT.BLOCKED : EXIT.USAGE;
@@ -91,7 +111,7 @@ export async function seedCheck(ctx, opts = {}) {
     },
   });
   for (const reason of evaluation.reasons) failures.push({ code: `M13-L${reason.layer}`, message: reason.message });
-  return { gate: gateResult(failures, failures.length ? exit : undefined), evaluation, seedPlan, guards };
+  return { gate: gateResult(failures, failures.length ? exit : undefined), evaluation, seedPlan, guards, derived };
 }
 
 async function globalTables(ctx) {

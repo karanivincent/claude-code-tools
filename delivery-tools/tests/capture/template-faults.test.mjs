@@ -140,3 +140,22 @@ test('a stored session belongs to one site, and the in-page version probe never 
   assert.match(probe, /maxRedirects: 0/, 'a redirect is an answer, not something to follow');
   assert.match(probe, /text\\?\/html/, 'an HTML body is never read for a SHA');
 });
+
+// 10. A click that wrote left the next click in the same state on changed data.
+test('a control whose page wrote is followed by a world refresh before the next control', () => {
+  // The Knowledge run's review state has "Keep all", "Keep" and "Discard". The world was re-applied
+  // once, after the item's last click, so by the time "Keep" and "Discard" were clicked "Keep all"
+  // had already kept everything, and both reported a target they could not reach.
+  const clicks = support.slice(support.indexOf('async function clickControls('), support.indexOf('function wrote('));
+  const loop = clicks.slice(clicks.indexOf('for (const c of item.controls)'));
+  assert.match(loop, /page\.on\('request', \(req\) => \{ sent\.push\(req\); \}\)/, 'every request a control page sends is seen');
+  assert.match(loop, /if \(sent\.some\(\(req\) => wrote\(req, marks\)\)\) refreshWorld\(job, item, c\.testid\);\n  \}/,
+    'the refresh runs inside the loop, after each control that wrote, so also after the last one');
+  const wroteBody = support.slice(support.indexOf('function wrote('), support.indexOf('function refreshWorld('));
+  assert.match(wroteBody, /!READS\.has\(req\.method\(\)\)/, 'a read never triggers a refresh');
+  assert.match(wroteBody, /!isSignInExchange\(req\.url\(\)\)/, 'nor does the sign-in exchange');
+  assert.match(wroteBody, /!marks\.intercepted\.has\(req\) && !marks\.aborted\.has\(req\)/, 'nor a request the capture answered or refused itself');
+  const refresh = support.slice(support.indexOf('function refreshWorld('), support.indexOf('function writeJson('));
+  assert.match(refresh, /catch \(e\) \{\n\s+console\.warn\(/, 'a failed refresh is a warning, never a throw');
+  assert.doesNotMatch(support, /refreshWorldAfterClicks/, 'the one refresh after the whole item is gone');
+});

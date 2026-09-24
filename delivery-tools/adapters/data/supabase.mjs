@@ -29,6 +29,8 @@ const REF = /^[a-z0-9][a-z0-9-]{2,63}$/;
  * @property {string} projectRef   the project this adapter talks to
  * @property {string|null} write   the seed write mode it was built for, or null (read-only)
  * @property {(sql: string, params?: unknown[]) => Promise<object[]>} query  read-only SQL
+ * @property {(sqls: string[]) => Promise<({ rows: object[] } | { error: Error })[]>} queryMany
+ *   several read-only queries in one round trip where the backend can, each answered on its own
  * @property {(table: string, rows: object[]) => Promise<void>} upsert      by primary key `id`
  * @property {(table: string, ids: string[]) => Promise<number>} deleteByIds
  * @property {(user: { id: string, email: string, name?: string }) => Promise<'created'|'exists'>} createUser
@@ -94,6 +96,17 @@ function guard(backend, { projectRef, write }) {
       assertReadOnlySql(sql);
       return backend.query(sql, params);
     },
+    // Every read a scan makes used to be its own request, about a second each over the Management
+    // API, and a scan is some fifty of them. Each text is checked here exactly as a single query
+    // is; a backend that cannot batch is asked one query at a time, in order.
+    async queryMany(sqls) {
+      for (const sql of sqls) assertReadOnlySql(sql);
+      if (!sqls.length) return [];
+      if (backend.queryMany) return backend.queryMany(sqls);
+      const out = [];
+      for (const sql of sqls) out.push(await backend.query(sql).then((rows) => ({ rows }), (error) => ({ error })));
+      return out;
+    },
     // `idless` is for a join table, whose primary key is the pair of columns it joins and which
     // has no id column to derive one into. Everything else still needs its derived id: that is
     // what makes a re-seed an upsert rather than a second row, and a teardown a delete by id.
@@ -158,6 +171,22 @@ function httpBackend(env, projectRef, fetchImpl, sleep = wait) {
     if (m[1] !== projectRef) throw new ConfigError(`SUPABASE_URL points at project ${m[1]}, not the test project ${projectRef}`, { code: 'project' });
     return `${url.protocol}//${url.host}`;
   };
+  const batchQuery = async (chunk) => {
+    const sql = chunk
+      .map((q, i) => `select ${i} as i, (select coalesce(json_agg(q), '[]'::json) from (\n${String(q).replace(/;\s*$/, '')}\n) q) as r`)
+      .join('\nunion all\n');
+    const rows = await backend.query(sql);
+    const out = new Array(chunk.length);
+    for (const row of rows) {
+      const r = typeof row.r === 'string' ? JSON.parse(row.r) : row.r;
+      if (!Array.isArray(r)) throw new DeliveryError(EXIT.RED, 'read query: a batched answer was not rows', { code: 'db' });
+      out[Number(row.i)] = { rows: r };
+    }
+    for (let i = 0; i < out.length; i++) {
+      if (!out[i]) throw new DeliveryError(EXIT.RED, `read query: the batch did not answer query ${i}`, { code: 'db' });
+    }
+    return out;
+  };
   const restHeaders = (extra = {}) => ({ apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json', ...extra });
   const call = async (url, init, what) => {
     let res;
@@ -171,7 +200,7 @@ function httpBackend(env, projectRef, fetchImpl, sleep = wait) {
     throw new DeliveryError(res.status >= 500 ? EXIT.WAIT : EXIT.RED, `${what}: HTTP ${res.status} ${detail}`, { code: 'db' });
   };
 
-  return {
+  const backend = {
     async query(sql) {
       needToken();
       // A read is safe to repeat, and on a flaky line one dropped request used to refuse a whole
@@ -196,6 +225,26 @@ function httpBackend(env, projectRef, fetchImpl, sleep = wait) {
       const body = await res.json();
       if (!Array.isArray(body)) throw new DeliveryError(EXIT.RED, 'read query: the Management API did not return rows', { code: 'db' });
       return body;
+    },
+    // Several reads as one statement: each query becomes a json_agg subquery, one row per query,
+    // so a scan of fifty tables is one request rather than fifty. A batch that fails for any reason
+    // but missing credentials is asked again query by query, a few at a time, so one query that
+    // cannot sit inside another (a SHOW, a comment after its semicolon) or that fails on its own
+    // is reported as itself and does not take the others with it.
+    async queryMany(sqls) {
+      const settle = (p) => p.then((rows) => ({ rows }), (error) => ({ error }));
+      if (sqls.length === 1) return [await settle(backend.query(sqls[0]))];
+      const chunks = [];
+      for (let i = 0; i < sqls.length; i += BATCH_MAX) chunks.push(sqls.slice(i, i + BATCH_MAX));
+      const answered = await Promise.all(chunks.map(async (chunk) => {
+        try {
+          return await batchQuery(chunk);
+        } catch (err) {
+          if (err instanceof ConfigError) throw err;
+          return inPool(chunk, SINGLE_CONCURRENCY, (sql) => settle(backend.query(sql)));
+        }
+      }));
+      return answered.flat();
     },
     async upsert(table, rows, o = {}) {
       const base = rest();
@@ -293,6 +342,24 @@ function httpBackend(env, projectRef, fetchImpl, sleep = wait) {
         : { ok: false, detail: `the Management API refused the token for ${projectRef} (HTTP ${res.status})` };
     },
   };
+  return backend;
+}
+
+/** Queries per batched request, and single queries in flight when a batch is asked again. */
+const BATCH_MAX = 80;
+const SINGLE_CONCURRENCY = 6;
+
+async function inPool(items, limit, fn) {
+  const out = new Array(items.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
 }
 
 /** A service-role key: a JWT whose role claim is service_role, or a new-style secret key. */
