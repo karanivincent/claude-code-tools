@@ -35,7 +35,9 @@ modes:
   --apply            refuse production and any project but the test project, run --check, write
                      users and rows, then scan the database as it now is
   --scan             evaluate every row in every fixture world as it is now, and every guard probe
-  --refresh <world>  re-apply one world (relative dates moved to now), then scan
+  --refresh <world>  re-apply one world (relative dates moved to now), delete the rows its own
+                     organisation holds in the tables its plan seeds that the plan does not have
+                     (a row a capture's click added), then scan
   --teardown         delete the run's rows and fixture users by id, then scan
 
 exit: 0 safe; 1 refused by a safety layer; 2 wrong project, no database access or no seed plan;
@@ -164,12 +166,17 @@ async function scanMode(ctx) {
 
 async function refreshMode(ctx, world) {
   assertFileId(world, 'world id');
-  const { gate, written, unchanged } = await refreshWorldReport(ctx, world);
+  const { gate, written, unchanged, removed } = await refreshWorldReport(ctx, world);
   for (const f of gate.failures) ctx.out.fail(f.code, f.message);
   if (written !== undefined) ctx.out.line(`rewrote ${written} row(s); ${unchanged} already as planned`);
+  if (removed) {
+    const tables = Object.entries(removed.tables).filter(([, n]) => n > 0).map(([t, n]) => `${t} ${n}`);
+    ctx.out.line(`removed ${removed.rows} row(s) the plan does not have${tables.length ? ` (${tables.join(', ')})` : ''}`);
+  }
   if (gate.ok) ctx.out.line(`world ${world} refreshed and scanned: safe`);
+  ctx.out.set('refresh', { world, ok: gate.ok, written: written ?? 0, unchanged: unchanged ?? 0, removed: removed ?? { rows: 0, tables: {} } });
   const exit = gate.ok ? EXIT.PASS : (gate.exit ?? EXIT.RED);
-  await ctx.journal({ command: `seed --refresh ${world}`, exit, counts: { failures: gate.failures.length, written: written ?? 0 } });
+  await ctx.journal({ command: `seed --refresh ${world}`, exit, counts: { failures: gate.failures.length, written: written ?? 0, removed: removed?.rows ?? 0 } });
   return exit;
 }
 
