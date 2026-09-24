@@ -1,7 +1,7 @@
 {
   "name": "delivery-tools",
   "description": "Turns a design export into one reviewed, verified pull request built by agents: inventory, coverage plan, waves of builders, per-wave audit, and a CLI that decides when it is ready.",
-  "version": "0.3.9",
+  "version": "0.3.10",
   "author": {
     "name": "Vince"
   },
