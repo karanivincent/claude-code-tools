@@ -13,6 +13,7 @@ import { seedCheckGate } from '../../lib/seed/safety.mjs';
 import { teardownRows, refreshWorld } from '../../lib/seed/scan.mjs';
 import { buildSeedPlan, uuidv5, fixtureId } from '../../lib/seed/plan.mjs';
 import { applyRows } from '../../lib/seed/apply.mjs';
+import { derivedNeverDial } from '../../lib/seed/db.mjs';
 import { createStubDb } from './stub-db.mjs';
 import { WORKER_FILES } from '../sidefx/fixtures.mjs';
 
@@ -218,6 +219,13 @@ test('seed --apply: refused plans write nothing; safe plans write users then row
     assert.match(safe.stdout.text(), /wrote 5 row\(s\) and 1 new fixture user\(s\)/);
     assert.match(safe.stdout.text(), /scan after write: \d+ row\(s\)/);
   } finally { safe.repo.cleanup(); }
+});
+
+test('the derived never-dial set leaves out numbers in the reserved fake range, which reach nobody', async () => {
+  const db = createStubDb({ answers: [{ match: /from contacts/, rows: [{ phone_number: '+15550100077' }, { phone_number: '999700000431' }, { phone_number: '+999 700 000 208' }] }] });
+  const got = await derivedNeverDial(db, makeSafety({ neverDialQueries: ['select phone_number from contacts'] }));
+  assert.deepEqual(got.numbers, ['+15550100077']);
+  assert.deepEqual(got.failures, []);
 });
 
 test('seed --apply: a production or foreign project is refused before the database is touched', async () => {
