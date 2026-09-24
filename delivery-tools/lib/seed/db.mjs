@@ -15,6 +15,9 @@ export function idArrayLiteral(ids) {
 
 /**
  * Every number the safety file's never-dial queries return, across all organisations (7.2).
+ * A number in the reserved fake range is left out: the fake-range probe proves it reaches nobody,
+ * and a never-dial query over a table the seed writes (contacts, say) would otherwise read the
+ * fixtures' own fake numbers back after the write and refuse every one of them.
  * @param {import('../../adapters/data/supabase.mjs').DataAdapter} db
  * @param {object} safety
  * @returns {Promise<{ numbers: string[], failures: { code: string, message: string }[] }>}
@@ -22,6 +25,8 @@ export function idArrayLiteral(ids) {
 export async function derivedNeverDial(db, safety) {
   const numbers = new Set();
   const failures = [];
+  let fake = null;
+  try { fake = safety.fakeNumbers?.pattern ? new RegExp(safety.fakeNumbers.pattern) : null; } catch { fake = null; }
   for (const sql of safety.neverDialQueries ?? []) {
     try {
       const rows = await db.query(sql);
@@ -29,6 +34,7 @@ export async function derivedNeverDial(db, safety) {
         for (const v of Object.values(row ?? {})) {
           if (v === null || v === undefined) continue;
           const digits = String(v).replace(/\D/g, '');
+          if (fake && (fake.test(String(v)) || fake.test(digits))) continue;
           if (digits.length >= 7) numbers.add(String(v));
         }
       }
