@@ -42,13 +42,32 @@
         "type": "object",
         "additionalProperties": false,
         "required": ["id", "covers", "why", "probes"],
+        "anyOf": [
+          { "properties": { "probes": { "minItems": 1 } } },
+          { "required": ["rowRules"], "properties": { "rowRules": { "minItems": 1 } } }
+        ],
         "properties": {
           "id": { "$ref": "common.schema.json#/$defs/Slug" },
           "covers": { "type": "array", "minItems": 1, "items": { "type": "string", "pattern": "^[a-z_][a-z0-9_]*:(\\*|[A-Za-z0-9._:#-]+)$" } },
           "why": { "$ref": "common.schema.json#/$defs/Text" },
+          "rowRules": {
+            "description": "Rules over the fixture rows themselves, for a property the seed data carries (every fixture website on a reserved domain). Checked against the seed plan's rows before a write and the live rows after it; a probe cannot say this, because a probe may not read a table the plan writes.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["table", "column", "pattern"],
+              "properties": {
+                "table": { "type": "string", "pattern": "^[a-z_][a-z0-9_]*$" },
+                "column": { "type": "string", "pattern": "^[a-z_][a-z0-9_]*$" },
+                "pattern": { "$ref": "common.schema.json#/$defs/Text" },
+                "where": { "type": "object", "additionalProperties": { "type": ["string", "number", "boolean"] } }
+              }
+            }
+          },
           "probes": {
             "type": "array",
-            "minItems": 1,
+            "minItems": 0,
             "items": {
               "type": "object",
               "additionalProperties": false,

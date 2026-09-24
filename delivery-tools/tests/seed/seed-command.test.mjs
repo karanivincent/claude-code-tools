@@ -175,6 +175,27 @@ test('seed --check: a holding guard accepts what it covers, and a guard the plan
   } finally { undermined.repo.cleanup(); }
 });
 
+test('seed --check: a guard\'s row rule holds on the planned rows it selects, and refuses when one breaks it', async () => {
+  const guards = [{
+    id: 'queued-calls-are-fake', covers: ['outbound_calls:*'], why: 'every queued fixture call is to the reserved range', probes: [],
+    rowRules: [{ table: 'outbound_calls', column: 'phone_number', pattern: '^999\\d{9}$', where: { status: 'queued' } }],
+  }];
+  const world = unsafeWorld();
+  world.rows.find((r) => r.key === 'c2').values.phone_number = '999700000009';
+  const held = await setup({ world, safety: { guards } });
+  try {
+    await seedCommand.run(held.ctx, ['--plan']);
+    assert.equal(await seedCommand.run(held.ctx, ['--check']), 0, held.stdout.text());
+    assert.match(held.stdout.text(), /accepted: 1 row\(s\) matching sql:claim_outbound_calls\.\d under guard queued-calls-are-fake/);
+  } finally { held.repo.cleanup(); }
+  const broken = await setup({ world: unsafeWorld(), safety: { guards } });
+  try {
+    await seedCommand.run(broken.ctx, ['--plan']);
+    assert.equal(await seedCommand.run(broken.ctx, ['--check']), 1);
+    assert.match(broken.stdout.text(), /guard queued-calls-are-fake does not hold \(1 outbound_calls row\(s\) break the row rule phone_number/);
+  } finally { broken.repo.cleanup(); }
+});
+
 test('seed --apply: refused plans write nothing; safe plans write users then rows, then scan', async () => {
   const unsafe = await setup({ world: unsafeWorld() });
   try {
