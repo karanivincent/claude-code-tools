@@ -16,13 +16,17 @@ import { ConfigError, DeliveryError, EXIT } from '../../lib/core/exit.mjs';
 
 export const WRITE_MODES = Object.freeze({
   'seed-apply': ['upsert', 'createUser'],
-  'seed-refresh': ['upsert'],
+  // A refresh may also remove rows a click added to its world, but only through deleteOrgRows,
+  // whose every request carries the world's organisation as a filter the database applies.
+  'seed-refresh': ['upsert', 'deleteOrgRows'],
   'seed-teardown': ['deleteByIds', 'deleteUser'],
 });
 
 const TABLE = /^[a-z_][a-z0-9_]*$/;
 const ID = /^[A-Za-z0-9._:-]+$/;
 const REF = /^[a-z0-9][a-z0-9-]{2,63}$/;
+/** The organisation columns deleteOrgRows may filter by (lib/seed/check.mjs ORG_COLUMNS). */
+const ORG_FILTER_COLUMNS = Object.freeze(['organization_id', 'organisation_id', 'org_id', 'tenant_id']);
 
 /**
  * @typedef {object} DataAdapter
@@ -33,6 +37,8 @@ const REF = /^[a-z0-9][a-z0-9-]{2,63}$/;
  *   several read-only queries in one round trip where the backend can, each answered on its own
  * @property {(table: string, rows: object[]) => Promise<void>} upsert      by primary key `id`
  * @property {(table: string, ids: string[]) => Promise<number>} deleteByIds
+ * @property {(table: string, ids: string[], org: { column: string, orgId: string }) => Promise<number>} deleteOrgRows
+ *   delete by id, and only where the organisation column holds that organisation
  * @property {(user: { id: string, email: string, name?: string }) => Promise<'created'|'exists'>} createUser
  * @property {(id: string) => Promise<boolean>} deleteUser
  * @property {() => Promise<{ read: boolean, write: boolean, detail: string }>} probeAccess   preflight P3
@@ -127,6 +133,13 @@ function guard(backend, { projectRef, write }) {
       for (const id of ids) if (!ID.test(String(id))) throw new DeliveryError(EXIT.USAGE, `delete from ${table}: "${id}" is not an id`, { code: 'seed' });
       return ids.length ? backend.deleteByIds(table, ids) : 0;
     } : refuse('deleteByIds'),
+    deleteOrgRows: allowed.has('deleteOrgRows') ? async (table, ids, org = {}) => {
+      assertTable(table);
+      if (!ORG_FILTER_COLUMNS.includes(org.column)) throw new DeliveryError(EXIT.USAGE, `delete from ${table}: "${org.column}" is not an organisation column`, { code: 'seed' });
+      if (!ID.test(String(org.orgId ?? ''))) throw new DeliveryError(EXIT.USAGE, `delete from ${table}: "${org.orgId}" is not an organisation id`, { code: 'seed' });
+      for (const id of ids) if (!ID.test(String(id))) throw new DeliveryError(EXIT.USAGE, `delete from ${table}: "${id}" is not an id`, { code: 'seed' });
+      return ids.length ? backend.deleteOrgRows(table, ids, { column: org.column, orgId: String(org.orgId) }) : 0;
+    } : refuse('deleteOrgRows'),
     createUser: allowed.has('createUser') ? async (user) => backend.createUser(user) : refuse('createUser'),
     deleteUser: allowed.has('deleteUser') ? async (id) => backend.deleteUser(id) : refuse('deleteUser'),
     probeAccess: () => backend.probeAccess(),
@@ -274,6 +287,21 @@ function httpBackend(env, projectRef, fetchImpl, sleep = wait) {
       for (let i = 0; i < ids.length; i += 100) {
         const list = ids.slice(i, i + 100).map((id) => `"${id}"`).join(',');
         const res = await call(`${base}/rest/v1/${table}?id=in.(${encodeURIComponent(list)})`, {
+          method: 'DELETE',
+          headers: restHeaders({ Prefer: 'return=representation' }),
+        }, `delete from ${table}`);
+        if (!res.ok) await failWith(res, `delete from ${table}`);
+        const body = await res.json().catch(() => []);
+        n += Array.isArray(body) ? body.length : 0;
+      }
+      return n;
+    },
+    async deleteOrgRows(table, ids, { column, orgId }) {
+      const base = rest();
+      let n = 0;
+      for (let i = 0; i < ids.length; i += 100) {
+        const list = ids.slice(i, i + 100).map((id) => `"${id}"`).join(',');
+        const res = await call(`${base}/rest/v1/${table}?id=in.(${encodeURIComponent(list)})&${column}=eq.${encodeURIComponent(orgId)}`, {
           method: 'DELETE',
           headers: restHeaders({ Prefer: 'return=representation' }),
         }, `delete from ${table}`);

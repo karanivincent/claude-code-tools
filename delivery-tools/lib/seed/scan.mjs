@@ -13,6 +13,7 @@ import {
 } from './db.mjs';
 import { seedCheck, deriveForSeed } from './safety.mjs';
 import { applyRows } from './apply.mjs';
+import { worldOrgId, extraReads, extraRows, deleteOrder } from './extras.mjs';
 
 async function adapter(ctx, write) {
   const { createDataAdapter } = await import('../../adapters/data/supabase.mjs');
@@ -116,9 +117,11 @@ export async function seedScan(ctx, opts = {}) {
  * wrote, so it has to be quick: alongside its safety check it reads what the world holds now, and
  * writes only the planned rows the database does not already hold exactly as planned. Every
  * planned row still ends as the plan says; a row a click changed, deleted or never saw is written,
- * one the click left alone is not written again. The scan after the write reads the whole of this
- * world as it now is, rows a click created included, with every never-dial query and guard probe;
- * other worlds are not the refresh's to change, and the capture scans them all before each world.
+ * one the click left alone is not written again. A row a click added is then deleted: one in the
+ * world's own organisation, in a table the world's plan seeds, whose id is no row of the plan
+ * (extras.mjs), so the world ends exactly as its plan says. The scan after the write reads the
+ * whole of this world as it now is, with every never-dial query and guard probe; other worlds are
+ * not the refresh's to change, and the capture scans them all before each world.
  * @param {import('../core/ctx.mjs').Ctx} ctx
  * @param {string} worldId
  * @returns {Promise<import('../core/gate.mjs').GateResult>}
@@ -128,10 +131,10 @@ export async function refreshWorld(ctx, worldId) {
 }
 
 /**
- * The refresh with what it wrote, for the seed command's report.
+ * The refresh with what it wrote and removed, for the seed command's report.
  * @param {import('../core/ctx.mjs').Ctx} ctx
  * @param {string} worldId
- * @returns {Promise<{ gate: import('../core/gate.mjs').GateResult, written?: number, unchanged?: number }>}
+ * @returns {Promise<{ gate: import('../core/gate.mjs').GateResult, written?: number, unchanged?: number, removed?: { rows: number, tables: Record<string, number> } }>}
  */
 export async function refreshWorldReport(ctx, worldId) {
   const seedPlan = await requireSeedPlan(ctx);
@@ -139,25 +142,82 @@ export async function refreshWorldReport(ctx, worldId) {
   if (!world) {
     return { gate: gateResult([{ code: 'M13-refresh', message: `the seed plan has no world "${worldId}"` }], EXIT.USAGE) };
   }
+  // Which rows are the world's is decided by its organisation, from the plan. Without one the
+  // refresh cannot tell a row a click added from anybody else's, so it does nothing at all.
+  const org = worldOrgId(seedPlan, worldId);
+  if (org.error) return { gate: gateResult([{ code: 'M13-refresh', message: `${org.error}; nothing was written` }], EXIT.USAGE) };
+  const extras = extraReads(seedPlan, worldId, org.orgId);
   // Read while the check runs: what this world's planned rows hold now (only this world's rows are
-  // a refresh's to write), and the schema the scan after the write reads by. A read that fails
-  // costs speed, never safety: every row is written, and the scan reads the schema itself.
+  // a refresh's to write), what its organisation holds in the tables it seeds, and the schema the
+  // scan after the write reads by. A read that fails here costs speed, never safety: every row is
+  // written, the organisation's rows are read again, and the scan reads the schema itself.
   const soft = (p) => p.then((r) => r, (err) => {
     if (!(err instanceof DeliveryError)) throw err;
     return null;
   });
   const worldRows = seedPlan.rows.filter((r) => r.world === worldId);
   const before = soft(adapter(ctx, null))
-    .then((db) => db && soft(prefetch(db, [...WORLD_SCHEMA_SQL, ...plannedRowReads(worldRows).map((r) => r.sql)])))
-    .then((reader) => (reader ? Promise.all([soft(worldSchema(reader)), soft(plannedRowsNow(reader, worldRows))]) : [null, null]));
+    .then((db) => db && soft(prefetch(db, [
+      ...WORLD_SCHEMA_SQL, ...plannedRowReads(worldRows).map((r) => r.sql), ...extras.reads.map((r) => r.sql),
+    ])))
+    .then((reader) => (reader ? Promise.all([soft(worldSchema(reader)), soft(plannedRowsNow(reader, worldRows)), reader]) : [null, null, null]));
   before.catch(() => undefined); // awaited below; the check running first does not make it unhandled
   const check = await seedCheck(ctx, { seedPlan, worlds: [worldId] });
-  const [schema, live] = await before;
+  const [schema, live, reader] = await before;
   if (!check.gate.ok) return { gate: check.gate };
   const db = await adapter(ctx, 'seed-refresh');
   const written = await applyRows(db, seedPlan, { worlds: [worldId], now: ctx.clock.now(), users: false, live });
+  const removal = await removeExtras(ctx, { writer: db, reader, seedPlan, worldId, orgId: org.orgId, reads: extras.reads });
   const scan = await seedScan(ctx, { seedPlan, worlds: [worldId], derived: check.derived, schema: schema ?? undefined, accessProven: true });
-  return { gate: scan.gate, written: written.rows, unchanged: written.unchanged };
+  return { gate: combineGates([removal.gate, scan.gate]), written: written.rows, unchanged: written.unchanged, removed: removal.removed };
+}
+
+/**
+ * Delete the rows the world's organisation holds, in the tables its plan seeds, that are no rows
+ * of the plan: children before parents. Every delete names the organisation as well as the ids, so
+ * the database itself refuses a row outside it. A read or a delete that fails is a refresh failure,
+ * never skipped in silence, because the next capture would open on a world that is not as planned.
+ * A failed delete stops the ones after it: a parent whose child is still there would fail too.
+ */
+async function removeExtras(ctx, { writer, reader, seedPlan, worldId, orgId, reads }) {
+  const removed = { rows: 0, tables: {} };
+  if (!reads.length) return { gate: gateResult([]), removed };
+  let answers;
+  try {
+    answers = await readEach(reader, reads);
+  } catch (err) {
+    if (!(err instanceof DeliveryError)) throw err;
+    try {
+      answers = await readEach(await adapter(ctx, null), reads);
+    } catch (again) {
+      if (!(again instanceof DeliveryError)) throw again;
+      return { gate: gateResult([{ code: 'M13-refresh', message: `the rows world ${worldId} holds beyond its plan could not be read (${again.message}); none were removed` }]), removed };
+    }
+  }
+  const byTable = new Map();
+  for (const r of extraRows(seedPlan, orgId, reads, answers)) {
+    if (!byTable.has(r.table)) byTable.set(r.table, { column: r.column, ids: [] });
+    byTable.get(r.table).ids.push(r.id);
+  }
+  for (const table of deleteOrder(seedPlan, worldId, [...byTable.keys()])) {
+    const { column, ids } = byTable.get(table);
+    try {
+      const n = await writer.deleteOrgRows(table, ids, { column, orgId });
+      removed.rows += n;
+      removed.tables[table] = n;
+    } catch (err) {
+      if (!(err instanceof DeliveryError)) throw err;
+      return { gate: gateResult([{ code: 'M13-refresh', message: `${ids.length} ${table} row(s) world ${worldId}'s plan does not have could not be deleted (${err.message}); nothing after them was deleted` }]), removed };
+    }
+  }
+  return { gate: gateResult([]), removed };
+}
+
+async function readEach(reader, reads) {
+  if (!reader) throw new DeliveryError(EXIT.USAGE, 'the organisation\'s rows were not read before the write', { code: 'db' });
+  const out = [];
+  for (const r of reads) out.push(await reader.query(r.sql));
+  return out;
 }
 
 /**

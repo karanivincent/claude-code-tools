@@ -57,6 +57,13 @@ export function createStubDb(opts = {}) {
       tables.set(table, keep);
       return list.length - keep.length;
     },
+    async deleteOrgRows(table, idList, { column, orgId }) {
+      calls.push({ op: 'delete', table, ids: [...idList], where: { [column]: orgId } });
+      const list = tables.get(table) ?? [];
+      const keep = list.filter((r) => !(idList.includes(r.id) && String(r[column]) === orgId));
+      tables.set(table, keep);
+      return list.length - keep.length;
+    },
     async createUser({ id, email }) {
       calls.push({ op: 'createUser', id, email });
       if (users.has(id)) return 'exists';
