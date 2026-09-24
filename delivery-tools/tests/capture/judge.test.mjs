@@ -50,6 +50,17 @@ test('same-as declared in the plan lets two identical captures stand', () => {
   assert.deepEqual(v.map((x) => x.status), ['reached', 'reached']);
 });
 
+test('same-as is followed to its end: states declared the same as one page all stand together', () => {
+  const page = ['Home', 'Calls', 'Knowledge'];
+  const hub = { id: 'KC-05', markers: { text: ['Knowledge'], testids: [], forbidden: [] } };
+  const same = (id) => ({ id, markers: { text: ['Home'], testids: [], forbidden: [], sameAs: { state: 'KC-05', why: 'the sidebar on the page' } } });
+  const v = judge([item('SH-01', page), item('CAP-054', page), item('CAP-055', page)], [hub, same('SH-01'), same('CAP-054'), same('CAP-055')]);
+  assert.deepEqual(v.map((x) => x.status), ['reached', 'reached', 'reached']);
+  const other = { id: 'KC-09', markers: { text: ['Home'], testids: [], forbidden: [] } };
+  const w = judge([item('SH-01', page), item('KC-09', page)], [hub, same('SH-01'), other]);
+  assert.match(w[1].why, /identical text to SH-01/);
+});
+
 test('text is compared normalised: curly quotes, no-break spaces and runs of spaces', () => {
   assert.equal(normaliseText(`Today’s  round${String.fromCharCode(0xa0)}now`), "Today's round now");
   const v = judge([item('DS-05', ["Today's round", 'Pause', '43 still to call'], { testids: ['today-card'] })], [ROUND]);

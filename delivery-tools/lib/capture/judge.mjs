@@ -155,7 +155,15 @@ export function judgeItems(input) {
     verdicts.set(it.key, reasons);
   }
 
-  const sameAsPairs = (a, b) => rows.get(a)?.markers?.sameAs?.state === b || rows.get(b)?.markers?.sameAs?.state === a;
+  // Same-as is followed to its end, so every state the plan says is one page counts as one: a
+  // sidebar's ten links all declared the same as the page they sit on were still judged against each
+  // other, pair by pair, and no group of more than two could stand.
+  const root = (s) => {
+    const seen = new Set();
+    while (rows.get(s)?.markers?.sameAs?.state && !seen.has(s)) { seen.add(s); s = rows.get(s).markers.sameAs.state; }
+    return s;
+  };
+  const sameAsPairs = (a, b) => root(a) === root(b);
   for (const group of hashes.values()) {
     const states = [...new Set(group.map((i) => i.state))];
     if (states.length < 2) continue;
