@@ -19,12 +19,22 @@ function cutTexts(plan) {
   return out;
 }
 
-/** Adapt substitutions, design text to product text, in parity form (longest first). */
+/**
+ * Adapt substitutions, design text to product text, in parity form (longest first). One adapt row
+ * may carry more pairs under `also`: a state whose render holds several values the product has no
+ * field for. A `whole` pair replaces only a design element that is exactly its text, so a short
+ * value ("AI", "0:04") cannot rewrite the inside of longer lines.
+ */
 function adaptSubs(plan) {
-  return (plan?.rows ?? []).filter((r) => r.class === 'adapt' && r.adapt?.designText)
-    .map((r) => ({ from: parityForm(r.adapt.designText), to: parityForm(r.adapt.productText ?? ''), row: r.id }))
-    .filter((s) => s.from)
-    .sort((a, b) => b.from.length - a.from.length);
+  const out = [];
+  for (const r of plan?.rows ?? []) {
+    if (r.class !== 'adapt' || !r.adapt) continue;
+    for (const p of [r.adapt, ...(r.adapt.also ?? [])]) {
+      if (!p?.designText) continue;
+      out.push({ from: parityForm(p.designText), to: parityForm(p.productText ?? ''), whole: p.whole === true, row: r.id });
+    }
+  }
+  return out.filter((s) => s.from).sort((a, b) => b.from.length - a.from.length);
 }
 
 /** The rule for a missing design element, from the design render's dom when it has one. */
@@ -39,7 +49,7 @@ function ruleFor(text, dom) {
 
 /**
  * Pure: the design elements missing from a live capture.
- * @param {{ designTxt: string, designDom?: object|null, liveTxt: string, cut?: Set<string>, subs?: { from: string, to: string }[] }} input
+ * @param {{ designTxt: string, designDom?: object|null, liveTxt: string, cut?: Set<string>, subs?: { from: string, to: string, whole?: boolean }[] }} input
  * @returns {{ el: { line: number, cell: number|null, text: string }, rule: string, expected: string }[]}
  */
 export function missingDesignText({ designTxt, designDom = null, liveTxt, cut = new Set(), subs = [] }) {
@@ -51,7 +61,10 @@ export function missingDesignText({ designTxt, designDom = null, liveTxt, cut = 
   for (const el of parseElements(designTxt)) {
     let want = parityForm(el.text);
     if (!want || cut.has(want)) continue;
-    for (const s of subs) if (want.includes(s.from)) want = want.split(s.from).join(s.to);
+    for (const s of subs) {
+      if (s.whole) { if (want === s.from) want = s.to; }
+      else if (want.includes(s.from)) want = want.split(s.from).join(s.to);
+    }
     if (!want.trim()) continue;
     if (liveSet.has(want) || containsWords(joined, want) || containsWords(joinedFlat, want)) continue;
     out.push({ el, rule: ruleFor(el.text, designDom), expected: want });

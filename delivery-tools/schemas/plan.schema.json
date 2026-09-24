@@ -189,7 +189,21 @@
           "properties": {
             "rule": { "$ref": "common.schema.json#/$defs/Text" },
             "designText": { "type": "string" },
-            "productText": { "type": "string" }
+            "productText": { "type": "string" },
+            "whole": { "type": "boolean" },
+            "also": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["designText", "productText"],
+                "properties": {
+                  "designText": { "type": "string" },
+                  "productText": { "type": "string" },
+                  "whole": { "type": "boolean" }
+                }
+              }
+            }
           }
         },
         "route": { "type": "string" },
