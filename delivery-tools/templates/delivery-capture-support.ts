@@ -193,6 +193,14 @@ const TRANSIENT = /fetch failed|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|socket 
  * magic link made a correct state not-reached and a gate red. Anything else fails at once: a wrong
  * password or a missing user does not get better by asking three times.
  */
+/**
+ * Sign-in links whose 429 was waited out. The browser still reports that first answer as a console
+ * error and a failed request, and a state whose log holds one is refused -- so the sign-in that
+ * came through after the wait was graded on the answer it had outlived. Each link is single-use,
+ * so its URL names that one attempt and nothing else.
+ */
+const WAITED_OUT = new Set<string>();
+
 async function signInRetrying(page: Page, job: CaptureJob, email: string, next: string, meta: Meta): Promise<void> {
   let waited = 0;
   for (let attempt = 1; ; attempt++) {
@@ -203,6 +211,7 @@ async function signInRetrying(page: Page, job: CaptureJob, email: string, next: 
     const onResponse = (res: Response): void => {
       if (res.status() === 429 && /\/auth\//.test(new URL(res.url()).pathname)) {
         limited = Number(res.headers()['retry-after'] ?? '60');
+        WAITED_OUT.add(res.url());
       }
     };
     page.on('response', onResponse);
@@ -569,6 +578,7 @@ function watch(page: Page, job: CaptureJob, log: ErrorLog, marks: { intercepted:
   const origin = new URL(job.baseUrl).origin;
   const skipUrl = (u: string | undefined): boolean => {
     if (!u) return false;
+    if (WAITED_OUT.has(u)) return true; // a sign-in's 429 the capture waited out
     for (const r of [...marks.intercepted, ...marks.aborted]) if (r.url() === u) return true;
     return false;
   };
@@ -582,7 +592,7 @@ function watch(page: Page, job: CaptureJob, log: ErrorLog, marks: { intercepted:
   page.on('pageerror', (e) => log.console.push({ type: 'pageerror', text: String(e.message).slice(0, 2000) }));
   page.on('request', () => { counter.n++; });
   const record = (req: Request, status: number | null, failure: string | null): void => {
-    if (log.requests.length >= MAX_REQUESTS) return;
+    if (log.requests.length >= MAX_REQUESTS || WAITED_OUT.has(req.url())) return;
     log.requests.push({ method: req.method(), url: req.url(), status, failure, intercepted: marks.intercepted.has(req), aborted: marks.aborted.has(req) });
   };
   page.on('requestfinished', async (req) => {
@@ -852,6 +862,10 @@ export async function captureItem(browser: Browser, job: CaptureJob, item: Captu
     const sent: Request[] = [];
     page.on('request', (req) => { sent.push(req); });
     log.perf.loadMs = await reach(page, job, item, meta, saved === undefined);
+    if (WAITED_OUT.size) {
+      log.console = log.console.filter((c) => !(c.location && [...WAITED_OUT].some((u) => c.location?.startsWith(`${u}:`))));
+      log.requests = log.requests.filter((r) => !WAITED_OUT.has(r.url));
+    }
     await settled(page, job);
     // Always, not only after a sign-in: the session the page came back with carries the tokens as
     // they now are. A stored session whose access token has expired makes every later item refresh

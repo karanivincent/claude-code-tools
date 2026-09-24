@@ -142,6 +142,18 @@ test('a sign-in the app rate-limits is waited out, and a session outlives the de
   assert.doesNotMatch(key, /\.host\b(?!name)/, 'not by host, which carries the port');
 });
 
+// 11. A sign-in that came through after a wait was refused for the 429 it had waited out.
+test('a sign-in 429 the capture waited out is not held against the state', () => {
+  // KC-35 waited 811 s, signed in and landed on its page, and was still "not reached": the first
+  // attempt's 429 stayed in its console log and request list (knowledge-page run, 2026-09-25).
+  assert.match(support, /const WAITED_OUT = new Set<string>\(\);/);
+  assert.match(support, /WAITED_OUT\.add\(res\.url\(\)\)/, 'the waited-out link is remembered');
+  const watchBody = support.slice(support.indexOf('function watch('));
+  assert.match(watchBody.slice(0, 1200), /if \(WAITED_OUT\.has\(u\)\) return true;/, 'its console error is skipped');
+  assert.match(support, /MAX_REQUESTS \|\| WAITED_OUT\.has\(req\.url\(\)\)/, 'its request is not recorded');
+  assert.match(support, /log\.console = log\.console\.filter/, 'and a console event that raced the response is purged after reach');
+});
+
 // 9. A session from one site was handed to another, and the probe read a SHA off the login page.
 test('a stored session belongs to one site, and the in-page version probe never reads a login page', () => {
   // A branch gate on the local dev server stored a session for the fixture admin; the next wave
