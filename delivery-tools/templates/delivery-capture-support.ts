@@ -424,7 +424,14 @@ async function resolveClick(page: Page, c: NonNullable<CaptureStep['click']>) {
  * successfully left.
  */
 async function clickAndVerify(page: Page, c: NonNullable<CaptureStep['click']>): Promise<void> {
-  const fingerprint = () => page.evaluate(() => `${location.href}|${document.body.innerText.length}`);
+  // The whole text, not its length ("Go over 12 facts" becoming "Go over 10 facts" is a change), and
+  // the state of every toggle, which a tick box flips without changing any text.
+  const fingerprint = () => page.evaluate(() => {
+    const states = Array.from(document.querySelectorAll('[aria-checked],[aria-expanded],[aria-selected],[aria-pressed],[data-state]'))
+      .map((el) => ['aria-checked', 'aria-expanded', 'aria-selected', 'aria-pressed', 'data-state'].map((a) => el.getAttribute(a) ?? '').join(','))
+      .join(';');
+    return `${location.href}|${document.body.innerText}|${states}`;
+  });
   const before = await fingerprint();
   const movedWithin = async (ms: number): Promise<boolean> => {
     const deadline = Date.now() + ms;
