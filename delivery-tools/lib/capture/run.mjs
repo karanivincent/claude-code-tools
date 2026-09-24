@@ -8,6 +8,7 @@
 import { createServer } from 'node:net';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { readArtefact, writeArtefact } from '../core/artefacts.mjs';
 import { ensureDir, exists, writeJsonAtomic } from '../core/fs.mjs';
 import { fillCommand, wrapHeavy } from '../core/profile.mjs';
@@ -190,6 +191,11 @@ export async function captureRun(ctx, opts, hooks = ctx.captureHooks ?? DEFAULT_
     runId, mode, feature: paths.feature, baseUrl: target.baseUrl, expectedSha: target.expectedSha, outDir: dir,
     extractScript, versionProbe: probe, auth: { module: join(ctx.repoRoot, profile.auth.supportModule), fn: profile.auth.signInFunction },
     webServer: target.webServer, items: built.items, targets: built.targets,
+    worldRefresh: profile.testData?.mode !== 'none' ? {
+      command: process.execPath,
+      args: [fileURLToPath(new URL('../../bin/delivery.mjs', import.meta.url)), 'seed', '--feature', paths.feature, '--refresh'],
+      cwd: ctx.repoRoot,
+    } : null,
   });
   const jobPath = join(dir, 'job.json');
   await writeJsonAtomic(jobPath, job);

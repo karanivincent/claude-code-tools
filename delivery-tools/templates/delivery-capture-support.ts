@@ -25,6 +25,7 @@
  */
 import type { Browser, BrowserContext, Locator, Page, Request, Response } from '@playwright/test';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'fs';
+import { execFileSync } from 'child_process';
 import { createRequire } from 'module';
 import { join } from 'path';
 
@@ -99,6 +100,8 @@ export interface CaptureJob {
   loadingSelectors?: string[];
   items: CaptureItem[];
   targets: Record<string, { text: string[]; testids: string[] }>;
+  /** Re-applies one fixture world (`delivery seed --refresh <world>`); null when nothing is seeded. */
+  worldRefresh?: { command: string; args: string[]; cwd: string } | null;
 }
 
 interface ConsoleEntry { type: 'error' | 'warning' | 'pageerror'; text: string; location?: string }
@@ -755,6 +758,23 @@ async function clickControls(context: BrowserContext, job: CaptureJob, item: Cap
   return results;
 }
 
+/**
+ * A clicked control can write (keep, discard, save), and the next state captured in the same world
+ * would then open on changed data: a question already answered, a clash already settled. So after
+ * an item whose free controls were clicked, its world is re-applied before anything else runs. A
+ * refresh that fails is said on the console, not thrown: the item itself was captured correctly.
+ */
+function refreshWorldAfterClicks(job: CaptureJob, item: CaptureItem): void {
+  if (!job.worldRefresh || !item.controls.some((c) => c.effect === 'free')) return;
+  try {
+    execFileSync(job.worldRefresh.command, [...job.worldRefresh.args, item.world], {
+      cwd: job.worldRefresh.cwd, stdio: 'pipe', timeout: 180_000,
+    });
+  } catch (e) {
+    console.warn(`delivery capture: world ${item.world} was not refreshed after ${item.key}'s clicks (${message(e)})`);
+  }
+}
+
 function writeJson(path: string, value: unknown): void {
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`);
 }
@@ -799,7 +819,10 @@ export async function captureItem(browser: Browser, job: CaptureJob, item: Captu
     writeJson(file('dom.json'), dom);
     await page.screenshot({ path: file('png'), fullPage: true, animations: 'disabled', caret: 'hide' });
     if (item.axe) await runAxe(page, log, meta);
-    if (item.clicks && !item.readOnly) writeJson(file('controls.json'), await clickControls(context, job, item, meta, marks));
+    if (item.clicks && !item.readOnly) {
+      writeJson(file('controls.json'), await clickControls(context, job, item, meta, marks));
+      refreshWorldAfterClicks(job, item);
+    }
   } catch (e) {
     meta.error = message(e);
   } finally {
