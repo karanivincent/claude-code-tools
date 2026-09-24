@@ -819,6 +819,8 @@ export async function captureItem(browser: Browser, job: CaptureJob, item: Captu
     await guard(context, item, marks);
     const page = await context.newPage();
     watch(page, job, log, marks, meta, counter);
+    const sent: Request[] = [];
+    page.on('request', (req) => { sent.push(req); });
     log.perf.loadMs = await reach(page, job, item, meta, saved === undefined);
     await settled(page, job);
     // Always, not only after a sign-in: the session the page came back with carries the tokens as
@@ -833,6 +835,10 @@ export async function captureItem(browser: Browser, job: CaptureJob, item: Captu
     writeJson(file('dom.json'), dom);
     await page.screenshot({ path: file('png'), fullPage: true, animations: 'disabled', caret: 'hide' });
     if (item.axe) await runAxe(page, log, meta);
+    // A state's own steps can write too ("Keep what it knows" reaches the toast that follows it), and
+    // every control below replays those steps: re-apply the world first, or the replay finds the
+    // clash already settled.
+    if (sent.some((req) => wrote(req, marks))) refreshWorld(job, item, 'reach');
     if (item.clicks && !item.readOnly) {
       writeJson(file('controls.json'), await clickControls(context, job, item, meta, marks));
     }
