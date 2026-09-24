@@ -346,6 +346,9 @@ export function buildJob(o) {
     settleMs: o.settleMs ?? 300,
     items: o.items,
     targets: o.targets ?? {},
+    // Re-applies one fixture world: the spec runs it after an item whose controls it clicked, so a
+    // click's write (keep, discard, save) never reaches the next state captured in that world.
+    worldRefresh: o.worldRefresh ?? null,
   };
 }
 

@@ -39,6 +39,11 @@ test('wave: the preview by SHA, worlds refreshed and scanned first, every item j
     assert.equal(job.expectedSha, head);
     assert.equal(job.auth.module, join(s.repo.dir, 'apps/web/e2e/support/session.ts'));
     assert.deepEqual(job.versionProbe, { method: 'GET', path: '/api/version' });
+    // The spec re-applies a world after an item's clicks with this, through the CLI's own seed.
+    assert.equal(job.worldRefresh.command, process.execPath);
+    assert.deepEqual(job.worldRefresh.args.slice(1), ['seed', '--feature', 'widgets', '--refresh']);
+    assert.match(job.worldRefresh.args[0], /bin[\\/]delivery\.mjs$/);
+    assert.equal(job.worldRefresh.cwd, s.repo.dir);
     assert.ok(existsSync(job.extractScript));
     assert.match(readFileSync(job.extractScript, 'utf8'), /window\.__deliveryExtract = function pageExtract/);
     assert.equal(r.notReached, 0, JSON.stringify(r.capture.items.filter((i) => i.status !== 'reached')));
