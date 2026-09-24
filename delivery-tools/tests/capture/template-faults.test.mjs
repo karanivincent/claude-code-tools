@@ -123,8 +123,23 @@ test('a sign-in that fails on a dropped connection is tried again; any other fai
   assert.match(support, /async function signInRetrying\(/);
   assert.match(support, /fetch failed/);
   const reachBody = support.slice(support.indexOf('async function reach('), support.indexOf('function watch('));
-  assert.match(reachBody, /await signInRetrying\(page, job, item\.email, first\)/);
+  assert.match(reachBody, /await signInRetrying\(page, job, item\.email, first, meta\)/);
   assert.doesNotMatch(reachBody, /await signIn\(page/);
+});
+
+// 10. A capture over more worlds than the app's auth budget failed half its states on a 429.
+test('a sign-in the app rate-limits is waited out, and a session outlives the dev server\'s port', () => {
+  // The app allows 10 auth requests in 15 minutes per client; a 21-world smoke signed in 21 times
+  // and 12 states were "not reached" on /auth/confirm's 429 (knowledge-page run, 2026-09-25). The
+  // session key held the port, and a branch capture's dev server takes a new one each run, so no
+  // session was ever reused across runs either.
+  const retry = support.slice(support.indexOf('async function signInRetrying('), support.indexOf('type StoredSession'));
+  assert.match(retry, /res\.status\(\) === 429/, 'a 429 on the sign-in exchange is seen');
+  assert.match(retry, /retry-after/, 'and waited out for as long as the app says');
+  assert.match(retry, /RATE_LIMIT_MAX_WAIT_MS - waited/, 'within the same ceiling as page loads');
+  const key = support.slice(support.indexOf('function sessionKey('), support.indexOf('function loadSession('));
+  assert.match(key, /\.hostname/, 'sessions are keyed by hostname');
+  assert.doesNotMatch(key, /\.host\b(?!name)/, 'not by host, which carries the port');
 });
 
 // 9. A session from one site was handed to another, and the probe read a SHA off the login page.
@@ -134,7 +149,7 @@ test('a stored session belongs to one site, and the in-page version probe never 
   // graded on /login. The probe then followed /api/version's redirect to that page and reported
   // "d1e58d753c785ce2", which is no commit at all: bug 39's fix had reached the CLI's probe only.
   const sessionBody = support.slice(support.indexOf('function sessionFile('), support.indexOf('function saveSession('));
-  assert.match(sessionBody, /new URL\(job\.baseUrl\)\.host/, 'the session file is named for the site as well as the user');
+  assert.match(sessionBody, /new URL\(job\.baseUrl\)\.hostname/, 'the session file is named for the site as well as the user');
   assert.match(support, /sessionKey\(job, email\)/, 'the in-memory cache is keyed the same way');
   const probe = support.slice(support.indexOf('async function probeVersion('), support.indexOf('async function extract('));
   assert.match(probe, /maxRedirects: 0/, 'a redirect is an answer, not something to follow');
