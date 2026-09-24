@@ -9,7 +9,8 @@
 // - lines: the .txt file. One line per text owner: the nearest non-inline element around a run of
 //   visible text, so a sentence with a link in it stays one line, and each cell, label and heading
 //   is its own line. Text is as displayed (text-transform applied, whitespace collapsed). Form
-//   fields contribute their value, or their placeholder when empty. Document order.
+//   fields contribute their value, or their placeholder when empty; date and time fields contribute
+//   nothing, since their value is wire format the browser redraws. Document order.
 // - dom: the .dom.json body (schemas/dom.schema.json). Every visible text owner, every control
 //   (semantic, ARIA role, tabindex, or a React click handler, which is how a design's clickable
 //   <div>s are found), and every element carrying a data-testid (hidden ones with visible=false).
@@ -103,6 +104,9 @@ export function pageExtract(opts) {
     const t = (el.type || 'text').toLowerCase();
     if (['checkbox', 'radio', 'range', 'color', 'file', 'hidden', 'image'].includes(t)) return '';
     if (t === 'button' || t === 'submit' || t === 'reset') return collapse(el.value);
+    // A date or time field's value is the wire format ("2025-09-30"), not what the browser draws
+    // (its own locale-formatted picker), so it is not page copy and the copy lint must not judge it.
+    if (['date', 'datetime-local', 'month', 'week', 'time'].includes(t)) return '';
     return collapse(el.value) || collapse(el.placeholder);
   }
 
