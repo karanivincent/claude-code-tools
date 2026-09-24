@@ -23,7 +23,9 @@ function cutTexts(plan) {
  * Adapt substitutions, design text to product text, in parity form (longest first). One adapt row
  * may carry more pairs under `also`: a state whose render holds several values the product has no
  * field for. A `whole` pair replaces only a design element that is exactly its text, so a short
- * value ("AI", "0:04") cannot rewrite the inside of longer lines.
+ * value ("AI", "0:04") cannot rewrite the inside of longer lines. A `here` pair applies only to
+ * the adapt row's own state: a label the design draws for data the product files differently on
+ * that one screen, which must stay missing wherever else the design draws it.
  */
 function adaptSubs(plan) {
   const out = [];
@@ -31,7 +33,7 @@ function adaptSubs(plan) {
     if (r.class !== 'adapt' || !r.adapt) continue;
     for (const p of [r.adapt, ...(r.adapt.also ?? [])]) {
       if (!p?.designText) continue;
-      out.push({ from: parityForm(p.designText), to: parityForm(p.productText ?? ''), whole: p.whole === true, row: r.id });
+      out.push({ from: parityForm(p.designText), to: parityForm(p.productText ?? ''), whole: p.whole === true, here: p.here === true, row: r.id });
     }
   }
   return out.filter((s) => s.from).sort((a, b) => b.from.length - a.from.length);
@@ -103,7 +105,8 @@ export default {
       if (design.txt === null) { noRender++; continue; }
       const liveTxt = await it.txt();
       if (liveTxt === null) continue;
-      for (const m of missingDesignText({ designTxt: design.txt, designDom: design.dom, liveTxt, cut: item.role === 'member' ? memberCut : cut, subs })) {
+      const stateSubs = subs.filter((s) => !s.here || s.row === item.state);
+      for (const m of missingDesignText({ designTxt: design.txt, designDom: design.dom, liveTxt, cut: item.role === 'member' ? memberCut : cut, subs: stateSubs })) {
         findings.push(env.finding('M4', {
           rule: m.rule,
           state: item.state,

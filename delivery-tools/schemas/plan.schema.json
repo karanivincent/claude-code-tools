@@ -191,6 +191,7 @@
             "designText": { "type": "string" },
             "productText": { "type": "string" },
             "whole": { "type": "boolean" },
+            "here": { "type": "boolean" },
             "also": {
               "type": "array",
               "items": {
@@ -200,7 +201,8 @@
                 "properties": {
                   "designText": { "type": "string" },
                   "productText": { "type": "string" },
-                  "whole": { "type": "boolean" }
+                  "whole": { "type": "boolean" },
+                  "here": { "type": "boolean" }
                 }
               }
             }
