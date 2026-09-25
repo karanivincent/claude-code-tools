@@ -131,7 +131,8 @@
         "supportModule": { "type": "string" },
         "signInFunction": { "type": "string" },
         "robotAdminEmail": { "type": "string" },
-        "robotMemberEmail": { "type": "string" }
+        "robotMemberEmail": { "type": "string" },
+        "magicLinkPath": { "description": "Picture mode: the app path that exchanges a one-time sign-in token (token_hash, type=magiclink, next). Default /auth/confirm.", "type": "string", "pattern": "^/" }
       }
     },
     "issues": {

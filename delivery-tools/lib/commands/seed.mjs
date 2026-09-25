@@ -8,6 +8,8 @@ import { ConfigError, EXIT, UsageError } from '../core/exit.mjs';
 import { loadState, newRunId } from '../core/state.mjs';
 import { assertFileId } from '../core/paths.mjs';
 import { buildSeedPlan, readWorldFile } from '../seed/plan.mjs';
+import { readMap } from '../picture/map.mjs';
+import { existsSync } from 'node:fs';
 import { seedCheck } from '../seed/safety.mjs';
 import { seedScan, refreshWorldReport, teardownSeed } from '../seed/scan.mjs';
 import { applyRows } from '../seed/apply.mjs';
@@ -20,24 +22,25 @@ const MODES = ['plan', 'check', 'apply', 'scan', 'refresh', 'teardown'];
 export default defineCommand({
   name: 'seed',
   summary: 'Plan, check, write, scan, refresh and tear down fixture worlds',
-  usage: `usage: delivery seed --plan | --check | --apply | --scan | --refresh <world> | --teardown
+  usage: `usage: delivery seed --plan | --check | --apply | --scan | --refresh <world|all>... | --teardown
 
 The only writer of fixture rows. Every mode but --plan reads the test database; only --apply,
 --refresh and --teardown write, and only to the profile's test project, never to one the safety
 file lists as production.
 
 modes:
-  --plan             write seedplan.json from the plan's worlds and their world files
-                     (docs/delivery/<feature>/worlds/<world>.json), with deterministic ids
+  --plan             write seedplan.json from the plan's worlds (picture mode: the map's) and their
+                     world files (docs/delivery/<feature>/worlds/<world>.json), with deterministic ids
   --check            M13: the four safety layers over seedplan.json. Layer 1 derives the side-effect
                      map afresh; layers 2 and 3 read the never-dial set, the fake-range probe and
                      the guard probes from the test database. Writes nothing.
   --apply            refuse production and any project but the test project, run --check, write
                      users and rows, then scan the database as it now is
   --scan             evaluate every row in every fixture world as it is now, and every guard probe
-  --refresh <world>  re-apply one world (relative dates moved to now), delete the rows its own
+  --refresh <world>  re-apply a world (relative dates moved to now), delete the rows its own
                      organisation holds in the tables its plan seeds that the plan does not have
-                     (a row a capture's click added), then scan
+                     (a row a capture's click added), then scan. Repeat it for several worlds;
+                     "all" refreshes every world in the seed plan
   --teardown         delete the run's rows and fixture users by id, then scan
 
 exit: 0 safe; 1 refused by a safety layer; 2 wrong project, no database access or no seed plan;
@@ -51,7 +54,7 @@ common options:
     const { values } = parseCommandArgs(argv, {
       options: {
         plan: { type: 'boolean' }, check: { type: 'boolean' }, apply: { type: 'boolean' },
-        scan: { type: 'boolean' }, refresh: { type: 'string' }, teardown: { type: 'boolean' },
+        scan: { type: 'boolean' }, refresh: { type: 'string', multiple: true }, teardown: { type: 'boolean' },
       },
     });
     const chosen = MODES.filter((m) => values[m] !== undefined && values[m] !== false);
@@ -63,7 +66,7 @@ common options:
       case 'check': return checkMode(ctx);
       case 'apply': return applyMode(ctx);
       case 'scan': return scanMode(ctx);
-      case 'refresh': return refreshMode(ctx, values.refresh);
+      case 'refresh': return refreshWorlds(ctx, values.refresh);
       default: return teardownMode(ctx);
     }
   },
@@ -73,7 +76,9 @@ async function planMode(ctx) {
   const paths = ctx.requirePaths();
   const profile = await ctx.profile();
   const { safety } = await ctx.safety();
-  const plan = await readArtefact(paths, 'plan');
+  // Picture mode has no coverage plan; its map lists the worlds in the same shape.
+  const map = existsSync(paths.plan) ? null : readMap(paths);
+  const plan = map ? { worlds: map.worlds ?? [] } : await readArtefact(paths, 'plan');
   const worldFiles = {};
   for (const w of plan.worlds) worldFiles[w.id] = await readWorldFile(paths, w.id);
   const state = await loadState(paths.state, { optional: true });
@@ -161,6 +166,20 @@ async function scanMode(ctx) {
   const scan = await seedScan(ctx);
   const exit = report(ctx, scan.gate, scan.evaluation, 'scan');
   await ctx.journal({ command: 'seed --scan', exit, counts: { rows: scan.rows ?? 0, ...layerCounts(scan.evaluation) } });
+  return exit;
+}
+
+async function refreshWorlds(ctx, worlds) {
+  let list = worlds ?? [];
+  if (list.includes('all')) {
+    const plan = await readArtefact(ctx.requirePaths(), 'seedplan');
+    list = plan.worlds.map((w) => w.id);
+  }
+  let exit = EXIT.PASS;
+  for (const w of list) {
+    const e = await refreshMode(ctx, w);
+    if (e !== EXIT.PASS && exit === EXIT.PASS) exit = e;
+  }
   return exit;
 }
 

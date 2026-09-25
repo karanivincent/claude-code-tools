@@ -1,6 +1,6 @@
 ---
 name: epic-build
-description: Use when a coverage plan's units are ready to be built by several agents at once and must arrive as one pull request, or when a wave of such a build has to be started, merged or recovered. Symptoms from earlier runs - one screen blocking the others, a branch gone stale behind its base, every agent rediscovering the environment, another agent lane opening duplicate pull requests for the same issues. Triggers - "run the next wave", "build the plan with agents".
+description: Full mode only (the founder asked for full mode by name; picture mode uses picture-build). Use when a coverage plan's units are ready to be built by several agents at once and must arrive as one pull request, or when a wave of such a build has to be started, merged or recovered. Symptoms from earlier runs - one screen blocking the others, a branch gone stale behind its base, every agent rediscovering the environment, another agent lane opening duplicate pull requests for the same issues. Triggers - "run the next wave", "build the plan with agents".
 ---
 
 # Epic build

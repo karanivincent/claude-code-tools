@@ -73,7 +73,7 @@ export async function createDataAdapter(ctx, opts = {}) {
   const backend = stub
     ? await stub(ctx, { projectRef, write })
     : httpBackend(ctx.env ?? {}, projectRef, opts.fetch ?? globalThis.fetch, opts.sleep);
-  return guard(backend, { projectRef, write });
+  return guard(backend, { projectRef, write, fixturePattern: safety.fixtureUserPattern ?? null });
 }
 
 /** A test backend, honoured only when every external command is stubbed too. */
@@ -90,7 +90,7 @@ async function testBackend(ctx) {
   return mod.default;
 }
 
-function guard(backend, { projectRef, write }) {
+function guard(backend, { projectRef, write, fixturePattern = null }) {
   const allowed = new Set(write ? WRITE_MODES[write] : []);
   const refuse = (name) => async () => {
     throw new DeliveryError(EXIT.USAGE, `${name} refused: this data adapter is read-only (only delivery seed --apply, --refresh and --teardown write)`, { code: 'read-only' });
@@ -142,6 +142,12 @@ function guard(backend, { projectRef, write }) {
     } : refuse('deleteOrgRows'),
     createUser: allowed.has('createUser') ? async (user) => backend.createUser(user) : refuse('createUser'),
     deleteUser: allowed.has('deleteUser') ? async (id) => backend.deleteUser(id) : refuse('deleteUser'),
+    signInHash: async (email) => {
+      if (!fixturePattern || !new RegExp(fixturePattern).test(String(email))) {
+        throw new DeliveryError(EXIT.USAGE, `sign-in link refused: ${email} is not a fixture user (safety fixtureUserPattern)`, { code: 'fixture-user' });
+      }
+      return backend.signInHash(email);
+    },
     probeAccess: () => backend.probeAccess(),
     probeMigrationApply: () => backend.probeMigrationApply(),
   });
@@ -310,6 +316,21 @@ function httpBackend(env, projectRef, fetchImpl, sleep = wait) {
         n += Array.isArray(body) ? body.length : 0;
       }
       return n;
+    },
+    // A one-time sign-in link's token for a fixture user, for delivery shoot. The guard allows it
+    // only for an address matching the safety file's fixtureUserPattern.
+    async signInHash(email) {
+      const base = rest();
+      const res = await call(`${base}/auth/v1/admin/generate_link`, {
+        method: 'POST',
+        headers: restHeaders(),
+        body: JSON.stringify({ type: 'magiclink', email }),
+      }, `sign-in link for ${email}`);
+      if (!res.ok) await failWith(res, `sign-in link for ${email}`);
+      const body = await res.json();
+      const hash = body.hashed_token ?? body.properties?.hashed_token;
+      if (!hash) throw new DeliveryError(EXIT.RED, `sign-in link for ${email}: the answer had no token`, { code: 'db' });
+      return hash;
     },
     async createUser({ id, email, name }) {
       const base = rest();
