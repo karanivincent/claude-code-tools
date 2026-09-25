@@ -9,7 +9,6 @@ import { loadState, newRunId } from '../core/state.mjs';
 import { assertFileId } from '../core/paths.mjs';
 import { buildSeedPlan, readWorldFile } from '../seed/plan.mjs';
 import { readMap } from '../picture/map.mjs';
-import { existsSync } from 'node:fs';
 import { seedCheck } from '../seed/safety.mjs';
 import { seedScan, refreshWorldReport, teardownSeed } from '../seed/scan.mjs';
 import { applyRows } from '../seed/apply.mjs';
@@ -76,8 +75,9 @@ async function planMode(ctx) {
   const paths = ctx.requirePaths();
   const profile = await ctx.profile();
   const { safety } = await ctx.safety();
-  // Picture mode has no coverage plan; its map lists the worlds in the same shape.
-  const map = existsSync(paths.plan) ? null : readMap(paths);
+  // Picture mode's map lists the worlds in the plan's shape. A run converted from full mode keeps
+  // its plan.json, and the map is the file it now edits, so the map wins whenever it exists.
+  const map = readMap(paths);
   const plan = map ? { worlds: map.worlds ?? [] } : await readArtefact(paths, 'plan');
   const worldFiles = {};
   for (const w of plan.worlds) worldFiles[w.id] = await readWorldFile(paths, w.id);

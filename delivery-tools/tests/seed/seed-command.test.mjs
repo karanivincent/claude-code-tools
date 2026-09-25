@@ -2,6 +2,8 @@
 // database: plan, check, apply (refused, then accepted), scan catching a raw insert, refresh,
 // teardown, and the refusals that come before any database call.
 import { test } from 'node:test';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import assert from 'node:assert/strict';
 import { makeTempRepo } from '../helpers/tmp-repo.mjs';
 import { makeTestCtx } from '../helpers/ctx.mjs';
@@ -89,6 +91,20 @@ test('seed --plan: world files become seedplan.json with derived ids, resolved r
     const first = JSON.stringify(plan.rows);
     await seedCommand.run(ctx, ['--plan']);
     assert.equal(JSON.stringify((await readArtefact(ctx.paths, 'seedplan')).rows), first, 'a re-plan is identical');
+  } finally { repo.cleanup(); }
+});
+
+test('seed --plan: a converted run seeds the map\'s worlds, not the old plan\'s', async () => {
+  const { repo, ctx, stdout } = await setup();
+  try {
+    const plan = validExample('plan');
+    const extra = { ...structuredClone(plan.worlds[0]), id: 'settled' };
+    writeFileSync(join(repo.dir, 'docs/delivery/widgets/map.json'), JSON.stringify({ worlds: [...plan.worlds, extra] }));
+    writeFileSync(join(repo.dir, 'docs/delivery/widgets/worlds/settled.json'), JSON.stringify({ ...SAFE_WORLD, world: 'settled' }));
+    assert.equal(await seedCommand.run(ctx, ['--plan']), 0);
+    const seeded = await readArtefact(ctx.paths, 'seedplan');
+    assert.deepEqual(seeded.worlds.map((w) => w.id), ['design', 'settled']);
+    assert.match(stdout.text(), /2 world\(s\)/);
   } finally { repo.cleanup(); }
 });
 
