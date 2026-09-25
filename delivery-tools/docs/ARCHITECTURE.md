@@ -105,6 +105,7 @@ request in its report and works around it locally.
 | `lib/commands/map.mjs` | C |
 | `lib/commands/shoot.mjs` | C |
 | `lib/commands/review.mjs` | C |
+| `lib/commands/sign-in.mjs` | C |
 | `lib/picture/**` | C |
 | `tests/picture/**` | C |
 | `skills/**` | — |

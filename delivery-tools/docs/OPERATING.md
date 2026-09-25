@@ -52,6 +52,10 @@ page. At most two fix rounds follow. `delivery status` names the next step throu
 
 A run that began in full mode switches with `delivery map --from-plan`.
 
+To try the page as a test user, `delivery sign-in <world> --base-url <preview>` prints a one-time
+link (fixture users on the test project only; add `--role member` or `--next <path>`). It lasts
+about an hour, so make a new one rather than resending an old one.
+
 Full mode (coverage plan, waves of units, mechanical gates, graded audit) is still here for a run
 that asks for it by name. It decides readiness through `delivery ready`, and its Scope issue
 carries the owner's decisions.
