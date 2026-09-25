@@ -1,6 +1,6 @@
 ---
 name: coverage-plan
-description: Use when a design inventory exists and every designed state and every existing capability needs a class, an owning issue, test data and a backend before a build starts, or when deciding what to cut, adapt or remove. Symptoms - designed controls with no route behind them, states no issue owns, cuts written as a line in a PR instead of an issue, a removal nobody decided. Triggers - "plan the coverage", "what does the design need that we do not have".
+description: Full mode only (the founder asked for full mode by name; picture mode uses picture-build). Use when a design inventory exists and every designed state and every existing capability needs a class, an owning issue, test data and a backend before a build starts, or when deciding what to cut, adapt or remove. Symptoms - designed controls with no route behind them, states no issue owns, cuts written as a line in a PR instead of an issue, a removal nobody decided. Triggers - "plan the coverage", "what does the design need that we do not have".
 ---
 
 # Coverage plan

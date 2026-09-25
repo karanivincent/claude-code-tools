@@ -13,6 +13,8 @@ import { findRunEpicNumber, findRunPr } from './github.mjs';
 import { checkReady } from './ready.mjs';
 import { computeNext } from './next.mjs';
 import { redReadyHeadsSincePr, unitStatuses } from './resume.mjs';
+import { mapPath } from '../picture/map.mjs';
+import { pictureFacts, pictureNext, pictureStatusLines } from '../picture/next.mjs';
 
 /** Lines --brief may print, all included (spec 11.3 step 5). */
 export const BRIEF_MAX_LINES = 12;
@@ -58,6 +60,15 @@ export async function statusReport(ctx, run, opts = {}) {
   const cli = cliPrefix(run.worktree, ctx.pluginRoot);
   const here = ctx.repoRoot === run.worktree;
   const empty = { earlier: [], leaving: null, backTo: null };
+
+  // Picture mode: a run with a map.json follows the picture loop, not the phase gates.
+  if (!run.broken && run.state && existsSync(mapPath(paths))) {
+    const facts = pictureFacts(paths);
+    const pnext = pictureNext(facts, { cli });
+    const next = { text: pnext.text, skill: pnext.skill, phase: `picture:${pnext.step}`, line: `NEXT: ${pnext.text}${pnext.skill ? ` (skill: ${pnext.skill})` : ''}` };
+    const lines = pictureStatusLines(run, facts, pnext);
+    return { lines: opts.brief ? lines.slice(-BRIEF_MAX_LINES) : lines, next, exit: EXIT.PASS, data: { feature: run.feature, worktree: run.worktree, mode: 'picture', picture: facts, next: { text: next.text, skill: next.skill, phase: next.phase } } };
+  }
 
   if (run.broken || !run.state) {
     const message = run.broken?.message ?? 'state.json could not be read';

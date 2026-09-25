@@ -12,10 +12,10 @@ export const COMMANDS_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 
 /** Every command of spec section 16, in the order --help lists them. */
 export const COMMAND_ORDER = Object.freeze([
   'init', 'intake', 'preflight', 'waive', 'status', 'advance',
-  'design candidates', 'design render', 'inventory check', 'baseline',
+  'design candidates', 'design render', 'map', 'inventory check', 'baseline',
   'plan verify', 'plan check', 'plan render',
   'issues sync', 'scope post', 'scope read', 'claims open', 'claims verify', 'dupes',
-  'sidefx', 'seed',
+  'sidefx', 'seed', 'shoot', 'review',
   'wave start', 'wave merge', 'wave end', 'gate', 'capture', 'check', 'audit compile',
   'ci', 'ready', 'pr-body', 'handover', 'report', 'land',
   'hook session-start', 'hook pre-bash', 'hook pre-browser',

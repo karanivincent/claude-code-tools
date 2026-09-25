@@ -1,0 +1,221 @@
+// The button map (picture mode): every designed state, how the capture reaches it, its buttons and
+// the state each button opens. A mapper agent writes docs/delivery/<feature>/map.json from the
+// design renders; this module checks it and renders the checklist builders and reviewers read.
+// Pure, except readMap and designIds, which read files.
+
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+export const MAP_FILE = 'map.json';
+export const CHECKLIST_FILE = 'checklist.md';
+export const EFFECTS = Object.freeze(['none', 'free', 'metered', 'dials', 'destructive']);
+const SAFE_TO_CLICK = new Set(['none', 'free']);
+const ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+const STEP_KINDS = ['goto', 'click', 'type', 'open'];
+
+/** @param {{ deliveryDir: string }} paths */
+export function mapPath(paths) { return join(paths.deliveryDir, MAP_FILE); }
+/** @param {{ deliveryDir: string }} paths */
+export function checklistPath(paths) { return join(paths.deliveryDir, CHECKLIST_FILE); }
+
+/** @param {{ deliveryDir: string }} paths @returns {object|null} */
+export function readMap(paths) {
+  const p = mapPath(paths);
+  if (!existsSync(p)) return null;
+  return JSON.parse(readFileSync(p, 'utf8'));
+}
+
+/** State ids that have a design render (<ID>.png) in the run's design folder. */
+export function designIds(paths) {
+  if (!paths.designRenders || !existsSync(paths.designRenders)) return new Set();
+  return new Set(readdirSync(paths.designRenders).filter((f) => f.endsWith('.png')).map((f) => f.slice(0, -4)));
+}
+
+/** The test ids a step addresses. */
+function stepTestid(step) {
+  for (const k of ['click', 'type', 'open']) if (step[k]?.testid) return step[k].testid;
+  return null;
+}
+
+/** Whether a button's test id is the one a step addresses: equal, or the step's id plus "-<n>". */
+export function sameControl(buttonTestid, stepTestid) {
+  if (!buttonTestid || !stepTestid) return false;
+  return stepTestid === buttonTestid || new RegExp(`^${buttonTestid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-\\d+$`).test(stepTestid);
+}
+
+/**
+ * Check a map. Returns one plain sentence per problem; an empty list is a valid map.
+ * @param {object} map
+ * @param {{ designed?: Set<string> }} [opts] designed: ids with a design render
+ * @returns {string[]}
+ */
+export function validateMap(map, opts = {}) {
+  const problems = [];
+  if (!map || typeof map !== 'object') return ['map.json is not an object'];
+  if (map.schemaVersion !== 1) problems.push('schemaVersion must be 1');
+  if (!['redesign', 'new'].includes(map.kind)) problems.push('kind must be "redesign" or "new"');
+  if (typeof map.route !== 'string' || !map.route.startsWith('/')) problems.push('route must be a path starting with /');
+  const area = map.pageArea ?? {};
+  for (const k of ['left', 'designLeft']) {
+    if (area[k] !== undefined && !(Number.isInteger(area[k]) && area[k] >= 0)) problems.push(`pageArea.${k} must be a whole number of pixels`);
+  }
+
+  const worlds = new Map();
+  for (const w of map.worlds ?? []) {
+    if (!ID.test(String(w.id ?? ''))) { problems.push(`world id "${w.id}" is not a valid id`); continue; }
+    if (worlds.has(w.id)) problems.push(`world ${w.id} is listed twice`);
+    worlds.set(w.id, new Set((w.users ?? []).map((u) => u.role)));
+    for (const u of w.users ?? []) {
+      if (!u.role || !u.email) problems.push(`world ${w.id} has a user without a role or an email`);
+    }
+  }
+
+  const states = map.states ?? [];
+  if (!Array.isArray(states) || !states.length) problems.push('states is empty');
+  const ids = new Set();
+  for (const s of states) {
+    if (!ID.test(String(s.id ?? ''))) { problems.push(`state id "${s.id}" is not a valid id`); continue; }
+    if (ids.has(s.id)) problems.push(`state ${s.id} is listed twice`);
+    ids.add(s.id);
+  }
+  const designed = opts.designed ?? null;
+  if (designed) {
+    for (const id of designed) if (!ids.has(id)) problems.push(`design state ${id} has a picture but no entry in the map`);
+  }
+
+  for (const s of states) {
+    if (!ids.has(s.id)) continue;
+    const where = `state ${s.id}`;
+    if (!s.screen || !s.name) problems.push(`${where} needs a screen and a name`);
+    if (designed && s.design !== false && !designed.has(s.id)) problems.push(`${where} has no design picture (set "design": false for a state the design never drew)`);
+    const buttons = s.buttons ?? [];
+    for (const b of buttons) {
+      if (!b.label && !b.testid) problems.push(`${where} has a button with neither a label nor a test id`);
+      if (b.effect && !EFFECTS.includes(b.effect)) problems.push(`${where} button "${b.label ?? b.testid}" has effect "${b.effect}"; use one of ${EFFECTS.join(', ')}`);
+      if (b.opens && !ids.has(b.opens)) problems.push(`${where} button "${b.label ?? b.testid}" opens ${b.opens}, which is not a state in the map`);
+      if (b.member && !['hidden', 'shown'].includes(b.member)) problems.push(`${where} button "${b.label ?? b.testid}" member must be "hidden" or "shown"`);
+    }
+    const reach = s.reach;
+    if (!reach) { problems.push(`${where} has no reach`); continue; }
+    if (reach.test) {
+      if (typeof reach.test !== 'string') problems.push(`${where} reach.test must name the test that renders it`);
+      continue;
+    }
+    if (!worlds.has(reach.world)) problems.push(`${where} is reached in world "${reach.world}", which the map does not list`);
+    else if (!worlds.get(reach.world).has(reach.role)) problems.push(`${where} is reached as ${reach.role}, but world ${reach.world} has no ${reach.role} user`);
+    const steps = reach.steps ?? [];
+    if (!steps.length) problems.push(`${where} has no reach steps`);
+    for (const step of steps) {
+      const kinds = STEP_KINDS.filter((k) => k in step);
+      if (kinds.length !== 1) { problems.push(`${where} has a step that is not exactly one of ${STEP_KINDS.join(', ')}`); continue; }
+      if (step.goto !== undefined && (typeof step.goto !== 'string' || !step.goto.startsWith('/'))) problems.push(`${where} goto must be a path starting with /`);
+      if (step.type && typeof step.type.text !== 'string') problems.push(`${where} type step needs text`);
+      if ((step.click || step.type || step.open) && !stepTestid(step) && !(step.click && step.click.name)) problems.push(`${where} has a click without a test id or a name`);
+    }
+    // Safety: a reach step never clicks a control that spends money, dials, or deletes, unless the
+    // state answers that request from a fixture (intercept).
+    const allButtons = states.flatMap((x) => x.buttons ?? []);
+    for (const step of steps) {
+      if (!step.click) continue;
+      const t = stepTestid(step);
+      const b = allButtons.find((x) => sameControl(x.testid, t));
+      const effect = b?.effect ?? 'free';
+      if (!SAFE_TO_CLICK.has(effect) && !reach.intercept) {
+        problems.push(`${where} clicks "${t}", whose effect is ${effect}; answer it with reach.intercept or reach it in a component test`);
+      }
+    }
+  }
+  return problems;
+}
+
+/**
+ * Whether reaching a state changes its world's data (a save, a discard, an add): such states are
+ * captured last, and the world is re-seeded before the next capture. The map says so with
+ * reach.writes; without it, a click on a save, discard, keep, submit, confirm, undo, restore,
+ * remove, delete or dismiss control counts.
+ */
+export function writesData(state, map) {
+  if (state.reach?.writes !== undefined) return Boolean(state.reach.writes);
+  const clicks = (state.reach?.steps ?? []).filter((s) => s.click).map(stepTestid);
+  const buttons = (map.states ?? []).flatMap((x) => x.buttons ?? []);
+  return clicks.some((t) => buttons.some((b) => sameControl(b.testid, t) && b.effect === 'free' && b.writes === true))
+    || clicks.some((t) => /(^|-)(save|discard|keep|submit|confirm|put-back|undo|restore|remove|delete|dismiss)(-|$)/.test(t ?? ''));
+}
+
+function stepText(step) {
+  if (step.goto) return `open ${step.goto}`;
+  if (step.click) return `click "${step.click.name ?? step.click.testid}"`;
+  if (step.type) return `type "${step.type.text}" into ${step.type.testid}`;
+  if (step.open) return `open the ${step.open.testid} group`;
+  return JSON.stringify(step);
+}
+
+/** The checklist builders and reviewers read, rendered from the map. */
+export function renderChecklist(map) {
+  const byId = new Map((map.states ?? []).map((s) => [s.id, s]));
+  const name = (id) => (byId.get(id) ? `${byId.get(id).screen} / ${byId.get(id).name}` : id);
+  const lines = [
+    `# ${map.title ?? map.feature}: every state and every button`,
+    '',
+    'Made from map.json by `delivery map`. Edit the map, never this file.',
+    'Each state lists how the capture reaches it, its buttons, and the state each button opens.',
+    '"stays" means the button acts on this state (saves, filters, closes) rather than opening another designed state.',
+    'Scope: the page area only. The sidebar and the top bar are not part of this work.',
+    '',
+  ];
+  for (const s of map.states ?? []) {
+    lines.push(`## ${s.id}: ${s.screen} / ${s.name}`);
+    if (s.note) lines.push(s.note);
+    if (s.reach?.test) lines.push(`- Reached by: the component test ${s.reach.test} (the capture cannot reach it)`);
+    else if (s.reach) lines.push(`- Reached by: ${(s.reach.steps ?? []).map(stepText).join(' then ')} (test data: ${s.reach.world}, ${s.reach.role})`);
+    for (const b of s.buttons ?? []) {
+      const to = b.opens && b.opens !== s.id ? `opens ${b.opens}: ${name(b.opens)}` : 'stays';
+      const who = b.member === 'hidden' ? ' (hidden from members)' : '';
+      const fx = b.effect && !SAFE_TO_CLICK.has(b.effect) ? ` [${b.effect}: never clicked by the capture]` : '';
+      lines.push(`- Button "${b.label ?? b.testid}"${b.testid ? ` (${b.testid})` : ''} → ${to}${who}${fx}`);
+    }
+    lines.push('');
+  }
+  if ((map.keep ?? []).length) {
+    lines.push('## Features of the old page that must not be lost', '');
+    for (const k of map.keep) lines.push(`- ${k.what}${k.where ? ` (${k.where})` : ''}${k.how ? `: ${k.how}` : ''}`);
+    lines.push('');
+  }
+  return lines.join('\n');
+}
+
+/**
+ * A map from a coverage plan (the full mode's plan.json), for a run that started in full mode.
+ * States are the plan's rows that have a design render; each row's controls become buttons.
+ * @param {object} plan
+ * @param {{ designed: Set<string>, names?: Record<string, { screen: string, name: string }>, route?: string }} opts
+ */
+export function mapFromPlan(plan, opts) {
+  const rows = (plan.rows ?? []).filter((r) => opts.designed.has(r.id) && r.class !== 'cut');
+  const route = opts.route ?? rows.find((r) => r.route)?.route ?? '/';
+  const mapped = new Set(rows.map((r) => r.id));
+  const states = rows.map((r) => {
+    const n = opts.names?.[r.id];
+    const reach = r.reach?.steps?.length
+      ? { world: r.reach.world, role: r.reach.role, steps: r.reach.steps, ...(r.reach.intercept ? { intercept: r.reach.intercept } : {}) }
+      : { test: r.reach?.test ? `${r.reach.test.file} :: ${r.reach.test.name}` : 'component test' };
+    const buttons = (r.controls ?? []).map((c) => ({
+      label: c.label || undefined,
+      testid: c.testid || undefined,
+      opens: c.target && mapped.has(c.target) ? c.target : undefined,
+      effect: c.effect,
+      member: c.permission?.member === 'hidden' ? 'hidden' : undefined,
+    }));
+    return { id: r.id, screen: n?.screen ?? r.id, name: n?.name ?? r.id, reach, buttons };
+  });
+  return {
+    schemaVersion: 1,
+    feature: plan.feature,
+    kind: 'redesign',
+    route,
+    pageArea: { left: 240, designLeft: 240 },
+    worlds: plan.worlds ?? [],
+    states,
+    keep: [],
+  };
+}

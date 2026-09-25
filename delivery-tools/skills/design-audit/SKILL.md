@@ -1,6 +1,6 @@
 ---
 name: design-audit
-description: Use when a built page, a branch or a deployed preview has to be compared with its design state by state, in every width, role and language that ships, before calling it done, or when a live page must be captured before a redesign. Symptoms - tests pass but the page looks wrong; "—", "" or "1 calls" on screen; designed buttons missing or doing nothing. Triggers - "audit the preview against the design", "does this match the design", "punch list". Not for code review.
+description: Full mode only (the founder asked for full mode by name; picture mode reviews with picture-build). Use when a built page, a branch or a deployed preview has to be compared with its design state by state, in every width, role and language that ships, before calling it done, or when a live page must be captured before a redesign. Symptoms - tests pass but the page looks wrong; "—", "" or "1 calls" on screen; designed buttons missing or doing nothing. Triggers - "audit the preview against the design", "does this match the design", "punch list". Not for code review.
 ---
 
 # Design audit

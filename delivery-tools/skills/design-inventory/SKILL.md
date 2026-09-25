@@ -1,6 +1,6 @@
 ---
 name: design-inventory
-description: Use when a design must be turned into a complete list of its screens, states, controls and exact words before anything is planned, or when a page that already exists must be listed by everything it does before it is redesigned. Symptoms - a spec that names screens but not their dialogs, menus or empty states; a redesign that quietly drops something the old page did. Triggers - "inventory the design", "list every state", "what does this page do today".
+description: Use for the design pictures of a delivery run (picture mode runs steps 1 to 4, candidates to render), or in full mode when a design must be turned into a complete list of its screens, states, controls and exact words before anything is planned, or when a page that already exists must be listed by everything it does before it is redesigned. Symptoms - a spec that names screens but not their dialogs, menus or empty states; a redesign that quietly drops something the old page did. Triggers - "inventory the design", "list every state", "what does this page do today".
 ---
 
 # Design inventory

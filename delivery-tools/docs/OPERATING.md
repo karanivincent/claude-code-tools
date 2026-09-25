@@ -36,8 +36,25 @@ red if the branch changes one of their route files. Parts several screens share 
 sidebar) follow the design, and the report lists each that changed. To bring an already built page
 up to a newer design, start a separate run with the same export and a sentence naming that page.
 
-The run asks nothing in chat. Decisions only the owner can make go on one Scope issue, each with a
-default. It ends with one draft pull request whose generated report leads with what is still red.
+The run asks nothing in chat. It ends with one draft pull request, a preview, a sign-in link as a
+test user, and a comparison page showing every state three ways: the design, the first round and
+the last.
+
+### Picture mode (the default since 0.4.0)
+
+After intake and preflight, the design's states are rendered to pictures. A mapper agent writes
+`docs/delivery/<feature>/map.json`: every state, how to reach it, its buttons and where each goes.
+`delivery map` checks the map and writes `checklist.md`. One builder builds the page from the
+pictures. `delivery shoot --base-url <dev server>` takes full-height pictures of the page's own
+area, with the sidebar and top bar cropped away, next to the design cropped the same way. Reviewer
+agents compare them, one per screen, and `delivery review` compiles their notes into a comparison
+page. At most two fix rounds follow. `delivery status` names the next step throughout.
+
+A run that began in full mode switches with `delivery map --from-plan`.
+
+Full mode (coverage plan, waves of units, mechanical gates, graded audit) is still here for a run
+that asks for it by name. It decides readiness through `delivery ready`, and its Scope issue
+carries the owner's decisions.
 
 ## Things a session must do that nothing else will
 

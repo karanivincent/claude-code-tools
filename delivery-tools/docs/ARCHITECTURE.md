@@ -102,6 +102,11 @@ request in its report and works around it locally.
 | `tests/report/**` | C |
 | `tests/fixtures/design/**` | C |
 | `tests/fixtures/capture/**` | C |
+| `lib/commands/map.mjs` | C |
+| `lib/commands/shoot.mjs` | C |
+| `lib/commands/review.mjs` | C |
+| `lib/picture/**` | C |
+| `tests/picture/**` | C |
 | `skills/**` | — |
 | `agents/**` | — |
 | `briefs/**` | — |
