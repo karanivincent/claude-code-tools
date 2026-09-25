@@ -61,7 +61,62 @@ export async function ciStatus(ctx, { pr, wait = false }) {
   const detail = state === 'pending' && r.code === 124
     ? `CI still pending on ${short(finalSha)} after ${Math.round((wait ? CI_WAIT_TIMEOUT_MS : CI_LOOK_TIMEOUT_MS) / 1000)}s (${said})${moved}`
     : `CI ${state} on ${short(finalSha)} by the waiter (exit ${r.code}): ${said}${moved}`;
+  const known = profile.ci?.knownRed ?? [];
+  if (state === 'red' && known.length && !moved) {
+    const failed = failedWorkflows(said);
+    if (failed.length && failed.every((f) => known.some((k) => k.workflow === f))) {
+      return knownRedOnly(ctx, { profile, sha: finalSha, known: known.filter((k) => failed.includes(k.workflow)), wait, said });
+    }
+  }
   return { state, headSha: finalSha, mergeable: 'MERGEABLE', detail };
+}
+
+/** The workflow names in a waiter verdict line: "<sha>  FAIL — A (failure, run 1), B (cancelled, run 2)". */
+export function failedWorkflows(line) {
+  const at = String(line ?? '').indexOf('FAIL — ');
+  if (at < 0) return [];
+  const rest = String(line).slice(at + 'FAIL — '.length);
+  return [...rest.matchAll(/(?:^|, )(.+?) \([a-z_]+, run \d+\)/g)].map((m) => m[1]);
+}
+
+const PASSING = new Set(['success', 'skipped', 'neutral']);
+
+/**
+ * Every failure is a declared known-red workflow. The repo's waiter stops at the first failure,
+ * so it cannot say whether the rest finished: read the head's runs and wait for every other
+ * workflow to finish clean. Green then, naming each known red and its issue; red if anything
+ * else failed; pending if the rest is still running.
+ */
+async function knownRedOnly(ctx, { profile, sha, known, wait, said }) {
+  const d = deps(ctx);
+  const deadline = Date.now() + (wait ? CI_WAIT_TIMEOUT_MS : 0);
+  const names = known.map((k) => `${k.workflow} (#${k.issue}: ${k.why})`).join('; ');
+  for (;;) {
+    const r = await ctx.runner.sh(`gh run list --repo ${profile.repo.slug} --commit ${sha} --limit 100 --json workflowName,status,conclusion,databaseId`, { cwd: ctx.repoRoot, timeoutMs: 60_000 });
+    let runs = [];
+    try { runs = JSON.parse(r.stdout || '[]'); } catch { runs = []; }
+    const newest = new Map();
+    for (const run of runs) {
+      if (known.some((k) => k.workflow === run.workflowName)) continue;
+      const seen = newest.get(run.workflowName);
+      if (!seen || run.databaseId > seen.databaseId) newest.set(run.workflowName, run);
+    }
+    const others = [...newest.values()];
+    const bad = others.filter((run) => run.status === 'completed' && !PASSING.has(run.conclusion)).map((run) => run.workflowName);
+    const running = others.filter((run) => run.status !== 'completed').map((run) => run.workflowName);
+    if (r.code === 0 && others.length && !bad.length && !running.length) {
+      return { state: 'green', headSha: sha, mergeable: 'MERGEABLE', knownRed: known,
+        detail: `CI green on ${short(sha)} except known red: ${names}; every other run on this commit finished clean (${others.length})` };
+    }
+    if (bad.length) {
+      return { state: 'red', headSha: sha, mergeable: 'MERGEABLE', detail: `CI red on ${short(sha)}: ${bad.join(', ')} failed, besides known red ${names}` };
+    }
+    if (Date.now() >= deadline) {
+      return { state: 'pending', headSha: sha, mergeable: 'MERGEABLE',
+        detail: `CI on ${short(sha)}: only known red failed so far (${said}); still running: ${running.join(', ') || 'no other runs listed yet'}` };
+    }
+    await d.sleep(30_000);
+  }
 }
 
 function short(sha) {
