@@ -78,8 +78,9 @@ Feature: <slug>   Worktree: <absolute path of the run's worktree>
    package isn't installed in the worktree, install from the lockfile (`commands.bootstrap`) and
    run it again.
 3. Push. `delivery ci --pr <n>` until it is green (a profile's `ci.knownRed` workflows excepted).
-4. Resolve the preview (`commands.previewUrl`), re-seed the design world, and mint the founder a
-   sign-in link as the design world's admin.
+4. Resolve the preview (`commands.previewUrl`), re-seed the design world, and give the founder a
+   sign-in link: `delivery sign-in design --base-url <preview>`. It works once and lasts about an
+   hour; when the founder says it expired, re-seed and run it again.
 5. Publish the last round's `compare.html` with its folder as a private Artifact.
 6. Report in the founder's report format: the preview, the link, the comparison page, the counts,
    and what is still open.

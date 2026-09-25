@@ -78,7 +78,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### delivery-tools `v0.4.1`
+### delivery-tools `v0.4.2`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -113,11 +113,11 @@ Picture mode's mapper, builder and reviewers are general agents given one brief 
 | `epic-build` | Full mode: parallel builders, wave by wave, into one integration branch |
 | `design-audit` | Full mode: graded captures with severity floors |
 
-**CLI:** `delivery <command>`, 40 commands. Picture mode uses `map` (check the button map and
+**CLI:** `delivery <command>`, 41 commands. Picture mode uses `map` (check the button map and
 write the checklist; `--from-plan` converts a full-mode run), `seed` (`--refresh all` resets every
 world), `shoot` (full-height pictures of the page area next to the cropped design, a button check,
-data-changing states last) and `review` (the reviewers' notes into `review.json` and a comparison
-page). `delivery status` prints the one NEXT line the run is steered by.
+data-changing states last), `review` (the reviewers' notes into `review.json` and a comparison
+page) and `sign-in` (a one-time link that signs a person in as a world's test user). `delivery status` prints the one NEXT line the run is steered by.
 
 ## Releases
 
