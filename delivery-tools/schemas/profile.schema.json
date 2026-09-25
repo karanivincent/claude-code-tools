@@ -232,6 +232,26 @@
         "mergeMethod": { "const": "merge-commit" }
       }
     },
-    "safetyFile": { "$ref": "common.schema.json#/$defs/Text" }
+    "safetyFile": { "$ref": "common.schema.json#/$defs/Text" },
+    "ci": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "knownRed": {
+          "description": "Workflows that fail on this repo's PRs for a reason no branch can fix, each with the issue tracking it. CI counts as green only when these are the only failures and every other run on the head finished clean; the output names each one every time.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["workflow", "issue", "why"],
+            "properties": {
+              "workflow": { "$ref": "common.schema.json#/$defs/Text" },
+              "issue": { "type": "integer", "minimum": 1 },
+              "why": { "$ref": "common.schema.json#/$defs/Text" }
+            }
+          }
+        }
+      }
+    }
   }
 }
