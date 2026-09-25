@@ -217,7 +217,15 @@ export function buildItems(o) {
         const words = worded.click?.name ?? worded.waitFor?.text ?? worded.type?.text;
         skipped.push({ state: row.id, why: `other locales: captured in the primary locale only, because a step names words that translation changes ("${words}"); address the control by test id to capture every locale` });
       }
-      for (const width of o.smoke ? [widths[0]] : widths) {
+      // A row the plan declares the same page as another state adds nothing at the other widths: that
+      // state is captured at every one. Chrome rows (a sidebar link, a header toggle) are same-as the
+      // page they sit on, and at a phone width their desktop-only markers are hidden by design: eleven
+      // of them were "not reached" at 390 px on a page that was right (knowledge-page wave, 2026-09-25).
+      const rowWidths = o.smoke || row.markers?.sameAs?.state ? [widths[0]] : widths;
+      if (!o.smoke && row.markers?.sameAs?.state && widths.length > 1) {
+        skipped.push({ state: row.id, why: `other widths: the same page as ${row.markers.sameAs.state}, which is captured at every width` });
+      }
+      for (const width of rowWidths) {
         for (const locale of o.smoke ? [primary] : rowLocales) {
           for (const theme of o.smoke ? [themes[0]] : themes) {
             const first = width === widths[0] && locale === primary && theme === themes[0];
@@ -239,7 +247,8 @@ export function buildItems(o) {
         const member = userOf(plan, world, 'member');
         // A state an admin reaches by clicking a control a member does not have is a state no
         // member can be taken to: the plan says so itself, in the row that hides the control.
-        const shut = [...hiddenFromMembers(plan)].find((t) => (row.reach.steps ?? []).some((st) => st.click?.testid === t));
+        // A list's controls are planned once ("kb-fact-edit") and clicked by index ("kb-fact-edit-0").
+        const shut = [...hiddenFromMembers(plan)].find((t) => (row.reach.steps ?? []).some((st) => st.click?.testid === t || String(st.click?.testid ?? '').replace(/-\d+$/, '') === t));
         if (shut) skipped.push({ state: row.id, why: `member check: reaching it clicks "${shut}", which the plan hides from a member` });
         else if (member) {
           add({
@@ -256,6 +265,17 @@ export function buildItems(o) {
         // Steps that name their own world's data cannot be replayed in another world: a click on
         // "Blue widget 4 left" finds nothing in a world seeded with a nameless widget and a
         // negative stock. Ids were already excluded; what a row SAYS is just as much its world's.
+        // A click, a typed value or a choice acts on something the design world's data put there (the
+        // second question's "Write it", a clash's "Keep", a document's page list): thirteen replays in
+        // the messy world failed on a button that world never had, each read as a P1 (knowledge-page
+        // wave, 2026-09-25). The messy world checks what a page shows as it lands.
+        const acts = (row.reach.steps ?? []).some((s) => s.click || s.type || s.select || s.check);
+        if (acts) {
+          for (const m of plan.worlds.filter((w) => w.kind === 'messy' && w.id !== world)) {
+            skipped.push({ state: row.id, why: `messy world ${m.id}: the steps act on the ${world} world's own data (a click, typing or a choice)` });
+          }
+          continue;
+        }
         const fixtureIds = row.reach.steps.some((s) => Object.values(s).some((v) => UUID.test(JSON.stringify(v))))
           || stepsNameTheirData(row.reach.steps);
         // A state made by its own world's data (an empty list, a first day, a spent allowance) is a
