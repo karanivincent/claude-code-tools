@@ -85,8 +85,8 @@ Turns a design export into one pull request built by agents. Since 0.4.0 the def
 compare pictures of the live page with the design, and at most two fix rounds follow. Scripts only
 do the fixed jobs: rendering the design, seeding test data, signing in, walking to each state,
 taking the pictures, listing buttons, and CI. They never judge whether a page matches. On the
-knowledge-page redesign this matched 42 of 66 states in about three and a half hours; the older
-full mode had spent two days and matched none. An export holds the whole design project; a run
+knowledge-page redesign, the older full mode spent about two days and left 27 of 66 states
+matching the design; three and a half more hours of this loop took it to 42. An export holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run
 and keep it current is in [`delivery-tools/docs/OPERATING.md`](delivery-tools/docs/OPERATING.md).
