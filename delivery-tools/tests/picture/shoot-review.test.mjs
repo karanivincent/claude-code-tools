@@ -17,9 +17,10 @@ test('a shoot takes every capture-reachable state, or the ids given, minus !ids'
 test('states that write data are taken last, and groups that write after those that do not', () => {
   const m = sampleMap();
   m.states.push({ id: 'KC-06', screen: 'To check', name: 'Member', reach: { world: 'design', role: 'member', steps: [{ goto: '/dashboard/knowledge' }] } });
-  const order = captureOrder(selectStates(m).states, m);
+  const order = captureOrder(selectStates(m).items, m);
   assert.deepEqual(order.map((g) => `${g.world}/${g.role}`), ['design/member', 'design/admin']);
-  assert.deepEqual(order[1].states.map((s) => s.id), ['KC-05', 'KC-04', 'KC-08']);
+  assert.deepEqual(order[1].items.map((i) => i.key), ['KC-05', 'KC-04', 'KC-08']);
+  assert.deepEqual(order.map((g) => g.width), ['desktop', 'desktop']);
   assert.deepEqual(order[1].writes, ['KC-08']);
 });
 

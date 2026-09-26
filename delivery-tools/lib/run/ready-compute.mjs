@@ -99,7 +99,8 @@ async function changedPaths(git, base) {
  * @returns {Promise<{ ready: object, exit: number, digest: string, notes: string[] }>} notes: runChecks' lines worth printing
  */
 /**
- * Picture mode's proof that the page is done: every round pictured is compiled, every state's
+ * Picture mode's proof that the page is done, counted by item (a state at a width; a desktop-only
+ * run's items are its states): every round pictured is compiled, every item's
  * newest picture was reached, and states still to fix are allowed only once the fix rounds are
  * spent (they then go to the founder as a list, with the comparison page). A state keeps the
  * verdict of the newest round that pictured it, so a round that re-shoots a few states counts.
@@ -112,17 +113,19 @@ export function pictureReadiness(paths) {
   const stale = rounds.find((r) => !r.compiled);
   if (stale) return { ok: false, detail: `round ${stale.round} is pictured but its reviews are not compiled: delivery review --round ${stale.round}`, evidence: `rounds/${stale.round}` };
   const latest = latestVerdicts(paths);
+  // A run that checks the phone counts items (a state at a width); a desktop-only run, states.
+  const noun = [...latest.keys()].some((k) => k.includes('@')) ? 'item' : 'state';
   const by = (v) => [...latest].filter(([, s]) => s.verdict === v).map(([id, s]) => `${id} (round ${s.round})`);
   const unreached = by('not-reached');
-  if (unreached.length) return { ok: false, detail: `${unreached.length} state(s) whose newest picture was not reached: ${unreached.slice(0, 5).join(', ')}`, evidence: 'review.json' };
+  if (unreached.length) return { ok: false, detail: `${unreached.length} ${noun}(s) whose newest picture was not reached: ${unreached.slice(0, 5).join(', ')}`, evidence: 'review.json' };
   const open = by('must');
   const last = rounds.at(-1).round;
   if (open.length && rounds.length < MAX_ROUNDS) {
-    return { ok: false, detail: `${open.length} state(s) still to fix and ${MAX_ROUNDS - rounds.length} fix round(s) left: ${open.slice(0, 5).join(', ')}`, evidence: `rounds/${last}` };
+    return { ok: false, detail: `${open.length} ${noun}(s) still to fix and ${MAX_ROUNDS - rounds.length} fix round(s) left: ${open.slice(0, 5).join(', ')}`, evidence: `rounds/${last}` };
   }
   const n = (v) => by(v).length;
   const tail = open.length ? `; ${open.length} still open after ${rounds.length} rounds go to the founder as a list` : '';
-  return { ok: true, detail: `${latest.size} state(s): ${n('match')} match, ${n('small')} small differences, every pictured state reached${tail}`, evidence: `rounds/${last}/review.json` };
+  return { ok: true, detail: `${latest.size} ${noun}(s): ${n('match')} match, ${n('small')} small differences, every pictured ${noun} reached${tail}`, evidence: `rounds/${last}/review.json` };
 }
 
 export async function computeReady(ctx, { pr }) {

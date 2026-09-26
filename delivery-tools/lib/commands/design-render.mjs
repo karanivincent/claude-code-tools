@@ -8,11 +8,12 @@ import { exists } from '../core/fs.mjs';
 import { UsageError, EXIT } from '../core/exit.mjs';
 import { getDesignAdapter } from '../../adapters/design/index.mjs';
 import { renderDesign, DEFAULT_VIEWPORT } from '../design/render.mjs';
+import { WIDTHS, WIDTH_NAMES, itemKey } from '../picture/widths.mjs';
 
 export default defineCommand({
   name: "design render",
   summary: "Render every design state to png, txt and dom.json",
-  usage: `usage: delivery design render [--states <ID,...>] [--port <n>] [--width <px>] [--height <px>] [--offline]
+  usage: `usage: delivery design render [--states <ID,...>] [--port <n>] [--width <desktop|phone|px>] [--height <px>] [--offline]
 
 Serve the snapshot on a local port (runtime unzipped under .delivery/<feature>/design-serve/)
 and render each inventory state by its click path, or from a temporary copy with a prop's
@@ -26,13 +27,20 @@ every state of an image-folder design) gets its first shot copied as <ID>.png, w
 Steps: {"click": "<exact visible text>"} or {"click": "<playwright selector>"} such as
 text=..., css=..., role=...; {"set": {...}} writes the design component's own state.
 
+A named width renders at that width's size: desktop is 1440 x 900 with today's file names, and
+phone is 390 x 844 and adds @phone (<ID>@phone.png, <ID>@phone.txt, <ID>@phone.dom.json), for a
+picture-mode map that declares "widths": ["desktop", "phone"]. At phone width a picture-only state
+is skipped: a fixed picture has one width, so a map points a phone item at it with
+"design": { "phone": "<ID>" }.
+
 This launches a browser: run it through the profile's heavy wrapper.
 
 options:
   --states <ids>     render only these states (comma-separated)
   --port <n>         port for the static server (default: a free one)
-  --width <px>       viewport width (default: the profile's first audit width, else 1440)
-  --height <px>      viewport height (default 900)
+  --width <w>        desktop, phone, or a width in pixels (default: the profile's first audit
+                     width, else 1440; a pixel width keeps today's file names)
+  --height <px>      viewport height (default 900, or the named width's height)
   --offline          abort every request the snapshot or the repo cannot answer (fonts fall back)
 
 exit: 0 rendered; 1 a state failed to render; 2 Playwright not found
@@ -66,21 +74,27 @@ common options:
       if (!/^[1-9]\d{1,4}$/.test(v)) throw new UsageError(`${flag} needs a whole number of pixels, got "${v}"`);
       return Number(v);
     };
-    const viewport = {
-      width: num(values.width, '--width') ?? profile?.audit?.widths?.[0] ?? DEFAULT_VIEWPORT.width,
-      height: num(values.height, '--height') ?? DEFAULT_VIEWPORT.height,
-    };
+    const named = values.width !== undefined && !/^\d+$/.test(values.width) ? values.width : null;
+    if (named && !WIDTH_NAMES.includes(named)) throw new UsageError(`--width is ${WIDTH_NAMES.join(', ')} or a number of pixels, got "${values.width}"`);
+    const viewport = named
+      ? { width: WIDTHS[named].width, height: num(values.height, '--height') ?? WIDTHS[named].height }
+      : {
+        width: num(values.width, '--width') ?? profile?.audit?.widths?.[0] ?? DEFAULT_VIEWPORT.width,
+        height: num(values.height, '--height') ?? DEFAULT_VIEWPORT.height,
+      };
+    const width = named ?? 'desktop';
+    const shown = (id) => itemKey(id, width);
     const port = values.port === undefined ? 0 : num(values.port, '--port');
 
     const r = await renderDesign(ctx, {
-      paths, inventory, adapter: adapter.name, states, port, offline: values.offline, viewport,
+      paths, inventory, adapter: adapter.name, states, port, offline: values.offline, viewport, width,
       e2eDir: profile?.paths?.e2eDir ?? null,
       playwrightRoot: ctx.env.DELIVERY_PLAYWRIGHT_ROOT || null,
     });
-    for (const id of r.rendered) ctx.out.line(`rendered ${id}`);
+    for (const id of r.rendered) ctx.out.line(`rendered ${shown(id)}`);
     for (const id of r.shots) ctx.out.line(`picture only ${id}: shot copied, no text or dom`);
-    for (const s of r.skipped) ctx.out.line(`skipped ${s.id}: ${s.why}`);
-    for (const f of r.failed) ctx.out.fail('render', `${f.id}: ${f.why}`);
+    for (const s of r.skipped) ctx.out.line(`skipped ${shown(s.id)}: ${s.why}`);
+    for (const f of r.failed) ctx.out.fail('render', `${shown(f.id)}: ${f.why}`);
     if (r.escaped.length) ctx.out.warn(`offline: aborted requests to ${r.escaped.join(', ')}`);
     ctx.out.line(`${r.rendered.length} rendered, ${r.shots.length} pictures, ${r.skipped.length} skipped, ${r.failed.length} failed; files in ${paths.designRenders}`);
     ctx.out.set('rendered', r.rendered);
@@ -91,7 +105,7 @@ common options:
     await ctx.journal({
       command: 'design render', exit,
       counts: { rendered: r.rendered.length, pictures: r.shots.length, skipped: r.skipped.length, failed: r.failed.length },
-      inputs: { inventory: inventory.designTreeSha256, states }, outputs: r,
+      inputs: { inventory: inventory.designTreeSha256, states, ...(width !== 'desktop' ? { width } : {}) }, outputs: r,
     });
     return exit;
   },

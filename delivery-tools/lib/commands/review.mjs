@@ -9,6 +9,7 @@ import { EXIT } from '../core/exit.mjs';
 import { readMap } from '../picture/map.mjs';
 import { listRounds, roundDir, roundInfo } from '../picture/rounds.mjs';
 import { parseReview, renderCompare, summarise } from '../picture/review.mjs';
+import { hasPhone, mapItems, roundFiles } from '../picture/widths.mjs';
 
 export default defineCommand({
   name: 'review',
@@ -16,21 +17,24 @@ export default defineCommand({
   usage: `usage: delivery review [--round <n>] [--before <n>]
 
 Picture mode. Reviewer agents (briefs/reviewer-picture.md) each write review-<group>.md into the
-round's folder: one "## <STATE-ID>" section per state with a problem, one bullet per problem, each
-starting "must fix:" or "small:". This command reads them with the round's shoot.json and writes:
+round's folder: one "## <ITEM>" section per item with a problem (an item is a state at a width:
+"## KC-05" at desktop, "## KC-05@phone" at phone width), one bullet per problem, each starting
+"must fix:" or "small:". This command reads them with the round's shoot.json and writes:
 
-  review.json    every state's verdict: match, small, must, not-reached or test-only, with notes
-  compare.html   design, an earlier round and this round side by side, with the notes; the
-                 pictures it shows are copied into the round's folder so the folder publishes whole
+  review.json    every item's verdict: match, small, must, not-reached or test-only, with notes;
+                 a page the shoot found scrolling sideways at phone width is a must fix
+  compare.html   each state with a row per width: design, an earlier round and this round side by
+                 side, with the notes; the pictures it shows are copied into the round's folder so
+                 the folder publishes whole
 
-A state with no section in any review matches. Only states the reviewers were given count: run it
+An item with no section in any review matches. Only items the reviewers were given count: run it
 after every group's reviewer has written its file.
 
 options:
   --round <n>    the round (default: the latest numbered round)
   --before <n>   the earlier round shown next to it (default: round 1, when this is a later round)
 
-exit: 0 compiled, nothing left to fix; 1 compiled, and states are still to fix or not reached;
+exit: 0 compiled, nothing left to fix; 1 compiled, and items are still to fix or not reached;
       2 no round, no shoot.json or no review file
 
 common options:
@@ -51,7 +55,7 @@ common options:
 
     const notes = {};
     for (const f of info.reviews) {
-      for (const [id, n] of Object.entries(parseReview(readFileSync(join(info.dir, f), 'utf8'), map.states.map((s) => s.id)))) {
+      for (const [id, n] of Object.entries(parseReview(readFileSync(join(info.dir, f), 'utf8'), mapItems(map).map((i) => i.key)))) {
         notes[id] ??= { must: [], small: [] };
         notes[id].must.push(...n.must);
         notes[id].small.push(...n.small);
@@ -62,13 +66,14 @@ common options:
     const before = intFlag(values.before, '--before') ?? (round > 1 && rounds.includes(1) ? 1 : null);
     const beforeDir = before ? roundDir(paths, before) : null;
     if (beforeDir) mkdirSync(join(info.dir, 'before'), { recursive: true });
-    const pictures = (id) => {
-      const design = existsSync(join(info.dir, `${id}.design.png`)) ? `${id}.design.png` : null;
-      const now = existsSync(join(info.dir, `${id}.live.png`)) ? `${id}.live.png` : null;
+    const pictures = (key) => {
+      const f = roundFiles(key);
+      const design = existsSync(join(info.dir, f.design)) ? f.design : null;
+      const now = existsSync(join(info.dir, f.live)) ? f.live : null;
       let prev = null;
-      if (beforeDir && existsSync(join(beforeDir, `${id}.live.png`))) {
-        copyFileSync(join(beforeDir, `${id}.live.png`), join(info.dir, 'before', `${id}.live.png`));
-        prev = `before/${id}.live.png`;
+      if (beforeDir && existsSync(join(beforeDir, f.live))) {
+        copyFileSync(join(beforeDir, f.live), join(info.dir, 'before', f.live));
+        prev = `before/${f.live}`;
       }
       return { design, before: prev, now };
     };
@@ -78,7 +83,8 @@ common options:
     await writeFile(join(info.dir, 'review.json'), JSON.stringify(doc, null, 1) + '\n');
 
     const c = summary.counts;
-    ctx.out.line(`round ${round}: ${c.match} match, ${c.small} small differences only, ${c.must} to fix, ${c.notReached} not reached, ${c.testOnly} unit tests only`);
+    const noun = hasPhone(map) ? ' (items: a state at a width)' : '';
+    ctx.out.line(`round ${round}${noun}: ${c.match} match, ${c.small} small differences only, ${c.must} to fix, ${c.notReached} not reached, ${c.testOnly} unit tests only`);
     for (const [id, s] of Object.entries(summary.states)) {
       if (s.verdict === 'must') ctx.out.line(`  ${id}: ${s.must.length} to fix`);
       if (s.verdict === 'not-reached') ctx.out.line(`  ${id}: not reached`);

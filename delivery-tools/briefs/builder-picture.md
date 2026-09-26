@@ -7,7 +7,9 @@ picture. You work in the run's worktree, commit as you go, and never push.
 
 Paths are relative to the worktree root.
 
-- `.delivery/<feature>/design/<ID>.png`: the design of every state.
+- `.delivery/<feature>/design/<ID>.png`: the design of every state. When the map declares
+  `"widths": ["desktop", "phone"]`, `<ID>@phone.png` is the phone design (or the checklist names the
+  state's own mobile frame).
 - `docs/delivery/<feature>/checklist.md`: every state, how it is reached, every button, and the
   state each button opens. Use the test ids it names; the capture clicks them.
 - `docs/delivery/<feature>/map.json`: the same, as data.
@@ -25,8 +27,10 @@ picture the live page after a change:
     node scripts/delivery.mjs shoot --base-url <url> --round work <ID> [<ID> ...]
 
 It signs in as the right test user, walks to each state, and saves `<ID>.live.png` next to
-`<ID>.design.png` in `.delivery/<feature>/rounds/work/`. It also prints whether each state was
-reached and lists missing buttons. Give it a few IDs at a time, then read the two pictures side by
+`<ID>.design.png` in `.delivery/<feature>/rounds/work/`, at every width the map declares: a phone
+item adds `@phone` (`<ID>@phone.live.png`). It also prints whether each state was reached, lists
+missing buttons, and says when the page scrolls sideways on a phone. `<ID>` takes the state at
+every width; `<ID>@phone` only the phone. Give it a few IDs at a time, then read the two pictures side by
 side. A state reached by saving, discarding or adding changes its test data. Picture those last,
 and never twice without saying so in your report.
 
@@ -42,6 +46,10 @@ For every state in the checklist:
   weights and button styles.
 - The wording means the same as the design's. The test data's names and numbers may differ.
 - Nothing from the checklist's "must not be lost" list is gone.
+- When the map declares the phone: the page is responsive, and each state matches its phone design
+  at 390 pixels as well as its desktop design at 1440. Never let the page scroll sideways on a
+  phone. A button marked "hidden on a phone" is off the phone layout; one marked "on a phone only"
+  is off the desktop. Look at your own work at both widths.
 
 Ignore differences that need a ruler to see.
 

@@ -55,6 +55,9 @@ Not for deciding what to build (`coverage-plan`) or for comparing a build with i
    browser). It serves the snapshot itself and writes `<ID>.png`, `<ID>.txt` and `<ID>.dom.json`
    under `.delivery/<f>/design/`; a picture-only state gets its picture. When a state fails to
    render, the next step fixes its reach; then run `delivery design render --states <IDs>` again.
+   Render each width the picture map declares: when its `widths` include `"phone"` (or the design
+   plainly has phone screens), also run `delivery design render --width phone`, which writes
+   `<ID>@phone.png` at 390 pixels. `delivery status` asks for it when the map needs it.
 5. **Words.** Dispatch the extractors again with the `words` prompt, passing each group the render
    failures. They take every label from the render and correct the reach of each state that did
    not render. Assemble again (step 3), and repeat 4 and 5 for the states in `rerender`.
