@@ -18,6 +18,9 @@ import { resolvePreview } from '../lifecycle/preview.mjs';
 import { refreshBaseline } from '../baseline/refresh.mjs';
 import { outOfScopeFiles } from '../baseline/scope.mjs';
 import { CHECK_IDS, runChecks } from '../checks/index.mjs';
+import { readMap } from '../picture/map.mjs';
+import { MAX_ROUNDS, pictureFacts } from '../picture/next.mjs';
+import { listRounds, roundInfo } from '../picture/rounds.mjs';
 import { readyBlockers } from '../checks/severity.mjs';
 import { latestCaptureRun, validateCaptureItems } from '../capture/validate.mjs';
 import { spotRecapture } from '../capture/spot.mjs';
@@ -96,6 +99,37 @@ async function changedPaths(git, base) {
  * @param {{ pr: number }} opts
  * @returns {Promise<{ ready: object, exit: number, digest: string, notes: string[] }>} notes: runChecks' lines worth printing
  */
+/**
+ * Picture mode's proof that the page is done: every round pictured is compiled, every state's
+ * newest picture was reached, and states still to fix are allowed only once the fix rounds are
+ * spent (they then go to the founder as a list, with the comparison page). A state keeps the
+ * verdict of the newest round that pictured it, so a round that re-shoots a few states counts.
+ * @param {{ runDir: string, deliveryDir: string }} paths
+ * @returns {{ ok: boolean, detail: string, evidence: string }}
+ */
+export function pictureReadiness(paths) {
+  const rounds = pictureFacts(paths).rounds.filter((r) => r.shot);
+  if (!rounds.length) return { ok: false, detail: 'no picture round yet: delivery shoot, the reviewers, then delivery review', evidence: '' };
+  const stale = rounds.find((r) => !r.compiled);
+  if (stale) return { ok: false, detail: `round ${stale.round} is pictured but its reviews are not compiled: delivery review --round ${stale.round}`, evidence: `rounds/${stale.round}` };
+  const latest = new Map();
+  for (const n of listRounds(paths)) {
+    const states = roundInfo(paths, n).review?.states ?? {};
+    for (const [id, s] of Object.entries(states)) if (s.verdict !== 'not-shot') latest.set(id, { verdict: s.verdict, round: n });
+  }
+  const by = (v) => [...latest].filter(([, s]) => s.verdict === v).map(([id, s]) => `${id} (round ${s.round})`);
+  const unreached = by('not-reached');
+  if (unreached.length) return { ok: false, detail: `${unreached.length} state(s) whose newest picture was not reached: ${unreached.slice(0, 5).join(', ')}`, evidence: 'review.json' };
+  const open = by('must');
+  const last = rounds.at(-1).round;
+  if (open.length && rounds.length < MAX_ROUNDS) {
+    return { ok: false, detail: `${open.length} state(s) still to fix and ${MAX_ROUNDS - rounds.length} fix round(s) left: ${open.slice(0, 5).join(', ')}`, evidence: `rounds/${last}` };
+  }
+  const n = (v) => by(v).length;
+  const tail = open.length ? `; ${open.length} still open after ${rounds.length} rounds go to the founder as a list` : '';
+  return { ok: true, detail: `${latest.size} state(s): ${n('match')} match, ${n('small')} small differences, every pictured state reached${tail}`, evidence: `rounds/${last}/review.json` };
+}
+
 export async function computeReady(ctx, { pr }) {
   const { paths, state } = await requireRunState(ctx);
   const profile = await ctx.profile();
@@ -105,6 +139,9 @@ export async function computeReady(ctx, { pr }) {
   const headSha = pull.headRefOid;
   if (!headSha) throw new UsageError(`PR #${pr} reports no head SHA`);
   const head = shortSha(headSha);
+  // Picture mode proves the page with its rounds of pictures and reviews, not a full capture,
+  // the M-checks and an audit's severities, which a picture run never produces.
+  const pictureMode = Boolean(readMap(paths));
 
   const checks = [];
   const exits = [];
@@ -157,7 +194,7 @@ export async function computeReady(ctx, { pr }) {
     previewUrl = p.url;
     add('preview', true, `resolved by SHA ${head}`, p.url);
   });
-  if (previewUrl) {
+  if (previewUrl && !pictureMode) {
     await attempt('served-sha', async () => {
       const served = await dep(ctx, 'probeServedSha', probeServedSha)(ctx, previewUrl);
       if (!served) {
@@ -226,6 +263,13 @@ export async function computeReady(ctx, { pr }) {
 
   let captureRunId = null;
   let verdicts = [];
+  const checkNotes = [];
+  if (pictureMode) {
+    await attempt('pictures', async () => {
+      const r = pictureReadiness(paths);
+      add('pictures', r.ok, r.detail, r.evidence);
+    });
+  } else {
   await attempt('capture', async () => {
     captureRunId = await dep(ctx, 'latestCaptureRun', latestCaptureRun)(ctx, { mode: 'full' });
     if (!captureRunId) return add('capture', false, `no full-mode capture; run delivery capture --mode full on the preview of ${head}`);
@@ -238,7 +282,6 @@ export async function computeReady(ctx, { pr }) {
     add('capture', true, `${verdicts.length} item(s) re-validated as reached`, evidence);
   });
 
-  const checkNotes = [];
   await attempt('checks', async () => {
     const ids = [...dep(ctx, 'CHECK_IDS', CHECK_IDS)];
     const res = await dep(ctx, 'runChecks', runChecks)(ctx, ids, { captureRunId, record: true });
@@ -271,6 +314,7 @@ export async function computeReady(ctx, { pr }) {
     if (blockers.length) return add('severity', false, `${blockers.length} blocker(s): ${blockers.slice(0, 4).map((b) => b.message).join('; ')}`, 'findings.json');
     add('severity', true, 'no open P1; every open P2 accepted with a reason class, within the caps', 'findings.json');
   });
+  }
 
   let late = [];
   await attempt('late-changes', async () => {

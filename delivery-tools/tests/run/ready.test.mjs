@@ -3,7 +3,7 @@
 // the current head, and that nothing it read changed since.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import readyCommand from '../../lib/commands/ready.mjs';
 import { checkReady, captureRunIdOf, sameSha } from '../../lib/run/ready.mjs';
@@ -17,6 +17,7 @@ import { PASS } from '../../lib/core/gate.mjs';
 import { makeMarker } from '../../lib/core/markers.mjs';
 import { validExample } from '../helpers/fixtures.mjs';
 import { commitAll, ctxFor, gitIn, makeRunRepo, planWith, startRun, writeFiles } from './support.mjs';
+import { sampleMap } from '../picture/map.test.mjs';
 
 function greenDeps(head, over = {}) {
   return {
@@ -324,4 +325,56 @@ test('counts come from the plan, the findings and the capture verdicts', () => {
   assert.equal(isStateRow({ id: 'WL-01' }), true);
   assert.equal(sameSha('abcdef1', 'abcdef1234'), true);
   assert.equal(sameSha('abc', 'abc'), false);
+});
+
+/** Picture-mode rounds: { n: { STATE: verdict } }, each pictured, with a compiled review.json. */
+function writeRounds(paths, rounds) {
+  for (const [n, states] of Object.entries(rounds)) {
+    const dir = join(paths.runDir, 'rounds', n);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'shoot.json'), JSON.stringify({ states: {} }));
+    const doc = { states: Object.fromEntries(Object.entries(states).map(([id, verdict]) => [id, { verdict }])) };
+    writeFileSync(join(dir, 'review.json'), JSON.stringify(doc));
+  }
+}
+
+const PICTURE_RUN = { 'docs/delivery/widgets/map.json': JSON.stringify(sampleMap({ feature: 'widgets' })) };
+
+test('picture mode: ready proves the page with its rounds, not a full capture or an audit', async () => {
+  const f = await fixture({ changed: PICTURE_RUN });
+  try {
+    // Round 3 re-shoots two states; KC-06 keeps round 2's verdict. One state is still open after
+    // the fix rounds are spent, which is the founder's list, not a red ready.
+    writeRounds(f.paths, {
+      1: { 'KC-05': 'must', 'KC-06': 'must', 'KC-07': 'match' },
+      2: { 'KC-05': 'must', 'KC-06': 'small', 'KC-07': 'match' },
+      3: { 'KC-05': 'must', 'KC-06': 'not-shot', 'KC-07': 'match' },
+    });
+    const { ready, exit } = await computeReady(f.ctx, { pr: f.pr });
+    assert.equal(exit, 0, JSON.stringify(ready.checks.filter((c) => !c.ok)));
+    assert.deepEqual(ready.checks.map((c) => c.id), ['baseline-refresh', 'head', 'ci', 'preview', 'dupes', 'scope', 'loop-test', 'pictures']);
+    const pictures = ready.checks.find((c) => c.id === 'pictures');
+    assert.match(pictures.detail, /3 state\(s\): 1 match, 1 small differences, every pictured state reached; 1 still open after 3 rounds/);
+  } finally { f.repo.cleanup(); }
+});
+
+test('picture mode: no round, open states with fix rounds left, an unreached newest picture, or an uncompiled round are red', async () => {
+  const f = await fixture({ changed: PICTURE_RUN });
+  try {
+    const pictures = async () => {
+      const { ready, exit } = await computeReady(f.ctx, { pr: f.pr });
+      assert.equal(exit, 1);
+      return ready.checks.find((c) => c.id === 'pictures');
+    };
+    assert.match((await pictures()).detail, /no picture round yet/);
+    writeRounds(f.paths, { 1: { 'KC-05': 'must', 'KC-07': 'match' } });
+    assert.match((await pictures()).detail, /1 state\(s\) still to fix and 2 fix round\(s\) left: KC-05 \(round 1\)/);
+    writeRounds(f.paths, { 2: { 'KC-05': 'not-reached', 'KC-07': 'match' } });
+    assert.match((await pictures()).detail, /newest picture was not reached: KC-05 \(round 2\)/);
+    const three = join(f.paths.runDir, 'rounds', '3');
+    mkdirSync(three, { recursive: true });
+    writeFileSync(join(three, 'shoot.json'), '{}');
+    writeFileSync(join(three, 'review-to-check.md'), 'KC-05 matches');
+    assert.match((await pictures()).detail, /round 3 is pictured but its reviews are not compiled: delivery review --round 3/);
+  } finally { f.repo.cleanup(); }
 });
