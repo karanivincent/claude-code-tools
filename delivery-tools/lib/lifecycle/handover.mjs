@@ -47,12 +47,15 @@ export async function findHandover(ctx, { profile, feature, committedOnly = fals
   const dir = join(ctx.repoRoot, profile.paths.handovers);
   let names = [];
   try { names = await readdir(dir); } catch { return null; }
+  let merged = null;
   for (const name of names.sort()) {
     const rel = `${profile.paths.handovers.replace(/\/$/, '')}/${name}`;
     if (!re.test(rel)) continue;
     if (!mb || !(await ctx.git.show(base, rel))) return rel;
+    merged ??= rel;
   }
-  return null;
+  // After the merge (land), the run's handover is on the base branch; it is still the run's file.
+  return merged;
 }
 
 /**
