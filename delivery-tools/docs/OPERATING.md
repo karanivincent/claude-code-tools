@@ -50,6 +50,17 @@ area, with the sidebar and top bar cropped away, next to the design cropped the 
 agents compare them, one per screen, and `delivery review` compiles their notes into a comparison
 page. At most two fix rounds follow. `delivery status` names the next step throughout.
 
+Since 0.5.0 a run can check the phone as well as the desktop. When the design has phone screens,
+the map declares `"widths": ["desktop", "phone"]` and every state is checked at 1440 x 900 and at
+390 x 844. The design is rendered narrow with `delivery design render --width phone`, or a state
+points at its own mobile frame with `"design": { "phone": "<id>" }`. A state that exists at one
+width only says `"widths": ["phone"]`, and `reach.phone` gives the steps when a phone reaches it
+another way. The shoot pictures the phone in its own touch-device browser, with no sidebar crop,
+and flags a page that scrolls sideways, which always counts as a must fix. Phone pictures add
+`@phone` to the name (`KC-05@phone.live.png`); desktop names are unchanged. Reviewers, the
+comparison page (a row per width under each state), `status` and `ready` all count items, a state
+at a width. A map without `widths` checks the desktop only, exactly as before.
+
 A run that began in full mode switches with `delivery map --from-plan`. Before the pull request
 is marked ready, `delivery ready --pr <n>` checks CI, the pushed head, the preview, duplicates and
 the rounds (every round compiled, every state's newest picture reached); it no longer asks a

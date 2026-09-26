@@ -12,6 +12,7 @@ import { startStaticServer, contentTypeFor } from './server.mjs';
 import { prepareServeDir, writePropCopy } from './serve.mjs';
 import { vendorResolver } from './vendor.mjs';
 import { pageExtract, linesToText } from '../capture/page-extract.mjs';
+import { itemKey } from '../picture/widths.mjs';
 
 export const DEFAULT_VIEWPORT = Object.freeze({ width: 1440, height: 900 });
 const BOOT_SELECTOR = '#dc-root .sc-host';
@@ -43,12 +44,15 @@ const SET_STATE_INIT = `window.__deliverySet = function (patch) {
  */
 export function planRenders(inventory, opts) {
   const wanted = opts.states ? new Set(opts.states) : null;
+  const narrow = opts.width && opts.width !== 'desktop';
   const out = [];
   for (const s of inventory.states) {
     if (wanted && !wanted.has(s.id)) continue;
     const reach = s.reach ?? { kind: 'unspecified' };
     if (s.render?.status === 'impossible') { out.push({ id: s.id, action: 'skip', why: `impossible: ${s.render.why ?? 'no reason given'}` }); continue; }
     if (opts.adapter === 'image-folder' || reach.kind === 'shot-only') {
+      // A fixed picture has one width; a map points a phone item at it with design.phone.
+      if (narrow) { out.push({ id: s.id, action: 'skip', why: `a picture-only state has no ${opts.width} render; point a map state at it with "design": { "${opts.width}": "${s.id}" }` }); continue; }
       if (!s.shots?.length) out.push({ id: s.id, action: 'fail', why: 'a picture state names no shot' });
       else out.push({ id: s.id, action: 'shot', shot: s.shots[0] });
       continue;
@@ -62,6 +66,14 @@ export function planRenders(inventory, opts) {
     out.push({ id: s.id, action: 'render', steps: reach.steps ?? [], props });
   }
   return out;
+}
+
+/**
+ * A design render's file name. Desktop keeps "<ID>.<ext>"; any other named width adds "@<width>":
+ * "<ID>@phone.png".
+ */
+export function renderFileName(id, width, ext) {
+  return `${itemKey(id, width ?? 'desktop')}.${ext}`;
 }
 
 /** A Playwright selector string, or exact visible text. */
@@ -118,13 +130,18 @@ export async function runDesignStep(page, step, n) {
  * Render the inventory's states.
  * @param {import('../core/ctx.mjs').Ctx} ctx
  * @param {{ paths: import('../core/paths.mjs').FeaturePaths, inventory: object, adapter: string, states?: string[]|null,
- *           port?: number, offline?: boolean, viewport?: { width: number, height: number },
+ *           port?: number, offline?: boolean, viewport?: { width: number, height: number }, width?: string,
  *           e2eDir?: string|null, playwrightRoot?: string|null }} opts
  * @returns {Promise<{ rendered: string[], shots: string[], skipped: { id: string, why: string }[], failed: { id: string, why: string }[], escaped: string[] }>}
  */
 export async function renderDesign(ctx, opts) {
   const { paths, inventory } = opts;
-  const plan = planRenders(inventory, { states: opts.states ?? null, adapter: opts.adapter });
+  const width = opts.width ?? 'desktop';
+  const plan = planRenders(inventory, { states: opts.states ?? null, adapter: opts.adapter, width });
+  const outFile = (id, ext) => {
+    paths.designRender(id, ext); // checks the id
+    return join(paths.designRenders, renderFileName(id, width, ext));
+  };
   const result = { rendered: [], shots: [], skipped: [], failed: [], escaped: [] };
   await ensureDir(paths.designRenders);
 
@@ -191,9 +208,10 @@ export async function renderDesign(ctx, opts) {
         for (let i = 0; i < p.steps.length; i++) await runDesignStep(page, p.steps[i], i + 1);
         const { lines, dom } = await page.evaluate(pageExtract, {});
         const png = await page.screenshot({ fullPage: true, animations: 'disabled', caret: 'hide' });
-        await writeFile(paths.designRender(p.id, 'png'), png);
-        await writeFile(paths.designRender(p.id, 'txt'), linesToText(lines));
-        await writeArtefact(paths, 'design-dom', dom, { key: p.id });
+        await writeFile(outFile(p.id, 'png'), png);
+        await writeFile(outFile(p.id, 'txt'), linesToText(lines));
+        if (width === 'desktop') await writeArtefact(paths, 'design-dom', dom, { key: p.id });
+        else await writeFile(outFile(p.id, 'dom.json'), JSON.stringify(dom, null, 2) + '\n');
         result.rendered.push(p.id);
       } catch (err) {
         result.failed.push({ id: p.id, why: String(err.message).split('\n')[0] });

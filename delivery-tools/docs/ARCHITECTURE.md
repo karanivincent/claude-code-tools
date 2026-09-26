@@ -243,7 +243,7 @@ sidefx, seedplan, preflight, candidates) that fails its schema is exit 5: tamper
 | intent | `docs/delivery/<f>/intent.json` | intent | intake (A2) | everyone |
 | candidates | `.delivery/<f>/candidates.json` | candidates | design candidates (C) | inventory check (B1) |
 | inventory | `docs/delivery/<f>/inventory.json` | inventory | extractor agents | B1, C |
-| design renders | `.delivery/<f>/design/<ID>.{png,txt,dom.json}` | dom | design render (C) | B1 (M4 to M6), auditors |
+| design renders | `.delivery/<f>/design/<ID>.{png,txt,dom.json}`; at phone width (`--width phone`) `<ID>@phone.{png,txt,dom.json}` | dom (desktop only) | design render (C) | B1 (M4 to M6), auditors, shoot |
 | baseline | `docs/delivery/<f>/baseline.json` | baseline | baseline (B2) | B1 (M1), A1 |
 | baseline at HEAD | `.delivery/<f>/baseline-head.json` | baseline | baseline --against (B2) | M2 |
 | plan | `docs/delivery/<f>/plan.json` | plan | coverage-plan agents; scope read (A2); baseline --refresh (B2) | everyone |

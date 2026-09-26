@@ -1,12 +1,16 @@
 // delivery review (picture mode): read the reviewers' notes for a round, count what matches the
-// design, and render the comparison page (design, first round, this round, and the notes).
+// design, and render the comparison page (design, first round, this round, and the notes). All of
+// it works on items, a state at a width: "KC-05" at desktop, "KC-05@phone" at phone width.
 // parseReview and summarise are pure; renderCompare returns HTML.
 
+import { mapItems, normaliseItemKey } from './widths.mjs';
+
 /**
- * One reviewer file to notes per state. A state section is "## <ID>" (anything after the id is
- * ignored); each bullet starts with "must fix:" or "small:". A bullet's wrapped lines are joined.
+ * One reviewer file to notes per item. An item section is "## <ID>" or "## <ID>@phone" (anything
+ * after the key is ignored, and "<ID>@desktop" is read as "<ID>"); each bullet starts with
+ * "must fix:" or "small:". A bullet's wrapped lines are joined.
  * @param {string} md
- * @param {string[]|null} [ids] the map's state ids; other headings end a section
+ * @param {string[]|null} [ids] the map's item keys; other headings end a section
  * @returns {Record<string, { must: string[], small: string[] }>}
  */
 export function parseReview(md, ids = null) {
@@ -16,9 +20,10 @@ export function parseReview(md, ids = null) {
   let last = null;
   for (const raw of String(md).split('\n')) {
     const line = raw.replace(/\s+$/, '');
-    const head = /^##\s+([A-Za-z0-9][A-Za-z0-9._-]*)\b/.exec(line);
-    // A state heading names a state id: one of the map's, or at least an id with a digit in it.
-    if (head && (known ? known.has(head[1]) : /\d/.test(head[1]))) { cur = head[1]; out[cur] ??= { must: [], small: [] }; last = null; continue; }
+    const head = /^##\s+([A-Za-z0-9][A-Za-z0-9._-]*(?:@[A-Za-z]+)?)\b/.exec(line);
+    const key = head ? normaliseItemKey(head[1]) : null;
+    // An item heading names an item key: one of the map's, or at least an id with a digit in it.
+    if (head && (known ? known.has(key) : /\d/.test(key))) { cur = key; out[cur] ??= { must: [], small: [] }; last = null; continue; }
     if (/^#{1,2}\s/.test(line)) { cur = null; last = null; continue; }
     if (!cur) continue;
     const bullet = /^\s{0,3}[-*]\s+(.*)$/.exec(line);
@@ -41,15 +46,20 @@ export function parseReview(md, ids = null) {
 }
 
 /**
- * Per-state verdicts for a round.
+ * Per-item verdicts for a round, keyed by item key. The shoot's own sideways-scroll finding at phone
+ * width is a must-fix note on its item, whether or not a reviewer also wrote it.
  * @param {{ map: object, shoot: object|null, notes: Record<string, {must: string[], small: string[]}> }} input
  */
 export function summarise({ map, shoot, notes }) {
   const states = {};
   const counts = { match: 0, small: 0, must: 0, notReached: 0, testOnly: 0 };
-  for (const s of map.states ?? []) {
-    const n = notes[s.id] ?? { must: [], small: [] };
-    const shot = shoot?.states?.[s.id];
+  for (const { key, state: s } of mapItems(map)) {
+    const given = notes[key] ?? { must: [], small: [] };
+    const shot = shoot?.states?.[key];
+    const n = { must: [...given.must], small: [...given.small] };
+    if (shot?.reached && shot.overflow > 0 && !n.must.some((t) => /sideways|horizontal(ly)? scroll/i.test(t))) {
+      n.must.push(`the page scrolls sideways by ${shot.overflow} px (found by the shoot)`);
+    }
     let verdict;
     if (s.reach?.test) verdict = 'test-only';
     else if (!shot) verdict = 'not-shot';
@@ -57,9 +67,8 @@ export function summarise({ map, shoot, notes }) {
     else if (n.must.length) verdict = 'must';
     else if (n.small.length) verdict = 'small';
     else verdict = 'match';
-    const key = { 'test-only': 'testOnly', 'not-reached': 'notReached', 'not-shot': 'notReached' }[verdict] ?? verdict;
-    counts[key] += 1;
-    states[s.id] = { verdict, must: n.must, small: n.small };
+    counts[{ 'test-only': 'testOnly', 'not-reached': 'notReached', 'not-shot': 'notReached' }[verdict] ?? verdict] += 1;
+    states[key] = { verdict, must: n.must, small: n.small };
   }
   return { states, counts };
 }
@@ -68,26 +77,45 @@ const esc = (t) => String(t ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').
 const inline = (t) => esc(t).replace(/`([^`]+)`/g, '<code>$1</code>');
 
 /**
- * The comparison page: one row per state, three pictures (design, first round, this round) and the
- * reviewers' notes. Picture paths are relative to the page.
- * @param {{ title: string, round: number, beforeRound: number|null, map: object, summary: ReturnType<typeof summarise>, pictures: (id: string) => { design: string|null, before: string|null, now: string|null } }} o
+ * The comparison page: one card per state, and inside it one row per width the state is checked at,
+ * each with three pictures (design, first round, this round) and the reviewers' notes for that item.
+ * A desktop-only state has a single row, laid out as before widths existed. Picture paths are
+ * relative to the page.
+ * @param {{ title: string, round: number, beforeRound: number|null, map: object, summary: ReturnType<typeof summarise>, pictures: (key: string) => { design: string|null, before: string|null, now: string|null } }} o
  */
 export function renderCompare(o) {
   const { counts } = o.summary;
   const label = { match: 'matches', small: 'small differences', must: 'to fix', 'test-only': 'unit tests only', 'not-reached': 'not reached', 'not-shot': 'not pictured' };
+  const widthLabel = { desktop: 'Desktop', phone: 'Phone' };
   const screens = [...new Set((o.map.states ?? []).map((s) => s.screen))];
+  const items = mapItems(o.map);
+  const multi = items.some((i) => i.width !== 'desktop');
   const fig = (src, cap, id) => (src
     ? `<figure class="shot"><figcaption>${cap}</figcaption><button type="button" class="zoom" data-src="${esc(src)}" data-cap="${esc(id)} · ${cap}"><img loading="lazy" src="${esc(src)}" alt="${esc(id)} ${cap}"></button></figure>`
     : `<figure class="shot"><figcaption>${cap}</figcaption><div class="empty">No picture</div></figure>`);
+  const pillText = (v) => (v.verdict === 'must' ? `${v.must.length} to fix` : label[v.verdict]);
+  const rank = ['must', 'not-reached', 'not-shot', 'small', 'test-only', 'match'];
   const rows = (o.map.states ?? []).map((s) => {
-    const v = o.summary.states[s.id];
-    const p = o.pictures(s.id);
-    const notes = [...v.must.map((t) => `<li class="m">${inline(t)}</li>`), ...v.small.map((t) => `<li class="s">${inline(t)}</li>`)].join('');
-    const pill = v.verdict === 'must' ? `${v.must.length} to fix` : label[v.verdict];
-    return `<article class="state" data-screen="${esc(s.screen)}" data-verdict="${v.verdict}" id="${esc(s.id)}">
-  <header><span class="sid">${esc(s.id)}</span><h2>${esc(s.screen)} / ${esc(s.name)}</h2><span class="pill ${v.verdict}">${esc(pill)}</span></header>
-  <div class="trio">${fig(p.design, 'Design', s.id)}${o.beforeRound ? fig(p.before, `Round ${o.beforeRound}`, s.id) : ''}${fig(p.now, `Round ${o.round}`, s.id)}</div>
-  ${notes ? `<ul class="notes">${notes}</ul>` : ''}
+    const mine = items.filter((i) => i.id === s.id);
+    const verdicts = mine.map((i) => o.summary.states[i.key]).filter(Boolean);
+    const worst = verdicts.map((v) => v.verdict).sort((a, b) => rank.indexOf(a) - rank.indexOf(b))[0] ?? 'not-shot';
+    const widthRow = (it) => {
+      const v = o.summary.states[it.key] ?? { verdict: 'not-shot', must: [], small: [] };
+      const p = o.pictures(it.key);
+      const notes = [...v.must.map((t) => `<li class="m">${inline(t)}</li>`), ...v.small.map((t) => `<li class="s">${inline(t)}</li>`)].join('');
+      const trio = `<div class="trio">${fig(p.design, 'Design', it.key)}${o.beforeRound ? fig(p.before, `Round ${o.beforeRound}`, it.key) : ''}${fig(p.now, `Round ${o.round}`, it.key)}</div>`;
+      const list = notes ? `<ul class="notes">${notes}</ul>` : '';
+      if (!multi) return { pill: `<span class="pill ${v.verdict}">${esc(pillText(v))}</span>`, body: `${trio}\n  ${list}` };
+      const name = widthLabel[it.width] ?? it.width;
+      return {
+        pill: `<span class="pill ${v.verdict}">${esc(name)}: ${esc(pillText(v))}</span>`,
+        body: `<section class="width ${esc(it.width)}" aria-label="${esc(name)}"><h3>${esc(name)}</h3>${trio}${list}</section>`,
+      };
+    };
+    const parts = mine.map(widthRow);
+    return `<article class="state" data-screen="${esc(s.screen)}" data-verdict="${worst}" id="${esc(s.id)}">
+  <header><span class="sid">${esc(s.id)}</span><h2>${esc(s.screen)} / ${esc(s.name)}</h2>${parts.map((x) => x.pill).join('')}</header>
+  ${parts.map((x) => x.body).join('\n  ')}
 </article>`;
   }).join('\n');
   const chips = screens.map((sc) => `<button type="button" class="chip" data-screen="${esc(sc)}" aria-pressed="false">${esc(sc)}</button>`).join('');
@@ -123,6 +151,9 @@ h1 { font-size:1.6rem; font-weight:600; margin:0; text-wrap:balance; }
 .zoom { all:unset; cursor:zoom-in; display:block; border:1px solid var(--line); border-radius:6px; overflow:hidden; background:#fff; max-height:560px; }
 .zoom img { display:block; width:100%; height:auto; }
 .empty { display:grid; place-items:center; min-height:120px; color:var(--muted); background:var(--none-bg); border-radius:6px; font-size:.85rem; }
+.width { display:grid; gap:10px; border-top:1px solid var(--line); padding-top:12px; }
+.width h3 { font-size:.85rem; font-weight:600; margin:0; color:var(--muted); letter-spacing:.03em; text-transform:uppercase; }
+.width.phone .trio { grid-template-columns:repeat(auto-fit, minmax(min(100%, 200px), 390px)); }
 .notes { margin:0; padding-left:1.2rem; display:grid; gap:4px; max-width:110ch; }
 .notes li.m::marker { color:var(--must); } .notes li.s { color:var(--muted); }
 .notes code { font:500 .85em var(--mono); }
@@ -134,7 +165,7 @@ h1 { font-size:1.6rem; font-weight:600; margin:0; text-wrap:balance; }
 <div class="wrap">
   <section>
     <h1>${esc(o.title)}</h1>
-    <p class="lede">Each designed state: the design, ${o.beforeRound ? `round ${o.beforeRound}, ` : ''}and round ${o.round}, with the reviewers' notes. Only the page's own area is pictured. Click a picture to see it full size.</p>
+    <p class="lede">Each designed state${multi ? ', at each width it is checked at' : ''}: the design, ${o.beforeRound ? `round ${o.beforeRound}, ` : ''}and round ${o.round}, with the reviewers' notes. Only the page's own area is pictured. Click a picture to see it full size.</p>
     <ul class="tally"><li><b>${counts.match}</b>match</li><li><b>${counts.small}</b>small differences only</li><li><b>${counts.must}</b>to fix</li><li><b>${counts.notReached}</b>not reached</li><li><b>${counts.testOnly}</b>unit tests only</li></ul>
   </section>
   <nav class="bar" aria-label="Filter states">${chips}<button type="button" class="chip" data-verdict="must" aria-pressed="false">To fix</button></nav>

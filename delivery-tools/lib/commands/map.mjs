@@ -7,6 +7,7 @@ import { defineCommand } from '../core/command.mjs';
 import { parseCommandArgs } from '../core/args.mjs';
 import { EXIT } from '../core/exit.mjs';
 import { checklistPath, designIds, mapFromPlan, mapPath, readMap, renderChecklist, validateMap } from '../picture/map.mjs';
+import { hasPhone, mapItems, mapWidths } from '../picture/widths.mjs';
 
 export default defineCommand({
   name: 'map',
@@ -69,8 +70,9 @@ common options:
     const reachable = map.states.filter((s) => !s.reach?.test).length;
     const buttons = map.states.reduce((n, s) => n + (s.buttons ?? []).length, 0);
     ctx.out.line(`map: ${map.states.length} state(s) (${reachable} reached by the capture, ${map.states.length - reachable} by component tests), ${buttons} button(s), ${map.worlds.length} world(s)`);
+    if (hasPhone(map)) ctx.out.line(`widths: ${mapWidths(map).join(', ')}; ${mapItems(map).length} item(s), a state at a width`);
     ctx.out.line(`checklist: ${checklistPath(paths)}`);
-    ctx.out.set('map', { states: map.states.length, reachable, buttons, worlds: map.worlds.length });
+    ctx.out.set('map', { states: map.states.length, reachable, buttons, worlds: map.worlds.length, widths: mapWidths(map), items: mapItems(map).length });
     await ctx.journal({ command: 'map', exit: EXIT.PASS, counts: { states: map.states.length, buttons } });
     return EXIT.PASS;
   },

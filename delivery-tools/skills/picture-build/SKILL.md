@@ -13,15 +13,23 @@ page matches. Agents do that.
 `delivery <command>` means `node scripts/delivery.mjs <command>` (the repo's shim). `<plugin>` is
 this plugin's root, two directories above this skill.
 
+## Widths
+
+A map checks the widths it declares: `"widths": ["desktop", "phone"]` (desktop 1440 x 900, phone
+390 x 844), or desktop only when it says nothing. Each state at each width is an **item**: `KC-05`
+is the desktop, `KC-05@phone` the phone. The loop below is the same at two widths, with twice the
+pictures: the shoot takes every item, reviewers review items, and every count is of items. A
+desktop-only run is exactly as before.
+
 ## The loop
 
 | Step | Who | Command or brief | Output |
 |---|---|---|---|
-| 1 Pictures | this session | `design-inventory` steps 1 to 4 only (candidates, states, assemble, render) | `.delivery/<f>/design/<ID>.png` |
+| 1 Pictures | this session | `design-inventory` steps 1 to 4 only (candidates, states, assemble, render); when the map declares the phone, `delivery design render --width phone` too | `.delivery/<f>/design/<ID>.png`, `<ID>@phone.png` |
 | 2 Map | one mapper agent | `<plugin>/briefs/mapper.md`, then `delivery map` | `map.json`, `checklist.md`, world files |
 | 3 Worlds | this session | `delivery seed --plan`, `--check`, `--apply` | fixture worlds on the test project |
 | 4 Build | one builder agent | `<plugin>/briefs/builder-picture.md` | commits on the run's branch |
-| 5 Shoot | this session | dev server in the background, then `delivery shoot --base-url <url>` | `rounds/<n>/<ID>.live.png`, `<ID>.design.png`, `shoot.json` |
+| 5 Shoot | this session | dev server in the background, then `delivery shoot --base-url <url>` (every width the map declares) | `rounds/<n>/<ITEM>.live.png`, `<ITEM>.design.png`, `shoot.json` |
 | 6 Review | one reviewer per screen | `<plugin>/briefs/reviewer-picture.md` | `rounds/<n>/review-<screen>.md` |
 | 7 Compile | this session | `delivery review --round <n>` | `review.json`, `compare.html` |
 | 8 Fix | the same builder | the round's `review.json` | commits; then 5 to 7 again |
@@ -41,13 +49,13 @@ Read <plugin>/briefs/<brief>.md and follow it.
 Feature: <slug>   Worktree: <absolute path of the run's worktree>
 <mapper: nothing more>
 <builder: Dev server: <url>   Round: <n>   (fix round: Review: .delivery/<f>/rounds/<n-1>/review.json)>
-<reviewer: Round: .delivery/<f>/rounds/<n>/   States: <IDs>   Write: review-<screen-slug>.md>
+<reviewer: Round: .delivery/<f>/rounds/<n>/   States: <ITEMS, e.g. KC-05 KC-05@phone>   Write: review-<screen-slug>.md>
 ```
 
 - The builder is one agent (model: opus), in the background: a first build takes about an hour.
   Resume the same builder for each fix round (SendMessage), so it keeps what it learned.
-- Reviewers: one per screen, 15 to 20 states each, all in one message (model: sonnet). A screen
-  with more states is split in two.
+- Reviewers: one per screen, 15 to 20 items each, all in one message (model: sonnet). A screen
+  with more items is split in two; keep a state's desktop and phone items with the same reviewer.
 - Never more than four agents at once.
 
 ## Rules
@@ -70,6 +78,8 @@ Feature: <slug>   Worktree: <absolute path of the run's worktree>
    `delivery shoot`.
 7. **The builder never pushes and never starts a server.** This session runs the dev server
    (the profile's `commands.devServer`, in the background), the full CI chain, and every push.
+8. **A page that scrolls sideways on a phone is always a must fix.** The shoot measures it and
+   `delivery review` counts it, so it cannot be argued away as small.
 
 ## Shipping
 
@@ -97,3 +107,5 @@ Feature: <slug>   Worktree: <absolute path of the run's worktree>
 | "Another round will get the last few" | Three rounds, then the founder gets the list. The trial showed the last items are data-model gaps and product questions, not effort. |
 | "Split the page across builders to go faster" | One builder keeps one look. Two at most, by screen, when a page is truly two pages. |
 | "Check the wording letter by letter" | Meaning, not letters. Test data changes names and numbers, and that's fine. |
+| "The phone can wait for a later run" | When the map declares the phone, it is part of this run. A phone item still open after round 3 goes on the founder's list like any other. |
+| "Compare the phone picture with the desktop design" | A phone layout is judged against the phone design only. |

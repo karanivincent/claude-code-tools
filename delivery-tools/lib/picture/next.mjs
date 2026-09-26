@@ -6,16 +6,17 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { checklistPath, designIds, mapPath, validateMap } from './map.mjs';
 import { listRounds, roundInfo } from './rounds.mjs';
+import { designFor, hasPhone, mapItems } from './widths.mjs';
 
 /** Round 1 is the first build; two fix rounds follow at most. */
 export const MAX_ROUNDS = 3;
 
 const mtime = (p) => { try { return statSync(p).mtimeMs; } catch { return 0; } };
 
-/** Read what the picture loop needs from a run's files. */
 /**
- * Each state's verdict from the newest round that pictured it: a round that re-shoots a few
- * states leaves the others at their earlier verdict instead of counting them as not reached.
+ * Each item's verdict from the newest round that pictured it: a round that re-shoots a few items
+ * leaves the others at their earlier verdict instead of counting them as not reached. Keyed by
+ * item key ("KC-05", "KC-05@phone"), which is what review.json keys its states by.
  * @returns {Map<string, { verdict: string, round: number }>}
  */
 export function latestVerdicts(paths) {
@@ -27,6 +28,17 @@ export function latestVerdicts(paths) {
   return latest;
 }
 
+/**
+ * Whether the map checks phone items against a narrow render of the design (a responsive design)
+ * while the design has never been rendered at phone width.
+ */
+export function phoneRenderOwed(map, designed) {
+  if (!map || !hasPhone(map)) return false;
+  if ([...designed].some((id) => id.endsWith('@phone'))) return false;
+  return mapItems(map).some((i) => i.width === 'phone' && !i.state.reach?.test && designFor(i.state, 'phone') && !designFor(i.state, 'phone').separate);
+}
+
+/** Read what the picture loop needs from a run's files. */
 export function pictureFacts(paths) {
   const designed = designIds(paths);
   let map = null;
@@ -49,8 +61,12 @@ export function pictureFacts(paths) {
   });
   const latest = [...latestVerdicts(paths).values()];
   const count = (v) => latest.filter((s) => s.verdict === v).length;
+  const desktopPictures = [...designed].filter((id) => !id.includes('@')).length;
   return {
-    designed: designed.size,
+    designed: desktopPictures,
+    phonePictures: designed.size - desktopPictures,
+    phoneRenderOwed: phoneRenderOwed(map, designed),
+    noun: map && hasPhone(map) ? 'item' : 'state',
     open: latest.length ? { must: count('must'), notReached: count('not-reached') } : null,
     hasMap: Boolean(map),
     mapError: mapError ?? problems[0] ?? null,
@@ -71,6 +87,7 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   if (!f.designed) return { step: 'pictures', skill: 'design-inventory', text: `render the design's states: ${cli} design render` };
   if (!f.hasMap && !f.mapError) return { step: 'map', skill, text: 'dispatch the mapper agent with briefs/mapper.md to write map.json from the design pictures' };
   if (f.mapError) return { step: 'map', skill, text: `fix map.json (${f.problemCount || 1} problem(s); first: ${f.mapError}), then ${cli} map` };
+  if (f.phoneRenderOwed) return { step: 'pictures', skill: 'design-inventory', text: `render the design at phone width (the map checks the phone): ${cli} design render --width phone, then ${cli} map` };
   if (f.checklistStale) return { step: 'map', skill, text: `${cli} map (the checklist is older than map.json)` };
   if (f.seedStale) return { step: 'worlds', skill, text: `${cli} seed --plan, then --check, then --apply (the seed plan is older than the map or a world file)` };
   const last = f.rounds[f.rounds.length - 1];
@@ -80,10 +97,11 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   if (!last.compiled) return { step: 'review', skill, text: `${cli} review --round ${last.round}` };
   const o = f.open ?? last.counts ?? {};
   const open = (o.must ?? 0) + (o.notReached ?? 0);
+  const noun = f.noun ?? 'state';
   if (open && last.round < MAX_ROUNDS) {
-    return { step: 'fix', skill, text: `fix round: send the builder round ${last.round}'s review.json (${open} state(s) open), re-seed the worlds it names, then ${cli} shoot --base-url <url> (round ${last.round + 1})` };
+    return { step: 'fix', skill, text: `fix round: send the builder round ${last.round}'s review.json (${open} ${noun}(s) open), re-seed the worlds it names, then ${cli} shoot --base-url <url> (round ${last.round + 1})` };
   }
-  const tail = open ? `; ${open} state(s) stay open after ${MAX_ROUNDS} rounds and go to the founder as a list` : '';
+  const tail = open ? `; ${open} ${noun}(s) stay open after ${MAX_ROUNDS} rounds and go to the founder as a list` : '';
   if (readyOk) return { step: 'land', skill, text: `ready is green: mark the PR ready; after the founder's merge, ${cli} land --epic ${epic ?? '<epic>'}${tail}` };
   return { step: 'ship', skill, text: `ship: the full CI chain, push, ${cli} ci --pr <n>, then give the founder the preview, a sign-in link and round ${last.round}'s comparison page${tail}` };
 }
@@ -91,7 +109,7 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
 /** Status lines for a picture-mode run. */
 export function pictureStatusLines(run, f, next) {
   const lines = [`run ${run.feature} (picture mode) in ${run.worktree} on ${run.branch ?? '(no branch)'}`];
-  lines.push(`design pictures: ${f.designed}; map: ${f.hasMap ? (f.mapError ? `${f.problemCount} problem(s)` : 'valid') : 'not written'}`);
+  lines.push(`design pictures: ${f.designed}${f.phonePictures ? ` (phone: ${f.phonePictures})` : ''}; map: ${f.hasMap ? (f.mapError ? `${f.problemCount} problem(s)` : 'valid') : 'not written'}`);
   for (const r of f.rounds) {
     const c = r.counts;
     lines.push(`round ${r.round}: ${!r.shot ? 'not shot' : !r.reviews ? 'shot, not reviewed' : !r.compiled ? 'reviewed, not compiled' : `${c.match} match, ${c.small} small, ${c.must} to fix, ${c.notReached} not reached`}`);

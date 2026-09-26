@@ -78,7 +78,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### delivery-tools `v0.4.5`
+### delivery-tools `v0.5.0`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -86,7 +86,9 @@ compare pictures of the live page with the design, and at most two fix rounds fo
 do the fixed jobs: rendering the design, seeding test data, signing in, walking to each state,
 taking the pictures, listing buttons, and CI. They never judge whether a page matches. On the
 knowledge-page redesign, the older full mode spent about two days and left 27 of 66 states
-matching the design; three and a half more hours of this loop took it to 42. An export holds the whole design project; a run
+matching the design; three and a half more hours of this loop took it to 42. Since 0.5.0 a run
+can check the phone width (390 px) as well as the desktop: the map declares `"widths": ["desktop",
+"phone"]`, and every state is pictured, reviewed and counted at both. An export holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run
 and keep it current is in [`delivery-tools/docs/OPERATING.md`](delivery-tools/docs/OPERATING.md).
@@ -108,15 +110,15 @@ Picture mode's mapper, builder and reviewers are general agents given one brief 
 |-------|-------------|
 | `deliver-from-design` | The umbrella: intake, preflight, then the design pictures and the picture loop. Full mode only when the founder asks for it by name |
 | `design-inventory` | Renders every in-scope design state to a picture (picture mode stops there); in full mode, also lists every word and control and what the old page does |
-| `picture-build` | The picture loop: the button map, test worlds, one builder, full-height pictures of the page's own area, reviewer agents, a comparison page, at most two fix rounds, and shipping |
+| `picture-build` | The picture loop: the button map, test worlds, one builder, full-height pictures of the page's own area at every width the map declares (desktop, phone), reviewer agents, a comparison page, at most two fix rounds, and shipping |
 | `coverage-plan` | Full mode: one row per state and per capability, each with a class, an owning unit and how a capture reaches it |
 | `epic-build` | Full mode: parallel builders, wave by wave, into one integration branch |
 | `design-audit` | Full mode: graded captures with severity floors |
 
 **CLI:** `delivery <command>`, 41 commands. Picture mode uses `map` (check the button map and
 write the checklist; `--from-plan` converts a full-mode run), `seed` (`--refresh all` resets every
-world), `shoot` (full-height pictures of the page area next to the cropped design, a button check,
-data-changing states last), `review` (the reviewers' notes into `review.json` and a comparison
+world), `shoot` (full-height pictures of the page area next to the cropped design, at desktop and phone
+widths, a button check, a sideways-scroll check on the phone, data-changing states last), `review` (the reviewers' notes into `review.json` and a comparison
 page) and `sign-in` (a one-time link that signs a person in as a world's test user). `delivery status` prints the one NEXT line the run is steered by.
 
 ## Releases
