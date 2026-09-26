@@ -22,6 +22,7 @@ import { parseEvent, updateState, formatEvent } from '../core/state.mjs';
 import { exists } from '../core/fs.mjs';
 import { worstExit, EXIT, UsageError } from '../core/exit.mjs';
 import { deps } from './deps.mjs';
+import { readMap } from '../picture/map.mjs';
 import {
   runMarkers, readState, readPlan, findRunPr, matchesAny, lastLine, clip, claimedChildren,
 } from './run-info.mjs';
@@ -202,6 +203,14 @@ export async function landEvidence(outer, { epic, mode = 'check' }) {
     }
   }
 
+  // 5 and 6. A picture run proves the page with its rounds before the merge (ready's pictures
+  // check); it has no staging audit captures to re-check, and its shoots write only inside the
+  // fixture worlds, so there is no capture teardown to count.
+  const picture = Boolean(readMap(paths));
+  if (picture) {
+    checks.push(ok('staging-audit', 'picture mode: the rounds checked by ready before the merge are the evidence; no staging capture'));
+    checks.push(ok('teardown', 'picture mode: shoots write only inside the fixture worlds'));
+  } else {
   // 5. The staging audit's captures, re-validated and re-checked from their files.
   checks.push(...await stagingAudit(ctx, { paths, profile, state, mergeSha, d }));
 
@@ -212,6 +221,7 @@ export async function landEvidence(outer, { epic, mode = 'check' }) {
     if (findings.length) return red('teardown', `${findings.length} leftover row group(s), first ${findings[0].where}`);
     return ok('teardown', 'no rows left behind outside the fixture worlds');
   }));
+  }
 
   // 7. Children closed by the PR's Closes lines.
   checks.push(await runCheck('children', async () => {

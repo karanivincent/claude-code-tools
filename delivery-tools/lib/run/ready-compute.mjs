@@ -19,8 +19,7 @@ import { refreshBaseline } from '../baseline/refresh.mjs';
 import { outOfScopeFiles } from '../baseline/scope.mjs';
 import { CHECK_IDS, runChecks } from '../checks/index.mjs';
 import { readMap } from '../picture/map.mjs';
-import { MAX_ROUNDS, pictureFacts } from '../picture/next.mjs';
-import { listRounds, roundInfo } from '../picture/rounds.mjs';
+import { MAX_ROUNDS, latestVerdicts, pictureFacts } from '../picture/next.mjs';
 import { readyBlockers } from '../checks/severity.mjs';
 import { latestCaptureRun, validateCaptureItems } from '../capture/validate.mjs';
 import { spotRecapture } from '../capture/spot.mjs';
@@ -112,11 +111,7 @@ export function pictureReadiness(paths) {
   if (!rounds.length) return { ok: false, detail: 'no picture round yet: delivery shoot, the reviewers, then delivery review', evidence: '' };
   const stale = rounds.find((r) => !r.compiled);
   if (stale) return { ok: false, detail: `round ${stale.round} is pictured but its reviews are not compiled: delivery review --round ${stale.round}`, evidence: `rounds/${stale.round}` };
-  const latest = new Map();
-  for (const n of listRounds(paths)) {
-    const states = roundInfo(paths, n).review?.states ?? {};
-    for (const [id, s] of Object.entries(states)) if (s.verdict !== 'not-shot') latest.set(id, { verdict: s.verdict, round: n });
-  }
+  const latest = latestVerdicts(paths);
   const by = (v) => [...latest].filter(([, s]) => s.verdict === v).map(([id, s]) => `${id} (round ${s.round})`);
   const unreached = by('not-reached');
   if (unreached.length) return { ok: false, detail: `${unreached.length} state(s) whose newest picture was not reached: ${unreached.slice(0, 5).join(', ')}`, evidence: 'review.json' };

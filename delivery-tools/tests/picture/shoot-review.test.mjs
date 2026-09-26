@@ -110,4 +110,10 @@ test('picture NEXT walks the loop', () => {
   assert.equal(next(facts({ rounds: [{ ...open, round: MAX_ROUNDS }] })).step, 'ship');
   assert.match(next(facts({ rounds: [{ ...open, round: MAX_ROUNDS }] })).text, /go to the founder as a list/);
   assert.equal(next(facts({ rounds: [{ ...open, counts: { must: 0, notReached: 0 } }] })).step, 'ship');
+  // A partial re-shoot: the newest round lists unshot states as not reached, the latest verdicts do not.
+  const partial = { ...open, round: MAX_ROUNDS + 1, counts: { must: 1, notReached: 47 } };
+  assert.match(next(facts({ rounds: [partial], open: { must: 1, notReached: 0 } })).text, /1 state\(s\) stay open/);
+  const shipped = pictureNext(facts({ rounds: [{ ...open, round: MAX_ROUNDS }] }), { cli: 'node scripts/delivery.mjs', readyOk: true, epic: 1947 });
+  assert.equal(shipped.step, 'land');
+  assert.match(shipped.text, /after the founder's merge, node scripts\/delivery\.mjs land --epic 1947/);
 });
