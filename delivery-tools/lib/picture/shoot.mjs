@@ -142,6 +142,38 @@ function documentWidth() {
   return { scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth };
 }
 
+/**
+ * A bar fixed along the bottom of the window across (nearly) its full width: a phone's tab bar.
+ * It is the app's shared navigation, like the desktop sidebar, so it is hidden before the
+ * picture rather than graded. Pure; the page-side copy below applies the same rule.
+ * @param {{ bottom: number, width: number, height: number }} box
+ */
+export function isBottomBar(box, viewportWidth, viewportHeight) {
+  return box.height > 0 && box.height <= BOTTOM_BAR_MAX && box.width >= viewportWidth * 0.9 && Math.abs(box.bottom - viewportHeight) <= 2;
+}
+const BOTTOM_BAR_MAX = 160;
+
+/** Hide every fixed bottom bar (isBottomBar's rule, in the page). Returns how many. */
+function hideBottomBars(max) {
+  let n = 0;
+  // Dev-server overlays (TanStack Query devtools, the Next.js indicator) exist only locally; a
+  // preview never shows them, so neither may a picture.
+  for (const d of document.querySelectorAll('.tsqd-parent-container, .tsqd-open-btn-container, nextjs-portal, [data-nextjs-dev-tools-button]')) {
+    d.style.setProperty('visibility', 'hidden', 'important');
+    n += 1;
+  }
+  for (const d of document.querySelectorAll('body *')) {
+    const st = getComputedStyle(d);
+    if (st.position !== 'fixed' || st.display === 'none' || st.visibility === 'hidden') continue;
+    const b = d.getBoundingClientRect();
+    if (b.height > 0 && b.height <= max && b.width >= window.innerWidth * 0.9 && Math.abs(b.bottom - window.innerHeight) <= 2) {
+      d.style.setProperty('visibility', 'hidden', 'important');
+      n += 1;
+    }
+  }
+  return n;
+}
+
 /** Top of the page area: the page title less a margin, raised to any open panel or dialog. */
 function pageAreaTop(left) {
   const h = [...document.querySelectorAll('h1')].find((e) => e.getBoundingClientRect().left >= left - 8);
@@ -273,6 +305,7 @@ async function shootItem(page, it, o) {
   await page.setViewportSize({ width: size.width, height });
   await page.waitForTimeout(300);
   const top = await page.evaluate(pageAreaTop, left);
+  if (phone) await page.evaluate(hideBottomBars, BOTTOM_BAR_MAX).catch(() => 0);
   await page.screenshot({ path: join(o.outDir, roundFiles(it.key).live), clip: { x: left, y: top, width: size.width - left, height: height - top }, animations: 'disabled', caret: 'hide' });
   return rec;
 }

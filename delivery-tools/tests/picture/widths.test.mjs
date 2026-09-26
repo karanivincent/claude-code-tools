@@ -393,3 +393,11 @@ test('a desktop-only run reads state(s), not item(s), in readiness', () => {
     assert.equal(pictureReadiness(r.paths).detail, '2 state(s): 1 match, 1 small differences, every pictured state reached');
   } finally { r.cleanup(); }
 });
+
+test('a phone tab bar fixed along the bottom is shared navigation, hidden before the picture', async () => {
+  const { isBottomBar } = await import('../../lib/picture/shoot.mjs');
+  assert.equal(isBottomBar({ bottom: 844, width: 390, height: 64 }, 390, 844), true);
+  assert.equal(isBottomBar({ bottom: 844, width: 200, height: 64 }, 390, 844), false, 'a floating button is not a bar');
+  assert.equal(isBottomBar({ bottom: 700, width: 390, height: 64 }, 390, 844), false, 'not at the bottom');
+  assert.equal(isBottomBar({ bottom: 844, width: 390, height: 600 }, 390, 844), false, 'a full-height panel is not a bar');
+});
