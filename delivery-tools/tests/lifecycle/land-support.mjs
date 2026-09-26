@@ -30,6 +30,8 @@ export async function landedRun({ removeRow = false, voice = true } = {}) {
   let runs = [{ name: 'CI', status: 'completed', conclusion: 'success' }, { name: 'E2E (staging)', status: 'completed', conclusion: 'success' }];
   gh.api = async (method, path) => {
     assert.equal(method, 'GET');
+    // A red run on the merge commit asks whether a later base-branch run fixed it forward: none here.
+    if (path === 'repos/example-org/example-repo/actions/runs?branch=main&status=completed&per_page=100') return { workflow_runs: [] };
     assert.equal(path, `repos/example-org/example-repo/actions/runs?head_sha=${MERGE}&per_page=100`);
     return { workflow_runs: runs };
   };

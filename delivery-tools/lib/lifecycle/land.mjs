@@ -70,9 +70,33 @@ export function judgeWorkflowRuns(runs, sha) {
   if (!list.length) return { state: 'pending', detail: `no workflow run registered for ${sha.slice(0, 7)} yet` };
   const running = list.filter((r) => r.status !== 'completed');
   const bad = list.filter((r) => r.status === 'completed' && !['success', 'skipped', 'neutral'].includes(r.conclusion));
-  if (bad.length) return { state: 'red', detail: `${bad.map((r) => `${r.name} ${r.conclusion}`).join(', ')} on ${sha.slice(0, 7)}` };
+  if (bad.length) return { state: 'red', bad: [...new Set(bad.map((r) => r.name))], detail: `${bad.map((r) => `${r.name} ${r.conclusion}`).join(', ')} on ${sha.slice(0, 7)}` };
   if (running.length) return { state: 'pending', detail: `${running.map((r) => r.name).join(', ')} still running on ${sha.slice(0, 7)}` };
   return { state: 'green', detail: `${list.length} workflow run${list.length === 1 ? '' : 's'} green on ${sha.slice(0, 7)} (${[...new Set(list.map((r) => r.name))].join(', ')})` };
+}
+
+/**
+ * Failed workflows on the merge commit that a later commit fixed forward: for each name, the newest
+ * successful run of that workflow on the base branch whose commit contains the merge. A red run on
+ * the merge commit stays red for ever, so without this a failure fixed in the next commit could
+ * never land. Pure: `contains(sha)` answers whether a commit has the merge in its history.
+ * @param {{ name: string, conclusion: string, head_sha: string, created_at?: string }[]} baseRuns
+ * @param {string[]} names
+ * @param {(sha: string) => boolean} contains
+ * @returns {{ fixed: { name: string, sha: string }[], missing: string[] }}
+ */
+export function fixedForward(baseRuns, names, contains) {
+  const fixed = [];
+  const missing = [];
+  for (const name of names) {
+    const green = (baseRuns ?? [])
+      .filter((r) => r.name === name && r.conclusion === 'success')
+      .sort((a, b) => String(b.created_at ?? '').localeCompare(String(a.created_at ?? '')))
+      .find((r) => contains(r.head_sha));
+    if (green) fixed.push({ name, sha: green.head_sha });
+    else missing.push(name);
+  }
+  return { fixed, missing };
 }
 
 /** The next tag for this feature from the profile's format ({n} numbered across every tag). */
@@ -94,7 +118,7 @@ export function releaseBlock({ feature, base, pr, mergeSha, pending, tag, tagReq
     `The \`${feature}\` delivery run is merged into \`${base}\` as ${mergeSha.slice(0, 7)} (PR #${pr}). The release itself stays with you.`,
     '',
     '- Migrations pending production:',
-    ...(pending.ok ? (pending.lines.length ? pending.lines.map((l) => `  - ${l}`) : ['  - none reported']) : [`  - the pending-production check failed (${pending.detail}); read the ledgers by hand before releasing`]),
+    ...(pending.ok ? (pending.lines.length ? pending.lines.map((l) => `  - ${String(l).replace(/^\s*[-*]\s+/, '')}`) : ['  - none reported']) : [`  - the pending-production check failed (${pending.detail}); read the ledgers by hand before releasing`]),
     tagRequired
       ? `- Tag required (${tagWhy}): create \`${tag}\` on the production branch before merging \`${base}\` into it, so the tag keeps the last commit of the state this replaces.`
       : `- No tag required: nothing was removed on purpose (${tagWhy}).`,
@@ -160,6 +184,19 @@ export async function landEvidence(outer, { epic, mode = 'check' }) {
   checks.push(await runCheck('workflows', async () => {
     const res = await ctx.gh.api('GET', `repos/${ctx.gh.repo}/actions/runs?head_sha=${mergeSha}&per_page=100`);
     const j = judgeWorkflowRuns(res?.workflow_runs ?? [], mergeSha);
+    if (j.state === 'red' && j.bad?.length) {
+      const base = profile.repo.base;
+      await ctx.git.raw(['fetch', 'origin', base]);
+      const later = await ctx.gh.api('GET', `repos/${ctx.gh.repo}/actions/runs?branch=${encodeURIComponent(base)}&status=completed&per_page=100`);
+      const shas = [...new Set((later?.workflow_runs ?? []).map((r) => r.head_sha))];
+      const has = new Set();
+      for (const s of shas) {
+        const r = await ctx.git.raw(['merge-base', '--is-ancestor', mergeSha, s]).catch(() => ({ code: 1 }));
+        if ((r.code ?? 0) === 0) has.add(s);
+      }
+      const f = fixedForward(later?.workflow_runs ?? [], j.bad, (s) => has.has(s));
+      if (!f.missing.length) return ok('workflows', `${j.detail}; fixed forward: ${f.fixed.map((x) => `${x.name} green on ${x.sha.slice(0, 7)}, which contains the merge`).join('; ')}`);
+    }
     return j.state === 'green' ? ok('workflows', j.detail) : red('workflows', j.detail, j.state === 'pending' ? EXIT.WAIT : EXIT.RED);
   }));
   checks.push(await runCheck('guards', async () => {

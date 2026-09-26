@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { landEvidence, landResult, landGate, judgeWorkflowRuns, nextTag, releaseBlock } from '../../lib/lifecycle/land.mjs';
+import { landEvidence, landResult, landGate, judgeWorkflowRuns, fixedForward, nextTag, releaseBlock } from '../../lib/lifecycle/land.mjs';
 import landCommand from '../../lib/commands/land.mjs';
 import { landedRun, MERGE, mk } from './land-support.mjs';
 
@@ -62,4 +62,18 @@ test('pure helpers', () => {
   assert.equal(nextTag('v{n}-{slug}', 'widgets', []), 'v1-widgets');
   const block = releaseBlock({ feature: 'widgets', base: 'main', pr: 4, mergeSha: MERGE, pending: { ok: false, lines: [], detail: 'exit 1: boom' }, tag: 'v1-widgets', tagRequired: false, tagWhy: 'x', profile: { release: { prodTitlePrefix: 'prod:' } }, loopTest: 'not owed' });
   assert.match(block, /the pending-production check failed \(exit 1: boom\)/);
+});
+
+test('a workflow that failed on the merge commit is fixed forward by a later green run that contains the merge', () => {
+  const red = judgeWorkflowRuns([{ name: 'E2E', status: 'completed', conclusion: 'failure' }, { name: 'CI', status: 'completed', conclusion: 'success' }], 'a'.repeat(40));
+  assert.deepEqual(red.bad, ['E2E']);
+  const runs = [
+    { name: 'E2E', conclusion: 'failure', head_sha: 'c1', created_at: '2026-09-26T07:00:00Z' },
+    { name: 'E2E', conclusion: 'success', head_sha: 'old', created_at: '2026-09-25T07:00:00Z' },
+    { name: 'E2E', conclusion: 'success', head_sha: 'c2', created_at: '2026-09-26T08:00:00Z' },
+  ];
+  // 'old' predates the merge, so it does not count; c2 contains it.
+  assert.deepEqual(fixedForward(runs, ['E2E'], (s) => s === 'c2' || s === 'c1'), { fixed: [{ name: 'E2E', sha: 'c2' }], missing: [] });
+  assert.deepEqual(fixedForward(runs, ['E2E'], (s) => s === 'c1'), { fixed: [], missing: ['E2E'] });
+  assert.deepEqual(fixedForward(runs, ['Guards'], () => true), { fixed: [], missing: ['Guards'] });
 });
