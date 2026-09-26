@@ -50,7 +50,10 @@ area, with the sidebar and top bar cropped away, next to the design cropped the 
 agents compare them, one per screen, and `delivery review` compiles their notes into a comparison
 page. At most two fix rounds follow. `delivery status` names the next step throughout.
 
-A run that began in full mode switches with `delivery map --from-plan`.
+A run that began in full mode switches with `delivery map --from-plan`. Before the pull request
+is marked ready, `delivery ready --pr <n>` checks CI, the pushed head, the preview, duplicates and
+the rounds (every round compiled, every state's newest picture reached); it no longer asks a
+picture run for a full capture or an audit.
 
 To try the page as a test user, `delivery sign-in <world> --base-url <preview>` prints a one-time
 link (fixture users on the test project only; add `--role member` or `--next <path>`). It lasts

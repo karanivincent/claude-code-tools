@@ -77,7 +77,10 @@ Feature: <slug>   Worktree: <absolute path of the run's worktree>
 2. The full CI chain through the heavy wrapper (`commands.heavy` around `commands.gate`). If a
    package isn't installed in the worktree, install from the lockfile (`commands.bootstrap`) and
    run it again.
-3. Push. `delivery ci --pr <n>` until it is green (a profile's `ci.knownRed` workflows excepted).
+3. Push. `delivery ci --pr <n>` until it is green (a profile's `ci.knownRed` workflows excepted),
+   then `delivery ready --pr <n>`. In picture mode it checks the rounds instead of a full capture:
+   every round compiled, every state's newest picture reached, open states only once the fix rounds
+   are spent. The hook refuses `gh pr ready` until it is green.
 4. Resolve the preview (`commands.previewUrl`), re-seed the design world, and give the founder a
    sign-in link: `delivery sign-in design --base-url <preview>`. It works once and lasts about an
    hour; when the founder says it expired, re-seed and run it again.

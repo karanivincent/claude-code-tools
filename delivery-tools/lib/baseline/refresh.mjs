@@ -33,12 +33,15 @@ export async function refreshBaseline(ctx, opts = {}) {
     .sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || (a.signature < b.signature ? -1 : 1));
   let next = baseline.capabilities.reduce((m, c) => Math.max(m, Number(c.id.slice(4))), 0) + 1;
   const added = fresh.map((c) => ({ id: `CAP-${String(next++).padStart(3, '0')}`, kind: c.kind, signature: c.signature, screen: c.screen ?? '', evidence: c.evidence }));
-  const updated = {
+  // Nothing new at the same base commit: leave the file alone. ready refreshes on every run and
+  // then requires a clean tree, so a record appended each time made ready dirty its own head.
+  const same = !added.length && baseline.refreshes.at(-1)?.sha === r.sha;
+  const updated = same ? baseline : {
     ...baseline,
     capabilities: [...baseline.capabilities, ...added],
     refreshes: [...baseline.refreshes, { sha: r.sha, at: ctx.clock.now().toISOString(), added: added.map((c) => c.id) }],
   };
-  await writeArtefact(paths, 'baseline', updated);
+  if (!same) await writeArtefact(paths, 'baseline', updated);
 
   // Every capability any refresh added needs a row: this one's, and earlier ones that arrived
   // before there was a plan to put them in.

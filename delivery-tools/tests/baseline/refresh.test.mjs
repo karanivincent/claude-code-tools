@@ -35,6 +35,7 @@ test('refresh: a capability landing on the base mid-run gets an id, a migrate ro
     await writeArtefact(c2.paths, 'plan', validExample('plan'));
     const later = await refreshBaseline(c2);
     assert.deepEqual(later, { added: [], unclassed: [] }, 'the earlier arrival gets its row once a plan exists');
+    assert.equal((await readArtefact(c2.paths, 'baseline')).refreshes.length, 2, 'nothing new at the same base commit: no refresh record, so ready does not dirty its own head');
     const plan = await readArtefact(c2.paths, 'plan');
     assert.equal(plan.rows.find((x) => x.id === added.id).class, 'migrate');
     const decision = JSON.parse(readFileSync(join(repo.dir, `.claude/decisions/delivery-widgets-baseline-refresh-${upstream.slice(0, 9)}.json`), 'utf8'));
