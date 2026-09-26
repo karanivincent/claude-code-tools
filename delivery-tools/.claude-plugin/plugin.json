@@ -1,7 +1,7 @@
 {
   "name": "delivery-tools",
   "description": "Turns a design export into one pull request built by agents: one builder works from the design pictures, reviewer agents compare pictures of the live page with the design, and a CLI renders, seeds, captures and compiles.",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "author": {
     "name": "Vince"
   },

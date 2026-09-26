@@ -13,6 +13,20 @@ export const MAX_ROUNDS = 3;
 const mtime = (p) => { try { return statSync(p).mtimeMs; } catch { return 0; } };
 
 /** Read what the picture loop needs from a run's files. */
+/**
+ * Each state's verdict from the newest round that pictured it: a round that re-shoots a few
+ * states leaves the others at their earlier verdict instead of counting them as not reached.
+ * @returns {Map<string, { verdict: string, round: number }>}
+ */
+export function latestVerdicts(paths) {
+  const latest = new Map();
+  for (const n of listRounds(paths)) {
+    const states = roundInfo(paths, n).review?.states ?? {};
+    for (const [id, s] of Object.entries(states)) if (s.verdict !== 'not-shot') latest.set(id, { verdict: s.verdict, round: n });
+  }
+  return latest;
+}
+
 export function pictureFacts(paths) {
   const designed = designIds(paths);
   let map = null;
@@ -33,8 +47,11 @@ export function pictureFacts(paths) {
       compare: info.compare,
     };
   });
+  const latest = [...latestVerdicts(paths).values()];
+  const count = (v) => latest.filter((s) => s.verdict === v).length;
   return {
     designed: designed.size,
+    open: latest.length ? { must: count('must'), notReached: count('not-reached') } : null,
     hasMap: Boolean(map),
     mapError: mapError ?? problems[0] ?? null,
     problemCount: problems.length,
@@ -49,7 +66,7 @@ export function pictureFacts(paths) {
  * @param {{ cli: string }} o
  * @returns {{ text: string, skill: string|null, step: string }}
  */
-export function pictureNext(f, { cli }) {
+export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   const skill = 'picture-build';
   if (!f.designed) return { step: 'pictures', skill: 'design-inventory', text: `render the design's states: ${cli} design render` };
   if (!f.hasMap && !f.mapError) return { step: 'map', skill, text: 'dispatch the mapper agent with briefs/mapper.md to write map.json from the design pictures' };
@@ -61,11 +78,13 @@ export function pictureNext(f, { cli }) {
   if (!last.shot) return { step: 'shoot', skill, text: `${cli} shoot --base-url <url> --round ${last.round}` };
   if (!last.reviews) return { step: 'review', skill, text: `dispatch the reviewers (briefs/reviewer-picture.md), one per screen, into round ${last.round}` };
   if (!last.compiled) return { step: 'review', skill, text: `${cli} review --round ${last.round}` };
-  const open = (last.counts?.must ?? 0) + (last.counts?.notReached ?? 0);
+  const o = f.open ?? last.counts ?? {};
+  const open = (o.must ?? 0) + (o.notReached ?? 0);
   if (open && last.round < MAX_ROUNDS) {
     return { step: 'fix', skill, text: `fix round: send the builder round ${last.round}'s review.json (${open} state(s) open), re-seed the worlds it names, then ${cli} shoot --base-url <url> (round ${last.round + 1})` };
   }
   const tail = open ? `; ${open} state(s) stay open after ${MAX_ROUNDS} rounds and go to the founder as a list` : '';
+  if (readyOk) return { step: 'land', skill, text: `ready is green: mark the PR ready; after the founder's merge, ${cli} land --epic ${epic ?? '<epic>'}${tail}` };
   return { step: 'ship', skill, text: `ship: the full CI chain, push, ${cli} ci --pr <n>, then give the founder the preview, a sign-in link and round ${last.round}'s comparison page${tail}` };
 }
 
