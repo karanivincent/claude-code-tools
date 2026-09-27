@@ -51,7 +51,11 @@ name. A full-mode run switches to picture mode with `delivery map --from-plan`.
    stop.
 
 An agent that drives a design round saves each brief to `docs/delivery/<feature>/intent/` as it
-sends it.
+sends it, and passes the spec the design came from with `--brief` too. When the design reports a
+batch done, it checks the batch against the brief before anything is built: every behaviour the
+brief asked for appears in a state the design lists, or goes back to the design in the same chat.
+The run's rules agent then writes each of those behaviours as a rule (`rules.json`), so the build
+checks decisions made in words as well as the pictures.
 
 ## What this skill runs itself
 

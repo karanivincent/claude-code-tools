@@ -8,6 +8,7 @@ import { parseCommandArgs } from '../core/args.mjs';
 import { EXIT } from '../core/exit.mjs';
 import { checklistPath, designIds, mapFromPlan, mapPath, readMap, renderChecklist, validateMap } from '../picture/map.mjs';
 import { hasPhone, mapItems, mapWidths } from '../picture/widths.mjs';
+import { readRules } from '../picture/rules.mjs';
 
 export default defineCommand({
   name: 'map',
@@ -21,7 +22,8 @@ each button's effect. The mapper agent writes it from the design renders (briefs
 
 This command checks the map against the design renders and the safety rules (no reach step clicks
 a metered, dialling or destructive control without an intercept), then writes checklist.md next
-to it, which builders and reviewers read. A valid map switches the run to picture mode: status
+to it, which builders and reviewers read. When rules.json exists, each rule is written under the
+states that show it, so builders and reviewers see it next to the picture. A valid map switches the run to picture mode: status
 then follows the picture loop.
 
 options:
@@ -66,11 +68,14 @@ common options:
       await ctx.journal({ command: 'map', exit: EXIT.RED, counts: { problems: problems.length } });
       return EXIT.RED;
     }
-    await writeFile(checklistPath(paths), renderChecklist(map));
+    let rules = null;
+    try { rules = readRules(paths); } catch (err) { ctx.out.fail('rules', err.message); }
+    await writeFile(checklistPath(paths), renderChecklist(map, { rules }));
     const reachable = map.states.filter((s) => !s.reach?.test).length;
     const buttons = map.states.reduce((n, s) => n + (s.buttons ?? []).length, 0);
     ctx.out.line(`map: ${map.states.length} state(s) (${reachable} reached by the capture, ${map.states.length - reachable} by component tests), ${buttons} button(s), ${map.worlds.length} world(s)`);
     if (hasPhone(map)) ctx.out.line(`widths: ${mapWidths(map).join(', ')}; ${mapItems(map).length} item(s), a state at a width`);
+    if (rules) ctx.out.line(`rules: ${(rules.rules ?? []).length} written into the checklist; check them with delivery rules`);
     ctx.out.line(`checklist: ${checklistPath(paths)}`);
     ctx.out.set('map', { states: map.states.length, reachable, buttons, worlds: map.worlds.length, widths: mapWidths(map), items: mapItems(map).length });
     await ctx.journal({ command: 'map', exit: EXIT.PASS, counts: { states: map.states.length, buttons } });

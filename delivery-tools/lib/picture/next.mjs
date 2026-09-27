@@ -1,5 +1,5 @@
 // Picture-mode status: where a run is in the picture loop, and its one NEXT line. The loop is
-// pictures -> map -> worlds -> build -> shoot -> review -> (fix, shoot, review) x2 -> ship.
+// pictures -> map -> rules -> worlds -> build -> shoot -> review -> (fix, shoot, review) x2 -> ship.
 // pictureNext is pure over the facts; pictureFacts reads them from the run's files.
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { checklistPath, designIds, mapPath, validateMap } from './map.mjs';
 import { listRounds, roundInfo } from './rounds.mjs';
 import { designFor, hasPhone, mapItems } from './widths.mjs';
+import { ruleFacts, rulesPath } from './rules.mjs';
 
 /** Round 1 is the first build; two fix rounds follow at most. */
 export const MAX_ROUNDS = 3;
@@ -62,6 +63,7 @@ export function pictureFacts(paths) {
   const latest = [...latestVerdicts(paths).values()];
   const count = (v) => latest.filter((s) => s.verdict === v).length;
   const desktopPictures = [...designed].filter((id) => !id.includes('@')).length;
+  const rules = map ? ruleFacts(paths, { stateIds: map.states.map((st) => st.id) }) : null;
   return {
     designed: desktopPictures,
     phonePictures: designed.size - desktopPictures,
@@ -71,7 +73,12 @@ export function pictureFacts(paths) {
     hasMap: Boolean(map),
     mapError: mapError ?? problems[0] ?? null,
     problemCount: problems.length,
-    checklistStale: Boolean(map) && mtime(checklistPath(paths)) < mtime(mapPath(paths)),
+    checklistStale: Boolean(map) && mtime(checklistPath(paths)) < Math.max(mtime(mapPath(paths)), mtime(rulesPath(paths))),
+    // Briefs with no rules.json, or rules with a gap: either way a decision could go unchecked.
+    rulesOwed: Boolean(rules && rules.briefs && !rules.exists),
+    rulesProblem: rules?.problems[0] ?? null,
+    ruleProblemCount: rules?.problems.length ?? 0,
+    ruleCounts: rules?.counts ?? null,
     seedStale: Boolean(map) && (!existsSync(paths.seedplan) || mtime(paths.seedplan) < Math.max(mtime(mapPath(paths)), newestWorld)),
     rounds,
   };
@@ -88,6 +95,8 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   if (!f.hasMap && !f.mapError) return { step: 'map', skill, text: 'dispatch the mapper agent with briefs/mapper.md to write map.json from the design pictures' };
   if (f.mapError) return { step: 'map', skill, text: `fix map.json (${f.problemCount || 1} problem(s); first: ${f.mapError}), then ${cli} map` };
   if (f.phoneRenderOwed) return { step: 'pictures', skill: 'design-inventory', text: `render the design at phone width (the map checks the phone): ${cli} design render --width phone, then ${cli} map` };
+  if (f.rulesOwed) return { step: 'rules', skill, text: `dispatch the rules agent with briefs/rules.md to write rules.json from the briefs in intent/, then ${cli} rules and ${cli} map` };
+  if (f.rulesProblem) return { step: 'rules', skill, text: `fix rules.json (${f.ruleProblemCount} problem(s); first: ${f.rulesProblem}), then ${cli} rules and ${cli} map` };
   if (f.checklistStale) return { step: 'map', skill, text: `${cli} map (the checklist is older than map.json)` };
   if (f.seedStale) return { step: 'worlds', skill, text: `${cli} seed --plan, then --check, then --apply (the seed plan is older than the map or a world file)` };
   const last = f.rounds[f.rounds.length - 1];
@@ -110,6 +119,7 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
 export function pictureStatusLines(run, f, next) {
   const lines = [`run ${run.feature} (picture mode) in ${run.worktree} on ${run.branch ?? '(no branch)'}`];
   lines.push(`design pictures: ${f.designed}${f.phonePictures ? ` (phone: ${f.phonePictures})` : ''}; map: ${f.hasMap ? (f.mapError ? `${f.problemCount} problem(s)` : 'valid') : 'not written'}`);
+  if (f.ruleCounts) lines.push(`rules: ${f.ruleCounts.total} (${f.ruleCounts.picture} by a state, ${f.ruleCounts.test} by a test, ${f.ruleCounts.cut} cut)${f.ruleProblemCount ? `; ${f.ruleProblemCount} gap(s)` : ''}`);
   for (const r of f.rounds) {
     const c = r.counts;
     lines.push(`round ${r.round}: ${!r.shot ? 'not shot' : !r.reviews ? 'shot, not reviewed' : !r.compiled ? 'reviewed, not compiled' : `${c.match} match, ${c.small} small, ${c.must} to fix, ${c.notReached} not reached`}`);

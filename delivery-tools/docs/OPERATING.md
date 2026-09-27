@@ -61,9 +61,19 @@ and flags a page that scrolls sideways, which always counts as a must fix. Phone
 comparison page (a row per width under each state), `status` and `ready` all count items, a state
 at a width. A map without `widths` checks the desktop only, exactly as before.
 
+Since 0.6.0 decisions made in words are checked too. Every brief sent to the design is saved in
+`docs/delivery/<feature>/intent/` (the spec with `--brief` as well). After the map, a rules agent
+(`briefs/rules.md`) writes `rules.json`: one numbered rule per behaviour the briefs state, each with
+one proof. `picture` names the design states that show it; `delivery map` writes the rule under
+those states in the checklist, and reviewers mark a broken rule `must fix: R<n>`. `test` means no
+picture can show it; the builder writes a test named `R<n>: ...` and lists its file. `cut` quotes
+the Scope line the founder saw. `owed-design` means the design never drew it, and the run stays red
+until it does. `delivery rules` prints every gap; `status` stops on one; `ready` adds a `rules`
+check that also requires each named test to exist. A run with no briefs is unchanged.
+
 A run that began in full mode switches with `delivery map --from-plan`. Before the pull request
 is marked ready, `delivery ready --pr <n>` checks CI, the pushed head, the preview, duplicates and
-the rounds (every round compiled, every state's newest picture reached); it no longer asks a
+the rounds (every round compiled, every state's newest picture reached) and the rules; it no longer asks a
 picture run for a full capture or an audit.
 
 To try the page as a test user, `delivery sign-in <world> --base-url <preview>` prints a one-time

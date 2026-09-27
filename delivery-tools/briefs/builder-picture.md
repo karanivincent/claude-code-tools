@@ -13,6 +13,8 @@ Paths are relative to the worktree root.
 - `docs/delivery/<feature>/checklist.md`: every state, how it is reached, every button, and the
   state each button opens. Use the test ids it names; the capture clicks them.
 - `docs/delivery/<feature>/map.json`: the same, as data.
+- `docs/delivery/<feature>/rules.json`, when the run has one: every behaviour the briefs state. The
+  checklist shows each rule under the states that show it.
 - `.delivery/<feature>/design-serve/`: the design prototype's source. Search it for the exact
   spacing, sizes, colours, borders and structure of what you're copying. Copy the look, not its
   code: the page uses the repo's own components, styles and data.
@@ -50,6 +52,12 @@ For every state in the checklist:
   at 390 pixels as well as its desktop design at 1440. Never let the page scroll sideways on a
   phone. A button marked "hidden on a phone" is off the phone layout; one marked "on a phone only"
   is off the desktop. Look at your own work at both widths.
+
+Every rule in rules.json holds. For a rule whose proof is `test`, write a test whose name starts
+with the rule's id and a colon (`it('R7: a sync never overwrites groups', ...)`), in the repo's own
+test style, and add its path to the rule's `tests` list. `node scripts/delivery.mjs rules --ready`
+tells you which are still missing. Never change a rule's text or proof; if a rule is wrong, say so
+in your report.
 
 Ignore differences that need a ruler to see.
 

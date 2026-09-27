@@ -27,6 +27,7 @@ desktop-only run is exactly as before.
 |---|---|---|---|
 | 1 Pictures | this session | `design-inventory` steps 1 to 4 only (candidates, states, assemble, render); when the map declares the phone, `delivery design render --width phone` too | `.delivery/<f>/design/<ID>.png`, `<ID>@phone.png` |
 | 2 Map | one mapper agent | `<plugin>/briefs/mapper.md`, then `delivery map` | `map.json`, `checklist.md`, world files |
+| 2b Rules | one rules agent | `<plugin>/briefs/rules.md`, then `delivery rules` and `delivery map` | `rules.json`; each rule in the checklist under its states |
 | 3 Worlds | this session | `delivery seed --plan`, `--check`, `--apply` | fixture worlds on the test project |
 | 4 Build | one builder agent | `<plugin>/briefs/builder-picture.md` | commits on the run's branch |
 | 5 Shoot | this session | dev server in the background, then `delivery shoot --base-url <url>` (every width the map declares) | `rounds/<n>/<ITEM>.live.png`, `<ITEM>.design.png`, `shoot.json` |
@@ -47,7 +48,7 @@ prompt and nothing else:
 ```
 Read <plugin>/briefs/<brief>.md and follow it.
 Feature: <slug>   Worktree: <absolute path of the run's worktree>
-<mapper: nothing more>
+<mapper and rules agent: nothing more>
 <builder: Dev server: <url>   Round: <n>   (fix round: Review: .delivery/<f>/rounds/<n-1>/review.json)>
 <reviewer: Round: .delivery/<f>/rounds/<n>/   States: <ITEMS, e.g. KC-05 KC-05@phone>   Write: review-<screen-slug>.md>
 ```
@@ -78,7 +79,12 @@ Feature: <slug>   Worktree: <absolute path of the run's worktree>
    `delivery shoot`.
 7. **The builder never pushes and never starts a server.** This session runs the dev server
    (the profile's `commands.devServer`, in the background), the full CI chain, and every push.
-8. **A page that scrolls sideways on a phone is always a must fix.** The shoot measures it and
+8. **Every behaviour the briefs state has a proof.** The rules agent writes one rule per behaviour
+   into `rules.json`: shown by a design state, proved by a test named `R<n>: ...`, or cut. A rule the
+   design never drew is `owed-design` and goes back to the design before the build. `delivery rules`
+   prints every gap, and `delivery ready` stays red while one is open. Never soften a rule's text
+   or switch its proof to get past it.
+9. **A page that scrolls sideways on a phone is always a must fix.** The shoot measures it and
    `delivery review` counts it, so it cannot be argued away as small.
 
 ## Shipping
@@ -90,7 +96,7 @@ Feature: <slug>   Worktree: <absolute path of the run's worktree>
 3. Push. `delivery ci --pr <n>` until it is green (a profile's `ci.knownRed` workflows excepted),
    then `delivery ready --pr <n>`. In picture mode it checks the rounds instead of a full capture:
    every round compiled, every state's newest picture reached, open states only once the fix rounds
-   are spent. The hook refuses `gh pr ready` until it is green.
+   are spent, and every rule proved (`delivery rules --ready`). The hook refuses `gh pr ready` until it is green.
 4. Resolve the preview (`commands.previewUrl`), re-seed the design world, and give the founder a
    sign-in link: `delivery sign-in design --base-url <preview>`. It works once and lasts about an
    hour; when the founder says it expired, re-seed and run it again.
@@ -107,5 +113,7 @@ Feature: <slug>   Worktree: <absolute path of the run's worktree>
 | "Another round will get the last few" | Three rounds, then the founder gets the list. The trial showed the last items are data-model gaps and product questions, not effort. |
 | "Split the page across builders to go faster" | One builder keeps one look. Two at most, by screen, when a page is truly two pages. |
 | "Check the wording letter by letter" | Meaning, not letters. Test data changes names and numbers, and that's fine. |
+| "That rule is obvious, it doesn't need a test" | If no picture shows it, nothing checks it. The test is how the next change can't quietly undo it. |
+| "Mark it cut, the design didn't draw it" | Cut needs a Scope line the founder saw. A rule nobody drew is owed to the design. |
 | "The phone can wait for a later run" | When the map declares the phone, it is part of this run. A phone item still open after round 3 goes on the founder's list like any other. |
 | "Compare the phone picture with the desktop design" | A phone layout is judged against the phone design only. |

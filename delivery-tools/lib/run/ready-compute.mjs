@@ -20,6 +20,7 @@ import { outOfScopeFiles } from '../baseline/scope.mjs';
 import { CHECK_IDS, runChecks } from '../checks/index.mjs';
 import { readMap } from '../picture/map.mjs';
 import { MAX_ROUNDS, latestVerdicts, pictureFacts } from '../picture/next.mjs';
+import { ruleFacts } from '../picture/rules.mjs';
 import { readyBlockers } from '../checks/severity.mjs';
 import { latestCaptureRun, validateCaptureItems } from '../capture/validate.mjs';
 import { spotRecapture } from '../capture/spot.mjs';
@@ -126,6 +127,23 @@ export function pictureReadiness(paths) {
   const n = (v) => by(v).length;
   const tail = open.length ? `; ${open.length} still open after ${rounds.length} rounds go to the founder as a list` : '';
   return { ok: true, detail: `${latest.size} ${noun}(s): ${n('match')} match, ${n('small')} small differences, every pictured ${noun} reached${tail}`, evidence: `rounds/${last}/review.json` };
+}
+
+/**
+ * A picture run's rules at the ready stage: every rule the briefs state has a design state, a test
+ * named after it that exists, or a cut. A run with neither briefs nor rules.json has nothing to prove.
+ */
+export function ruleReadiness(paths) {
+  const map = readMap(paths);
+  const f = ruleFacts(paths, { stateIds: map ? map.states.map((s) => s.id) : undefined, stage: 'ready' });
+  if (!f.exists) {
+    return f.briefs
+      ? { ok: false, detail: `${f.briefs} brief(s) in intent/ and no rules.json: dispatch the rules agent (briefs/rules.md), then delivery rules`, evidence: 'intent/' }
+      : { ok: true, detail: 'no briefs and no rules.json: every decision is in the design pictures', evidence: '' };
+  }
+  if (f.problems.length) return { ok: false, detail: `${f.problems.length} rule gap(s): ${f.problems.slice(0, 3).join('; ')}`, evidence: 'rules.json' };
+  const c = f.counts;
+  return { ok: true, detail: `${c.total} rule(s): ${c.picture} shown by a state, ${c.test} proved by a named test, ${c.cut} cut`, evidence: 'rules.json' };
 }
 
 export async function computeReady(ctx, { pr }) {
@@ -266,6 +284,10 @@ export async function computeReady(ctx, { pr }) {
     await attempt('pictures', async () => {
       const r = pictureReadiness(paths);
       add('pictures', r.ok, r.detail, r.evidence);
+    });
+    await attempt('rules', async () => {
+      const r = ruleReadiness(paths);
+      add('rules', r.ok, r.detail, r.evidence);
     });
   } else {
   await attempt('capture', async () => {
