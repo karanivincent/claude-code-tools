@@ -12,6 +12,7 @@ import { createState } from '../../lib/core/state.mjs';
 import { writeArtefact } from '../../lib/core/artefacts.mjs';
 import { makeMarker } from '../../lib/core/markers.mjs';
 import { findDupes, branchIssues, undecided } from '../../lib/github/dupes.mjs';
+import { lateChanges } from '../../lib/github/scope.mjs';
 import dupesCommand from '../../lib/commands/dupes.mjs';
 import { makePlan, FEATURE } from '../lifecycle/support.mjs';
 
@@ -51,6 +52,21 @@ test('dupes finds references and path overlaps since the run began, and nothing 
     assert.match(hits[3].reason, /^merged PR/);
     assert.equal(await dupesCommand.run(ctx, []), 1);
     assert.equal(stdout.lines().filter((l) => l.startsWith('FAIL dupe')).length, 4);
+  } finally { dir.cleanup(); }
+});
+
+test('a picture-mode run has no plan: nothing is claimed, so dupes and late changes are empty', async () => {
+  const dir = makeTempDir();
+  try {
+    const paths = featurePaths(dir.dir, FEATURE, {});
+    await createState(paths, { feature: FEATURE, runId: 'r-20260115-2000-abcd', worktree: dir.dir, branch: 'epic/101-widgets', epic: 101, at: '2026-01-15T20:00:00.000Z' });
+    const clock = fakeClock('2026-01-15T22:00:00.000Z');
+    const gh = createGhStub({ clock, startAt: 200 });
+    const other = await gh.prCreate({ title: 'Touch the page', body: 'Refs #102', base: 'main', head: 'feature/y' });
+    gh.setFiles(other.number, ['apps/web/src/widgets/list.tsx']);
+    const { ctx } = await makeTestCtx({ repoRoot: dir.dir, feature: FEATURE, profile: makeProfile(), gh, clock });
+    assert.deepEqual(await findDupes(ctx), []);
+    assert.deepEqual(await lateChanges(ctx), []);
   } finally { dir.cleanup(); }
 });
 

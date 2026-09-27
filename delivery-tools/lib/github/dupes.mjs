@@ -48,7 +48,10 @@ export function undecided(hits) {
 export async function findDupes(ctx) {
   const paths = ctx.requirePaths();
   const profile = await ctx.profile();
-  const plan = await readPlan(paths);
+  // A picture-mode run has no plan: it claims no child issues and no paths, so nothing can
+  // duplicate it (its PR and the lanes' own scope checks cover the files it touches).
+  const plan = await readPlan(paths, { optional: true });
+  if (!plan) return [];
   const state = await readState(paths);
   const marks = runMarkers(profile, paths.feature);
   const since = state?.journal?.[0]?.at ?? null;
