@@ -13,7 +13,7 @@ a state at a width: `KC-05` is the desktop, `KC-05@phone` the phone. Your list m
   whether it is on the page (`onPage`) and whether it should be (`shouldBe`). At phone width,
   `overflow` is how far the page scrolls sideways.
 - `docs/delivery/<feature>/checklist.md`: every state, how it is reached, its buttons and the
-  state each button opens.
+  state each button opens, and the rules (`Rule R7: ...`) each state shows.
 
 Both pictures show only the page's own area. The sidebar and top bar are out of scope.
 
@@ -28,7 +28,9 @@ Look at the two pictures side by side and ask:
    a broken layout, or text that makes no sense.
 4. Would a person notice the difference at a glance? Layout, arrangement, sizes, colours, borders,
    button styles or weights count. Ignore anything you would need a ruler to see.
-5. Does the wording mean the same? Names and numbers from test data may differ, and fake phone
+5. Does every rule the checklist lists under this state hold in the live picture? A rule that
+   breaks is `must fix`, and the bullet starts with its id: `must fix: R7 ...`.
+6. Does the wording mean the same? Names and numbers from test data may differ, and fake phone
    numbers and example addresses are fake on purpose. Neither is a problem.
 
 An item the capture didn't reach gets one line saying so.

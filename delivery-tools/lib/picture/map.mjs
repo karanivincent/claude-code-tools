@@ -6,6 +6,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { WIDTHS, WIDTH_NAMES, designFileCandidates, designFor, mapWidths, stateWidths } from './widths.mjs';
+import { ruleLine, rulesForState, stateless } from './rules.mjs';
 
 export const MAP_FILE = 'map.json';
 export const CHECKLIST_FILE = 'checklist.md';
@@ -224,7 +225,7 @@ function stepText(step) {
 }
 
 /** The checklist builders and reviewers read, rendered from the map. */
-export function renderChecklist(map) {
+export function renderChecklist(map, { rules = null } = {}) {
   const byId = new Map((map.states ?? []).map((s) => [s.id, s]));
   const name = (id) => (byId.get(id) ? `${byId.get(id).screen} / ${byId.get(id).name}` : id);
   const lines = [
@@ -260,6 +261,12 @@ export function renderChecklist(map) {
       const fx = b.effect && !SAFE_TO_CLICK.has(b.effect) ? ` [${b.effect}: never clicked by the capture]` : '';
       lines.push(`- Button "${b.label ?? b.testid}"${b.testid ? ` (${b.testid})` : ''} → ${to}${who}${width}${fx}`);
     }
+    for (const r of rulesForState(rules, s.id)) lines.push(ruleLine(r));
+    lines.push('');
+  }
+  if (rules && stateless(rules).length) {
+    lines.push('## Rules no state shows', '', 'From rules.json. Each is proved by a test named after it, or was cut.', '');
+    for (const r of stateless(rules)) lines.push(ruleLine(r));
     lines.push('');
   }
   if ((map.keep ?? []).length) {

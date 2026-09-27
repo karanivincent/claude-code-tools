@@ -352,7 +352,7 @@ test('picture mode: ready proves the page with its rounds, not a full capture or
     });
     const { ready, exit } = await computeReady(f.ctx, { pr: f.pr });
     assert.equal(exit, 0, JSON.stringify(ready.checks.filter((c) => !c.ok)));
-    assert.deepEqual(ready.checks.map((c) => c.id), ['baseline-refresh', 'head', 'ci', 'preview', 'dupes', 'scope', 'loop-test', 'pictures']);
+    assert.deepEqual(ready.checks.map((c) => c.id), ['baseline-refresh', 'head', 'ci', 'preview', 'dupes', 'scope', 'loop-test', 'pictures', 'rules']);
     const pictures = ready.checks.find((c) => c.id === 'pictures');
     assert.match(pictures.detail, /3 state\(s\): 1 match, 1 small differences, every pictured state reached; 1 still open after 3 rounds/);
   } finally { f.repo.cleanup(); }

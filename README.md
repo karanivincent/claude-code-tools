@@ -78,7 +78,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### delivery-tools `v0.5.0`
+### delivery-tools `v0.6.0`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -88,7 +88,10 @@ taking the pictures, listing buttons, and CI. They never judge whether a page ma
 knowledge-page redesign, the older full mode spent about two days and left 27 of 66 states
 matching the design; three and a half more hours of this loop took it to 42. Since 0.5.0 a run
 can check the phone width (390 px) as well as the desktop: the map declares `"widths": ["desktop",
-"phone"]`, and every state is pictured, reviewed and counted at both. An export holds the whole design project; a run
+"phone"]`, and every state is pictured, reviewed and counted at both. Since 0.6.0 every behaviour the briefs
+state is a numbered rule in `rules.json`, shown by a design state, proved by a test named after it,
+or cut; `delivery rules` lists the gaps and `delivery ready` stays red while one is open. An export
+holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run
 and keep it current is in [`delivery-tools/docs/OPERATING.md`](delivery-tools/docs/OPERATING.md).
