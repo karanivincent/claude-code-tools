@@ -21,6 +21,9 @@ Paths are relative to the worktree root.
 - In a fix round: the round's `review.json` and `review-*.md` in `.delivery/<feature>/rounds/<n>/`,
   with the live pictures the reviewers judged.
 
+In an update run (the run's state names a `from` run) the page already exists and round 1 has
+already pictured it: change only what the round's review lists, and keep everything else as it is.
+
 ## How to see your work
 
 The dev server is already running; your prompt gives its URL. Never start or stop a server. To

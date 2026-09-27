@@ -9,7 +9,7 @@ import { runIntake } from '../lifecycle/intake.mjs';
 export default defineCommand({
   name: "intake",
   summary: "Snapshot a design export, draft the intent, create the epic and the run",
-  usage: `usage: delivery intake <archive.zip|design-dir> [--intent "<sentence>"] [--epic N] [--brief <file>]... [--adapter claude-design|image-folder]
+  usage: `usage: delivery intake <archive.zip|design-dir> [--intent "<sentence>"] [--epic N] [--brief <file>]... [--adapter claude-design|image-folder] [--from <feature>]
 
 Check and hash the export, find or create the epic by marker (or adopt --epic N), create the
 integration branch and worktree from origin/<base>, snapshot the design there under
@@ -24,11 +24,17 @@ mechanical fields, renders intent.md, updates the epic and commits both.
 
 The feature defaults to the design project's name as a slug; pass --feature to choose it.
 
+An update run (--from <feature>) is for a page that was already built from an earlier design. Give
+it a new --feature slug. It copies the earlier run's map.json, worlds/, rules.json and intent.json
+into its own folder (never over a file it already has), and its first round pictures the page as it
+already is, before any building, so the reviewers list only what the new design changed.
+
 options:
   --intent "<sentence>"  the founder's one sentence of intent (kept for later runs)
   --epic N               adopt issue N as the epic instead of finding or creating one
   --brief <file>         a design-round brief to keep (repeatable)
   --adapter <name>       claude-design (default) or image-folder for a folder of PNGs
+  --from <feature>       an update run: start from that earlier run's map, worlds, rules and intent
 
 exit: 0 done or already done; 1 intent.json not drafted yet (NEXT names the extractor);
       2 not a recognised export, or intent.json invalid
@@ -39,13 +45,13 @@ common options:
   --help             this text`,
   async run(ctx, argv) {
     const { values, positionals } = parseCommandArgs(argv, {
-      options: { intent: { type: 'string' }, epic: { type: 'string' }, brief: { type: 'string', multiple: true }, adapter: { type: 'string' } },
+      options: { intent: { type: 'string' }, epic: { type: 'string' }, brief: { type: 'string', multiple: true }, adapter: { type: 'string' }, from: { type: 'string' } },
       positionals: { min: 1, max: 1, names: ['archive'] },
     });
     if (values.adapter && !['claude-design', 'image-folder'].includes(values.adapter)) throw new UsageError(`--adapter must be claude-design or image-folder, not "${values.adapter}"`);
     const res = await runIntake(ctx, {
       source: positionals[0], sentence: values.intent ?? null, epic: intFlag(values.epic, '--epic'),
-      briefs: values.brief ?? [], adapter: values.adapter ?? null,
+      briefs: values.brief ?? [], adapter: values.adapter ?? null, from: values.from ?? null,
     });
     for (const l of res.lines) ctx.out.line(l);
     for (const f of res.failures) ctx.out.fail(f.code, f.message);

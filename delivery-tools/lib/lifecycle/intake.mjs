@@ -16,6 +16,7 @@ import { featurePaths, assertFeatureSlug } from '../core/paths.mjs';
 import { discoverRuns } from '../core/discovery.mjs';
 import { createGit } from '../core/git.mjs';
 import { createState, loadState, newRunId, updateState, formatEvent } from '../core/state.mjs';
+import { carryOver } from './update-run.mjs';
 import { validateAgainst } from '../core/schema.mjs';
 import { writeFileAtomic, writeJsonAtomic, exists, readJson } from '../core/fs.mjs';
 import { isoDate } from '../core/clock.mjs';
@@ -179,9 +180,9 @@ export async function writeSnapshot({ exportDir, snapshotDir, layout, readme }) 
 /**
  * delivery intake. Returns { exit, lines, failures, next, feature, epic, worktree }.
  * @param {import('../core/ctx.mjs').Ctx} ctx
- * @param {{ source: string, sentence?: string|null, epic?: number|null, briefs?: string[], adapter?: string|null }} o
+ * @param {{ source: string, sentence?: string|null, epic?: number|null, briefs?: string[], adapter?: string|null, from?: string|null }} o
  */
-export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic = null, briefs = [], adapter: adapterName = null }) {
+export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic = null, briefs = [], adapter: adapterName = null, from = null }) {
   const profile = await ctx.profile();
   const d = deps(ctx);
   const lines = [];
@@ -266,6 +267,14 @@ export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic 
     }
     await writeFileAtomic(join(paths.intentDir, 'sentence.txt'), `${theSentence}\n`);
 
+    // An update run starts from the earlier run's map, worlds, rules and intent.
+    if (from) {
+      if (assertFeatureSlug(from) === feature) throw new UsageError(`--from ${from} names this run; an update run needs a new feature slug (--feature)`);
+      const carried = await carryOver({ fromDir: featurePaths(worktree, from, profile.paths).deliveryDir, toDir: paths.deliveryDir, feature, sentence: theSentence })
+        .catch((err) => { throw new UsageError(err.message); });
+      lines.push(carried.length ? `update run from ${from}: carried over ${carried.join(', ')}` : `update run from ${from}: nothing new to carry over`);
+    }
+
     // The intent, if the extractor has written it.
     const design = {
       adapter: adapter.name, archiveSha256: pack.archiveSha256, treeSha256, project,
@@ -301,7 +310,7 @@ export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic 
 
     const exit = intentState === 'invalid' ? EXIT.USAGE : intentState === 'missing' ? EXIT.RED : EXIT.PASS;
     if (intentState === 'missing') failures.push({ code: 'intent', message: `${repoRel(worktree, paths.intentJson)} is not drafted yet` });
-    await updateState(paths, (s) => ({ ...s, epic }), {
+    await updateState(paths, (s) => ({ ...s, epic, ...(from ? { from } : {}) }), {
       at: ctx.clock.now().toISOString(),
       event: formatEvent({ command: 'intake', exit, counts: { archive: pack.archiveSha256.slice(0, 12), reexport: reexport ? 1 : 0, intent: intentState, epic } }),
       inputs: { archive: pack.archiveSha256, tree: treeSha256 }, outputs: { epic, branch, intent: intentState },
@@ -324,7 +333,9 @@ async function ensureWorktree(ctx, { profile, branch, worktree }) {
 }
 
 async function commitIntake(git, { paths, worktree, project, feature, reexport }) {
-  const rels = [paths.designSnapshot, paths.intentDir, paths.intentJson, paths.intentMd];
+  // map.json, rules.json and worlds/ exist at intake only when an update run carried them over.
+  const rels = [paths.designSnapshot, paths.intentDir, paths.intentJson, paths.intentMd,
+    join(paths.deliveryDir, 'map.json'), join(paths.deliveryDir, 'rules.json'), join(paths.deliveryDir, 'worlds')];
   const present = [];
   for (const p of rels) if (await exists(p)) present.push(repoRel(worktree, p));
   if (!present.length) return null;

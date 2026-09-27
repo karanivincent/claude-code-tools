@@ -40,6 +40,16 @@ desktop-only run is exactly as before.
 two fix rounds follow. Whatever is still open after round 3 goes to the founder as a list, with
 the comparison page. It is not a red report.
 
+## Update runs
+
+A page built from an earlier design gets an update run when its design changes:
+`delivery intake <new export> --feature <slug>-update --from <slug> --intent "<sentence>"`. It starts
+from the earlier run's map, worlds, rules and intent. Render the new design, let the mapper bring
+the map up to date (new states, phone widths, anything renamed), then round 1 pictures the page as
+it already is, before any building. The reviewers list what the new design changed, and the
+builder fixes only that. Something the code does that the design doesn't show is flagged like any
+difference: it goes back to the design, or becomes a rule.
+
 ## Dispatching
 
 Every agent is dispatched from this session, in the foreground unless noted, with exactly this

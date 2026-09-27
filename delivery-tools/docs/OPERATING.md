@@ -71,6 +71,12 @@ the Scope line the founder saw. `owed-design` means the design never drew it, an
 until it does. `delivery rules` prints every gap; `status` stops on one; `ready` adds a `rules`
 check that also requires each named test to exist. A run with no briefs is unchanged.
 
+Since 0.7.0 a page that was already built gets an update run when its design changes:
+`delivery intake <new export> --feature <slug>-update --from <slug> --intent "<sentence>"`. It
+copies the earlier run's `map.json`, `worlds/`, `rules.json` and `intent.json` (never over a file it
+already has), and `status` makes round 1 a picture of the page as it is, before any building, so
+the builder only fixes what the new design changed.
+
 A run that began in full mode switches with `delivery map --from-plan`. Before the pull request
 is marked ready, `delivery ready --pr <n>` checks CI, the pushed head, the preview, duplicates and
 the rounds (every round compiled, every state's newest picture reached) and the rules; it no longer asks a
