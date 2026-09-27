@@ -320,8 +320,9 @@ export async function scopeGate(ctx) {
 export async function lateChanges(ctx) {
   const paths = ctx.requirePaths();
   const profile = await ctx.profile();
-  const plan = await readPlan(paths);
-  if (!plan.scopeSnapshot) return [];
+  // A picture-mode run has no plan and no Scope issue, so no row can change class after it.
+  const plan = await readPlan(paths, { optional: true });
+  if (!plan?.scopeSnapshot) return [];
   const marks = runMarkers(profile, paths.feature);
   const { issue } = await findIssue(ctx, { marker: marks.scope(), known: [plan.scopeIssue] });
   const stored = issue ? decodeSnapshot(issue.body, marks.block('body')) : null;
