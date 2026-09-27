@@ -11,6 +11,7 @@
     "feature": { "$ref": "common.schema.json#/$defs/Slug" },
     "runId": { "$ref": "common.schema.json#/$defs/FileId" },
     "epic": { "type": ["integer", "null"], "minimum": 1 },
+    "from": { "type": "string", "description": "An update run: the earlier run whose map, worlds, rules and intent it started from" },
     "pr": { "type": ["integer", "null"], "minimum": 1 },
     "worktree": { "$ref": "common.schema.json#/$defs/Text" },
     "branch": { "$ref": "common.schema.json#/$defs/Text" },

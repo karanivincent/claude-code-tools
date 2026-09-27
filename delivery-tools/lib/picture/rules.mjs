@@ -22,13 +22,15 @@ export function readRules(paths) {
   try { return JSON.parse(readFileSync(p, 'utf8')); } catch (err) { throw new Error(`${p} does not parse: ${err.message}`); }
 }
 
-/** The briefs a run keeps: every Markdown or text file directly in intent/ (not uploads/, rounds/ or intake's sentence.txt). */
+/**
+ * The briefs a run keeps: Markdown or text files in intent/ (saved by whoever drove the design)
+ * and in intent/briefs/ (copied by intake --brief). Not uploads/, rounds/ or intake's sentence.txt.
+ */
 export function briefFiles(paths) {
-  if (!existsSync(paths.intentDir)) return [];
-  return readdirSync(paths.intentDir, { withFileTypes: true })
+  const list = (dir, prefix) => (existsSync(dir) ? readdirSync(dir, { withFileTypes: true }) : [])
     .filter((e) => e.isFile() && /\.(md|txt)$/i.test(e.name) && e.name !== 'sentence.txt')
-    .map((e) => e.name)
-    .sort();
+    .map((e) => prefix + e.name);
+  return [...list(paths.intentDir, ''), ...list(join(paths.intentDir, 'briefs'), 'briefs/')].sort();
 }
 
 /** The text a test must carry for it to prove a rule: the rule's id, then a colon ("R7: ..."). */
