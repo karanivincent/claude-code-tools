@@ -293,6 +293,8 @@ sidefx, seedplan, preflight, candidates) that fails its schema is exit 5: tamper
 | ready | `.delivery/<f>/ready.json` | ready | ready (A1) | hook, land, report |
 | state | `.delivery/<f>/state.json` | state | only through `lib/core/state.mjs` | status, gates |
 | punch list | `.delivery/<f>/punch-list.html` | (html) | audit compile (C) | the main session |
+| runs ledger | `docs/delivery/runs.jsonl` (one line per run) | run-record | retro (A2) | retro (compare, check), report |
+| tunables | `tunables.json` (plugin root) | (no schema; `lib/retro/tunables.mjs` reads it) | a person; retro through a PR (A2) | picture review, capture slots, capture run (C) |
 
 File paths inside `capture.json` are relative to that capture run's directory. The `.txt`
 beside a render or capture holds one visible text element per line, in reading order. In a
