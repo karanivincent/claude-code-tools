@@ -155,3 +155,17 @@ test('seed --apply, --refresh and --teardown with the two tables naming each oth
     assert.equal(db.tables.get('organizations').length, 0);
   } finally { repo.cleanup(); }
 });
+
+test('today resolves in the organisation\'s time zone: a seed at 22:30 UTC is already tomorrow three hours east', async () => {
+  const { resolveRelative, zonedNow } = await import('../../lib/seed/evaluate.mjs');
+  const at = new Date('2026-09-28T22:30:00Z');
+  assert.equal(resolveRelative({ $rel: 'today', as: 'date' }, at), '2026-09-28', 'no zone: the UTC day, as before');
+  const east = zonedNow(at, 'Asia/Riyadh');
+  assert.equal(resolveRelative({ $rel: 'today', as: 'date' }, east), '2026-09-29');
+  assert.equal(resolveRelative({ $rel: 'today' }, east), '2026-09-28T21:00:00.000Z', 'local midnight, as an instant');
+  assert.equal(resolveRelative({ $rel: 'today@09:00' }, east), '2026-09-29T06:00:00.000Z');
+  assert.equal(resolveRelative({ $rel: 'today-1d', as: 'date' }, east), '2026-09-28');
+  assert.equal(resolveRelative({ $rel: 'now', as: 'date' }, east), '2026-09-29', 'now as a date is the local day too');
+  assert.equal(resolveRelative({ $rel: 'today', as: 'date' }, zonedNow(at, 'America/New_York')), '2026-09-28');
+  assert.throws(() => zonedNow(at, 'Mars/Olympus'), RangeError);
+});

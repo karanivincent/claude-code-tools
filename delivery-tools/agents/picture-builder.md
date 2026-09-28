@@ -21,6 +21,7 @@ somewhere the dev server cannot reach.
 
 Your tools cannot enforce the following, so they are yours to keep:
 
+- Never run the production build, or a check chain that includes one, in this worktree: it replaces the build folder the dev server is serving, and every page then fails until the server restarts. Typecheck, lint and unit tests are safe; this session runs the full chain after it stops the server.
 - Commit your own work as you go, on the run's own branch, with `git add <specific files>` only.
   Never `git add .` or `-A`, and never leave a change staged and uncommitted for the main session
   to pick up — in a shared worktree the main session's own commits (a map, a seed) would carry

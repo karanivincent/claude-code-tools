@@ -13,22 +13,67 @@ const UNITS = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000, w: 604_800_000 
 
 /**
  * Resolve a relative time marker: `now`, `now-2h`, `today`, `today@09:00`, `today@09:00+1d`.
- * `as: "date"` gives YYYY-MM-DD instead of an ISO timestamp.
+ * `as: "date"` gives YYYY-MM-DD instead of an ISO timestamp. `today` and the date are the local
+ * day in `now.timeZone` (see zonedNow) when it is set, and the UTC day when it is not: a page reads
+ * the organisation's own day, so a seed run late in the UTC evening put "today's" rows on the
+ * organisation's yesterday.
  * @param {{ $rel: string, as?: string }} marker
  * @param {Date} now
  */
 export function resolveRelative(marker, now) {
   const m = /^\s*(now|today)(?:@(\d{1,2}):(\d{2})(?::(\d{2}))?)?((?:\s*[+-]\s*\d+\s*[smhdw])*)\s*$/.exec(String(marker.$rel));
   if (!m) throw new Error(`relative time "${marker.$rel}" is not understood (now|today[@HH:MM][+-N(s|m|h|d|w)]...)`);
+  const zone = now.timeZone ?? null;
   let t = now.getTime();
   if (m[1] === 'today') {
-    const d = new Date(t);
-    t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+    const [y, mo, d] = localDate(t, zone).split('-').map(Number);
+    t = localMidnight(y, mo, d, zone);
     if (m[2] !== undefined) t += (Number(m[2]) * 3600 + Number(m[3]) * 60 + Number(m[4] ?? 0)) * 1000;
   }
   for (const o of m[5].matchAll(/([+-])\s*(\d+)\s*([smhdw])/g)) t += (o[1] === '-' ? -1 : 1) * Number(o[2]) * UNITS[o[3]];
-  const iso = new Date(t).toISOString();
-  return marker.as === 'date' ? iso.slice(0, 10) : iso;
+  return marker.as === 'date' ? localDate(t, zone) : new Date(t).toISOString();
+}
+
+/**
+ * A copy of `date` that carries the time zone relative markers resolve their day in (an IANA name,
+ * e.g. the profile's testData.timeZone). Every seed path passes `now` through unchanged, so the
+ * zone travels with it. Throws on a name the runtime does not know.
+ * @param {Date} date
+ * @param {string|null|undefined} timeZone
+ */
+export function zonedNow(date, timeZone) {
+  const out = new Date(date.getTime());
+  if (!timeZone) return out;
+  new Intl.DateTimeFormat('en-US', { timeZone }); // throws RangeError on an unknown zone
+  out.timeZone = timeZone;
+  return out;
+}
+
+/** ctx's clock now, carrying the profile's testData.timeZone. */
+export async function seedNow(ctx) {
+  const profile = await ctx.profile().catch(() => null);
+  return zonedNow(ctx.clock.now(), profile?.testData?.timeZone);
+}
+
+/** YYYY-MM-DD of instant t in the zone (UTC when none). */
+function localDate(t, zone) {
+  if (!zone) return new Date(t).toISOString().slice(0, 10);
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(t)).map((x) => [x.type, x.value]));
+  return `${p.year}-${p.month}-${p.day}`;
+}
+
+/** The zone's offset from UTC at instant t, in ms. */
+function offsetAt(t, zone) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: zone, hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' }).formatToParts(new Date(t)).map((x) => [x.type, x.value]));
+  return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - Math.floor(t / 1000) * 1000;
+}
+
+/** The instant the local day y-mo-d begins in the zone. */
+function localMidnight(y, mo, d, zone) {
+  const guess = Date.UTC(y, mo - 1, d);
+  if (!zone) return guess;
+  const first = guess - offsetAt(guess, zone);
+  return guess - offsetAt(first, zone);
 }
 
 /** A deep copy of row values with every relative marker resolved at `now`. */
