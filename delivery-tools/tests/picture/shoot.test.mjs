@@ -1,8 +1,8 @@
-// delivery shoot: the browser-driving capture. A components map's crop is a floating gallery
-// element rather than a page-area rectangle (spec components-first §3), which is the part these
-// tests exercise: boundingBox() only ever answers in viewport coordinates, so a state below the
-// fold needs the page scrolled into account, and one item's screenshot failing must never abort
-// the whole shoot.
+// delivery shoot: the browser-driving capture. A components map's crop is the state's own wrapper
+// element, shot with locator.screenshot() (A7) rather than a page-level fullPage clip, so a state
+// that only comes into view by scrolling inside a container such as <main> is still pictured
+// whole; the tests below exercise that the shoot scrolls the element into view and hands a plain
+// locator screenshot no clip, and that one item's screenshot failing never aborts the whole shoot.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -31,7 +31,7 @@ function componentsMap(ids) {
 }
 
 /** A Playwright-shaped stub covering only what runShoot and shootItem touch. */
-function fakeChromium({ boxes, screenshots, throwPaths = new Set(), scroll = { x: 0, y: 0 } }) {
+function fakeChromium({ boxes, screenshots, scrolled, throwPaths = new Set() }) {
   const page = {
     async goto(u) { page._url = u; },
     url: () => page._url,
@@ -41,18 +41,19 @@ function fakeChromium({ boxes, screenshots, throwPaths = new Set(), scroll = { x
     async waitForTimeout() {},
     async waitForLoadState() {},
     locator(selector) {
-      return { first: () => ({ async boundingBox() { return boxes[selector] ?? null; } }) };
+      return {
+        first: () => ({
+          async boundingBox() { return boxes[selector] ?? null; },
+          async scrollIntoViewIfNeeded() { scrolled?.push(selector); },
+          async screenshot(opts) {
+            screenshots.push({ selector, ...opts });
+            if (throwPaths.has(opts.path)) throw new Error('target closed');
+          },
+        }),
+      };
     },
-    async evaluate(fn) {
-      const src = fn.toString();
-      if (src.includes('scrollWidth') && src.includes('scrollHeight')) return { w: 4000, h: 4000 };
-      if (src.includes('scrollX')) return scroll;
-      return {};
-    },
-    async screenshot(opts) {
-      screenshots.push(opts);
-      if (throwPaths.has(opts.path)) throw new Error('target closed');
-    },
+    async evaluate() { return {}; },
+    async screenshot(opts) { screenshots.push({ selector: null, ...opts }); },
   };
   return {
     async launch() {
@@ -76,18 +77,20 @@ function setupDirs() {
   return { outDir, cleanup: () => rmSync(outDir, { recursive: true, force: true }) };
 }
 
-test('a components crop below the fold is shot fullPage with the box translated into page coordinates', async () => {
+test('a components crop is scrolled into view and shot with locator.screenshot(), no page-level clip', async () => {
   const map = componentsMap(['DP-01']);
   const { items } = selectStates(map);
   const { outDir, cleanup } = setupDirs();
   try {
     const screenshots = [];
-    // boundingBox() reports viewport-relative coordinates; the page has scrolled 2000px down, so
-    // an element that looks like it is at y=100 actually sits at y=2100 on the page.
+    const scrolled = [];
+    // A state below the fold, inside a container that scrolls on its own (not the document): a
+    // page-level fullPage clip never reveals it, so the shoot must scroll the element itself into
+    // view before picturing it (the Components run's failure).
     const chromium = fakeChromium({
       boxes: { '[data-delivery-state="DP-01"]': { x: 50, y: 100, width: 200, height: 150 } },
       screenshots,
-      scroll: { x: 0, y: 2000 },
+      scrolled,
     });
     const report = await runShoot({
       map, items, baseUrl: 'http://localhost:3000', outDir,
@@ -96,11 +99,13 @@ test('a components crop below the fold is shot fullPage with the box translated 
       chromium, log: () => {},
     });
     assert.equal(report['DP-01'].reached, true);
+    assert.deepEqual(scrolled, ['[data-delivery-state="DP-01"]'], 'the crop element is scrolled into view before the shot');
     assert.equal(screenshots.length, 1);
     const shot = screenshots[0];
-    assert.equal(shot.fullPage, true, 'clip is in page coordinates, so the screenshot must cover the whole page');
-    // padding 24 around the box, translated by the 2000px scroll: x 26..274, y 2076..2274
-    assert.deepEqual(shot.clip, { x: 26, y: 2076, width: 248, height: 198 });
+    assert.equal(shot.selector, '[data-delivery-state="DP-01"]', 'the shot is a locator screenshot of the state\'s own element, not a page-level clip');
+    assert.equal(shot.clip, undefined, 'locator.screenshot() has no clip: the element\'s own box is the picture');
+    assert.equal(shot.fullPage, undefined);
+    assert.equal(shot.path, join(outDir, roundFiles('DP-01').live));
   } finally { cleanup(); }
 });
 
@@ -126,5 +131,116 @@ test('one item\'s screenshot failing marks it not reached and never aborts the r
     assert.match(report['DP-01'].problems[0], /target closed/);
     assert.equal(report['DP-02'].reached, true, 'the second item must still be shot after the first one throws');
     assert.equal(screenshots.length, 2, 'both items were attempted');
+  } finally { cleanup(); }
+});
+
+function pageMap(widths) {
+  return {
+    schemaVersion: 1,
+    feature: 'widgets',
+    title: 'Widgets',
+    kind: 'redesign',
+    route: '/dashboard/widgets',
+    widths,
+    pageArea: { left: 0, designLeft: 0, phone: { left: 0, designLeft: 0 } },
+    worlds: [{ id: 'design', users: [{ role: 'admin', email: 'delivery+widgets-design-admin@example.invalid' }] }],
+    states: [{
+      id: 'WL-01', screen: 'Widgets', name: 'writes', buttons: [],
+      reach: { world: 'design', role: 'admin', writes: true, steps: [{ goto: '/dashboard/widgets' }] },
+    }],
+  };
+}
+
+/** A stub for the ordinary (non-components) page-area crop path: no buttons, flat measurements. */
+function fakePageChromium({ screenshots, calls }) {
+  const page = {
+    async goto(u) { page._url = u; calls?.push(`goto ${new URL(u).pathname}`); },
+    url: () => page._url,
+    async unrouteAll() {},
+    async route() {},
+    async setViewportSize() {},
+    async waitForTimeout() {},
+    async waitForLoadState() {},
+    locator() { return { first: () => ({ async isVisible() { return false; } }) }; },
+    async evaluate(fn) {
+      if (fn.name === 'documentWidth') return { scrollWidth: 390, innerWidth: 390 };
+      return 0;
+    },
+    async screenshot(opts) { screenshots.push(opts); calls?.push(`shoot ${opts.path.split('/').pop()}`); },
+  };
+  return {
+    async launch() {
+      return {
+        async newContext() {
+          return { async newPage() { return page; }, async storageState() {}, async close() {} };
+        },
+        async newPage() { return { async close() {} }; },
+        async close() {},
+      };
+    },
+  };
+}
+
+test('a state that writes and is checked at both widths is re-seeded between the desktop and phone shot', async () => {
+  const map = pageMap(['desktop', 'phone']);
+  const { items } = selectStates(map);
+  const { outDir, cleanup } = setupDirs();
+  try {
+    const screenshots = [];
+    const calls = [];
+    const chromium = fakePageChromium({ screenshots, calls });
+    const report = await runShoot({
+      map, items, baseUrl: 'http://localhost:3000', outDir,
+      designDir: join(outDir, 'design'), sessionsDir: join(outDir, 'sessions'),
+      magicLinkPath: '/auth/confirm', auth: { signInHash: async () => 'hash' },
+      chromium, log: () => {},
+      reseed: async (world) => { calls.push(`reseed ${world}`); },
+    });
+    assert.equal(report['WL-01'].reached, true);
+    assert.equal(report['WL-01@phone'].reached, true);
+    // Desktop is shot, the world is re-seeded, then the phone shot: never the other order, and
+    // never a reseed with nothing shot on either side of it (one per data-changing state, not more).
+    assert.deepEqual(calls, [
+      'goto /dashboard/widgets', 'goto /dashboard/widgets', 'shoot WL-01.live.png',
+      'reseed design',
+      'goto /dashboard/widgets', 'goto /dashboard/widgets', 'shoot WL-01@phone.live.png',
+    ]);
+  } finally { cleanup(); }
+});
+
+test('a state shot at only one width is never re-seeded mid-shoot', async () => {
+  const map = pageMap(['desktop']);
+  const { items } = selectStates(map);
+  const { outDir, cleanup } = setupDirs();
+  try {
+    const calls = [];
+    const chromium = fakePageChromium({ screenshots: [], calls });
+    await runShoot({
+      map, items, baseUrl: 'http://localhost:3000', outDir,
+      designDir: join(outDir, 'design'), sessionsDir: join(outDir, 'sessions'),
+      magicLinkPath: '/auth/confirm', auth: { signInHash: async () => 'hash' },
+      chromium, log: () => {},
+      reseed: async (world) => { calls.push(`reseed ${world}`); },
+    });
+    assert.ok(!calls.some((c) => c.startsWith('reseed')), 'nothing after the only write needs fresh data');
+  } finally { cleanup(); }
+});
+
+test('no element matches the crop selector: not reached, and nothing is shot', async () => {
+  const map = componentsMap(['DP-01']);
+  const { items } = selectStates(map);
+  const { outDir, cleanup } = setupDirs();
+  try {
+    const screenshots = [];
+    const chromium = fakeChromium({ boxes: {}, screenshots });
+    const report = await runShoot({
+      map, items, baseUrl: 'http://localhost:3000', outDir,
+      designDir: join(outDir, 'design'), sessionsDir: join(outDir, 'sessions'),
+      magicLinkPath: '/auth/confirm', auth: { signInHash: async () => 'hash' },
+      chromium, log: () => {},
+    });
+    assert.equal(report['DP-01'].reached, false);
+    assert.match(report['DP-01'].problems[0], /no element matches \[data-delivery-state="DP-01"\]/);
+    assert.equal(screenshots.length, 0);
   } finally { cleanup(); }
 });

@@ -62,14 +62,22 @@ comparison page (a row per width under each state), `status` and `ready` all cou
 at a width. A map without `widths` checks the desktop only, exactly as before.
 
 Since 0.6.0 decisions made in words are checked too. Every brief sent to the design is saved in
-`docs/delivery/<feature>/intent/` (the spec with `--brief` as well). After the map, a rules agent
-(`briefs/rules.md`) writes `rules.json`: one numbered rule per behaviour the briefs state, each with
-one proof. `picture` names the design states that show it; `delivery map` writes the rule under
-those states in the checklist, and reviewers mark a broken rule `must fix: R<n>`. `test` means no
-picture can show it; the builder writes a test named `R<n>: ...` and lists its file. `cut` quotes
-the Scope line the founder saw. `owed-design` means the design never drew it, and the run stays red
-until it does. `delivery rules` prints every gap; `status` stops on one; `ready` adds a `rules`
-check that also requires each named test to exist. A run with no briefs is unchanged.
+`docs/delivery/<feature>/intent/` (the spec with `--brief` as well). A rules agent (`briefs/rules.md`)
+writes `rules.json`: one numbered rule per behaviour the briefs state, each with one proof.
+`picture` names the design states that show it; `delivery map` writes the rule under those states
+in the checklist, and reviewers mark a broken rule `must fix: R<n>`. `test` means no picture can
+show it; the builder writes a test named `R<n>: ...` and lists its file. `cut` quotes the Scope
+line the founder saw. `owed-design` means the design never drew it, and the run stays red until it
+does. `delivery rules` prints every gap; `status` stops on one; `ready` adds a `rules` check that
+also requires each named test to exist. A run with no briefs is unchanged.
+
+The rules agent now runs twice: straight after intake, before the design's states are even
+rendered, so an undrawn behaviour is caught before a map and a build are spent on it, and again
+after `delivery map` to fill in each `picture` rule's states. `status`'s NEXT line asks for the
+rules pass before it asks for anything else. When a rule comes back `owed-design`, NEXT names the
+`design-send` skill and stops there — `picture-build` refuses to dispatch the builder while
+`delivery rules` still exits non-zero on an owed rule, until it is either sent to the design or the
+founder cuts it (proof `cut`, with a Scope line).
 
 Since 0.7.0 a page that was already built gets an update run when its design changes:
 `delivery intake <new export> --feature <slug>-update --from <slug> --intent "<sentence>"`. It
@@ -89,6 +97,17 @@ about an hour, so make a new one rather than resending an old one.
 Full mode (coverage plan, waves of units, mechanical gates, graded audit) is still here for a run
 that asks for it by name. It decides readiness through `delivery ready`, and its Scope issue
 carries the owner's decisions.
+
+### Render and shoot details
+
+- `design render` hashes every picture. Two different states with the same picture fail the render, naming both ids and the hash. If a state really shares a picture, add `"samePictureAs": "<id>"` to its inventory entry.
+- A design that reacts only when a prop changes needs `"kind": "preset"` with `props`. Render boots the design, then applies the props with a `set`, the way a `{"set": ...}` step does. A `prop` reach still bakes its props in as defaults.
+- `shoot` scrolls a components state into view and pictures it with `locator.screenshot()`, so a page that scrolls inside `<main>` is pictured whole. Fixed bars and dev overlays are hidden at every width.
+- A state that changes data and is shot at both widths is shot at desktop first. The world is then re-seeded (`refreshWorld`) before the phone shot.
+
+### Shared slots
+
+Heavy work shares one machine-wide file, `~/.delivery/slots.json` (override with `DELIVERY_SLOTS_FILE`), with at most two holders. `delivery shoot` takes a slot and releases it itself. The e2e command in a project's profile can be wrapped the same way: `delivery slot run -- pnpm e2e ...`. A holder whose process has died is reclaimed. A waiting command prints who holds the slots and gives up (exit 4) after 30 minutes, or `--timeout <s>`.
 
 ## Components first
 
@@ -162,6 +181,32 @@ screenshot.
    rendered text. Use this instead of canvas screenshots — the export already renders headlessly,
    and canvas screenshots lag and show one state at a time.
 7. Findings feed the next brief: `delivery brief new <slug> --from-review`.
+
+## Data gaps and seed guards (A1, A2)
+
+Two picture-mode changes that move seed problems earlier, from the middle of a review round to
+`seed --check`/`--apply` before any shoot, and from a founder discovering one guard proposal per
+`seed --apply` to seeing every guard a run's worlds need in one place, right after the map.
+
+- **A1, data gaps.** A state's map entry may carry `data`: what the picture needs to exist (a
+  table, a filter, a minimum count — briefs/mapper.md has the shape). `seed --check` and `--apply`
+  check it against the rows the worlds seed (the world files, not a live read) and name any state
+  whose world falls short, exiting non-zero the same way a safety layer does. A reviewer who
+  notices the live page is only wrong because that data is missing writes `data gap:` instead of
+  `must fix:` (checklist.md prints the "Needs data" line under the state so they can tell). A data
+  gap never spends one of the picture loop's fix rounds — it is the world's problem, not the
+  builder's — but `ready` never goes green over one either: `pictureReadiness`
+  (`lib/run/ready-compute.mjs`) lists it apart from code defects and always keeps ready red until
+  the world is re-seeded and the state shot again. That is the smallest honest behaviour: a data
+  gap can't silently ship, but it also can't burn a builder's fix round the way a real defect does.
+- **A2, guards and CHECK constraints.** `seed --plan` prints one grouped "guards to approve" list:
+  every table the worlds write that no guard in `.claude/delivery-safety.json` covers. NEXT
+  surfaces the same list once, right after the map validates (before rules or worlds), so the
+  founder reviews every guard the run will need in one sitting. `seed --plan` also reads the test
+  database's CHECK constraints and enum types and refuses a world value outside them, naming the
+  table, column, the value and the allowed values; a constraint it cannot parse (anything beyond a
+  plain `col IN (...)` or `col = ANY (ARRAY[...])` list) is silently skipped, never wrongly
+  enforced. Neither of these loosens or changes what a guard permits.
 
 ## Things a session must do that nothing else will
 

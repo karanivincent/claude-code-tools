@@ -6,9 +6,10 @@ import { parseCommandArgs } from '../core/args.mjs';
 import { EXIT, UsageError } from '../core/exit.mjs';
 import { resolvePlaywright } from '../core/playwright.mjs';
 import { createDataAdapter } from '../../adapters/data/supabase.mjs';
+import { refreshWorld } from '../seed/scan.mjs';
 import { designIds, readMap, validateMap } from '../picture/map.mjs';
 import { nextRound, roundDir, WORK_ROUND } from '../picture/rounds.mjs';
-import { runShoot, selectStates, writeShootJson } from '../picture/shoot.mjs';
+import { runShoot, selectStates, withShootSlot, writeShootJson } from '../picture/shoot.mjs';
 import { hasPhone } from '../picture/widths.mjs';
 
 export default defineCommand({
@@ -76,7 +77,7 @@ common options:
     const { chromium } = await resolvePlaywright({ repoRoot: ctx.repoRoot, e2eDir: profile.paths?.e2eDir ?? null });
 
     ctx.out.line(`shooting ${items.length} ${noun}(s) on ${baseUrl} into ${outDir}`);
-    const report = await runShoot({
+    const report = await withShootSlot(ctx, () => runShoot({
       map, items, baseUrl, outDir,
       designDir: paths.designRenders,
       sessionsDir: join(paths.runDir, 'sessions'),
@@ -84,7 +85,13 @@ common options:
       auth: { signInHash: (email) => db.signInHash(email) },
       chromium,
       log: (l) => ctx.out.line(l),
-    });
+      // A state that changes data and is checked at both widths uses a freshly seeded world each
+      // time: reuse the seed plan's own apply path (spec 7.4), the same one `seed --refresh` runs.
+      reseed: async (worldId) => {
+        const gate = await refreshWorld(ctx, worldId);
+        if (!gate.ok) ctx.out.warn(`re-seeding ${worldId} before the next width's shot found problems: ${gate.failures.map((f) => f.message).join('; ')}`);
+      },
+    }));
     const doc = await writeShootJson(outDir, { baseUrl, at: ctx.clock.now().toISOString(), report });
 
     const notReached = Object.entries(report).filter(([, r]) => !r.reached).map(([id]) => id);

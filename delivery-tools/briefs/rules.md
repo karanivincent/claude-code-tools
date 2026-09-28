@@ -6,13 +6,18 @@ gets checked too.
 
 ## What you have
 
-Paths are relative to the worktree root.
+Paths are relative to the worktree root. You are dispatched twice: first straight after intake,
+before anything is built, so an undrawn behaviour goes back to the design before the run wastes a
+map and a build on it; again after `delivery map`, to fill in any `picture` rule's states.
 
 - `docs/delivery/<feature>/intent/*.md`: the briefs sent to the design, in the order they were
   sent, and any spec the run was given. Later briefs change earlier ones: where they disagree, the
   later one wins, and the earlier rule is not written.
-- `docs/delivery/<feature>/map.json` and `checklist.md`: every designed state, by id.
-- `.delivery/<feature>/design/<ID>.png` (and `<ID>@phone.png`): the design of each state.
+- `docs/delivery/<feature>/map.json` and `checklist.md`, and `.delivery/<feature>/design/<ID>.png`
+  (`<ID>@phone.png`): every designed state, by id, and its picture — once `delivery map` has run.
+  On the first pass these don't exist yet; write `test`, `cut` and `owed-design` rules as usual,
+  and leave a `picture` rule's `states` empty for now (`delivery rules` doesn't require them until
+  a map exists; fill them in when you're dispatched again after `delivery map`).
 
 ## What a rule is
 
@@ -49,7 +54,11 @@ Look at the pictures before you choose. Each rule gets exactly one:
 ```
 
 Number rules R1, R2, ... in the order the briefs state them. Then run
-`node scripts/delivery.mjs rules` and fix every problem it prints, then
-`node scripts/delivery.mjs map` so the checklist shows each rule under its states.
+`node scripts/delivery.mjs rules` and fix every problem it prints. If `map.json` already exists
+(your second pass, after `delivery map` has run), also run `node scripts/delivery.mjs map` so the
+checklist shows each rule under its states; on the first pass, straight after intake, there is no
+map yet, so skip that and stop once `delivery rules` is clean.
 
-Report in three lines: how many rules, how many of each proof, and every `owed-design` rule's text.
+Report in three lines: how many rules, how many of each proof, and every `owed-design` rule's
+text. On the first pass, an `owed-design` rule is the run's next step: it goes to the design with
+the `design-send` skill before anything is built, or the founder cuts it.

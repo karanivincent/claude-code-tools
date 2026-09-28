@@ -154,6 +154,30 @@ test('an item whose only bullets are design: gets back-to-design, ranked after s
   assert.equal(s.counts.notReached, 0);
 });
 
+test('A1: a "data gap:" bullet parses distinct from must/small/design, and gets verdict data-gap', () => {
+  const r = parseReview('## KC-08\n- data gap: the design shows 3 scripts; the world has none.\n');
+  assert.deepEqual(r['KC-08'].must, []);
+  assert.deepEqual(r['KC-08'].small, []);
+  assert.deepEqual(r['KC-08'].design, []);
+  assert.deepEqual(r['KC-08'].dataGap, ['the design shows 3 scripts; the world has none.']);
+
+  const m = sampleMap();
+  const shoot = { states: { 'KC-05': { reached: true }, 'KC-04': { reached: true }, 'KC-08': { reached: true } } };
+  const s = summarise({ map: m, shoot, notes: parseReview('## KC-08\n- data gap: the design shows 3 scripts; the world has none.\n') });
+  assert.equal(s.states['KC-08'].verdict, 'data-gap');
+  assert.equal(s.counts.dataGap, 1);
+  assert.equal(s.counts.must, 0, 'a data gap is never counted as a code defect');
+});
+
+test('A1: a must-fix note on the same item still wins the verdict, but the data-gap note is kept', () => {
+  const m = sampleMap();
+  const shoot = { states: { 'KC-05': { reached: true }, 'KC-04': { reached: true }, 'KC-08': { reached: true } } };
+  const mixed = '## KC-05\n- must fix: the button is missing.\n- data gap: the design shows 3 scripts; the world has none.\n';
+  const s = summarise({ map: m, shoot, notes: parseReview(mixed) });
+  assert.equal(s.states['KC-05'].verdict, 'must');
+  assert.deepEqual(s.states['KC-05'].dataGap, ['the design shows 3 scripts; the world has none.']);
+});
+
 test('back-to-design renders in its own group: pill text, tally and the design note, without being mistaken for a match', () => {
   const m = sampleMap();
   const shoot = { states: { 'KC-05': { reached: true }, 'KC-04': { reached: true }, 'KC-08': { reached: true } } };

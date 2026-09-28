@@ -191,7 +191,7 @@ test('item selection: an id picks every width, id@phone one width, and ! leaves 
   assert.deepEqual(selectStates(sampleMap(), ['KC-05@phone']).unknown, ['KC-05@phone']);
 });
 
-test('capture order: every width reads before any width writes, one context per width', () => {
+test('capture order: every width reads before any width writes, desktop writes before phone, one context per entry', () => {
   const m = phoneMap();
   m.states.push({ id: 'KC-06', screen: 'To check', name: 'Member', reach: { world: 'design', role: 'member', steps: [{ goto: '/dashboard/knowledge' }] } });
   const order = captureOrder(selectStates(m).items, m);
@@ -199,11 +199,16 @@ test('capture order: every width reads before any width writes, one context per 
     'design/member@desktop: KC-06',
     'design/member@phone: KC-06@phone',
     'design/admin@desktop: KC-05 KC-04',
-    'design/admin@phone: KC-05@phone KC-04@phone KC-20@phone KC-08@phone',
+    'design/admin@phone: KC-05@phone KC-04@phone KC-20@phone',
     'design/admin@desktop: KC-08',
+    'design/admin@phone: KC-08@phone',
   ]);
-  assert.deepEqual(order[3].writes, ['KC-08@phone']);
+  // A7: KC-08 writes at both widths, so desktop is shot first, then the world is re-seeded
+  // (reseedAfter) before the phone shot uses fresh data too; nothing after the last write needs it.
   assert.deepEqual(order[4].writes, ['KC-08']);
+  assert.equal(order[4].reseedAfter, true);
+  assert.deepEqual(order[5].writes, ['KC-08@phone']);
+  assert.equal(order[5].reseedAfter, undefined);
 });
 
 test('writing is judged by the steps of the width: reach.phone can save where the desktop does not', () => {
@@ -343,6 +348,23 @@ test('latestVerdicts and pictureReadiness key and count by item', async () => {
     const green = await pictureReadiness(r.paths);
     assert.equal(green.ok, true);
     assert.equal(green.detail, '4 item(s): 3 match, 1 small differences, every pictured item reached');
+  } finally { r.cleanup(); }
+});
+
+test('A1: a data-gap verdict blocks ready apart from a code defect, and never spends a fix round', async () => {
+  const r = tmpRun();
+  try {
+    r.round(1, { 'KC-05': 'data-gap', 'KC-04': 'match' });
+    const gap = await pictureReadiness(r.paths);
+    assert.equal(gap.ok, false);
+    assert.match(gap.detail, /1 state\(s\) have a data gap, not a code defect.*KC-05 \(round 1\)/);
+    // A data gap keeps ready red even once the fix-round allowance a real must-fix gets is spent:
+    // there is no allowance for it at all, because reseeding costs nothing like a build round does.
+    r.round(2, { 'KC-05': 'data-gap' });
+    r.round(3, { 'KC-05': 'data-gap' });
+    const stillRed = await pictureReadiness(r.paths);
+    assert.equal(stillRed.ok, false);
+    assert.match(stillRed.detail, /data gap/);
   } finally { r.cleanup(); }
 });
 

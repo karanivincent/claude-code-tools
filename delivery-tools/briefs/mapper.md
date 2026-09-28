@@ -98,6 +98,13 @@ don't write code.
 - `keep` (redesigns only): every feature of the old page, and where it lives on the new one. A
   feature with no home is a question for the founder, so put it in `keep` with `"how": "not in
   the design"` and say so in your reply.
+- `data` (optional, per state): what the picture needs to exist, so `delivery seed --check` can
+  say so before any shoot instead of a reviewer guessing why a list looks empty. A list of
+  `{ "table": "...", "where": { "column": "value" }, "min": 3 }` (min defaults to 1); add `"world"`
+  only when the state's data lives in a world other than the one that reaches it. For example, a
+  state that shows a table of scripts needs `"data": [ { "table": "call_scripts", "where": {
+  "category": "renewals" }, "min": 3 } ]` if the design shows three or more rows. Leave `data` off
+  a state whose reach world already has everything it needs by construction (most states).
 - Test worlds: one world per distinct data situation the states need (the design's own data, empty,
   a messy one, one per special case). Each world needs a world file in
   `docs/delivery/<feature>/worlds/<id>.json`. Write the missing ones in the shape of the existing

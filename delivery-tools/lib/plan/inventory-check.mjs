@@ -71,7 +71,7 @@ export function checkInventory({ inventory, candidates = null, intent = null, ba
     // arriving — a click-path with no steps — and it is referenced by its picture. Under the old
     // reading that state could never pass, for any design. Found on the first real run, 2026-09-21.
     const reachOk = (s.reach.kind === 'click-path' && (s.reach.steps ?? []).length)
-      || (s.reach.kind === 'prop' && s.reach.props && Object.keys(s.reach.props).length)
+      || ((s.reach.kind === 'prop' || s.reach.kind === 'preset') && s.reach.props && Object.keys(s.reach.props).length)
       || (s.reach.kind === 'unspecified' && s.reach.unspecified)
       || (s.shots ?? []).length > 0;
     if (!reachOk) fail('state-no-reference', `${where} has no design reference: click steps, prop values, a shot, or the kind of undrawn state`);

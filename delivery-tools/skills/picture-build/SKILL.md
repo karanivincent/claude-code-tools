@@ -32,20 +32,23 @@ must land first.
 
 | Step | Who | Command or brief | Output |
 |---|---|---|---|
+| 0 Rules | one rules agent | `<plugin>/briefs/rules.md`, then `delivery rules` | `rules.json`: every behaviour the briefs state, with its proof |
+| 0b Design-send | this session, `design-send` skill | only when a rule is `owed-design`: send that brief, or have the founder cut the rule | the design draws it, or `rules.json` records the cut |
 | 1 Pictures | this session | `design-inventory` steps 1 to 4 only (candidates, states, assemble, render); when the map declares the phone, `delivery design render --width phone` too | `.delivery/<f>/design/<ID>.png`, `<ID>@phone.png` |
-| 2 Map | one mapper agent | `<plugin>/briefs/mapper.md`, then `delivery map` | `map.json`, `checklist.md`, world files |
-| 2b Rules | one rules agent | `<plugin>/briefs/rules.md`, then `delivery rules` and `delivery map` | `rules.json`; each rule in the checklist under its states |
+| 2 Map | one mapper agent | `<plugin>/briefs/mapper.md`, then `delivery map` | `map.json`, `checklist.md`, world files; also fills in the states of any `picture`-proof rule that needed them (rerun `<plugin>/briefs/rules.md` if one is still missing its states) |
 | 3 Worlds | this session | `delivery seed --plan`, `--check`, `--apply` | fixture worlds on the test project |
-| 4 Build | one builder agent | `<plugin>/briefs/builder-picture.md` | commits on the run's branch |
+| 4 Build | one `delivery-tools:picture-builder` agent | before dispatch: `delivery rules` must exit 0 (a non-zero exit names an owed rule; go back to step 0b); then `<plugin>/briefs/builder-picture.md` | commits on the run's branch |
 | 5 Shoot | this session | dev server in the background, then `delivery shoot --base-url <url>` (every width the map declares) | `rounds/<n>/<ITEM>.live.png`, `<ITEM>.design.png`, `shoot.json` |
 | 6 Review | one reviewer per screen | `<plugin>/briefs/reviewer-picture.md` | `rounds/<n>/review-<screen>.md` |
 | 7 Compile | this session | `delivery review --round <n>` | `review.json`, `compare.html` |
 | 8 Fix | the same builder | the round's `review.json` | commits; then 5 to 7 again |
 | 9 Ship | this session | full CI chain, push, `delivery ci --pr <n>` | the preview, a sign-in link, the comparison page |
 
-`delivery status` prints where the run is and one NEXT line. Round 1 is the first build. At most
-two fix rounds follow. Whatever is still open after round 3 goes to the founder as a list, with
-the comparison page. It is not a red report.
+`delivery status` prints where the run is and one NEXT line. Rules run first, straight after
+intake, so a behaviour the briefs state but the design never drew is sent back before anything is
+built, not found by a builder mid-round. Round 1 is the first build. At most two fix rounds
+follow. Whatever is still open after round 3 goes to the founder as a list, with the comparison
+page. It is not a red report.
 
 ## Update runs
 
@@ -70,8 +73,11 @@ Feature: <slug>   Worktree: <absolute path of the run's worktree>
 <reviewer: Round: .delivery/<f>/rounds/<n>/   States: <ITEMS, e.g. KC-05 KC-05@phone>   Write: review-<screen-slug>.md>
 ```
 
-- The builder is one agent (model: opus), in the background: a first build takes about an hour.
-  Resume the same builder for each fix round (SendMessage), so it keeps what it learned.
+- The builder is one `delivery-tools:picture-builder` agent (model: opus), in the background: a
+  first build takes about an hour. Resume the same builder for each fix round (SendMessage), so it
+  keeps what it learned. Never dispatch it as `delivery-tools:delivery-builder` — that agent works
+  in a fresh worktree of its own, off the integration branch, which this run's dev server cannot
+  see; a builder dispatched that way can work for an hour with nothing to show for it.
 - Reviewers: one per screen, 15 to 20 items each, all in one message (model: sonnet). A screen
   with more items is split in two; keep a state's desktop and phone items with the same reviewer.
 - Never more than four agents at once.
@@ -98,9 +104,11 @@ Feature: <slug>   Worktree: <absolute path of the run's worktree>
    (the profile's `commands.devServer`, in the background), the full CI chain, and every push.
 8. **Every behaviour the briefs state has a proof.** The rules agent writes one rule per behaviour
    into `rules.json`: shown by a design state, proved by a test named `R<n>: ...`, or cut. A rule the
-   design never drew is `owed-design` and goes back to the design before the build. `delivery rules`
-   prints every gap, and `delivery ready` stays red while one is open. Never soften a rule's text
-   or switch its proof to get past it.
+   design never drew is `owed-design`: send it with the `design-send` skill (step 0b), or have the
+   founder cut it (proof `cut`, with a Scope line) — never dispatch the builder while `delivery
+   rules` still exits non-zero on an owed rule. `delivery rules` prints every gap and names the rule
+   ids, and `delivery ready` stays red while one is open. Never soften a rule's text or switch its
+   proof to get past it.
 9. **A page that scrolls sideways on a phone is always a must fix.** The shoot measures it and
    `delivery review` counts it, so it cannot be argued away as small.
 

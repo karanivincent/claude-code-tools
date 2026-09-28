@@ -9,11 +9,33 @@ import { featurePaths } from '../core/paths.mjs';
 import { listRounds, roundInfo } from './rounds.mjs';
 import { backToDesignItems } from './review.mjs';
 import { designFor, hasPhone, mapItems } from './widths.mjs';
-import { ruleFacts, rulesPath } from './rules.mjs';
+import { owedDesignRules, readRules, ruleFacts, rulesPath } from './rules.mjs';
 import { componentsMapPath, effectiveComponentsFor, findDesignSystemManifest, missingFromDesignSystem } from '../components/map.mjs';
 import { usedComponents } from '../components/check.mjs';
 import { readExportComponents } from '../design/components.mjs';
 import { parseEvent } from '../core/state.mjs';
+import { worldFilePath } from '../seed/plan.mjs';
+import { tablesWithoutGuard } from '../seed/data.mjs';
+
+/**
+ * A2: every table the map's worlds write (their world files, already on disk once the mapper
+ * finishes) that no guard in the safety file covers, so NEXT can ask the founder to approve them
+ * all together, right after the map, rather than one at a time as later seed --apply calls hit
+ * them. A world file not written yet contributes nothing (its own map problem is what NEXT reports).
+ * @param {import('../core/paths.mjs').FeaturePaths} paths
+ * @param {object} map
+ * @param {object} safety
+ * @returns {string[]}
+ */
+function worldsGuardsToApprove(paths, map, safety) {
+  const rows = [];
+  for (const w of map.worlds ?? []) {
+    let file;
+    try { file = JSON.parse(readFileSync(worldFilePath(paths, w.id), 'utf8')); } catch { continue; }
+    for (const r of file.rows ?? []) if (r?.table) rows.push({ table: r.table });
+  }
+  return tablesWithoutGuard(rows, safety);
+}
 
 /**
  * The run's real design snapshot, for effectiveComponents (I3: a page run's intake never calls
@@ -163,7 +185,11 @@ export async function pictureFacts(paths, opts = {}) {
   const latest = [...latestVerdicts(paths).values()];
   const count = (v) => latest.filter((s) => s.verdict === v).length;
   const desktopPictures = [...designed].filter((id) => !id.includes('@')).length;
-  const rules = map ? ruleFacts(paths, { stateIds: map.states.map((st) => st.id) }) : null;
+  // Rules run straight after intake (A3), so they are read whether or not map.json exists yet;
+  // known-state checking simply skips until the map does.
+  const rules = ruleFacts(paths, { stateIds: map ? map.states.map((st) => st.id) : undefined });
+  let owedDesign = [];
+  try { owedDesign = owedDesignRules(readRules(paths)); } catch { /* rules.error already reports a parse problem */ }
   let from = null;
   let journal = [];
   try {
@@ -220,6 +246,10 @@ export async function pictureFacts(paths, opts = {}) {
     rulesProblem: rules?.problems[0] ?? null,
     ruleProblemCount: rules?.problems.length ?? 0,
     ruleCounts: rules?.counts ?? null,
+    // Rules whose proof is still "owed-design": send-to-design blocks picture-build's first
+    // builder dispatch until each is either drawn (proof becomes picture/test) or cut by the
+    // founder (proof becomes cut, with a Scope line).
+    owedDesignRules: owedDesign.map((r) => r.id),
     seedStale: Boolean(map) && (!existsSync(paths.seedplan) || mtime(paths.seedplan) < Math.max(mtime(mapPath(paths)), newestWorld)),
     rounds,
     backToDesign: backToDesignItems(paths).length,
@@ -233,6 +263,10 @@ export async function pictureFacts(paths, opts = {}) {
     componentsMapRelPath: compPath ? relative(paths.repoRoot, compPath) : null,
     landedComponentsRun,
     designSyncMissing,
+    // A2: guards to approve, once, right after the map (opts.safety omitted: status still works
+    // without it, same convention as opts.profile above; then this is simply empty).
+    guardsToApprove: map && opts.safety ? worldsGuardsToApprove(paths, map, opts.safety) : [],
+    seedPlanWritten: existsSync(paths.seedplan),
   };
 }
 
@@ -248,9 +282,23 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   if (f.landedComponentsRun && f.designSyncMissing?.length) {
     return { step: 'design-sync', skill: null, text: `run /design-sync on the design-system project: it lacks ${f.designSyncMissing.join(', ')}` };
   }
+  // A3: the rules pass runs straight after intake, before pictures or the map, so a behaviour the
+  // briefs state but the design never drew is sent back before picture-build starts, not found by
+  // a builder mid-round.
+  if (f.rulesOwed) return { step: 'rules', skill, text: `dispatch the rules agent with briefs/rules.md to write rules.json from the briefs in intent/, then ${cli} rules` };
+  if (f.owedDesignRules?.length) {
+    return { step: 'design-send', skill: 'design-send', text: `${f.owedDesignRules.length} rule(s) are owed to the design (${f.owedDesignRules.join(', ')}): send the design brief with design-send before picture-build starts, or have the founder cut them (proof: cut, with a Scope line) in rules.json` };
+  }
   if (!f.designed) return { step: 'pictures', skill: 'design-inventory', text: `render the design's states: ${cli} design render` };
   if (!f.hasMap && !f.mapError) return { step: 'map', skill, text: 'dispatch the mapper agent with briefs/mapper.md to write map.json from the design pictures' };
   if (f.mapError) return { step: 'map', skill, text: `fix map.json (${f.problemCount || 1} problem(s); first: ${f.mapError}), then ${cli} map` };
+  // A2: surfaced once, right after the map, so the founder approves every guard together instead
+  // of one at a time as later seed --apply calls hit them; once a seed plan exists the ordinary
+  // "worlds" step (seedStale, below) carries the loop forward, and seed --plan reprints this list
+  // itself on every run.
+  if (f.guardsToApprove?.length && !f.seedPlanWritten) {
+    return { step: 'guards', skill, text: `${cli} seed --plan will ask you to approve a guard for ${f.guardsToApprove.join(', ')} in the safety file before any world is seeded; review it now` };
+  }
   if (f.pageBlockedComponents?.length) {
     // A components run already exists once (the product-wide components.json is proof of that):
     // "components" is a taken feature slug, so reaching it again needs --from (fix round, I12).
@@ -258,13 +306,12 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
     return { step: 'components', skill, text: `run the components run first: ${intakeCmd} (used component(s) not built: ${f.pageBlockedComponents.join(', ')})` };
   }
   if (f.phoneRenderOwed) return { step: 'pictures', skill: 'design-inventory', text: `render the design at phone width (the map checks the phone): ${cli} design render --width phone, then ${cli} map` };
-  if (f.rulesOwed) return { step: 'rules', skill, text: `dispatch the rules agent with briefs/rules.md to write rules.json from the briefs in intent/, then ${cli} rules and ${cli} map` };
   if (f.rulesProblem) return { step: 'rules', skill, text: `fix rules.json (${f.ruleProblemCount} problem(s); first: ${f.rulesProblem}), then ${cli} rules and ${cli} map` };
   if (f.checklistStale) return { step: 'map', skill, text: `${cli} map (the checklist is older than map.json)` };
   if (f.seedStale) return { step: 'worlds', skill, text: `${cli} seed --plan, then --check, then --apply (the seed plan is older than the map or a world file)` };
   const last = f.rounds[f.rounds.length - 1];
   if (!last && f.update) return { step: 'shoot', skill, text: `update run from ${f.update}: picture the page as it is before building. Start the dev server, then ${cli} shoot --base-url <url> (round 1); the reviewers list what the new design changed, and the builder fixes only that` };
-  if (!last) return { step: 'build', skill, text: `dispatch the builder with briefs/builder-picture.md; when it reports, start the dev server and run ${cli} shoot --base-url <url> (round 1)` };
+  if (!last) return { step: 'build', skill, text: `dispatch delivery-tools:picture-builder (opus, no worktree) with briefs/builder-picture.md; when it reports, start the dev server and run ${cli} shoot --base-url <url> (round 1)` };
   if (!last.shot) return { step: 'shoot', skill, text: `${cli} shoot --base-url <url> --round ${last.round}` };
   if (!last.reviews) return { step: 'review', skill, text: `dispatch the reviewers (briefs/reviewer-picture.md), one per screen, into round ${last.round}` };
   if (!last.compiled) return { step: 'review', skill, text: `${cli} review --round ${last.round}` };

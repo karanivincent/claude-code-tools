@@ -78,7 +78,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### delivery-tools `v0.9.2`
+### delivery-tools `v0.10.0`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -104,7 +104,15 @@ worktree's feature and overwrites its snapshot; the components world it seeds ca
 email, `kind` and `orgName` (copying an organisation-row template from a sibling run's world file
 when the repo has one) instead of a world `seed --check` refused and `seed --plan` crashed on; and
 the mapper brief greps file names, not only contents, before filling `replaces`. Since 0.9.2, `ready`
-no longer counts the design snapshot's own files as redrawn components. An export
+no longer counts the design snapshot's own files as redrawn components. Since 0.10.0 a run
+finds its slow parts before they cost a round: each map state lists the data its picture needs and
+`seed --check` names a state whose world lacks it (reviews label those "data gap", not "to fix");
+`seed --plan` lists every seed guard to approve at the start and refuses a value the database's
+CHECK or enum rules would reject; the rules pass runs straight after intake and the builder waits
+while a rule is owed to the design; picture mode names its own `picture-builder` agent; `design
+render` refuses two states with the same picture and applies presets as a `set`; `shoot` crops
+components with the element itself, re-seeds between the desktop and phone shot of a state that
+changes data, and takes a machine-wide slot (`delivery slot`), at most two at a time. An export
 holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run
@@ -115,11 +123,12 @@ and keep it current is in [`delivery-tools/docs/OPERATING.md`](delivery-tools/do
 | Agent | Description |
 |-------|-------------|
 | `delivery-extractor` | Reads a design export or a Scope reply and writes one part file. Runs nothing, opens no browser, and takes every word from a render rather than from the design's source |
+| `picture-builder` | Picture mode: the one builder, on opus, in the run's own worktree so the dev server serves its changes; commits its own work |
 | `delivery-builder` | Full mode: builds one unit of the coverage plan in its own worktree and reports back |
 | `delivery-auditor` | Full mode: judges captured screens against the design and writes findings |
 
-Picture mode's mapper, builder and reviewers are general agents given one brief each:
-`briefs/mapper.md`, `briefs/builder-picture.md` and `briefs/reviewer-picture.md`; a components run's
+Picture mode's mapper and reviewers are general agents given one brief each (the builder is
+`picture-builder`, given `briefs/builder-picture.md`): `briefs/mapper.md` and `briefs/reviewer-picture.md`; a components run's
 mapper uses `briefs/components-mapper.md`.
 
 **Skills:**
@@ -134,7 +143,7 @@ mapper uses `briefs/components-mapper.md`.
 | `epic-build` | Full mode: parallel builders, wave by wave, into one integration branch |
 | `design-audit` | Full mode: graded captures with severity floors |
 
-**CLI:** `delivery <command>`, 48 commands. Picture mode uses `map` (check the button map and
+**CLI:** `delivery <command>`, 49 commands. Picture mode uses `map` (check the button map and
 write the checklist; `--from-plan` converts a full-mode run), `seed` (`--refresh all` resets every
 world), `shoot` (full-height pictures of the page area next to the cropped design, at desktop and phone
 widths, a button check, a sideways-scroll check on the phone, data-changing states last), `review` (the reviewers' notes into `review.json` and a comparison

@@ -104,6 +104,7 @@ request in its report and works around it locally.
 | `tests/fixtures/capture/**` | C |
 | `lib/commands/map.mjs` | C |
 | `lib/commands/shoot.mjs` | C |
+| `lib/commands/slot.mjs` | C |
 | `lib/commands/review.mjs` | C |
 | `lib/commands/sign-in.mjs` | C |
 | `lib/commands/rules.mjs` | C |
@@ -161,7 +162,9 @@ lib/checks/                   B1  index (registry, runChecks), severity, one mod
 lib/gate/                     B1  unit (unitGateStatus, the unit gate)
 lib/baseline/                 B2  extract, diff (M2), refresh
 lib/sidefx/                   B2  derive
-lib/seed/                     B2  safety (M13), scan, plan, apply
+lib/seed/                     B2  safety (M13), scan, plan, apply; data.mjs (A1, A2): stateDataGaps,
+                                   describeWhere, tablesWithoutGuard, columnAllowList,
+                                   columnConstraintViolations, parseCheckConstraint
 adapters/data/supabase.mjs    B2  createDataAdapter
 adapters/design/              C   index (getDesignAdapter), claude-design, image-folder
 lib/design/                   C   candidates, render (also records <ID>.components.json), static
@@ -174,7 +177,7 @@ lib/components/               C   map.mjs: componentsMapPath, readComponentsMap,
                                    check.mjs: usedComponents, componentProblems (the `ready`
                                    components check, rules 1-4); states.mjs: componentStates,
                                    galleryStates, componentsInventory (a components run's states)
-lib/capture/                  C   run, validate, spot, served-sha, job file
+lib/capture/                  C   run, validate, spot, served-sha, job file, slots (the machine-wide slot file)
 lib/report/                   C   report (tldr), punch list
 lib/brief/                    C   brief.mjs: nextBriefPath, fillTemplate, briefProblems, packBrief,
                                    recordSent (intent/briefs/sent.json)
@@ -417,6 +420,8 @@ signature; if it must change, say so under "Requests for other slices" in your r
 | `refreshWorld` | `lib/seed/scan.mjs` | B2 | `(ctx, worldId) => Promise<GateResult>` | capture (C) |
 | `teardownRows` | `lib/seed/scan.mjs` | B2 | `(ctx, rows: { table, id }[]) => Promise<GateResult>` | capture (C) |
 | `seedCheckGate` | `lib/seed/safety.mjs` | B2 | `(ctx, { seedPlan? }) => Promise<GateResult>` | check M13 (B1), preflight P6 (A2) |
+| `worldFilePath` | `lib/seed/plan.mjs` | B2 | `(paths, worldId) => string` | picture next (C) |
+| `tablesWithoutGuard` | `lib/seed/data.mjs` | B2 | `(rows, safety) => string[]` | picture next (C) |
 | `deriveSideEffects` | `lib/sidefx/derive.mjs` | B2 | `(ctx) => Promise<SideEffects>` | preflight P6 (A2) |
 | `createDataAdapter` | `adapters/data/supabase.mjs` | B2 | `(ctx, { projectRef? }) => Promise<DataAdapter>` | preflight P3, P4, P13 (A2) |
 | `runCapture` | `lib/capture/run.mjs` | C | `(ctx, { mode, states?, unit?, baseUrl?, sha? }) => Promise<{ runId, capture, notReached }>` | gate (B1) |
