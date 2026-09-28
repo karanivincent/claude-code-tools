@@ -286,6 +286,45 @@ export async function runShoot(o) {
   return report;
 }
 
+/** How long the network must stay quiet before a reach step counts as settled, and the most a step waits. */
+export const SETTLE_QUIET_MS = 500;
+export const SETTLE_CAP_MS = 10000;
+const STREAMING = new Set(['eventsource', 'websocket']);
+
+/**
+ * Count the page's requests in flight. waitForLoadState('networkidle') is a load state: once a page
+ * has been idle it resolves at once, so a click that POSTs was pictured about a second later with
+ * its dialog still pending. This counts the requests each step itself starts.
+ * @param {any} page a Playwright page (or a fake with on())
+ */
+export function trackRequests(page) {
+  const inflight = new Set();
+  if (typeof page?.on !== 'function') return { get count() { return 0; } };
+  // A stream never finishes; counting it would hold every step to the cap.
+  page.on('request', (r) => { if (!STREAMING.has(r.resourceType?.())) inflight.add(r); });
+  page.on('requestfinished', (r) => inflight.delete(r));
+  page.on('requestfailed', (r) => inflight.delete(r));
+  return { get count() { return inflight.size; } };
+}
+
+/**
+ * Wait until no request has been in flight for quietMs, or capMs has passed. Resolves true when
+ * the network went quiet, false when the cap cut it short.
+ */
+export async function waitForQuiet(tracker, { quietMs = SETTLE_QUIET_MS, capMs = SETTLE_CAP_MS, now = () => Date.now(), sleep = (ms) => new Promise((r) => setTimeout(r, ms)) } = {}) {
+  const start = now();
+  let quietSince = tracker.count === 0 ? start : null;
+  for (;;) {
+    const t = now();
+    if (tracker.count === 0) {
+      quietSince ??= t;
+      if (t - quietSince >= quietMs) return true;
+    } else quietSince = null;
+    if (t - start >= capMs) return false;
+    await sleep(50);
+  }
+}
+
 async function shootItem(page, it, o, liveFacts = new Map()) {
   const s = it.state;
   const size = WIDTHS[it.width];
@@ -300,6 +339,7 @@ async function shootItem(page, it, o, liveFacts = new Map()) {
       : route.continue()));
   }
   await page.setViewportSize({ width: size.width, height: size.height });
+  const net = page._deliveryRequests ??= trackRequests(page);
   try {
     for (const step of reachSteps(s, it.width)) {
       if (step.goto) await page.goto(new URL(step.goto, o.baseUrl).toString(), { waitUntil: 'networkidle' });
@@ -314,6 +354,9 @@ async function shootItem(page, it, o, liveFacts = new Map()) {
         if ((await g.getAttribute('aria-expanded', { timeout: 8000 })) === 'false') await g.click();
       }
       await page.waitForTimeout(400);
+      // A click that saves starts a request; picture what the page does once it answers.
+      // A page that polls may never go quiet; the cap then just ends the wait.
+      await waitForQuiet(net);
     }
   } catch (err) {
     rec.reached = false;
