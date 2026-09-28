@@ -8,7 +8,16 @@ import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { reachSteps, writesData } from './map.mjs';
+import { withSlot, slotsFile } from '../capture/slots.mjs';
 import { WIDTHS, cropFor, designFileCandidates, mapItems, overflowProblem, roundFiles } from './widths.mjs';
+
+/**
+ * Run a shoot inside a slot of the machine-wide slot file (A8): waits for a free one, and
+ * releases it whatever the shoot does, an error included.
+ */
+export function withShootSlot(ctx, fn) {
+  return withSlot({ file: slotsFile(ctx.env), label: `shoot ${ctx.feature ?? ''}`.trim(), onWait: (m) => ctx.out.line(m) }, fn);
+}
 
 export const SAFE_TO_CLICK = new Set(['none', 'free']);
 const MAX_HEIGHT = 8000;
