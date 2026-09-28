@@ -78,7 +78,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### delivery-tools `v0.10.0`
+### delivery-tools `v0.11.0`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -112,7 +112,13 @@ CHECK or enum rules would reject; the rules pass runs straight after intake and 
 while a rule is owed to the design; picture mode names its own `picture-builder` agent; `design
 render` refuses two states with the same picture and applies presets as a `set`; `shoot` crops
 components with the element itself, re-seeds between the desktop and phone shot of a state that
-changes data, and takes a machine-wide slot (`delivery slot`), at most two at a time. An export
+changes data, and takes a machine-wide slot (`delivery slot`), at most two at a time. Since 0.11.0
+`delivery prepush` fails before the first push on a removed test id or text the base branch's plans
+or e2e specs name, an organisation-scoped table missing from the profile's retirement and erasure
+lists, a branch behind its base, or an unbuilt component; and `review --plan` writes the reviewer
+batches itself (20 items, desktop and phone together, four at once, the run's `steers.md` appended),
+carries forward any item whose pictures did not change, and matches without a reviewer only when
+text, test ids and buttons agree exactly and under 0.5% of pixels differ. An export
 holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run
@@ -143,7 +149,7 @@ mapper uses `briefs/components-mapper.md`.
 | `epic-build` | Full mode: parallel builders, wave by wave, into one integration branch |
 | `design-audit` | Full mode: graded captures with severity floors |
 
-**CLI:** `delivery <command>`, 49 commands. Picture mode uses `map` (check the button map and
+**CLI:** `delivery <command>`, 50 commands. Picture mode uses `map` (check the button map and
 write the checklist; `--from-plan` converts a full-mode run), `seed` (`--refresh all` resets every
 world), `shoot` (full-height pictures of the page area next to the cropped design, at desktop and phone
 widths, a button check, a sideways-scroll check on the phone, data-changing states last), `review` (the reviewers' notes into `review.json` and a comparison
