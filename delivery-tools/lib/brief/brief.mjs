@@ -6,9 +6,9 @@
 // recordSent (appends to the sent record on disk).
 
 import { existsSync, readdirSync } from 'node:fs';
-import { readFile, copyFile } from 'node:fs/promises';
+import { readFile, copyFile, rm } from 'node:fs/promises';
 import { basename, join } from 'node:path';
-import { writeFileAtomic, readJson, writeJsonAtomic, withLock } from '../core/fs.mjs';
+import { writeFileAtomic, readJson, writeJsonAtomic, withLock, ensureDir } from '../core/fs.mjs';
 import { DeliveryError, EXIT } from '../core/exit.mjs';
 import { sha256File } from '../core/hash.mjs';
 import { componentsMapPath, readComponentsMap } from '../components/map.mjs';
@@ -235,6 +235,11 @@ export async function packBrief(briefPath, images, outDir, opts = {}) {
     });
   }
 
+  // Clear the pack folder first (fix round, M2): otherwise a stale image from an earlier pack
+  // (one the new call no longer lists) stays behind and still goes out with this brief.
+  await rm(outDir, { recursive: true, force: true });
+  await ensureDir(outDir);
+
   const files = ['00-brief.md'];
   await writeFileAtomic(join(outDir, '00-brief.md'), text);
   for (const [i, img] of images.entries()) {
@@ -254,13 +259,19 @@ export async function packBrief(briefPath, images, outDir, opts = {}) {
  * @param {{ file: string, chat: string, at?: string }} o  at: ISO timestamp; defaults to now
  * @returns {Promise<void>}
  */
-export async function recordSent(intentDir, { file, chat, at = new Date().toISOString() }) {
+/**
+ * @param {string} intentDir
+ * @param {{ file: string, recordAs?: string, chat: string, at?: string }} o
+ *   file: the real path, hashed from disk; recordAs: what to store in sent.json (fix round, M3:
+ *   the caller passes a repo-relative path here instead of the absolute one `file` may be)
+ */
+export async function recordSent(intentDir, { file, recordAs = file, chat, at = new Date().toISOString() }) {
   const sentPath = join(intentDir, 'briefs', 'sent.json');
   const digest = await sha256File(file);
   return withLock(`${sentPath}.lock`, async () => {
     const existing = await readJson(sentPath, { optional: true });
     const sent = existing?.sent ?? [];
-    sent.push({ file, chat, at, sha256: digest });
+    sent.push({ file: recordAs, chat, at, sha256: digest });
     await writeJsonAtomic(sentPath, { sent });
   });
 }

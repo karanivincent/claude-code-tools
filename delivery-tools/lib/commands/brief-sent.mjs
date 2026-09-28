@@ -2,11 +2,12 @@
 // plan task 7). Refuses the same problems `delivery brief check` would.
 
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { basename, resolve } from 'node:path';
 import { defineCommand } from '../core/command.mjs';
 import { parseCommandArgs } from '../core/args.mjs';
 import { EXIT, UsageError } from '../core/exit.mjs';
 import { briefProblems, briefComponents, recordSent } from '../brief/brief.mjs';
+import { repoRel } from '../lifecycle/run-info.mjs';
 
 export default defineCommand({
   name: 'brief sent',
@@ -42,7 +43,9 @@ common options:
       await ctx.journal({ command: 'brief sent', exit: EXIT.RED, counts: { problems: 1 } });
       return EXIT.RED;
     }
-    const problems = briefProblems(text, { forbiddenNames, componentNames, requireBehaviours: true });
+    // The file's own name is checked too (fix round, M3), same as "brief check" already does: a
+    // forbidden name can leak through a file name nobody read as text.
+    const problems = briefProblems(text, { forbiddenNames, componentNames, fileNames: [basename(file)], requireBehaviours: true });
     if (problems.length) {
       for (const p of problems) ctx.out.fail('brief', p);
       ctx.out.set('problems', problems.length);
@@ -50,11 +53,14 @@ common options:
       return EXIT.RED;
     }
 
-    await recordSent(paths.intentDir, { file, chat: values.chat, at: ctx.clock.now().toISOString() });
-    ctx.out.line(`recorded ${file} sent to ${values.chat}`);
-    ctx.out.set('file', file);
+    // Recorded relative to the repo root (fix round, M3): an absolute path leaks this machine's
+    // own layout into a file the run commits, and is meaningless to read back on another one.
+    const recordAs = repoRel(ctx.repoRoot, file);
+    await recordSent(paths.intentDir, { file, recordAs, chat: values.chat, at: ctx.clock.now().toISOString() });
+    ctx.out.line(`recorded ${recordAs} sent to ${values.chat}`);
+    ctx.out.set('file', recordAs);
     ctx.out.set('chat', values.chat);
-    await ctx.journal({ command: 'brief sent', exit: EXIT.PASS, outputs: [file] });
+    await ctx.journal({ command: 'brief sent', exit: EXIT.PASS, outputs: [recordAs] });
     return EXIT.PASS;
   },
 });

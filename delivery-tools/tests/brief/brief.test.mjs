@@ -4,7 +4,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -227,6 +227,29 @@ test('packBrief: copies the brief as 00-brief.md and images as NN-<basename>, in
     assert.equal(readFileSync(join(t.dir, 'pack/00-brief.md'), 'utf8'), okBrief());
     assert.ok(existsSync(join(t.dir, 'pack/01-list.png')));
     assert.ok(existsSync(join(t.dir, 'pack/02-dialog.png')));
+  } finally { t.cleanup(); }
+});
+
+// Fix round (M2): a pack folder from an earlier, larger send used to keep its extra images —
+// packBrief only ever added files, never removed ones the new call no longer lists.
+test('packBrief clears the pack folder first: a stale image from an earlier pack does not survive', async () => {
+  const t = makeTempDir();
+  try {
+    write(t.dir, 'briefs/01-widgets.md', okBrief());
+    write(t.dir, 'shots/list.png', 'a');
+    write(t.dir, 'shots/dialog.png', 'b');
+    await packBrief(
+      join(t.dir, 'briefs/01-widgets.md'),
+      [join(t.dir, 'shots/list.png'), join(t.dir, 'shots/dialog.png')],
+      join(t.dir, 'pack'),
+    );
+    assert.ok(existsSync(join(t.dir, 'pack/02-dialog.png')));
+
+    // The next pack has only one image; the earlier dialog shot must not still be there.
+    const res = await packBrief(join(t.dir, 'briefs/01-widgets.md'), [join(t.dir, 'shots/list.png')], join(t.dir, 'pack'));
+    assert.deepEqual(res.files, ['00-brief.md', '01-list.png']);
+    assert.equal(existsSync(join(t.dir, 'pack/02-dialog.png')), false);
+    assert.deepEqual(readdirSync(join(t.dir, 'pack')).sort(), ['00-brief.md', '01-list.png']);
   } finally { t.cleanup(); }
 });
 

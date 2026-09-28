@@ -119,8 +119,24 @@ test('brief sent: records the send and exits 0', async () => {
     const record = JSON.parse(readFileSync(sentPath, 'utf8'));
     assert.equal(record.sent.length, 1);
     assert.equal(record.sent[0].chat, 'https://claude.ai/chat/abc');
-    assert.equal(record.sent[0].file, join(t.dir, 'brief.md'));
-    assert.match(stdout.text(), /recorded .*brief\.md.*sent to https:\/\/claude\.ai\/chat\/abc/);
+    // Fix round (M3): recorded relative to the repo root, never the machine's own absolute path.
+    assert.equal(record.sent[0].file, 'brief.md');
+    assert.match(stdout.text(), /recorded brief\.md sent to https:\/\/claude\.ai\/chat\/abc/);
+  } finally { t.cleanup(); }
+});
+
+// Fix round (M3): brief check already runs the forbidden-name check on the file's own name; sent
+// used to skip it, so a file whose only offence was its name went through unnoticed.
+test('brief sent: refuses a forbidden name in the file\'s own name', async () => {
+  const t = makeTempDir();
+  try {
+    write(t.dir, 'spectrum-corp-brief.md', okBrief());
+    const profile = makeProfile({ design: { forbiddenNames: ['Spectrum Corp'] } });
+    const { ctx, stdout } = await makeTestCtx({ repoRoot: t.dir, feature: 'widgets', profile });
+    const code = await sentCommand.run(ctx, [join(t.dir, 'spectrum-corp-brief.md'), '--chat', 'https://claude.ai/chat/abc']);
+    assert.equal(code, 1);
+    assert.match(stdout.text(), /Spectrum Corp/);
+    assert.equal(existsSync(join(t.dir, 'docs/delivery/widgets/intent/briefs/sent.json')), false);
   } finally { t.cleanup(); }
 });
 

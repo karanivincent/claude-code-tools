@@ -27,11 +27,23 @@ function attrValue(raw) {
   return q ? { literal: q[2] } : { expr: e };
 }
 
+/**
+ * A component file's declared props and preview size, from its `data-props` attribute.
+ * @param {string} html
+ * @returns {{ props: object, preview: {width:number,height:number|null}|null, error?: string }}
+ *   error: `data-props` is present but not valid JSON (fix round, M1) — props and preview are
+ *   empty/null rather than throwing, so one malformed component never crashes an intake.
+ */
 export function declaredProps(html) {
   const tag = /<script\b[^>]*\bdata-dc-script\b[^>]*>/i.exec(html);
   const attr = tag && /\bdata-props\s*=\s*"([^"]*)"/i.exec(tag[0]);
   if (!attr) return { props: {}, preview: null };
-  const meta = JSON.parse(htmlUnescape(attr[1]));
+  let meta;
+  try {
+    meta = JSON.parse(htmlUnescape(attr[1]));
+  } catch (err) {
+    return { props: {}, preview: null, error: err.message };
+  }
   const props = {};
   for (const [k, v] of Object.entries(meta)) {
     if (!k.startsWith('$')) props[k] = { tsType: v?.tsType ?? null, default: v?.default ?? null };
@@ -64,7 +76,8 @@ export function readDesignComponents(files) {
   const components = [...sites.keys()].sort().map((name) => {
     const file = `${name}.dc.html`;
     const html = byFile.get(file);
-    const { props, preview } = declaredProps(html);
+    const { props, preview, error } = declaredProps(html);
+    if (error) errors.push(`${file}: data-props is not valid JSON: ${error}`);
     return { name, file, hash: sha256Text(html), props, preview, events: Object.keys(props).filter((k) => /^on[A-Z]/.test(k)).sort(), sites: sites.get(name), uses: [] };
   });
   for (const c of components) {

@@ -52,3 +52,27 @@ test('build order is leaves first, and a cycle throws', async () => {
 test('a file without data-props declares nothing', () => {
   assert.deepEqual(declaredProps('<x-dc></x-dc>'), { props: {}, preview: null });
 });
+
+// Fix round (M1): a malformed data-props attribute used to throw out of JSON.parse, crashing
+// whatever called readDesignComponents (every intake, once a profile has a components block).
+test('declaredProps reports malformed JSON in data-props instead of throwing', () => {
+  const html = '<script data-dc-script data-props="{not valid json">less</script>';
+  const result = declaredProps(html);
+  assert.deepEqual(result.props, {});
+  assert.equal(result.preview, null);
+  assert.match(result.error, /JSON/i);
+});
+
+test('readDesignComponents reports a malformed data-props as an error line naming the file, and still returns the other components', () => {
+  const good = '<x-dc><div>{{ label }}</div></x-dc>';
+  const bad = '<script data-dc-script data-props="{not valid json">less</script>';
+  const { components, errors } = readDesignComponents([
+    { file: 'Main.dc.html', html: '<x-dc>\n<dc-import name="Good"></dc-import>\n<dc-import name="Bad"></dc-import>\n</x-dc>' },
+    { file: 'Good.dc.html', html: good },
+    { file: 'Bad.dc.html', html: bad },
+  ]);
+  assert.deepEqual(components.map((c) => c.name), ['Bad', 'Good']);
+  const badComponent = components.find((c) => c.name === 'Bad');
+  assert.deepEqual(badComponent.props, {});
+  assert.ok(errors.some((e) => e.startsWith('Bad.dc.html: data-props is not valid JSON')), errors.join('\n'));
+});
