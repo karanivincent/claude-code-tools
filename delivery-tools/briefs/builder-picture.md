@@ -39,6 +39,10 @@ itself, not a product page:
   in `docs/delivery/<feature>/gallery-states.json`. Wrap each state in
   `<div data-delivery-state="<id>">…</div>` at that route — `delivery shoot` crops to that element,
   so a state drawn outside its own wrapper, or two states sharing one, cannot be pictured.
+- An open popover, dropdown or tooltip renders inline, inside its own `[data-delivery-state]`
+  wrapper: give a Radix `Portal` a `container` pointed at the wrapper, or drop the portal
+  altogether on the gallery page. A default `Portal` renders to `document.body`, outside every
+  state's wrapper, so the crop never captures what a state opens.
 - Compose each component from its `builtOn` base parts (Popover, Calendar, Table, …); never
   re-wrap the underlying library yourself.
 - For every file the map's `replaces` lists, switch its callers to the new target and delete the

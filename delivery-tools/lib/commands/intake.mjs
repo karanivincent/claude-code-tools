@@ -30,11 +30,14 @@ into its own folder (never over a file it already has), and its first round pict
 already is, before any building, so the reviewers list only what the new design changed.
 
 A components run (--components, components-first spec §3) builds every component the design names
-once, so pages import it instead of drawing their own: feature slug "components" (or --from
-components for a later export), no --intent needed. It writes docs/delivery/components.json (the
-product-wide component map), then this run's inventory.json, gallery-states.json and map.json
-(kind "components", one state per component state, both widths) for every design entry whose
-status is new or stale. Refused (exit 1) when a design entry has no target yet: NEXT names the
+once, so pages import it instead of drawing their own: feature slug "components" for the very first
+one, ever; once that slug is taken (a components run has happened before, whether or not it has
+landed), a later one needs --from components <export>, which gets its own dated slug
+("components-<YYYYMMDD>", from the clock) since --from may not name the run it is starting. No
+--intent needed either way. It writes docs/delivery/components.json (the product-wide component
+map), then this run's inventory.json, gallery-states.json and map.json (kind "components", one
+state per component state, both widths) for every design entry whose status is new or stale.
+Refused (exit 1) when a design entry has no target yet: NEXT names the
 mapper (briefs/components-mapper.md), which must run first. Every intake, of any kind, checks the
 export's components against components.json and reports drift; only a components run persists it.
 

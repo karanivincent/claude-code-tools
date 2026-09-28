@@ -260,6 +260,58 @@ test('--components: refuses while a design entry has no target (NEXT names the m
   } finally { repo.cleanup(); }
 });
 
+// Fix round (I12): a later components export used to be refused outright — --from components
+// defaulted its own feature to "components" too (a components run's own default), which is exactly
+// what --from names, so the "an update run needs a new feature slug" check always fired.
+test('--components --from components gets its own dated feature slug, once "components" is already taken', async () => {
+  const repo = await makeRunRepo({ run: false });
+  try {
+    const zip = join(repo.root, 'components-export.zip');
+    componentsExportZip(zip);
+    const profile = makeProfile({ components: { map: 'docs/delivery/components.json', galleryRoute: '/admin/design/components' } });
+    const { ctx } = await ctxFor(repo.primary, { feature: null, profile }); // clock frozen at 2026-01-15
+
+    const first = await runIntake(ctx, { source: zip, components: true });
+    assert.equal(first.feature, 'components');
+    const mapFile = join(first.worktree, 'docs/delivery/components.json');
+    const written = JSON.parse(readFileSync(mapFile, 'utf8'));
+    written.components.find((c) => c.name === 'Picker').target = 'src/ui/picker.tsx';
+    writeFileSync(mapFile, `${JSON.stringify(written, null, 2)}\n`);
+    const second = await runIntake(ctx, { source: zip, components: true });
+    assert.equal(second.exit, 0, JSON.stringify(second.failures));
+
+    // --from reads the earlier run's files from the base branch, same as any other update run: the
+    // "components" run has to actually land before a later export can carry it over. Simulate that
+    // by merging its branch into main and pushing, the way `delivery land` would.
+    const branch = repo.git('-C', first.worktree, 'rev-parse', '--abbrev-ref', 'HEAD');
+    repo.git('checkout', 'main');
+    repo.git('merge', '--no-ff', '-m', 'merge components', branch);
+    repo.git('push', 'origin', 'main');
+
+    // A later export, explicitly continuing "components": no --feature given, so it would collide
+    // with --from's own name under the old default. It must not be refused, and must land on a
+    // fresh, dated feature slug distinct from "components".
+    const third = await runIntake(ctx, { source: zip, components: true, from: 'components' });
+    assert.equal(third.exit, 0, JSON.stringify(third.failures));
+    assert.equal(third.feature, 'components-20260115');
+    assert.notEqual(third.worktree, first.worktree);
+  } finally { repo.cleanup(); }
+});
+
+// A components run that has never happened yet still gets the plain "components" slug — the dated
+// form only kicks in once that slug is already taken (--from given, or a prior run exists).
+test('the first ever components run still gets the plain "components" feature slug', async () => {
+  const repo = await makeRunRepo({ run: false });
+  try {
+    const zip = join(repo.root, 'components-export.zip');
+    componentsExportZip(zip);
+    const profile = makeProfile({ components: { map: 'docs/delivery/components.json', galleryRoute: '/admin/design/components' } });
+    const { ctx } = await ctxFor(repo.primary, { feature: null, profile });
+    const first = await runIntake(ctx, { source: zip, components: true });
+    assert.equal(first.feature, 'components');
+  } finally { repo.cleanup(); }
+});
+
 test('--components refuses when profile.components is not configured', async () => {
   const repo = await makeRunRepo({ run: false });
   try {

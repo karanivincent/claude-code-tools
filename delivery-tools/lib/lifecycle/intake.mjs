@@ -212,9 +212,12 @@ export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic 
     if (!found.ok) throw new UsageError(`not a recognised ${adapter.name} export: ${found.reason ?? 'unknown layout'}${adapter.name === 'claude-design' ? ' (for a folder of images pass --adapter image-folder)' : ''}`);
     const project = found.project || basename(abs).replace(/\.zip$/i, '');
     // --feature, else the run of the worktree this runs in, else "components" (a components run
-    // shares one feature slug so a later export goes through --from components), else the
-    // project's name as a slug.
-    const feature = assertFeatureSlug(ctx.flags.feature ?? ctx.feature ?? (components ? 'components' : slugify(project)));
+    // shares one feature slug so a later export can update it by name) — except an update run
+    // (--from) cannot itself default to the very slug it names, so --from on a components run gets
+    // its own dated slug instead (fix round, I12): components.json and the run's other files are
+    // still carried over by --from, same as any other update run.
+    const defaultComponentsFeature = (components && from) ? `components-${isoDate(ctx.clock).replace(/-/g, '')}` : 'components';
+    const feature = assertFeatureSlug(ctx.flags.feature ?? ctx.feature ?? (components ? defaultComponentsFeature : slugify(project)));
 
     // The run, if this feature already has one in some worktree.
     const existingRun = (await discoverRuns(ctx.git, { runRoot: profile.paths.runRoot })).find((r) => r.feature === feature) ?? null;

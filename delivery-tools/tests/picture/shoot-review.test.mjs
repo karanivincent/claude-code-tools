@@ -253,6 +253,12 @@ test('picture NEXT: components-first branches (page blocked, components run unbu
   assert.match(blocked.text, /run the components run first/);
   assert.match(blocked.text, /intake --components/);
   assert.match(blocked.text, /Picker/);
+  assert.doesNotMatch(blocked.text, /--from components/, 'no components run has ever happened yet');
+
+  // Fix round (I12): once a components run exists at all (componentsMapPath's file is proof),
+  // "components" is a taken feature slug, so the fix names --from components instead.
+  const blockedAgain = next(facts({ phoneRenderOwed: true, pageBlockedComponents: ['Picker'], componentsRunExists: true }));
+  assert.match(blockedAgain.text, /intake --components --from components <export>/);
 
   // A components run whose gallery still has an unmarked component is stopped before land/ship,
   // even once every round is clean.

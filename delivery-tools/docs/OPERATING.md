@@ -105,7 +105,10 @@ has (`kind: "base"`). A project enables it with a `components` block in its prof
    `kind: "design"` entry (name, hash, `uses`, `status`), and writes a components run: its own
    `inventory.json`, `gallery-states.json` and `map.json` (`"kind": "components"`), one state per
    component state, at both widths. Refused when a design entry has no `target` yet — the mapper
-   must run first.
+   must run first. Feature slug: `components` the very first time, ever; once that slug is taken (a
+   components run has happened before, landed or not), a later export needs `--from components`
+   too, which gets a dated slug of its own (`components-<YYYYMMDD>`, from the clock) — `--from`
+   cannot name the run it is starting.
 3. Dispatch the mapper agent with `briefs/components-mapper.md`. It fills each entry's `target`,
    `props`, `builtOn`, `owns` and `replaces`; `delivery components` checks the result.
 4. The components run then follows the same picture loop as any other run (`picture-build`): one
@@ -118,7 +121,9 @@ has (`kind: "base"`). A project enables it with a `components` block in its prof
    PR changes.
 6. A page run's `ready` reads which components its screens show from the design render's
    `<ID>.components.json` record and refuses to land while one of them is unbuilt; `picture-build`'s
-   NEXT line says so and names `delivery intake <export> --components` as the fix.
+   NEXT line says so and names `delivery intake <export> --components` as the fix — with
+   `--from components` added once a components run exists already, since `components` is then a
+   taken feature slug.
 7. Once a components run lands, NEXT has one thing left: `/design-sync` on the design-system
    project, so its own manifest knows what this run built. `delivery components --export <dir>`
    (or a page run's own design snapshot) reports drift against an export at any time, without

@@ -180,6 +180,10 @@ export async function pictureFacts(paths, opts = {}) {
     rounds,
     backToDesign: backToDesignItems(paths).length,
     pageBlockedComponents,
+    // Whether a components run has ever happened at all (fix round, I12): the product-wide
+    // components.json is only ever written by one, so its presence is the signal that "components"
+    // is a taken feature slug and a fresh one needs --from components <export> to reach it.
+    componentsRunExists: Boolean(compMap),
     componentsUnbuilt,
     landedComponentsRun,
     designSyncMissing,
@@ -202,7 +206,10 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   if (!f.hasMap && !f.mapError) return { step: 'map', skill, text: 'dispatch the mapper agent with briefs/mapper.md to write map.json from the design pictures' };
   if (f.mapError) return { step: 'map', skill, text: `fix map.json (${f.problemCount || 1} problem(s); first: ${f.mapError}), then ${cli} map` };
   if (f.pageBlockedComponents?.length) {
-    return { step: 'components', skill, text: `run the components run first: ${cli} intake --components <export> (used component(s) not built: ${f.pageBlockedComponents.join(', ')})` };
+    // A components run already exists once (the product-wide components.json is proof of that):
+    // "components" is a taken feature slug, so reaching it again needs --from (fix round, I12).
+    const intakeCmd = f.componentsRunExists ? `${cli} intake --components --from components <export>` : `${cli} intake --components <export>`;
+    return { step: 'components', skill, text: `run the components run first: ${intakeCmd} (used component(s) not built: ${f.pageBlockedComponents.join(', ')})` };
   }
   if (f.phoneRenderOwed) return { step: 'pictures', skill: 'design-inventory', text: `render the design at phone width (the map checks the phone): ${cli} design render --width phone, then ${cli} map` };
   if (f.rulesOwed) return { step: 'rules', skill, text: `dispatch the rules agent with briefs/rules.md to write rules.json from the briefs in intent/, then ${cli} rules and ${cli} map` };

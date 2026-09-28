@@ -13,12 +13,27 @@ import { prepareServeDir, writePropCopy } from './serve.mjs';
 import { vendorResolver } from './vendor.mjs';
 import { declaredProps } from './components.mjs';
 import { pageExtract, linesToText } from '../capture/page-extract.mjs';
-import { itemKey } from '../picture/widths.mjs';
+import { itemKey, WIDTHS } from '../picture/widths.mjs';
 
 export const DEFAULT_VIEWPORT = Object.freeze({ width: 1440, height: 900 });
 const BOOT_SELECTOR = '#dc-root .sc-host';
 const STEP_TIMEOUT_MS = 5000;
 const BOOT_TIMEOUT_MS = 20000;
+
+/**
+ * The viewport to render a component's own $preview at, for one render width. At desktop the
+ * preview's own size is used untouched; at any narrower width (fix round, I10) it is clamped to
+ * that width's own maximum, since $preview is a desktop-sized default and a component rendered at
+ * phone width must never come out wider than a phone layout allows. Height is never touched.
+ * @param {{ width: number, height: number|null }} preview
+ * @param {string} width a WIDTHS name ("desktop", "phone", ...)
+ * @returns {{ width: number, height: number }}
+ */
+export function previewViewport(preview, width) {
+  const cap = WIDTHS[width]?.width;
+  const w = width === 'desktop' || !cap ? preview.width : Math.min(preview.width, cap);
+  return { width: w, height: preview.height ?? 600 };
+}
 
 const KILL_MOTION_CSS = '*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important;scroll-behavior:auto!important}';
 
@@ -244,7 +259,9 @@ export async function renderDesign(ctx, opts) {
         if (!previewCache.has(p.file)) previewCache.set(p.file, await readComponentPreview(serveDir, p.file));
         const { preview, why } = previewCache.get(p.file);
         if (why) { result.failed.push({ id: p.id, why }); continue; }
-        if (preview) viewport = { width: preview.width, height: preview.height ?? 600 };
+        if (preview) {
+          viewport = previewViewport(preview, width);
+        }
       }
       const context = await browser.newContext({ viewport, deviceScaleFactor: 1, colorScheme: 'light', reducedMotion: 'reduce', locale: 'en-US' });
       try {
