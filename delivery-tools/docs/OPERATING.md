@@ -62,6 +62,19 @@ items, a state's desktop and phone together, and the command writes `batches.jso
 four at once. Text in `docs/delivery/<feature>/steers.md` is added to every prompt. Then
 `delivery review --round <n>` compiles as before.
 
+Shadow grader (optional, record only). Set `review.shadowGrader` in the profile to
+`{ "endpoint": "<url>", "model": "<id>", "keyEnv": "<NAME OF AN ENV VAR>" }` and export that variable.
+Compiling a round then asks the outside model, for every must, small and not-reached finding (not the
+carried ones), whether it is a code bug, a data gap or a known steer (the lines of `steers.md`), and
+writes `rounds/<n>/shadow.json`. It never changes review.json, a count, the exit code or what the
+builder sees; a failure is one warning line, and the key is never written anywhere. To score it, run
+`delivery review --shadow-export`: it writes `shadow-sample.json` (the findings, with ids) and
+`shadow-answers.json` (the model's answers, apart). Two labellers, blind to the answers and holding the
+run's evidence, label the sample; keep the findings they agree on and compare the model with those
+labels. Adopt the model for known steers only if, at probability 0.8 or more, it is right on at least
+95% of them and the lower bound of the 95% confidence interval is above 90%. The retro record shows
+how many answers each run got and how many failed.
+
 Since 0.5.0 a run can check the phone as well as the desktop. When the design has phone screens,
 the map declares `"widths": ["desktop", "phone"]` and every state is checked at 1440 x 900 and at
 390 x 844. The design is rendered narrow with `delivery design render --width phone`, or a state

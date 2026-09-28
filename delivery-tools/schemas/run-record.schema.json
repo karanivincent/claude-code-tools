@@ -83,6 +83,16 @@
         }
       }
     },
+    "shadow": {
+      "description": "Optional. The shadow grader's totals over the run's rounds: answers it gave and requests that failed.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["answered", "errors"],
+      "properties": {
+        "answered": { "$ref": "common.schema.json#/$defs/Count" },
+        "errors": { "$ref": "common.schema.json#/$defs/Count" }
+      }
+    },
     "improvements": { "type": "array", "items": { "type": "string" } },
     "autoChanges": {
       "type": "array",

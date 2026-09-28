@@ -17,7 +17,7 @@ export function sink() {
  * @param {{
  *   repoRoot: string, feature?: string|null, json?: boolean,
  *   rules?: import('./runner-stub.mjs').StubRule[], passthrough?: string[], runner?: any,
- *   gh?: any, clock?: any, profile?: object, safety?: object, env?: object,
+ *   gh?: any, clock?: any, profile?: object, safety?: object, env?: object, fetch?: any, sleep?: any,
  * }} o  profile/safety are injected values; omit them to read the repo's files
  */
 export async function makeTestCtx(o) {
@@ -29,7 +29,7 @@ export async function makeTestCtx(o) {
   const out = createOutput({ json: o.json ?? false, stdout, stderr });
   const ctx = await createCtx({
     cwd: o.repoRoot, repoRoot: o.repoRoot, env: o.env ?? {}, flags: { feature: o.feature ?? null, json: o.json ?? false, help: false },
-    runner, gh, clock, out, profile: o.profile, safety: o.safety, cli: { version: '0.0.0-test', manifestSha256: null },
+    runner, gh, clock, out, profile: o.profile, safety: o.safety, sleep: o.sleep ?? (async () => {}), fetch: o.fetch ?? (async () => { throw new Error('the network is off in tests'); }), cli: { version: '0.0.0-test', manifestSha256: null },
   });
   return { ctx, stdout, stderr, runner, gh, clock };
 }
