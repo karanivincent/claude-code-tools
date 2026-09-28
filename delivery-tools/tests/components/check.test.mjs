@@ -145,6 +145,20 @@ test('rule 3: an added file named like a component that is not its target is red
   assert.match(problems[0], /Picker/);
 });
 
+// 0.9.2: the first real components run's ready went red on the design snapshot's own
+// docs/design/components/DatePicker.dc.html — the design itself, not a redraw of it.
+test('rule 3 is not raised for a file under the design or delivery folders', () => {
+  const map = baseMap();
+  assert.deepEqual(componentProblems({
+    map, used: [], changed: [], added: ['docs/design/components/Picker.dc.html', 'docs/delivery/picker/notes.md'],
+    importsOf: () => [], importGraph: () => new Set(), docDirs: ['docs/design', 'docs/delivery/'],
+  }), []);
+  assert.equal(componentProblems({
+    map, used: [], changed: [], added: ['docs/designs-old/picker.tsx'],
+    importsOf: () => [], importGraph: () => new Set(), docDirs: ['docs/design'],
+  }).length, 1, 'a sibling folder whose name only starts the same is still checked');
+});
+
 test('rule 3 is not raised for the component\'s own target, or an unrelated added file', () => {
   const map = baseMap();
   assert.deepEqual(componentProblems({

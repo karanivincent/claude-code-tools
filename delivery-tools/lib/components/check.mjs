@@ -93,7 +93,7 @@ function isCompanionFile(file, target) {
  */
 export function componentProblems({
   map, used = [], changed = [], added = [], importsOf, importGraph, buildingNow = [],
-  isComponentsRun = false, exportComponents = null, importedAnywhere = null,
+  isComponentsRun = false, exportComponents = null, importedAnywhere = null, docDirs = [],
 }) {
   const problems = [];
   const design = (map.components ?? []).filter((c) => c.kind === 'design');
@@ -129,7 +129,11 @@ export function componentProblems({
   // file's basename, split on -, _ and ., with any prefix or suffix) that is not that component's
   // own target, and not that target's own colocated .test/.spec/.stories companion. A segment must
   // match whole: "Table" does not fire on "timetable.tsx".
+  // Files under the design or delivery folders are the design and the run's own record, never a
+  // redraw (0.9.2: the design snapshot's DatePicker.dc.html turned the first components run red).
+  const dirs = docDirs.filter(Boolean).map((d) => (d.endsWith('/') ? d : `${d}/`));
   for (const file of added) {
+    if (dirs.some((d) => file.startsWith(d))) continue;
     const fileSegs = segmentsOf(baseStem(file));
     for (const c of design) {
       const nameSegs = segmentsOf(c.name ?? '');

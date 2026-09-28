@@ -477,6 +477,7 @@ export async function computeReady(ctx, { pr }) {
         const importedAnywhere = await anyImporterTargets(ctx.git, compMap, importsOf);
         const problems = componentProblems({
           map: compMap, used, changed, added, importsOf, importGraph, buildingNow,
+          docDirs: [profile.paths?.designRoot, profile.paths?.deliveryRoot],
           isComponentsRun, exportComponents, importedAnywhere,
         });
 
