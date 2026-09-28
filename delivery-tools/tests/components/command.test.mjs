@@ -2,7 +2,7 @@
 // Product-wide: none of these need --feature.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import command from '../../lib/commands/components.mjs';
 import { makeTestCtx } from '../helpers/ctx.mjs';
@@ -45,6 +45,39 @@ test('--scan-base writes base entries into a temp repo\'s map', async () => {
     assert.equal(sheet.kind, 'base');
     assert.deepEqual(sheet.owns, ['@radix-ui/react-dialog']);
     assert.equal(sheet.target, 'ui/sheet.tsx');
+  } finally { t.cleanup(); }
+});
+
+// Fix round (I7): a design entry built inside baseDir is not also scanned as a base part, and a
+// second --scan-base after a base file is deleted drops its entry and reports the removal.
+test('--scan-base skips a design entry\'s own target, and reports a base entry whose file is gone', async () => {
+  const t = makeTempDir();
+  try {
+    write(t.dir, 'ui/sheet.tsx', `import * as Dialog from '@radix-ui/react-dialog';\nexport const Sheet = Dialog.Root;\n`);
+    write(t.dir, 'ui/picker.tsx', `export const Picker = () => null;\n`);
+    write(t.dir, 'docs/delivery/components.json', {
+      version: 1,
+      components: [{
+        kind: 'design', name: 'Picker', design: { file: 'Picker.dc.html', hash: H1 },
+        target: 'ui/picker.tsx', status: 'built', builtHash: H1,
+        props: {}, owns: [], builtOn: [], replaces: [], uses: [], states: [],
+      }],
+    });
+    const profile = makeProfile({ components: { map: 'docs/delivery/components.json', baseDir: 'ui', baseLibraries: ['@radix-ui/*'] } });
+    const { ctx, stdout } = await makeTestCtx({ repoRoot: t.dir, profile });
+    const first = await command.run(ctx, ['--scan-base']);
+    assert.equal(first, 0, stdout.text());
+    let map = JSON.parse(readFileSync(join(t.dir, 'docs/delivery/components.json'), 'utf8'));
+    // ui/picker.tsx is the design entry's own target: no base entry for it, no Picker/Picker clash.
+    assert.deepEqual(map.components.filter((c) => c.kind === 'base').map((c) => c.target), ['ui/sheet.tsx']);
+
+    rmSync(join(t.dir, 'ui/sheet.tsx'));
+    const { ctx: ctx2, stdout: stdout2 } = await makeTestCtx({ repoRoot: t.dir, profile });
+    const second = await command.run(ctx2, ['--scan-base']);
+    assert.equal(second, 0, stdout2.text());
+    assert.match(stdout2.text(), /removed Sheet \(ui\/sheet\.tsx\): the file no longer exists/);
+    map = JSON.parse(readFileSync(join(t.dir, 'docs/delivery/components.json'), 'utf8'));
+    assert.deepEqual(map.components.filter((c) => c.kind === 'base'), []);
   } finally { t.cleanup(); }
 });
 

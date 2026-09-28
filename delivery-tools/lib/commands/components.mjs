@@ -65,8 +65,12 @@ common options:
 
     if (values['scan-base']) {
       if (!profile.components.baseDir) throw new UsageError('profile.components.baseDir is not set; add it before running --scan-base');
-      const base = scanBase(ctx.repoRoot, profile.components.baseDir, profile.components.baseLibraries ?? []);
       const design = (map?.components ?? []).filter((c) => c.kind === 'design');
+      const designTargets = new Set(design.filter((c) => c.target).map((c) => c.target));
+      const base = scanBase(ctx.repoRoot, profile.components.baseDir, profile.components.baseLibraries ?? [], designTargets);
+      const previousBase = (map?.components ?? []).filter((c) => c.kind === 'base');
+      const removed = previousBase.filter((c) => !existsSync(join(ctx.repoRoot, c.target)));
+      for (const c of removed) ctx.out.line(`removed ${c.name} (${c.target}): the file no longer exists`);
       map = { version: 1, allowOwns: map?.allowOwns ?? [], components: [...design, ...base] };
       await writeComponentsMap(path, map);
       ctx.out.line(`scanned ${profile.components.baseDir}: ${base.length} base component(s)`);
@@ -127,7 +131,8 @@ common options:
 
     let missingBase = [];
     if (profile.components?.baseDir) {
-      const fresh = scanBase(ctx.repoRoot, profile.components.baseDir, profile.components.baseLibraries ?? []);
+      const designTargets = new Set(effectiveDesign.filter((c) => c.target).map((c) => c.target));
+      const fresh = scanBase(ctx.repoRoot, profile.components.baseDir, profile.components.baseLibraries ?? [], designTargets);
       const haveTargets = new Set(map.components.filter((c) => c.kind === 'base').map((c) => c.target));
       missingBase = fresh.filter((c) => !haveTargets.has(c.target));
       for (const c of missingBase) ctx.out.fail('components', `${c.target}: no base entry yet (run delivery components --scan-base)`);

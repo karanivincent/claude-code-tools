@@ -22,7 +22,10 @@ For every design entry whose `target` is `null`, or whose `status` is `new` or `
   doing the same job (a date field grep for "date" and "calendar", a people table grep for
   "people" or "contacts"). Found one: that file becomes the target, rebuilt in place. Nothing
   close: a new path under the profile's `components.baseDir` sibling area, named for the
-  component (`Picker` → `picker.tsx`).
+  component (`Picker` → `picker.tsx`). The file does not have to exist yet — `delivery components`
+  never reports a `status: "new"` entry's target as missing, since the builder is the one who
+  creates it; `--mark-built` still refuses one that is actually missing when asked to mark it
+  built.
 - **`props`**: design prop name to the code prop name it becomes, one pair per prop the component
   declares (`{"label": "label", "onPick": "onPick"}`). Keep the code name idiomatic for the repo
   even where it differs from the design's.

@@ -108,6 +108,19 @@ test('scanBase: Badge owns nothing, Button owns @radix-ui/react-slot, Sheet owns
   assert.equal(byName.Sheet.source, 'scan');
 });
 
+// Fix round (I7): a design component's own target inside baseDir (built there, not a base part) is
+// not also scanned as a base entry.
+test('scanBase skips a file that is already a design entry\'s own target', () => {
+  const withoutDesign = scanBase(FIXTURES_DIR, 'ui', ['@radix-ui/*']);
+  assert.ok(withoutDesign.some((e) => e.target === 'ui/sheet.tsx'));
+  const withDesign = scanBase(FIXTURES_DIR, 'ui', ['@radix-ui/*'], ['ui/sheet.tsx']);
+  assert.equal(withDesign.some((e) => e.target === 'ui/sheet.tsx'), false);
+  assert.deepEqual(withDesign.map((e) => e.name).sort(), ['Badge', 'Button']);
+  // A Set works the same as an array.
+  const withSet = scanBase(FIXTURES_DIR, 'ui', ['@radix-ui/*'], new Set(['ui/sheet.tsx']));
+  assert.deepEqual(withSet.map((e) => e.name).sort(), ['Badge', 'Button']);
+});
+
 test('libraryTargets maps an owned library to every target owning it', () => {
   const entries = scanBase(FIXTURES_DIR, 'ui', ['@radix-ui/*']);
   const map = { version: 1, components: entries };
@@ -143,6 +156,24 @@ test('validateComponentsMap: a missing target file, and a builtOn naming no base
   assert.ok(problems.some((p) => p.includes('builtOn') && p.includes('Popover')), problems.join('\n'));
 });
 
+// Fix round (I8): the mapper sets a design entry's target before the builder has created the file
+// (status stays "new" until it is built), so a not-yet-existing target must not be reported there.
+test('validateComponentsMap: a "new" entry\'s not-yet-built target is not reported missing; a "stale" one still is', () => {
+  const entry = (over) => ({
+    version: 1,
+    components: [{
+      kind: 'design', name: 'Picker',
+      design: { file: 'Picker.dc.html', hash: H1 },
+      target: 'src/ui/picker.tsx', builtHash: null,
+      props: {}, owns: [], builtOn: [], replaces: [], uses: [], states: [],
+      ...over,
+    }],
+  });
+  assert.deepEqual(validateComponentsMap(entry({ status: 'new' }), { repoRoot: FIXTURES_DIR }), []);
+  const stale = validateComponentsMap(entry({ status: 'stale', builtHash: H1 }), { repoRoot: FIXTURES_DIR });
+  assert.ok(stale.some((p) => p.includes('target') && p.includes('does not exist')), stale.join('\n'));
+});
+
 test('validateComponentsMap: duplicate names, and owns with no target', () => {
   const map = {
     version: 1,
@@ -160,4 +191,23 @@ test('validateComponentsMap: duplicate names, and owns with no target', () => {
   const problems = validateComponentsMap(map, { repoRoot: FIXTURES_DIR });
   assert.ok(problems.some((p) => p.includes('duplicate component name "Sheet"')), problems.join('\n'));
   assert.ok(problems.some((p) => p === 'Table: owns a library but has no target yet'), problems.join('\n'));
+});
+
+// Fix round (I7): a design component and a base part sharing a pascal name (a base file that also
+// happens to be a design component's own target) are different roles, not a collision.
+test('validateComponentsMap: a design entry and a base entry sharing a name are not a duplicate', () => {
+  const map = {
+    version: 1,
+    components: [
+      { kind: 'base', name: 'Picker', target: 'ui/picker.tsx', owns: [], source: 'scan' },
+      {
+        kind: 'design', name: 'Picker',
+        design: { file: 'Picker.dc.html', hash: H1 },
+        target: 'ui/picker-panel.tsx', status: 'new', builtHash: null,
+        props: {}, owns: [], builtOn: [], replaces: [], uses: [], states: [],
+      },
+    ],
+  };
+  const problems = validateComponentsMap(map, {});
+  assert.deepEqual(problems.filter((p) => p.includes('duplicate')), []);
 });

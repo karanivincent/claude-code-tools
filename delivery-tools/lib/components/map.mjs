@@ -44,8 +44,11 @@ export async function writeComponentsMap(path, map) {
 }
 
 /**
- * Schema problems plus: a design entry's target or a base entry's file missing on disk;
- * duplicate names; a builtOn naming no base entry; an owns library with no target.
+ * Schema problems plus: a design entry's target or a base entry's file missing on disk (a design
+ * entry the mapper has only just pointed at a not-yet-built file, status "new", is not reported —
+ * the builder creates it; `--mark-built` still refuses a missing target when it is actually asked
+ * to mark one built); duplicate names; a builtOn naming no base entry; an owns library with no
+ * target.
  * @param {object} map
  * @param {{ repoRoot?: string }} [opts]
  * @returns {string[]}
@@ -61,14 +64,17 @@ export function validateComponentsMap(map, opts = {}) {
 
   const problems = [];
   const components = map.components ?? [];
+  // Keyed on kind + name, not name alone (fix round, I7): a design component and a base part that
+  // happen to share a pascal name are different roles, not a collision.
   const seenAt = new Map();
   for (const [i, c] of components.entries()) {
-    if (seenAt.has(c.name)) problems.push(`duplicate component name "${c.name}" (components/${seenAt.get(c.name)} and components/${i})`);
-    else seenAt.set(c.name, i);
+    const key = `${c.kind}:${c.name}`;
+    if (seenAt.has(key)) problems.push(`duplicate component name "${c.name}" (components/${seenAt.get(key)} and components/${i})`);
+    else seenAt.set(key, i);
   }
   const baseNames = new Set(components.filter((c) => c.kind === 'base').map((c) => c.name));
   for (const c of components) {
-    if (c.target && opts.repoRoot && !existsSync(join(opts.repoRoot, c.target))) {
+    if (c.target && c.status !== 'new' && opts.repoRoot && !existsSync(join(opts.repoRoot, c.target))) {
       problems.push(`${c.name}: target ${c.target} does not exist on disk`);
     }
     if ((c.owns ?? []).length && !c.target) {
@@ -202,20 +208,25 @@ function importedLibraries(source, baseLibraries) {
 
 /**
  * One base entry per file in baseDir (.tsx, .ts, .jsx, .js, not *.test.*), recording the
- * third-party UI libraries (baseLibraries globs, a trailing /* matches any subpath) it imports.
+ * third-party UI libraries (baseLibraries globs, a trailing /* matches any subpath) it imports. A
+ * file that is already some design entry's own target is skipped: a design component built inside
+ * baseDir is not also a base part, and scanning it fought the base scan (fix round, I7).
  * @param {string} repoRoot
  * @param {string} baseDir repo-relative
  * @param {string[]} [baseLibraries]
+ * @param {Set<string>|string[]} [designTargets] repo-relative targets of the map's design entries
  * @returns {{ kind: 'base', name: string, target: string, owns: string[], source: 'scan' }[]}
  */
-export function scanBase(repoRoot, baseDir, baseLibraries = []) {
+export function scanBase(repoRoot, baseDir, baseLibraries = [], designTargets = []) {
+  const designSet = designTargets instanceof Set ? designTargets : new Set(designTargets);
   const dir = join(repoRoot, baseDir);
   const names = existsSync(dir) ? readdirSync(dir) : [];
+  const cleanBaseDir = baseDir.replace(/\/+$/, '');
   const files = names
     .filter((n) => !/\.test\./.test(n))
     .filter((n) => CODE_EXT.some((ext) => n.endsWith(ext)))
+    .filter((n) => !designSet.has(`${cleanBaseDir}/${n}`))
     .sort();
-  const cleanBaseDir = baseDir.replace(/\/+$/, '');
   return files.map((file) => {
     const ext = CODE_EXT.find((e) => file.endsWith(e));
     const stem = file.slice(0, file.length - ext.length);

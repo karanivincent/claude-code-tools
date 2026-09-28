@@ -44,7 +44,8 @@ itself, not a product page:
 - For every file the map's `replaces` lists, switch its callers to the new target and delete the
   old file in the same PR. When a caller's props can't be mapped onto the new component, leave
   that file as it is and name it in your report instead of guessing (the mapper marks it `left`
-  with the reason).
+  with the reason). After deleting a replaced file, run `delivery components --scan-base`: it drops
+  the file's own base entry and reports the removal.
 
 ## How to see your work
 
