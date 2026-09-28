@@ -1,13 +1,15 @@
 // Design briefs (components-first spec §8.2): what a Claude Design chat is sent. A brief names
 // its screens (each with a Phone: line), the components to use by name from components.json,
 // numbered behaviours (`delivery rules` reads these) and data using only generic names, never a
-// real customer's or prospect's. Pure apart from packBrief, which copies files for the send step.
+// real customer's or prospect's. Pure apart from briefComponents (reads the profile and the
+// component map through ctx) and packBrief (copies files for the send step).
 
 import { existsSync, readdirSync } from 'node:fs';
 import { readFile, copyFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
 import { writeFileAtomic } from '../core/fs.mjs';
 import { DeliveryError, EXIT } from '../core/exit.mjs';
+import { componentsMapPath, readComponentsMap } from '../components/map.mjs';
 
 const NUMBERED_RE = /^\d+\.(\s|$)/;
 
@@ -45,13 +47,38 @@ export function fillTemplate(template, { title, components = [] }) {
   return template.split('{{title}}').join(title).split('{{components}}').join(componentsText);
 }
 
+/**
+ * The forbidden names and component names every brief subcommand checks against, read once from
+ * the profile and the component map. Shared so `new`, `check` and `pack` agree on what a brief may
+ * name (components-first spec §8.2).
+ * @param {import('../core/ctx.mjs').Ctx} ctx
+ * @returns {Promise<{ forbiddenNames: string[], allComponents: object[], componentNames: string[] }>}
+ */
+export async function briefComponents(ctx) {
+  const profile = await ctx.profile();
+  const mapPath = componentsMapPath(ctx.repoRoot, profile);
+  const map = await readComponentsMap(mapPath);
+  const allComponents = map?.components ?? [];
+  return {
+    forbiddenNames: profile.design?.forbiddenNames ?? [],
+    allComponents,
+    componentNames: allComponents.filter((c) => c.kind === 'design').map((c) => c.name),
+  };
+}
+
 function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/** A regex matching `words` in order joined by any run of whitespace, whole-word, case-insensitive. */
+/**
+ * A regex matching `words` in order, joined by any run of whitespace, "-" or "_" (so a forbidden
+ * or described-in-words phrase is caught the same way in prose, a kebab-case name and a
+ * snake_case file name). Whole-word: "-" and "_" count as boundaries too, so "Acme" never matches
+ * inside "Acmes" but "Summit Interiors" matches "summit-interiors-dashboard.png". Case-insensitive.
+ */
 function phraseRe(words) {
-  return new RegExp(`\\b${words.map(escapeRegex).join('\\s+')}\\b`, 'i');
+  const body = words.map(escapeRegex).join('[\\s_-]+');
+  return new RegExp(`(?<![A-Za-z0-9])${body}(?![A-Za-z0-9])`, 'i');
 }
 
 /** PascalCase split into words: "DatePicker" -> ["Date", "Picker"]; a single word stays one. */
@@ -68,9 +95,9 @@ function pascalWords(name) {
  *   - a forbidden name (case-insensitive, whole word(s)) in the text or in any of fileNames;
  *   - a "### Screen:" heading whose section has no "Phone:" line;
  *   - a component name from the map (componentNames: design-kind names only — base entries and
- *     single-word names never trip this) appearing only as the words that describe it (the
- *     spaced-out lowercase form, e.g. "date picker" for "DatePicker") while the exact name is
- *     absent;
+ *     single-word names never trip this) appearing only as the words that describe it (lowercase,
+ *     joined by whitespace, "-" or "_" — "date picker" or "date-picker" for "DatePicker") while
+ *     the exact name is absent;
  *   - a non-blank line under "## Behaviours" that is not a numbered item ("1.").
  * @param {string} text
  * @param {{ forbiddenNames?: string[], componentNames?: string[], fileNames?: string[] }} [opts]

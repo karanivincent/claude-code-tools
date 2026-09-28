@@ -113,7 +113,7 @@ request in its report and works around it locally.
 | `lib/components/**` | C |
 | `tests/components/**` | C |
 | `tests/fixtures/components/**` | C |
-| `lib/commands/brief.mjs` | C |
+| `lib/commands/brief-*.mjs` | C |
 | `lib/brief/**` | C |
 | `tests/brief/**` | C |
 | `skills/**` | — |

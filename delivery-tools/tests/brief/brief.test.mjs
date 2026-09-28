@@ -10,7 +10,10 @@ import { fileURLToPath } from 'node:url';
 import {
   nextBriefPath, fillTemplate, briefProblems, packBrief,
 } from '../../lib/brief/brief.mjs';
-import command from '../../lib/commands/brief.mjs';
+import newCommand from '../../lib/commands/brief-new.mjs';
+import checkCommand from '../../lib/commands/brief-check.mjs';
+import packCommand from '../../lib/commands/brief-pack.mjs';
+import { resolveCommand } from '../../lib/core/command.mjs';
 import { makeTestCtx } from '../helpers/ctx.mjs';
 import { makeTempDir } from '../helpers/tmp-repo.mjs';
 import { makeProfile } from '../helpers/fixtures.mjs';
@@ -81,6 +84,15 @@ test('fillTemplate: "none yet" only when there are neither design nor base entri
   assert.ok(!out.includes('none yet'));
 });
 
+test('fillTemplate: design components with no base entries prints no "Base components:" line', () => {
+  const components = [mapEntry('design', 'DatePicker', 'src/ui/date-picker.tsx'), mapEntry('design', 'Table', 'src/ui/table.tsx')];
+  const out = fillTemplate(TEMPLATE, { title: 'Widgets', components });
+  assert.match(out, /^- DatePicker$/m);
+  assert.match(out, /^- Table$/m);
+  assert.ok(!out.includes('Base components'));
+  assert.ok(!out.includes('none yet'));
+});
+
 // --- briefProblems ---------------------------------------------------------------------------
 
 const okBrief = () => [
@@ -125,7 +137,17 @@ test('briefProblems: a multi-word forbidden name matches across any run of white
   assert.equal(problems.length, 1);
 });
 
-test('briefProblems: a forbidden name in an attached file name (kebab-case, so a single-word name)', () => {
+test('briefProblems: a multi-word forbidden name matches across a hyphen or an underscore, in text and in a file name', () => {
+  assert.equal(briefProblems('a note about Spectrum-Corp today', { forbiddenNames: ['Spectrum Corp'] }).length, 1);
+  assert.equal(briefProblems('a note about Spectrum_Corp today', { forbiddenNames: ['Spectrum Corp'] }).length, 1);
+  const kebab = briefProblems(okBrief(), { forbiddenNames: ['Spectrum Corp'], fileNames: ['spectrum-corp-dashboard.png'] });
+  assert.equal(kebab.length, 1);
+  assert.match(kebab[0], /file name/);
+  const snake = briefProblems(okBrief(), { forbiddenNames: ['Spectrum Corp'], fileNames: ['Spectrum_Corp.png'] });
+  assert.equal(snake.length, 1);
+});
+
+test('briefProblems: a forbidden name in an attached file name', () => {
   const problems = briefProblems(okBrief(), { forbiddenNames: ['Spectrum'], fileNames: ['spectrum-dashboard.png'] });
   assert.equal(problems.length, 1);
   assert.match(problems[0], /file name/);
@@ -151,6 +173,13 @@ test('briefProblems: a second screen with its own Phone: line stays clean even w
 
 test('briefProblems: a multi-word component described in words instead of named', () => {
   const text = okBrief().replace('- DatePicker', 'a date picker for the due date');
+  const problems = briefProblems(text, { componentNames: ['DatePicker'] });
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /date picker.*DatePicker/);
+});
+
+test('briefProblems: the kebab form (date-picker) also describes DatePicker in words', () => {
+  const text = okBrief().replace('- DatePicker', 'add a date-picker for the due date');
   const problems = briefProblems(text, { componentNames: ['DatePicker'] });
   assert.equal(problems.length, 1);
   assert.match(problems[0], /date picker.*DatePicker/);
@@ -232,7 +261,7 @@ test('brief new: writes intent/briefs/01-<slug>.md from the template, titled fro
   try {
     const profile = makeProfile();
     const { ctx, stdout } = await makeTestCtx({ repoRoot: t.dir, feature: 'widgets', profile });
-    const code = await command.run(ctx, ['new', 'first-look']);
+    const code = await newCommand.run(ctx, ['first-look']);
     assert.equal(code, 0, stdout.text());
     const full = join(t.dir, 'docs/delivery/widgets/intent/briefs/01-first-look.md');
     assert.ok(existsSync(full));
@@ -249,7 +278,7 @@ test('brief new: --title overrides the slug-derived title, and the map\'s compon
     write(t.dir, mapRel, { version: 1, components: [mapEntry('design', 'DatePicker', 'src/ui/date-picker.tsx')] });
     const profile = makeProfile({ components: { map: mapRel } });
     const { ctx, stdout } = await makeTestCtx({ repoRoot: t.dir, feature: 'widgets', profile });
-    const code = await command.run(ctx, ['new', 'first-look', '--title', 'The First Look']);
+    const code = await newCommand.run(ctx, ['first-look', '--title', 'The First Look']);
     assert.equal(code, 0, stdout.text());
     const text = readFileSync(join(t.dir, 'docs/delivery/widgets/intent/briefs/01-first-look.md'), 'utf8');
     assert.match(text, /^# The First Look$/m);
@@ -261,7 +290,7 @@ test('brief new: refuses a slug with an uppercase letter (exit 2)', async () => 
   const t = makeTempDir();
   try {
     const { ctx } = await makeTestCtx({ repoRoot: t.dir, feature: 'widgets', profile: makeProfile() });
-    await assert.rejects(command.run(ctx, ['new', 'First-Look']), (err) => err.exit === 2);
+    await assert.rejects(newCommand.run(ctx, ['First-Look']), (err) => err.exit === 2);
   } finally { t.cleanup(); }
 });
 
@@ -271,7 +300,7 @@ test('brief check: with no file, checks every file in intent/ and intent/briefs/
     write(t.dir, 'docs/delivery/widgets/intent/briefs/01-widgets.md', okBrief().replace('1. Saving closes the dialog', 'Saving closes the dialog'));
     const profile = makeProfile();
     const { ctx, stdout } = await makeTestCtx({ repoRoot: t.dir, feature: 'widgets', profile });
-    const code = await command.run(ctx, ['check']);
+    const code = await checkCommand.run(ctx, []);
     assert.equal(code, 1);
     assert.match(stdout.text(), /not numbered/);
   } finally { t.cleanup(); }
@@ -282,7 +311,7 @@ test('brief check: a clean run exits 0 and needs no --feature run when a file is
   try {
     write(t.dir, 'standalone.md', okBrief());
     const { ctx, stdout } = await makeTestCtx({ repoRoot: t.dir, profile: makeProfile() });
-    const code = await command.run(ctx, ['check', join(t.dir, 'standalone.md')]);
+    const code = await checkCommand.run(ctx, [join(t.dir, 'standalone.md')]);
     assert.equal(code, 0, stdout.text());
     assert.match(stdout.text(), /1 brief\(s\) checked, no problems/);
   } finally { t.cleanup(); }
@@ -294,7 +323,7 @@ test('brief check: reports a forbidden name from profile.design.forbiddenNames',
     write(t.dir, 'standalone.md', okBrief().replace('Acme Store', 'Spectrum Corp'));
     const profile = makeProfile({ design: { forbiddenNames: ['Spectrum Corp'] } });
     const { ctx, stdout } = await makeTestCtx({ repoRoot: t.dir, profile });
-    const code = await command.run(ctx, ['check', join(t.dir, 'standalone.md')]);
+    const code = await checkCommand.run(ctx, [join(t.dir, 'standalone.md')]);
     assert.equal(code, 1);
     assert.match(stdout.text(), /Spectrum Corp/);
   } finally { t.cleanup(); }
@@ -306,7 +335,7 @@ test('brief pack: packs the brief and images under .delivery/<feature>/pack/ by 
     write(t.dir, 'brief.md', okBrief());
     write(t.dir, 'shot.png', 'x');
     const { ctx, stdout } = await makeTestCtx({ repoRoot: t.dir, feature: 'widgets', profile: makeProfile() });
-    const code = await command.run(ctx, ['pack', join(t.dir, 'brief.md'), join(t.dir, 'shot.png')]);
+    const code = await packCommand.run(ctx, [join(t.dir, 'brief.md'), join(t.dir, 'shot.png')]);
     assert.equal(code, 0, stdout.text());
     const dir = join(t.dir, '.delivery/widgets/pack');
     assert.ok(existsSync(join(dir, '00-brief.md')));
@@ -319,16 +348,19 @@ test('brief pack: --out places the pack elsewhere', async () => {
   try {
     write(t.dir, 'brief.md', okBrief());
     const { ctx, stdout } = await makeTestCtx({ repoRoot: t.dir, feature: 'widgets', profile: makeProfile() });
-    const code = await command.run(ctx, ['pack', join(t.dir, 'brief.md'), '--out', join(t.dir, 'custom-pack')]);
+    const code = await packCommand.run(ctx, [join(t.dir, 'brief.md'), '--out', join(t.dir, 'custom-pack')]);
     assert.equal(code, 0, stdout.text());
     assert.ok(existsSync(join(t.dir, 'custom-pack/00-brief.md')));
   } finally { t.cleanup(); }
 });
 
-test('brief: an unknown subcommand is a usage error', async () => {
-  const t = makeTempDir();
-  try {
-    const { ctx } = await makeTestCtx({ repoRoot: t.dir, profile: makeProfile() });
-    await assert.rejects(command.run(ctx, ['launch']), (err) => err.exit === 2);
-  } finally { t.cleanup(); }
+test('brief new/check/pack resolve as two-word commands, and an unknown "brief" subcommand lists them', async () => {
+  const { module: n, rest: r1 } = await resolveCommand(['brief', 'new', 'slug']);
+  assert.equal(n.name, 'brief new');
+  assert.deepEqual(r1, ['slug']);
+  const { module: c } = await resolveCommand(['brief', 'check']);
+  assert.equal(c.name, 'brief check');
+  const { module: p } = await resolveCommand(['brief', 'pack', 'file.md']);
+  assert.equal(p.name, 'brief pack');
+  await assert.rejects(resolveCommand(['brief', 'launch']), (err) => err.exit === 2 && /new/.test(err.message) && /check/.test(err.message) && /pack/.test(err.message));
 });
