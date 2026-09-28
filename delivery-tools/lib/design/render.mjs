@@ -94,6 +94,24 @@ export function componentNames(hosts) {
 }
 
 /**
+ * A component file's own preview size, read once. Never throws: a `reach.file` that does not
+ * resolve in the served snapshot (or cannot be read for any other reason) is reported in `why`
+ * instead, so a caller can fail that one state and carry on rather than aborting the whole render.
+ * @param {string} serveDir
+ * @param {string} file
+ * @returns {Promise<{ preview: {width:number, height:number|null}|null, why: string|null }>}
+ */
+export async function readComponentPreview(serveDir, file) {
+  let html;
+  try {
+    html = await readFile(join(serveDir, file), 'utf8');
+  } catch (err) {
+    return { preview: null, why: `cannot read component file ${file}: ${err.code ?? err.message}` };
+  }
+  return { preview: declaredProps(html).preview, why: null };
+}
+
+/**
  * The components a rendered state showed, from the "<ID>[@width].components.json" file written
  * beside its png. Empty when the file is absent (older renders, or a render that failed).
  * @param {import('../core/paths.mjs').FeaturePaths} paths
@@ -216,11 +234,9 @@ export async function renderDesign(ctx, opts) {
       const dcFile = p.file ?? serve.dcFile;
       let viewport = opts.viewport ?? DEFAULT_VIEWPORT;
       if (p.file) {
-        if (!previewCache.has(p.file)) {
-          const html = await readFile(join(paths.designServe, p.file), 'utf8');
-          previewCache.set(p.file, declaredProps(html).preview);
-        }
-        const preview = previewCache.get(p.file);
+        if (!previewCache.has(p.file)) previewCache.set(p.file, await readComponentPreview(paths.designServe, p.file));
+        const { preview, why } = previewCache.get(p.file);
+        if (why) { result.failed.push({ id: p.id, why }); continue; }
         if (preview) viewport = { width: preview.width, height: preview.height ?? 600 };
       }
       const context = await browser.newContext({ viewport, deviceScaleFactor: 1, colorScheme: 'light', reducedMotion: 'reduce', locale: 'en-US' });

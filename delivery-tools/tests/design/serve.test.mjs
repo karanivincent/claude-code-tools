@@ -2,11 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { prepareServeDir, setPropDefaults, writePropCopy, PROP_COPY_PREFIX } from '../../lib/design/serve.mjs';
 import { startStaticServer, resolveServedPath, contentTypeFor } from '../../lib/design/server.mjs';
 import { parseCdnUrl, resolveVendored, vendorResolver } from '../../lib/design/vendor.mjs';
 import { splitDcHtml } from '../../lib/design/claude-dc.mjs';
-import { planRenders, isSelector, componentNames, readStateComponents } from '../../lib/design/render.mjs';
+import { planRenders, isSelector, componentNames, readStateComponents, readComponentPreview } from '../../lib/design/render.mjs';
 import { featurePaths } from '../../lib/core/paths.mjs';
 import { makeTestCtx } from '../helpers/ctx.mjs';
 import { makeProfile } from '../helpers/fixtures.mjs';
@@ -130,6 +131,14 @@ test('componentNames: unique, sorted, minus the root host\'s own name', () => {
   );
   assert.deepEqual(componentNames([{ name: 'Picker', root: true }]), [], 'a component with no children names nothing');
   assert.deepEqual(componentNames([]), []);
+});
+
+test('readComponentPreview: reads a component file\'s own preview size, and reports rather than throws when the file is missing', async () => {
+  const dir = join(fileURLToPath(new URL('.', import.meta.url)), '../fixtures/design/components');
+  assert.deepEqual(await readComponentPreview(dir, 'Picker.dc.html'), { preview: { width: 320, height: 420 }, why: null });
+  const missing = await readComponentPreview(dir, 'Ghost.dc.html');
+  assert.equal(missing.preview, null);
+  assert.match(missing.why, /cannot read component file Ghost\.dc\.html: ENOENT/);
 });
 
 test('readStateComponents: reads the names file written beside a render, empty when absent', async () => {
