@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { captureOrder, isLocal, resultLine, selectStates, signInUrl, testidSelector, userFor } from '../../lib/picture/shoot.mjs';
-import { parseReview, renderCompare, summarise } from '../../lib/picture/review.mjs';
+import { backToDesignItems, parseReview, renderCompare, summarise } from '../../lib/picture/review.mjs';
 import { MAX_ROUNDS, pictureFacts, pictureNext } from '../../lib/picture/next.mjs';
 import { sampleMap } from './map.test.mjs';
 import { featurePaths } from '../../lib/core/paths.mjs';
@@ -90,7 +90,86 @@ test('summarise gives every state a verdict', () => {
   assert.equal(s.states['KC-05'].verdict, 'must');
   assert.equal(s.states['KC-08'].verdict, 'not-reached');
   assert.equal(s.states['KC-01'].verdict, 'test-only');
-  assert.deepEqual(s.counts, { match: 0, small: 0, must: 2, notReached: 1, testOnly: 1 });
+  assert.deepEqual(s.counts, { match: 0, small: 0, must: 2, notReached: 1, testOnly: 1, backToDesign: 0 });
+});
+
+// --- the "design:" bullet and the "back-to-design" verdict --------------------------------------
+
+const DESIGN_REVIEW = `1 states match, 1 has problems.
+
+## KC-08
+- design: the design shows a plain "Add" link; the product already uses a large button with a
+  + icon everywhere else on this page.
+
+## Matching
+KC-04
+`;
+
+test('a review parses a "design:" bullet, wrapped lines joined, distinct from must/small', () => {
+  const r = parseReview(DESIGN_REVIEW);
+  assert.deepEqual(Object.keys(r), ['KC-08']);
+  assert.deepEqual(r['KC-08'].must, []);
+  assert.deepEqual(r['KC-08'].small, []);
+  assert.equal(r['KC-08'].design[0], 'the design shows a plain "Add" link; the product already uses a large button with a + icon everywhere else on this page.');
+});
+
+test('"design" ending a plain sentence is never mistaken for a trailing design: marker', () => {
+  const r = parseReview('## KC-08\n- small: the focus ring does not match the design.\n');
+  assert.deepEqual(r['KC-08'].small, ['the focus ring does not match the design.']);
+  assert.deepEqual(r['KC-08'].design, []);
+});
+
+test('an item whose only bullets are design: gets back-to-design, ranked after small and before test-only; a must/small item keeps its worse verdict but still collects its design notes', () => {
+  const m = sampleMap();
+  const shoot = { states: { 'KC-05': { reached: true }, 'KC-04': { reached: true }, 'KC-08': { reached: true } } };
+  const mixedReview = `## KC-05\n- must fix: the button is missing.\n- design: the empty state should show an illustration, like the rest of the product does.\n\n## KC-08\n- design: this screen should use the shared Table component, like every other list.\n`;
+  const s = summarise({ map: m, shoot, notes: parseReview(mixedReview) });
+  assert.equal(s.states['KC-05'].verdict, 'must');
+  assert.deepEqual(s.states['KC-05'].design, ['the empty state should show an illustration, like the rest of the product does.']);
+  assert.equal(s.states['KC-08'].verdict, 'back-to-design');
+  assert.deepEqual(s.states['KC-08'].design, ['this screen should use the shared Table component, like every other list.']);
+  assert.equal(s.counts.must, 1);
+  assert.equal(s.counts.backToDesign, 1);
+  // back-to-design does not count as open (must + notReached), matching the fix-round rule.
+  assert.equal(s.counts.notReached, 0);
+});
+
+test('back-to-design renders in its own group: pill text, tally and the design note, without being mistaken for a match', () => {
+  const m = sampleMap();
+  const shoot = { states: { 'KC-05': { reached: true }, 'KC-04': { reached: true }, 'KC-08': { reached: true } } };
+  const s = summarise({ map: m, shoot, notes: parseReview('## KC-05\n- design: use the shared empty state.\n') });
+  const html = renderCompare({ title: 't', round: 1, beforeRound: null, map: m, summary: s, pictures: () => ({ design: null, before: null, now: null }) });
+  assert.match(html, /<span class="pill back-to-design">1 back to design<\/span>/);
+  assert.match(html, /<li class="d">use the shared empty state\.<\/li>/);
+  assert.match(html, /<li><b>1<\/b>back to design<\/li>/);
+});
+
+function writeReviewRound(paths, n, states) {
+  const dir = join(paths.runDir, 'rounds', String(n));
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'review.json'), JSON.stringify({ round: n, states }));
+}
+
+test('backToDesignItems: one entry per design: bullet, from the last round with a compiled review only', () => {
+  const repo = makeTempDir();
+  try {
+    const paths = featurePaths(repo.dir, 'widgets');
+    assert.deepEqual(backToDesignItems(paths), [], 'no rounds yet');
+    writeReviewRound(paths, 1, {
+      'KC-05': { verdict: 'back-to-design', must: [], small: [], design: ['first note'] },
+      'KC-04': { verdict: 'match', must: [], small: [], design: [] },
+    });
+    assert.deepEqual(backToDesignItems(paths), [{ id: 'KC-05', note: 'first note' }]);
+    // A must/small item's design notes count too, and multiple design bullets on one item
+    // become multiple entries. Only the newest round with a review.json is read.
+    writeReviewRound(paths, 2, {
+      'KC-05': { verdict: 'must', must: ['still broken'], small: [], design: ['a', 'b'] },
+      'KC-08': { verdict: 'back-to-design', must: [], small: [], design: ['c'] },
+    });
+    assert.deepEqual(backToDesignItems(paths), [
+      { id: 'KC-05', note: 'a' }, { id: 'KC-05', note: 'b' }, { id: 'KC-08', note: 'c' },
+    ]);
+  } finally { repo.cleanup(); }
 });
 
 test('the comparison page shows each state, its pictures and notes, escaped', () => {
@@ -130,6 +209,20 @@ test('picture NEXT walks the loop', () => {
   const shipped = pictureNext(facts({ rounds: [{ ...open, round: MAX_ROUNDS }] }), { cli: 'node scripts/delivery.mjs', readyOk: true, epic: 1947 });
   assert.equal(shipped.step, 'land');
   assert.match(shipped.text, /after the founder's merge, node scripts\/delivery\.mjs land --epic 1947/);
+});
+
+test('picture NEXT: items sent back to the design get their own tail line at ship, independent of open must/not-reached items', () => {
+  const clean = { round: 1, shot: true, reviews: 1, compiled: true, counts: { must: 0, notReached: 0 } };
+  // back-to-design items never trigger another fix round on their own.
+  const shipClean = next(facts({ rounds: [clean], backToDesign: 2 }));
+  assert.equal(shipClean.step, 'ship');
+  assert.match(shipClean.text, /; 2 item\(s\) go back to the design: node scripts\/delivery\.mjs brief new <slug> --from-run$/);
+  // No back-to-design items: no such tail at all.
+  assert.doesNotMatch(next(facts({ rounds: [clean], backToDesign: 0 })).text, /back to the design/);
+  // Combines with the "stay open after MAX_ROUNDS" tail when both are true.
+  const stillOpen = { round: MAX_ROUNDS, shot: true, reviews: 1, compiled: true, counts: { must: 1, notReached: 0 } };
+  const both = next(facts({ rounds: [stillOpen], backToDesign: 1 }));
+  assert.match(both.text, /go to the founder as a list; 1 item\(s\) go back to the design: node scripts\/delivery\.mjs brief new <slug> --from-run$/);
 });
 
 test('picture NEXT: components-first branches (page blocked, components run unbuilt, landed components run owing design-sync)', () => {

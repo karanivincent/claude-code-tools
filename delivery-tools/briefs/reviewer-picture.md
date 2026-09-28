@@ -32,6 +32,9 @@ Look at the two pictures side by side and ask:
    breaks is `must fix`, and the bullet starts with its id: `must fix: R7 ...`.
 6. Does the wording mean the same? Names and numbers from test data may differ, and fake phone
    numbers and example addresses are fake on purpose. Neither is a problem.
+7. Is the live page actually right, and the design wrong or missing something the product already
+   does elsewhere? That is never `must fix` — the live page is not the thing to change. Write
+   `design:` instead, so it goes back to whoever writes the design brief, not to the builder.
 
 An item the capture didn't reach gets one line saying so.
 
@@ -50,8 +53,10 @@ Write the file your prompt names, in the round folder:
 
 - Line 1: how many of your items match, and how many have problems.
 - One section per item with problems, headed `## <ID>` or `## <ID>@phone`. Put one bullet per problem, starting
-  `must fix:` (missing, broken, wrong, or noticeable at a glance) or `small:` (visible only on a
-  close look). Say what the design shows and what the live page shows.
+  `must fix:` (missing, broken, wrong, or noticeable at a glance), `small:` (visible only on a
+  close look), or `design:` (the live page is right; the design should change to match it, or to
+  add something the product has elsewhere — never `must fix:` for this). Say what the design shows
+  and what the live page shows.
 - End with one line listing the items that match.
 
 Be concrete. "The header is different" doesn't help. "The design's Add button is large, with a +

@@ -6,6 +6,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { checklistPath, designIds, mapPath, validateMap } from './map.mjs';
 import { listRounds, roundInfo } from './rounds.mjs';
+import { backToDesignItems } from './review.mjs';
 import { designFor, hasPhone, mapItems } from './widths.mjs';
 import { ruleFacts, rulesPath } from './rules.mjs';
 import { componentsMapPath, findDesignSystemManifest, missingFromDesignSystem } from '../components/map.mjs';
@@ -156,6 +157,7 @@ export function pictureFacts(paths, opts = {}) {
     ruleCounts: rules?.counts ?? null,
     seedStale: Boolean(map) && (!existsSync(paths.seedplan) || mtime(paths.seedplan) < Math.max(mtime(mapPath(paths)), newestWorld)),
     rounds,
+    backToDesign: backToDesignItems(paths).length,
     pageBlockedComponents,
     componentsUnbuilt,
     landedComponentsRun,
@@ -198,7 +200,9 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   if (open && last.round < MAX_ROUNDS) {
     return { step: 'fix', skill, text: `fix round: send the builder round ${last.round}'s review.json (${open} ${noun}(s) open), re-seed the worlds it names, then ${cli} shoot --base-url <url> (round ${last.round + 1})` };
   }
-  const tail = open ? `; ${open} ${noun}(s) stay open after ${MAX_ROUNDS} rounds and go to the founder as a list` : '';
+  let tail = open ? `; ${open} ${noun}(s) stay open after ${MAX_ROUNDS} rounds and go to the founder as a list` : '';
+  const backToDesign = f.backToDesign ?? 0;
+  if (backToDesign) tail += `; ${backToDesign} item(s) go back to the design: ${cli} brief new <slug> --from-run`;
   if (f.componentsUnbuilt?.length) {
     return { step: 'components-build', skill, text: `${cli} components --mark-built ${f.componentsUnbuilt.join(' ')}` };
   }

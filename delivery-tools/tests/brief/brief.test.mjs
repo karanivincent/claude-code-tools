@@ -14,6 +14,7 @@ import newCommand from '../../lib/commands/brief-new.mjs';
 import checkCommand from '../../lib/commands/brief-check.mjs';
 import packCommand from '../../lib/commands/brief-pack.mjs';
 import { resolveCommand } from '../../lib/core/command.mjs';
+import { featurePaths } from '../../lib/core/paths.mjs';
 import { makeTestCtx } from '../helpers/ctx.mjs';
 import { makeTempDir } from '../helpers/tmp-repo.mjs';
 import { makeProfile } from '../helpers/fixtures.mjs';
@@ -302,6 +303,62 @@ test('brief new: refuses a slug with an uppercase letter (exit 2)', async () => 
   try {
     const { ctx } = await makeTestCtx({ repoRoot: t.dir, feature: 'widgets', profile: makeProfile() });
     await assert.rejects(newCommand.run(ctx, ['First-Look']), (err) => err.exit === 2);
+  } finally { t.cleanup(); }
+});
+
+// --- delivery brief new --from-run -------------------------------------------------------------
+
+function writeReviewRound(t, feature, n, states) {
+  const paths = featurePaths(t.dir, feature);
+  write(t.dir, join('.delivery', feature, 'rounds', String(n), 'review.json'), { round: n, states });
+  return paths;
+}
+
+test('brief new --from-run: pre-fills "What changes and why" with one bullet per design: item, from the current run', async () => {
+  const t = makeTempDir();
+  try {
+    writeReviewRound(t, 'widgets', 1, {
+      'KC-08': { verdict: 'back-to-design', must: [], small: [], design: ['use the shared Table component, like every other list.'] },
+      'KC-04': { verdict: 'match', must: [], small: [], design: [] },
+    });
+    const { ctx, stdout } = await makeTestCtx({ repoRoot: t.dir, feature: 'widgets', profile: makeProfile() });
+    const code = await newCommand.run(ctx, ['picker-fix', '--from-run']);
+    assert.equal(code, 0, stdout.text());
+    const text = readFileSync(join(t.dir, 'docs/delivery/widgets/intent/briefs/01-picker-fix.md'), 'utf8');
+    assert.match(text, /^## What changes and why\n- KC-08: use the shared Table component, like every other list\.$/m);
+  } finally { t.cleanup(); }
+});
+
+test('brief new --from-run <feature>: reads another run\'s rounds instead of the current one', async () => {
+  const t = makeTempDir();
+  try {
+    writeReviewRound(t, 'other-run', 1, {
+      'W-01': { verdict: 'back-to-design', must: [], small: [], design: ['this state belongs to the other run.'] },
+    });
+    const { ctx, stdout } = await makeTestCtx({ repoRoot: t.dir, feature: 'widgets', profile: makeProfile() });
+    const code = await newCommand.run(ctx, ['picker-fix', '--from-run', 'other-run']);
+    assert.equal(code, 0, stdout.text());
+    const text = readFileSync(join(t.dir, 'docs/delivery/widgets/intent/briefs/01-picker-fix.md'), 'utf8');
+    assert.match(text, /^## What changes and why\n- W-01: this state belongs to the other run\.$/m);
+  } finally { t.cleanup(); }
+});
+
+test('brief new --from-run: no rounds yet leaves "What changes and why" untouched, and still writes the brief', async () => {
+  const t = makeTempDir();
+  try {
+    const { ctx, stdout } = await makeTestCtx({ repoRoot: t.dir, feature: 'widgets', profile: makeProfile() });
+    const code = await newCommand.run(ctx, ['picker-fix', '--from-run']);
+    assert.equal(code, 0, stdout.text());
+    const text = readFileSync(join(t.dir, 'docs/delivery/widgets/intent/briefs/01-picker-fix.md'), 'utf8');
+    assert.match(text, /## What changes and why\n\n## Screens/);
+  } finally { t.cleanup(); }
+});
+
+test('brief new: a stray second positional with no --from-run is refused as an unexpected argument (exit 2)', async () => {
+  const t = makeTempDir();
+  try {
+    const { ctx } = await makeTestCtx({ repoRoot: t.dir, feature: 'widgets', profile: makeProfile() });
+    await assert.rejects(newCommand.run(ctx, ['picker-fix', 'other-run']), (err) => err.exit === 2 && /unexpected argument "other-run"/.test(err.message));
   } finally { t.cleanup(); }
 });
 
