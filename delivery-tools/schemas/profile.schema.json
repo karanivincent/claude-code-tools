@@ -188,6 +188,23 @@
         "handoverPattern": { "$ref": "common.schema.json#/$defs/Text" }
       }
     },
+    "review": {
+      "description": "Optional. shadowGrader: an outside decision model that delivery review asks, for every finding of a round, whether it is a code bug, a data gap or a known steer. The answers are only recorded (rounds/<n>/shadow.json); they never change a verdict, a count, an exit code or what the builder sees. keyEnv is the NAME of the environment variable that holds the API key (never the key itself).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "shadowGrader": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["endpoint", "model", "keyEnv"],
+          "properties": {
+            "endpoint": { "type": "string", "pattern": "^https?://\\S+$" },
+            "model": { "type": "string", "minLength": 1 },
+            "keyEnv": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$" }
+          }
+        }
+      }
+    },
     "retro": {
       "description": "Optional. Where delivery retro finds the plugin checkout it may change through PRs, and that repo's GitHub name. DELIVERY_PLUGIN_REPO and DELIVERY_PLUGIN_GH override these. A path under ~/.claude/plugins/cache is always refused.",
       "type": "object",

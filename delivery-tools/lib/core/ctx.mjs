@@ -36,6 +36,8 @@ export const PLUGIN_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '
  * @property {import('./gh.mjs').Gh} gh            bound to profile.issues.repo (or repo.slug)
  * @property {import('./clock.mjs').Clock} clock
  * @property {NodeJS.ProcessEnv} env
+ * @property {typeof fetch} fetch   the network, injectable so tests never touch it (the shadow grader uses it)
+ * @property {(ms: number) => Promise<void>} sleep   waits between retries; tests inject an instant one
  * @property {{ version: string, manifestSha256: string|null }} cli
  * @property {(e: { command: string, exit?: number, counts?: Record<string, unknown>, inputs?: unknown, outputs?: unknown }) => Promise<boolean>} journal
  *   append one event to state.json when the run has one; false when there is no state yet
@@ -46,7 +48,7 @@ export const PLUGIN_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '
  *   cwd?: string, env?: NodeJS.ProcessEnv, flags: { feature: string|null, json: boolean, help: boolean },
  *   runner: import('./run.mjs').Runner, gh?: import('./gh.mjs').Gh, clock?: import('./clock.mjs').Clock,
  *   out?: import('./output.mjs').Output, stdout?: any, stderr?: any, repoRoot?: string,
- *   cli?: { version: string, manifestSha256: string|null }, profile?: object, safety?: object,
+ *   cli?: { version: string, manifestSha256: string|null }, profile?: object, safety?: object, fetch?: typeof fetch, sleep?: (ms: number) => Promise<void>,
  * }} o  profile and safety let tests inject values instead of files
  * @returns {Promise<Ctx>}
  */
@@ -86,7 +88,7 @@ export async function createCtx(o) {
   let safetyP = null;
   const ctx = {
     cwd, repoRoot, pluginRoot: PLUGIN_ROOT, flags: o.flags, feature, paths, out,
-    runner: o.runner, git, gh, clock: o.clock ?? systemClock, env,
+    runner: o.runner, git, gh, clock: o.clock ?? systemClock, env, fetch: o.fetch ?? globalThis.fetch, sleep: o.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms))),
     cli: o.cli ?? { version: pluginVersion(), manifestSha256: null },
     requirePaths() {
       if (featureError) throw featureError;

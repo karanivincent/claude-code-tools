@@ -133,6 +133,21 @@ export function reviewerRecords(paths) {
   return out;
 }
 
+/** The shadow grader's totals over every round's shadow.json, or null when no round has one. */
+export function shadowTotals(paths) {
+  let found = false;
+  const t = { answered: 0, errors: 0 };
+  for (const n of listRounds(paths)) {
+    const file = join(roundsDir(paths), String(n), 'shadow.json');
+    if (!existsSync(file)) continue;
+    let doc;
+    try { doc = JSON.parse(readFileSync(file, 'utf8')); } catch { continue; }
+    found = true;
+    for (const a of doc.answers ?? []) { if (a.error) t.errors += 1; else t.answered += 1; }
+  }
+  return found ? t : null;
+}
+
 /**
  * The run's record. `previous` is this feature's earlier line, whose autoChanges are kept.
  * @param {import('../core/ctx.mjs').Ctx} ctx
@@ -145,6 +160,7 @@ export async function buildRecord(ctx, paths, opts = {}) {
   const { phases, founder } = phasesFromJournal(journal);
   const file = join(paths.deliveryDir, 'workflow-improvements.md');
   const improvements = existsSync(file) ? parseImprovements(readFileSync(file, 'utf8')) : [];
+  const shadow = shadowTotals(paths);
   return {
     schemaVersion: 1,
     feature: paths.feature,
@@ -155,6 +171,7 @@ export async function buildRecord(ctx, paths, opts = {}) {
     rounds: roundRecords(paths),
     reviewers: reviewerRecords(paths),
     ciAfterPr: opts.ciFailures ?? ciFailuresFromJournal(journal),
+    ...(shadow ? { shadow } : {}),
     improvements,
     autoChanges: opts.previous?.autoChanges ?? [],
   };

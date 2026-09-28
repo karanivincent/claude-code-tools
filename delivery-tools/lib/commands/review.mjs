@@ -9,6 +9,7 @@ import { EXIT } from '../core/exit.mjs';
 import { readMap } from '../picture/map.mjs';
 import { listRounds, roundDir, roundInfo } from '../picture/rounds.mjs';
 import { AUTO_MATCH_MAX_DIFF, MAX_BATCH_ITEMS, MAX_PARALLEL_REVIEWERS, batchPrompt, batchWaves, parseReview, planReview, renderCompare, summarise } from '../picture/review.mjs';
+import { exportShadow, runShadow, shadowFindings, shadowSetup, steerLines } from '../picture/shadow.mjs';
 import { hasPhone, mapItems, roundFiles } from '../picture/widths.mjs';
 
 export default defineCommand({
@@ -16,6 +17,7 @@ export default defineCommand({
   summary: 'Compile a round\'s reviewer notes into review.json and the comparison page',
   usage: `usage: delivery review --plan [--round <n>]
        delivery review [--round <n>] [--before <n>]
+       delivery review --shadow-export
 
 Picture mode. First "--plan": it works out what needs a reviewer and writes the batches, so the
 main session only dispatches them. From round 2 on, an item whose live and design pictures are both
@@ -56,6 +58,14 @@ options:
   --round <n>    the round (default: the latest numbered round)
   --before <n>   the earlier round shown next to it (default: round 1, when this is a later round)
 
+Shadow grader (optional). With profile review.shadowGrader { endpoint, model, keyEnv } and that
+environment variable set, compiling a round also asks the outside model, for every must, small and
+not-reached finding (carried items are skipped), whether it is a code bug, a data gap or a known
+steer (the lines of steers.md), and writes rounds/<n>/shadow.json. It only records: review.json, the
+counts, the exit code and what the builder sees are the same with or without it, and any failure is
+one warning line. "--shadow-export" joins the run's shadow.json files into shadow-sample.json (the
+findings, for blind labellers) and shadow-answers.json (the model's answers, kept apart).
+
 exit: 0 compiled, nothing left to fix; 1 compiled, and items are still to fix or not reached;
       2 no round, no shoot.json or no review file
 
@@ -64,8 +74,9 @@ common options:
   --json             machine output: one JSON object on stdout
   --help             this text`,
   async run(ctx, argv) {
-    const { values } = parseCommandArgs(argv, { options: { round: { type: 'string' }, before: { type: 'string' }, plan: { type: 'boolean' } } });
+    const { values } = parseCommandArgs(argv, { options: { round: { type: 'string' }, before: { type: 'string' }, plan: { type: 'boolean' }, 'shadow-export': { type: 'boolean' } } });
     const paths = ctx.requirePaths();
+    if (values['shadow-export']) return shadowExport(ctx, paths);
     const rounds = listRounds(paths);
     const round = intFlag(values.round, '--round') ?? rounds[rounds.length - 1];
     if (!round) { ctx.out.fail('no-round', 'no numbered round yet; run delivery shoot first'); return EXIT.USAGE; }
@@ -123,9 +134,48 @@ common options:
     ctx.out.set('review', { round, before, counts: c, carried: nCarried, auto: nAuto, compare: join(info.dir, 'compare.html') });
     const exit = c.must || c.notReached ? EXIT.RED : EXIT.PASS;
     await ctx.journal({ command: `review --round ${round}`, exit, counts: c });
+    await shadowRound(ctx, paths, info, summary);
     return exit;
   },
 });
+
+/**
+ * Record what the shadow grader would have answered. Runs after review.json is written and can
+ * change nothing: every failure, including a bug here, is one warning line.
+ */
+async function shadowRound(ctx, paths, info, summary) {
+  try {
+    let profile = null;
+    try { profile = await ctx.profile(); } catch { return; }
+    const setup = shadowSetup(profile, ctx.env);
+    if (setup.off === 'no-profile-key') return;
+    if (setup.off === 'no-key') { ctx.out.warn(`shadow grader is off: ${setup.keyEnv} is not set`); return; }
+    const findings = shadowFindings(summary, info.shoot);
+    if (!findings.length) return;
+    const steersFile = join(paths.deliveryDir, 'steers.md');
+    const steers = existsSync(steersFile) ? steerLines(readFileSync(steersFile, 'utf8')) : [];
+    const doc = await runShadow({ fetch: ctx.fetch, config: setup.config, key: setup.key, findings, steers, at: ctx.clock.now().toISOString(), sleep: ctx.sleep });
+    await writeFile(join(info.dir, 'shadow.json'), JSON.stringify(doc, null, 1) + '\n');
+    const failed = doc.answers.filter((a) => a.error);
+    if (failed.length) ctx.out.warn(`shadow grader: ${failed.length} of ${doc.answers.length} answers failed (${failed[0].error})`);
+  } catch (err) {
+    ctx.out.warn(`shadow grader failed: ${String(err?.message ?? err).split('\n')[0]}`);
+  }
+}
+
+/** review --shadow-export: the run's shadow answers, split into a sample and an answers file. */
+async function shadowExport(ctx, paths) {
+  const res = exportShadow(paths);
+  if (!res) { ctx.out.fail('no-shadow', 'no round has a shadow.json; run delivery review with review.shadowGrader set in the profile'); return EXIT.USAGE; }
+  const sample = join(paths.deliveryDir, 'shadow-sample.json');
+  const answers = join(paths.deliveryDir, 'shadow-answers.json');
+  mkdirSync(paths.deliveryDir, { recursive: true });
+  await writeFile(sample, JSON.stringify(res.sample, null, 1) + '\n');
+  await writeFile(answers, JSON.stringify(res.answers, null, 1) + '\n');
+  ctx.out.line(`shadow: ${res.sample.items.length} finding(s) in ${relative(ctx.repoRoot, sample)}, answers apart in ${relative(ctx.repoRoot, answers)}${res.errors ? ` (${res.errors} failed request(s) left out)` : ''}`);
+  ctx.out.set('shadowExport', { items: res.sample.items.length, errors: res.errors, sample, answers });
+  return EXIT.PASS;
+}
 
 /** review --plan: carried and auto-matched items, then the reviewer batches with their prompts. */
 async function planRound(ctx, paths, round, info, rounds) {
