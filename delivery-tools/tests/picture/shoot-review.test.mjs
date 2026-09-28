@@ -1,7 +1,7 @@
 // delivery shoot's pure helpers, the review compiler, and picture-mode NEXT.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { captureOrder, isLocal, resultLine, selectStates, signInUrl, testidSelector, userFor } from '../../lib/picture/shoot.mjs';
 import { backToDesignItems, parseReview, renderCompare, summarise } from '../../lib/picture/review.mjs';
@@ -363,14 +363,65 @@ test('pictureFacts: componentsUnbuilt reads the committed HEAD, not the working 
     const noGit = await pictureFacts(paths, { profile });
     assert.deepEqual(noGit.componentsUnbuilt, [], 'no git handle: falls back to the working copy, same as before');
 
+    // pictureFacts also reads HEAD for componentsRunExists (I12, round 2) in the same call; the
+    // stub answers both paths, and only the components.json call matters to this test.
     const shownAtHead = [];
-    const staleGit = { show: async (ref, p) => { shownAtHead.push([ref, p]); return JSON.stringify(componentsFile('new')); } };
+    const staleGit = { show: async (ref, p) => { shownAtHead.push([ref, p]); return p.endsWith('/components.json') ? JSON.stringify(componentsFile('new')) : null; } };
     const stillUnbuilt = await pictureFacts(paths, { profile, git: staleGit });
     assert.deepEqual(stillUnbuilt.componentsUnbuilt, ['Picker'], 'HEAD has not seen the mark-built yet: still owed a commit and a push');
-    assert.deepEqual(shownAtHead, [['HEAD', 'docs/delivery/components.json']]);
+    assert.ok(shownAtHead.some(([ref, p]) => ref === 'HEAD' && p === 'docs/delivery/components.json'));
 
     const caughtUpGit = { show: async () => JSON.stringify(componentsFile('built')) };
     const doneAtHead = await pictureFacts(paths, { profile, git: caughtUpGit });
     assert.deepEqual(doneAtHead.componentsUnbuilt, [], 'once HEAD itself says built, NEXT and ready finally agree');
+  } finally { repo.cleanup(); }
+});
+
+// Fix round (I12, round 2): componentsRunExists must mean "the first components run wrote its own
+// map.json" — the product-wide components.json existing is not proof of that; a page run's own
+// intake can write it too. Tested through pictureFacts with real files, both branches.
+test('pictureFacts: componentsRunExists reads the first components run\'s own map.json, not just components.json\'s presence', async () => {
+  const repo = makeTempDir();
+  try {
+    const paths = featurePaths(repo.dir, 'widgets');
+    const profile = makeProfile({ components: { map: 'docs/delivery/components.json' } });
+
+    // A page run blocked on Picker; components.json exists (a page run's own intake writes drift
+    // there too), but no components run has ever written docs/delivery/components/map.json.
+    writeJson(join(repo.dir, 'docs/delivery/components.json'), componentsFile('new'));
+    writeJson(join(repo.dir, 'docs/delivery/widgets/map.json'), {
+      schemaVersion: 1, feature: 'widgets', title: 'Widgets', kind: 'redesign', route: '/dashboard/widgets',
+      pageArea: { left: 240, designLeft: 240 },
+      worlds: [{ id: 'design', users: [{ role: 'admin', email: 'delivery+widgets-design-admin@example.invalid' }] }],
+      states: [{ id: 'W-01', screen: 'Main', name: 'Everything', reach: { world: 'design', role: 'admin', steps: [{ goto: '/dashboard/widgets' }] }, buttons: [] }],
+    });
+    mkdirSync(paths.designRenders, { recursive: true });
+    writeFileSync(join(paths.designRenders, 'W-01.png'), 'x');
+    writeFileSync(join(paths.designRenders, 'W-01.components.json'), JSON.stringify({ names: ['Picker'] }));
+
+    const before = await pictureFacts(paths, { profile });
+    assert.equal(before.componentsRunExists, false, 'components.json existing alone is not proof a components run happened');
+    const beforeNext = pictureNext(before, { cli: 'node scripts/delivery.mjs' });
+    assert.match(beforeNext.text, /intake --components <export>/);
+    assert.doesNotMatch(beforeNext.text, /--from components/);
+
+    // The first components run has now written its own map.json (working copy, no git handle).
+    writeJson(join(repo.dir, 'docs/delivery/components/map.json'), {
+      schemaVersion: 1, feature: 'components', title: 'Components', kind: 'components', route: '/admin/design/components',
+      worlds: [{ id: 'components', users: [{ role: 'admin', email: 'delivery+components-admin@example.invalid' }] }],
+      states: [],
+    });
+    const afterNoGit = await pictureFacts(paths, { profile });
+    assert.equal(afterNoGit.componentsRunExists, true, 'no git handle: falls back to the working copy');
+    const afterNext = pictureNext(afterNoGit, { cli: 'node scripts/delivery.mjs' });
+    assert.match(afterNext.text, /intake --components --from components <export>/);
+
+    // The git-HEAD path: HEAD has it even though the working copy no longer does.
+    const seenAt = [];
+    const git = { show: async (ref, p) => { seenAt.push([ref, p]); return '{"kind":"components"}'; } };
+    rmSync(join(repo.dir, 'docs/delivery/components/map.json'));
+    const afterGit = await pictureFacts(paths, { profile, git });
+    assert.equal(afterGit.componentsRunExists, true, 'HEAD says it exists even though the working copy was since removed');
+    assert.ok(seenAt.some(([ref, p]) => ref === 'HEAD' && p === 'docs/delivery/components/map.json'));
   } finally { repo.cleanup(); }
 });

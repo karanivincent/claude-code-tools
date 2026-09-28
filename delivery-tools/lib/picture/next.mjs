@@ -5,6 +5,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { checklistPath, designIds, mapPath, validateMap } from './map.mjs';
+import { featurePaths } from '../core/paths.mjs';
 import { listRounds, roundInfo } from './rounds.mjs';
 import { backToDesignItems } from './review.mjs';
 import { designFor, hasPhone, mapItems } from './widths.mjs';
@@ -74,6 +75,27 @@ async function committedComponentsMap(git, repoRoot, compPath, compMap) {
   } catch { return compMap; }
 }
 
+/**
+ * Whether the very first components run (feature slug "components") has ever gotten as far as
+ * writing its own map.json — round 2 of I12: this is what actually makes "components" a taken
+ * feature slug, not merely the product-wide components.json existing (a page run's own ready
+ * check writes nothing there, but componentsMapPath's file can still exist before any components
+ * run has). Read from the committed HEAD, the same way I14 reads "marked built", falling back to
+ * the working copy when there is no git handle or the file is not on HEAD yet.
+ */
+async function firstComponentsRunHasMap(paths, opts) {
+  if (!opts.profile) return false;
+  const compRunPaths = featurePaths(paths.repoRoot, 'components', opts.profile.paths ?? {});
+  const file = mapPath(compRunPaths);
+  if (opts.git) {
+    try {
+      const raw = await opts.git.show('HEAD', relative(paths.repoRoot, file));
+      if (raw) return true;
+    } catch { /* fall through to the working copy */ }
+  }
+  return existsSync(file);
+}
+
 /** A design render's recorded component names (the same file readStateComponents reads), read synchronously. */
 function stateComponentNames(paths, id, width) {
   if (!paths.designRenders) return [];
@@ -112,10 +134,10 @@ function alreadyLanded(journal) {
  * Read what the picture loop needs from a run's files.
  * @param {import('../core/paths.mjs').FeaturePaths} paths
  * @param {{ profile?: object, git?: import('../core/git.mjs').createGit }} [opts] profile: needed
- *   for the components-first facts (componentsUnbuilt, pageBlockedComponents, designSyncMissing);
- *   omitted, those are empty/null and nothing else changes. git: bound to paths.repoRoot, read for
- *   componentsUnbuilt's committed-HEAD check (I14); omitted, that check falls back to the working
- *   copy, same as before.
+ *   for the components-first facts (componentsUnbuilt, pageBlockedComponents, designSyncMissing,
+ *   componentsRunExists); omitted, those are empty/false and nothing else changes. git: bound to
+ *   paths.repoRoot, read for componentsUnbuilt's and componentsRunExists' committed-HEAD checks
+ *   (I14, I12); omitted, those fall back to the working copy, same as before.
  * @returns {Promise<object>}
  */
 export async function pictureFacts(paths, opts = {}) {
@@ -179,6 +201,7 @@ export async function pictureFacts(paths, opts = {}) {
     const manifestPath = findDesignSystemManifest(paths.designSnapshot);
     if (manifestPath) designSyncMissing = missingFromDesignSystem(compMap, readJsonSync(manifestPath)?.components ?? []);
   }
+  const componentsRunExists = await firstComponentsRunHasMap(paths, opts);
 
   return {
     designed: desktopPictures,
@@ -201,10 +224,10 @@ export async function pictureFacts(paths, opts = {}) {
     rounds,
     backToDesign: backToDesignItems(paths).length,
     pageBlockedComponents,
-    // Whether a components run has ever happened at all (fix round, I12): the product-wide
-    // components.json is only ever written by one, so its presence is the signal that "components"
-    // is a taken feature slug and a fresh one needs --from components <export> to reach it.
-    componentsRunExists: Boolean(compMap),
+    // Whether the very first components run has ever written its own map.json (fix round, I12,
+    // round 2) — the signal that "components" is a taken feature slug and a fresh one needs
+    // --from components <export> to reach it.
+    componentsRunExists,
     componentsUnbuilt,
     // The repo-relative components.json path, for NEXT's "commit ... and push" line (I14).
     componentsMapRelPath: compPath ? relative(paths.repoRoot, compPath) : null,
