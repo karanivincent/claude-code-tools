@@ -68,6 +68,11 @@ request in its report and works around it locally.
 | `tests/prepush/**` | A2 |
 | `tests/github/**` | A2 |
 | `tests/fixtures/lifecycle/**` | A2 |
+| `lib/commands/retro.mjs` | A2 |
+| `lib/retro/**` | A2 |
+| `tests/retro/**` | A2 |
+| `tests/fixtures/retro/**` | A2 |
+| `tunables.json` | A2 |
 | `lib/commands/check.mjs` | B1 |
 | `lib/commands/inventory-check.mjs` | B1 |
 | `lib/commands/plan-*.mjs` | B1 |
@@ -159,6 +164,7 @@ lib/gates/phase-0.mjs ... phase-7.mjs A1  gate(ctx) -> Promise<GateResult>
 lib/run/                      A1  ready.mjs (checkReady), inflight.mjs (recordDispatch, clearDispatch), and A1's own modules
 lib/lifecycle/                A2  intake, preflight (PROBES), prepush (prepushProblems), preview, wave, land
 lib/github/                   A2  issues, scope, claims, dupes, ci
+lib/retro/                    A2  record (runRecord), compare (proposals), size (classify: small or large), apply (applyChange, revertChange), tunables (tunable); tunables.json at the plugin root holds the numbers a small change may move
 lib/plan/                     B1  inventory-check, check (M1), render (spec.md), verify
 lib/checks/                   B1  index (registry, runChecks), severity, one module per check
 lib/gate/                     B1  unit (unitGateStatus, the unit gate)
