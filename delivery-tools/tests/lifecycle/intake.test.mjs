@@ -14,6 +14,7 @@ import { validExample, makeProfile } from '../helpers/fixtures.mjs';
 import { validateAgainst } from '../../lib/core/schema.mjs';
 import { runIntake, verifyIntake, slugify, stripCommonRoot, parseSnapshotReadme, renderIntentMd } from '../../lib/lifecycle/intake.mjs';
 import intakeCommand from '../../lib/commands/intake.mjs';
+import statusCommand from '../../lib/commands/status.mjs';
 import { makeRunRepo, ctxFor } from './support.mjs';
 
 /** A stand-in for slice C's Claude Design adapter, with the same interface. */
@@ -194,6 +195,16 @@ function componentsExportZip(path, pickerHtml = '<x-dc><div>{{ label }}</div></x
   ]));
 }
 
+/** A later export: Picker again, plus a brand-new Sheet component with no target yet. */
+function componentsExportZipWithSheet(path) {
+  writeFileSync(path, writeZip([
+    { name: 'Components/Main.dc.html', data: '<x-dc>\n<dc-import name="Picker" label="Day"></dc-import>\n<dc-import name="Sheet"></dc-import>\n</x-dc>' },
+    { name: 'Components/Picker.dc.html', data: '<x-dc><div>{{ label }}</div></x-dc>' },
+    { name: 'Components/Sheet.dc.html', data: '<x-dc><div>a sheet</div></x-dc>' },
+    { name: 'Components/support.js', data: 'window.demo = 1;' },
+  ]));
+}
+
 test('--components: refuses while a design entry has no target (NEXT names the mapper); once one is set it writes components.json, the inventory, the map and gallery-states.json', async () => {
   const repo = await makeRunRepo({ run: false });
   try {
@@ -308,6 +319,53 @@ test('--components with nothing new or stale says so, exits 0, and never wipes t
   } finally { repo.cleanup(); }
 });
 
+// Fix round (round 2 of I15): carryOver must never copy the earlier components run's map.json —
+// this run's own intake always writes a fresh one, only once it actually has something to build.
+// A dated --from run refused before that point (a new design entry with no target yet) must
+// therefore have no map.json at all, so status steers to the mapper instead of treating a stale,
+// copied-over map as proof this run is already in picture mode.
+test('a refused --from components run has no map.json at all; status names the mapper, not the extractor', async () => {
+  const repo = await makeRunRepo({ run: false });
+  try {
+    const zip = join(repo.root, 'components-export.zip');
+    componentsExportZip(zip);
+    const profile = makeProfile({ components: { map: 'docs/delivery/components.json', galleryRoute: '/admin/design/components' } });
+    const { ctx } = await ctxFor(repo.primary, { feature: null, profile });
+
+    const first = await runIntake(ctx, { source: zip, components: true });
+    const mapFile = join(first.worktree, 'docs/delivery/components.json');
+    const written = JSON.parse(readFileSync(mapFile, 'utf8'));
+    written.components.find((c) => c.name === 'Picker').target = 'src/ui/picker.tsx';
+    writeFileSync(mapFile, `${JSON.stringify(written, null, 2)}\n`);
+    const second = await runIntake(ctx, { source: zip, components: true });
+    assert.equal(second.exit, 0, JSON.stringify(second.failures));
+    assert.ok(existsSync(join(first.worktree, 'docs/delivery/components/map.json')), 'sanity: the earlier run really has one');
+
+    // Land it, the way --from's own sanity check (and carryOver's, for rules/worlds) expects.
+    const branch = repo.git('-C', first.worktree, 'rev-parse', '--abbrev-ref', 'HEAD');
+    repo.git('checkout', 'main');
+    repo.git('merge', '--no-ff', '-m', 'merge components', branch);
+    repo.git('push', 'origin', 'main');
+
+    // A later export adds Sheet, which has no target yet: this dated run is refused before it
+    // ever gets to writing its own map.json.
+    const zip2 = join(repo.root, 'components-export-2.zip');
+    componentsExportZipWithSheet(zip2);
+    const third = await runIntake(ctx, { source: zip2, components: true, from: 'components' });
+    assert.equal(third.exit, 1);
+    assert.equal(third.feature, 'components-20260115');
+    assert.ok(third.failures.some((f) => /Sheet: no target yet/.test(f.message)), JSON.stringify(third.failures));
+    assert.equal(existsSync(join(third.worktree, 'docs/delivery/components-20260115/map.json')), false,
+      'carryOver must not have copied the earlier run\'s map.json here');
+
+    const { ctx: statusCtx, stdout } = await ctxFor(third.worktree, { profile, feature: null });
+    assert.equal(await statusCommand.run(statusCtx, []), 1);
+    const next = stdout.text().trim().split('\n').at(-1);
+    assert.match(next, /^NEXT: dispatch the mapper with briefs\/components-mapper\.md, then run .*intake --components again/);
+    assert.doesNotMatch(next, /extractor/);
+  } finally { repo.cleanup(); }
+});
+
 // Fix round (I12): a later components export used to be refused outright — --from components
 // defaulted its own feature to "components" too (a components run's own default), which is exactly
 // what --from names, so the "an update run needs a new feature slug" check always fired.
@@ -343,6 +401,17 @@ test('--components --from components gets its own dated feature slug, once "comp
     assert.equal(third.exit, 0, JSON.stringify(third.failures));
     assert.equal(third.feature, 'components-20260115');
     assert.notEqual(third.worktree, first.worktree);
+
+    // Fix round (round 2): a second --from components the same day must not collide with the
+    // dated slug the third call just took; it gets "-2", and a further one after that "-3".
+    const fourth = await runIntake(ctx, { source: zip, components: true, from: 'components' });
+    assert.equal(fourth.exit, 0, JSON.stringify(fourth.failures));
+    assert.equal(fourth.feature, 'components-20260115-2');
+    assert.notEqual(fourth.worktree, third.worktree);
+
+    const fifth = await runIntake(ctx, { source: zip, components: true, from: 'components' });
+    assert.equal(fifth.exit, 0, JSON.stringify(fifth.failures));
+    assert.equal(fifth.feature, 'components-20260115-3');
   } finally { repo.cleanup(); }
 });
 

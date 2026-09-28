@@ -211,16 +211,24 @@ export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic 
     const found = await adapter.detect(pack.dir);
     if (!found.ok) throw new UsageError(`not a recognised ${adapter.name} export: ${found.reason ?? 'unknown layout'}${adapter.name === 'claude-design' ? ' (for a folder of images pass --adapter image-folder)' : ''}`);
     const project = found.project || basename(abs).replace(/\.zip$/i, '');
+    const allRuns = await discoverRuns(ctx.git, { runRoot: profile.paths.runRoot });
+    const takenFeatures = new Set(allRuns.map((r) => r.feature));
     // --feature, else the run of the worktree this runs in, else "components" (a components run
     // shares one feature slug so a later export can update it by name) — except an update run
     // (--from) cannot itself default to the very slug it names, so --from on a components run gets
     // its own dated slug instead (fix round, I12): components.json and the run's other files are
-    // still carried over by --from, same as any other update run.
-    const defaultComponentsFeature = (components && from) ? `components-${isoDate(ctx.clock).replace(/-/g, '')}` : 'components';
+    // still carried over by --from, same as any other update run. A second --from components the
+    // same day gets "-2", then "-3", ... (fix round, round 2) rather than colliding with the first.
+    let defaultComponentsFeature = 'components';
+    if (components && from) {
+      const base = `components-${isoDate(ctx.clock).replace(/-/g, '')}`;
+      defaultComponentsFeature = base;
+      for (let n = 2; takenFeatures.has(defaultComponentsFeature); n += 1) defaultComponentsFeature = `${base}-${n}`;
+    }
     const feature = assertFeatureSlug(ctx.flags.feature ?? ctx.feature ?? (components ? defaultComponentsFeature : slugify(project)));
 
     // The run, if this feature already has one in some worktree.
-    const existingRun = (await discoverRuns(ctx.git, { runRoot: profile.paths.runRoot })).find((r) => r.feature === feature) ?? null;
+    const existingRun = allRuns.find((r) => r.feature === feature) ?? null;
     const state = existingRun ? await loadState(existingRun.statePath) : null;
     if (adoptEpic && state?.epic && state.epic !== adoptEpic) {
       throw new UsageError(`this run's epic is #${state.epic}; --epic ${adoptEpic} would move it (start a new feature instead)`);
@@ -285,8 +293,14 @@ export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic 
     // An update run starts from the earlier run's map, worlds, rules and intent.
     if (from) {
       if (assertFeatureSlug(from) === feature) throw new UsageError(`--from ${from} names this run; an update run needs a new feature slug (--feature)`);
-      const carried = await carryOver({ fromDir: featurePaths(worktree, from, profile.paths).deliveryDir, toDir: paths.deliveryDir, feature, sentence: theSentence })
-        .catch((err) => { throw new UsageError(err.message); });
+      // A components run's own intake always writes a fresh map.json (fix round, I15/round 2):
+      // copying the earlier run's over first would leave a stale one behind if this run is later
+      // refused (no target yet) or has nothing new to build (M5), hiding both behind a map.json
+      // that was never really this run's own.
+      const carried = await carryOver({
+        fromDir: featurePaths(worktree, from, profile.paths).deliveryDir, toDir: paths.deliveryDir,
+        feature, sentence: theSentence, carryMap: !components,
+      }).catch((err) => { throw new UsageError(err.message); });
       lines.push(carried.length ? `update run from ${from}: carried over ${carried.join(', ')}` : `update run from ${from}: nothing new to carry over`);
     }
 
