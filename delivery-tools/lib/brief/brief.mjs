@@ -8,7 +8,7 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { readFile, copyFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
-import { writeFileAtomic, readJson, writeJsonAtomic } from '../core/fs.mjs';
+import { writeFileAtomic, readJson, writeJsonAtomic, withLock } from '../core/fs.mjs';
 import { DeliveryError, EXIT } from '../core/exit.mjs';
 import { sha256File } from '../core/hash.mjs';
 import { componentsMapPath, readComponentsMap } from '../components/map.mjs';
@@ -170,7 +170,13 @@ export function briefProblems(text, opts = {}) {
  * @returns {Promise<{ dir: string, files: string[] }>}
  */
 export async function packBrief(briefPath, images, outDir, opts = {}) {
-  const text = await readFile(briefPath, 'utf8');
+  let text;
+  try {
+    text = await readFile(briefPath, 'utf8');
+  } catch (err) {
+    const message = err.code === 'ENOENT' ? `${briefPath} does not exist` : `${briefPath}: ${err.message}`;
+    throw new DeliveryError(EXIT.RED, message, { failures: [{ code: 'brief', message }] });
+  }
   const fileNames = images.map((p) => basename(p));
   const problems = briefProblems(text, { forbiddenNames: opts.forbiddenNames, componentNames: opts.componentNames, fileNames });
   if (problems.length) {
@@ -192,16 +198,19 @@ export async function packBrief(briefPath, images, outDir, opts = {}) {
 /**
  * Append one entry to intent/briefs/sent.json (components-first spec §8.3), creating the file if
  * it doesn't exist yet: `{ "sent": [ {file, chat, at, sha256}, ... ] }`. `sha256` is the hex digest
- * of the brief file's bytes, read from `file`.
+ * of the brief file's bytes, read from `file`. Read-modify-write under a lock, the same way
+ * recordFindings and updateState do, so two sessions sending at once cannot lose one's entry.
  * @param {string} intentDir
  * @param {{ file: string, chat: string, at?: string }} o  at: ISO timestamp; defaults to now
  * @returns {Promise<void>}
  */
 export async function recordSent(intentDir, { file, chat, at = new Date().toISOString() }) {
   const sentPath = join(intentDir, 'briefs', 'sent.json');
-  const existing = await readJson(sentPath, { optional: true });
-  const sent = existing?.sent ?? [];
   const digest = await sha256File(file);
-  sent.push({ file, chat, at, sha256: digest });
-  await writeJsonAtomic(sentPath, { sent });
+  return withLock(`${sentPath}.lock`, async () => {
+    const existing = await readJson(sentPath, { optional: true });
+    const sent = existing?.sent ?? [];
+    sent.push({ file, chat, at, sha256: digest });
+    await writeJsonAtomic(sentPath, { sent });
+  });
 }

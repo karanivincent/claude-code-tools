@@ -91,6 +91,20 @@ test('recordSent: defaults "at" to now when not given', async () => {
   } finally { t.cleanup(); }
 });
 
+test('recordSent: two concurrent calls both end up in sent.json (serialised through the lock)', async () => {
+  const t = makeTempDir();
+  try {
+    write(t.dir, 'briefs/01-widgets.md', okBrief());
+    const briefPath = join(t.dir, 'briefs/01-widgets.md');
+    await Promise.all([
+      recordSent(t.dir, { file: briefPath, chat: 'https://claude.ai/chat/one', at: '2026-09-28T10:00:00.000Z' }),
+      recordSent(t.dir, { file: briefPath, chat: 'https://claude.ai/chat/two', at: '2026-09-28T11:00:00.000Z' }),
+    ]);
+    const record = JSON.parse(readFileSync(join(t.dir, 'briefs/sent.json'), 'utf8'));
+    assert.deepEqual(record.sent.map((s) => s.chat).sort(), ['https://claude.ai/chat/one', 'https://claude.ai/chat/two']);
+  } finally { t.cleanup(); }
+});
+
 // --- command: delivery brief sent -----------------------------------------------------------
 
 test('brief sent: records the send and exits 0', async () => {
@@ -131,6 +145,17 @@ test('brief sent: refuses a forbidden name from profile.design.forbiddenNames', 
     const { ctx } = await makeTestCtx({ repoRoot: t.dir, feature: 'widgets', profile });
     const code = await sentCommand.run(ctx, [join(t.dir, 'brief.md'), '--chat', 'https://claude.ai/chat/abc']);
     assert.equal(code, 1);
+    assert.ok(!existsSync(join(t.dir, 'docs/delivery/widgets/intent/briefs/sent.json')));
+  } finally { t.cleanup(); }
+});
+
+test('brief sent: a missing file is reported cleanly (exit 1, no raw ENOENT), and writes nothing', async () => {
+  const t = makeTempDir();
+  try {
+    const { ctx, stdout } = await makeTestCtx({ repoRoot: t.dir, feature: 'widgets', profile: makeProfile() });
+    const code = await sentCommand.run(ctx, [join(t.dir, 'missing.md'), '--chat', 'https://claude.ai/chat/abc']);
+    assert.equal(code, 1);
+    assert.match(stdout.text(), /missing\.md does not exist/);
     assert.ok(!existsSync(join(t.dir, 'docs/delivery/widgets/intent/briefs/sent.json')));
   } finally { t.cleanup(); }
 });

@@ -32,7 +32,16 @@ common options:
     const paths = ctx.requirePaths();
     const file = resolve(ctx.cwd, positionals[0]);
     const { forbiddenNames, componentNames } = await briefComponents(ctx);
-    const text = await readFile(file, 'utf8');
+    let text;
+    try {
+      text = await readFile(file, 'utf8');
+    } catch (err) {
+      const message = err.code === 'ENOENT' ? `${file} does not exist` : `${file}: ${err.message}`;
+      ctx.out.fail('brief', message);
+      ctx.out.set('problems', 1);
+      await ctx.journal({ command: 'brief sent', exit: EXIT.RED, counts: { problems: 1 } });
+      return EXIT.RED;
+    }
     const problems = briefProblems(text, { forbiddenNames, componentNames });
     if (problems.length) {
       for (const p of problems) ctx.out.fail('brief', p);

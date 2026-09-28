@@ -254,6 +254,17 @@ test('packBrief: refuses on a problem in the brief text itself (an unnumbered be
   } finally { t.cleanup(); }
 });
 
+test('packBrief: a missing brief file is reported cleanly (exit 1, no raw ENOENT), and writes nothing', async () => {
+  const t = makeTempDir();
+  try {
+    await assert.rejects(
+      packBrief(join(t.dir, 'briefs/01-widgets.md'), [], join(t.dir, 'pack'), {}),
+      (err) => err.exit === 1 && /01-widgets\.md does not exist/.test(err.message) && !/ENOENT/.test(err.message),
+    );
+    assert.ok(!existsSync(join(t.dir, 'pack')));
+  } finally { t.cleanup(); }
+});
+
 // --- command: delivery brief new|check|pack ----------------------------------------------------
 
 test('brief new: writes intent/briefs/01-<slug>.md from the template, titled from the slug', async () => {
