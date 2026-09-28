@@ -22,10 +22,11 @@ profile, in that project's repository (spec section 18).
 node --test 'tests/**/*.test.mjs' 'skills/**/*.test.mjs'
 ```
 
-874 tests: 860 pass, 0 fail, 14 skipped (the replay tests, which need the private replay set).
-That is the whole suite after 0.9.0 (components first, then pages import them, and the design
-loop); 0.8.0 shipped with 554 tests, 540 passing. One run in five on 2026-09-23 showed a single
-failure that did not reproduce and did not name itself in the summary; recorded, not explained.
+912 tests: 898 pass, 0 fail, 14 skipped (the replay tests, which need the private replay set).
+That is the whole suite after 0.9.0's final-review fix wave (components first, then pages import
+them, and the design loop); 0.8.0 shipped with 554 tests, 540 passing. One run in five on
+2026-09-23 showed a single failure that did not reproduce and did not name itself in the summary;
+recorded, not explained.
 
 ## The Trust rule
 

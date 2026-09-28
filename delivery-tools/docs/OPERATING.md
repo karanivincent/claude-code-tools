@@ -116,6 +116,7 @@ has (`kind: "base"`). A project enables it with a `components` block in its prof
    extractor, which a components run never has.
 4. The components run then follows the same picture loop as any other run (`picture-build`): one
    builder builds every component from its design picture, reviewers compare, fix rounds follow.
+   The builder gets its component list from `delivery components --used`, never from the prompt.
 5. Before `ready`, mark what the builder finished: `delivery components --mark-built <Name>`
    (repeatable). `delivery ready` adds a `components` check with four rules: a screen's used
    component must be built at the design's current hash; a changed file must not import a
