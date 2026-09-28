@@ -127,7 +127,9 @@ has (`kind: "base"`). A project enables it with a `components` block in its prof
 7. Once a components run lands, NEXT has one thing left: `/design-sync` on the design-system
    project, so its own manifest knows what this run built. `delivery components --export <dir>`
    (or a page run's own design snapshot) reports drift against an export at any time, without
-   writing anything — a components run's `land` is what persists a fresh hash.
+   writing anything — `delivery components --mark-built` is what persists a fresh hash (land never
+   commits); NEXT and `ready` both read it from the PR head, so marking built only counts once it
+   is actually committed and pushed.
 
 ## Briefing and reviewing the design
 

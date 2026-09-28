@@ -69,7 +69,7 @@ export async function statusReport(ctx, run, opts = {}) {
 
   // Picture mode: a run with a map.json follows the picture loop, not the phase gates.
   if (!run.broken && run.state && existsSync(mapPath(paths))) {
-    const facts = await pictureFacts(paths, profile ? { profile } : {});
+    const facts = await pictureFacts(paths, profile ? { profile, git: rctx.git } : { git: rctx.git });
     const lastReady = (run.state.readyRecords ?? []).at(-1);
     const pnext = pictureNext(facts, { cli, readyOk: Boolean(lastReady?.ok), epic: run.state.epic ?? null });
     const next = { text: pnext.text, skill: pnext.skill, phase: `picture:${pnext.step}`, line: `NEXT: ${pnext.text}${pnext.skill ? ` (skill: ${pnext.skill})` : ''}` };

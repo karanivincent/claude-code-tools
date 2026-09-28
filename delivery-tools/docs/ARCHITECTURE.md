@@ -259,7 +259,7 @@ sidefx, seedplan, preflight, candidates) that fails its schema is exit 5: tamper
 |---|---|---|---|---|
 | profile | `.claude/delivery-profile.json` | profile | a person (drafted by `init`, A2) | everyone via `ctx.profile()` |
 | safety | `.claude/delivery-safety.json` | safety | the founder only; never the CLI | B2, A2 (P2) via `ctx.safety()` |
-| component map | `docs/delivery/components.json` (`profile.components.map`) | components | intake --components, land (design entries); `components --scan-base` (base entries); the mapper agent (target, props, owns, builtOn, replaces) | `components`, ready's components check (all C) |
+| component map | `docs/delivery/components.json` (`profile.components.map`) | components | intake --components (design entries' name, hash, uses, status); `components --mark-built` persists a fresh hash (land never commits); `components --scan-base` (base entries); the mapper agent (target, props, owns, builtOn, replaces) | `components`, ready's components check (all C) |
 | intent | `docs/delivery/<f>/intent.json` | intent | intake (A2) | everyone |
 | candidates | `.delivery/<f>/candidates.json` | candidates | design candidates (C) | inventory check (B1) |
 | inventory | `docs/delivery/<f>/inventory.json` | inventory | extractor agents | B1, C |

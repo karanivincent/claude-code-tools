@@ -115,6 +115,47 @@ test('--mark-built refuses a design entry with no target (exit 2), succeeds once
   } finally { t.cleanup(); }
 });
 
+// Fix round (I14): the builder deletes a replaced file in the same PR (briefs/builder-picture.md);
+// once it is actually gone, "open" (a caller still to switch over) is stale. --mark-built retires
+// it, and reports the ones it actually retired — a "left" replacement is never touched, whether or
+// not its file happens to exist.
+test('--mark-built retires a replaces[] entry whose file no longer exists; a "left" one is untouched', async () => {
+  const t = makeTempDir();
+  const mapRel = 'docs/delivery/components.json';
+  try {
+    write(t.dir, 'src/ui/picker.tsx', 'export const Picker = () => null;\n');
+    write(t.dir, 'src/old-picker-kept.tsx', 'export const OldPicker = () => null;\n');
+    write(t.dir, mapRel, {
+      version: 1,
+      components: [{
+        kind: 'design', name: 'Picker',
+        design: { file: 'Picker.dc.html', hash: H1 },
+        target: 'src/ui/picker.tsx', status: 'new', builtHash: null,
+        props: {}, owns: [], builtOn: [],
+        replaces: [
+          { file: 'src/old-picker-deleted.tsx', state: 'open', why: null },
+          { file: 'src/old-picker-kept.tsx', state: 'open', why: null },
+          { file: 'src/old-picker-left.tsx', state: 'left', why: 'props do not map' },
+        ],
+        uses: [], states: [],
+      }],
+    });
+    const profile = makeProfile({ components: { map: mapRel } });
+    const { ctx, stdout } = await makeTestCtx({ repoRoot: t.dir, profile });
+    const code = await command.run(ctx, ['--mark-built', 'Picker']);
+    assert.equal(code, 0, stdout.text());
+    assert.match(stdout.text(), /src\/old-picker-deleted\.tsx: retired \(the file no longer exists\)/);
+    assert.doesNotMatch(stdout.text(), /old-picker-kept/);
+    assert.doesNotMatch(stdout.text(), /old-picker-left/);
+
+    const saved = JSON.parse(readFileSync(join(t.dir, mapRel), 'utf8'));
+    const replaces = saved.components[0].replaces;
+    assert.equal(replaces.find((r) => r.file === 'src/old-picker-deleted.tsx').state, 'retired');
+    assert.equal(replaces.find((r) => r.file === 'src/old-picker-kept.tsx').state, 'open', 'still on disk: not switched over yet');
+    assert.equal(replaces.find((r) => r.file === 'src/old-picker-left.tsx').state, 'left', 'a deliberate "left" is never retired');
+  } finally { t.cleanup(); }
+});
+
 // Fix round (I9): the builder used to be told its prompt "also lists" the components; it does not
 // — the builder now runs this command itself.
 test('--used prints the run\'s used components with their target and props, and refuses with no run resolved', async () => {

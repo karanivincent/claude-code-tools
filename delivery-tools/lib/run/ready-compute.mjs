@@ -488,7 +488,9 @@ export async function computeReady(ctx, { pr }) {
           const atHead = raw ? JSON.parse(raw.toString('utf8')) : null;
           const byName = new Map((atHead?.components ?? []).filter((c) => c.kind === 'design').map((c) => [c.name, c]));
           const notBuilt = buildingNow.filter((name) => byName.get(name)?.status !== 'built');
-          if (notBuilt.length) problems.unshift(`run delivery components --mark-built ${notBuilt.join(' ')}`);
+          // Same combined instruction as NEXT's (fix round, I14): whether the working copy already
+          // says built or not, what actually clears this is committing and pushing it.
+          if (notBuilt.length) problems.unshift(`run delivery components --mark-built ${notBuilt.join(' ')}, commit ${profile.components.map} and push`);
         }
 
         if (problems.length) return add('components', false, problems.slice(0, 4).join('; '), profile.components.map);

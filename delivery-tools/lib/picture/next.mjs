@@ -3,7 +3,7 @@
 // pictureNext is pure over the facts; pictureFacts reads them from the run's files.
 
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { checklistPath, designIds, mapPath, validateMap } from './map.mjs';
 import { listRounds, roundInfo } from './rounds.mjs';
 import { backToDesignItems } from './review.mjs';
@@ -59,6 +59,21 @@ function readJsonSync(path) {
   try { return JSON.parse(readFileSync(path, 'utf8')); } catch { return null; }
 }
 
+/**
+ * The committed HEAD version of components.json, for deciding whether a component counts as
+ * marked built (fix round, I14): `--mark-built` only ever writes the working copy, and `ready`
+ * reads the PR head, so NEXT moved on the moment the working copy said "built" while ready stayed
+ * red until the change was actually committed and pushed. Falls back to the working copy when
+ * there is no git handle (a test, or a file not tracked yet).
+ */
+async function committedComponentsMap(git, repoRoot, compPath, compMap) {
+  if (!git) return compMap;
+  try {
+    const raw = await git.show('HEAD', relative(repoRoot, compPath));
+    return raw ? JSON.parse(raw.toString('utf8')) : compMap;
+  } catch { return compMap; }
+}
+
 /** A design render's recorded component names (the same file readStateComponents reads), read synchronously. */
 function stateComponentNames(paths, id, width) {
   if (!paths.designRenders) return [];
@@ -96,8 +111,11 @@ function alreadyLanded(journal) {
 /**
  * Read what the picture loop needs from a run's files.
  * @param {import('../core/paths.mjs').FeaturePaths} paths
- * @param {{ profile?: object }} [opts] profile: needed for the components-first facts (componentsUnbuilt,
- *   pageBlockedComponents, designSyncMissing); omitted, those are empty/null and nothing else changes.
+ * @param {{ profile?: object, git?: import('../core/git.mjs').createGit }} [opts] profile: needed
+ *   for the components-first facts (componentsUnbuilt, pageBlockedComponents, designSyncMissing);
+ *   omitted, those are empty/null and nothing else changes. git: bound to paths.repoRoot, read for
+ *   componentsUnbuilt's committed-HEAD check (I14); omitted, that check falls back to the working
+ *   copy, same as before.
  * @returns {Promise<object>}
  */
 export async function pictureFacts(paths, opts = {}) {
@@ -138,10 +156,13 @@ export async function pictureFacts(paths, opts = {}) {
   const compPath = opts.profile ? componentsMapPath(paths.repoRoot, opts.profile) : null;
   const compMap = compPath ? readJsonSync(compPath) : null;
   const exportComponents = compMap ? await safeExportComponents(paths.designSnapshot) : [];
+  // Marked built only counts once it is on HEAD (I14): --mark-built writes the working copy, and
+  // ready reads the PR head, so this must agree with ready or NEXT moves on before ready does.
+  const committedCompMap = compMap ? await committedComponentsMap(opts.git, paths.repoRoot, compPath, compMap) : null;
   const componentsUnbuilt = isComponentsRun && compMap
     ? (() => {
       const names = galleryBuildingNames(paths);
-      const effective = effectiveComponentsFor(compMap, names, exportComponents);
+      const effective = effectiveComponentsFor(committedCompMap, names, exportComponents);
       return names.filter((name) => effective.get(name) !== 'built');
     })()
     : [];
@@ -185,6 +206,8 @@ export async function pictureFacts(paths, opts = {}) {
     // is a taken feature slug and a fresh one needs --from components <export> to reach it.
     componentsRunExists: Boolean(compMap),
     componentsUnbuilt,
+    // The repo-relative components.json path, for NEXT's "commit ... and push" line (I14).
+    componentsMapRelPath: compPath ? relative(paths.repoRoot, compPath) : null,
     landedComponentsRun,
     designSyncMissing,
   };
@@ -232,7 +255,11 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   const backToDesign = f.backToDesign ?? 0;
   if (backToDesign) tail += `; ${backToDesign} item(s) go back to the design: ${cli} brief new <slug> --from-run`;
   if (f.componentsUnbuilt?.length) {
-    return { step: 'components-build', skill, text: `${cli} components --mark-built ${f.componentsUnbuilt.join(' ')}` };
+    // Both halves matter (fix round, I14): --mark-built only ever writes the working copy, and
+    // ready reads the PR head, so committing and pushing is what actually clears this, whether or
+    // not the working copy already says built.
+    const mapPathText = f.componentsMapRelPath ?? 'docs/.../components.json';
+    return { step: 'components-build', skill, text: `${cli} components --mark-built ${f.componentsUnbuilt.join(' ')}, commit ${mapPathText} and push` };
   }
   if (readyOk) return { step: 'land', skill, text: `ready is green: mark the PR ready; after the founder's merge, ${cli} land --epic ${epic ?? '<epic>'}${tail}` };
   return { step: 'ship', skill, text: `ship: the full CI chain, push, ${cli} ci --pr <n>, then give the founder the preview, a sign-in link and round ${last.round}'s comparison page${tail}` };

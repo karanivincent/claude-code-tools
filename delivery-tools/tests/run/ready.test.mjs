@@ -615,6 +615,9 @@ test('components: a components run whose PR head has not marked its own componen
     const components = ready.checks.find((c) => c.id === 'components');
     assert.equal(components.ok, false);
     assert.match(components.detail, /run delivery components --mark-built Picker/);
+    // Fix round (I14): the same combined instruction NEXT gives, so committing and pushing is
+    // never left implicit — --mark-built alone never turns this green (ready reads the PR head).
+    assert.match(components.detail, /commit docs\/delivery\/components\.json and push/);
   } finally { f.repo.cleanup(); }
 });
 

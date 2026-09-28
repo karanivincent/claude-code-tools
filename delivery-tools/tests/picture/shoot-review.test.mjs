@@ -263,9 +263,12 @@ test('picture NEXT: components-first branches (page blocked, components run unbu
   // A components run whose gallery still has an unmarked component is stopped before land/ship,
   // even once every round is clean.
   const openNone = { round: MAX_ROUNDS, shot: true, reviews: 1, compiled: true, counts: { must: 0, notReached: 0 } };
-  const unbuilt = next(facts({ rounds: [openNone], componentsUnbuilt: ['Picker', 'TimePicker'] }));
+  const unbuilt = next(facts({ rounds: [openNone], componentsUnbuilt: ['Picker', 'TimePicker'], componentsMapRelPath: 'docs/delivery/components.json' }));
   assert.equal(unbuilt.step, 'components-build');
   assert.match(unbuilt.text, /components --mark-built Picker TimePicker/);
+  // Fix round (I14): --mark-built only writes the working copy, and ready reads the PR head, so
+  // the line always names committing and pushing too, not only marking built.
+  assert.match(unbuilt.text, /commit docs\/delivery\/components\.json and push/);
 
   // No other step is reachable for a landed components run whose manifest still lacks entries.
   const synced = next(facts({ designed: 0, landedComponentsRun: true, designSyncMissing: ['Picker', 'Sheet'] }));
@@ -334,5 +337,40 @@ test('pictureFacts: components-first facts read from real files, with a profile'
     assert.equal(landed.landedComponentsRun, true);
     assert.deepEqual(landed.designSyncMissing, ['Picker']);
     assert.equal(pictureNext(landed, { cli: 'node scripts/delivery.mjs' }).step, 'design-sync');
+  } finally { repo.cleanup(); }
+});
+
+// Fix round (I14): --mark-built only ever writes the working copy; ready reads the PR head. Before
+// this fix, componentsUnbuilt read the working copy directly, so NEXT said "done" the instant
+// --mark-built ran locally, while ready (reading HEAD) stayed red until it was committed and
+// pushed — two different answers to "is this done". pictureFacts must agree with ready: both read
+// the committed HEAD.
+test('pictureFacts: componentsUnbuilt reads the committed HEAD, not the working copy, once a git handle is given', async () => {
+  const repo = makeTempDir();
+  try {
+    const paths = featurePaths(repo.dir, 'widgets');
+    const profile = makeProfile({ components: { map: 'docs/delivery/components.json' } });
+    writeJson(join(repo.dir, 'docs/delivery/widgets/map.json'), {
+      schemaVersion: 1, feature: 'widgets', title: 'Components', kind: 'components', route: '/admin/design/components',
+      widths: ['desktop', 'phone'],
+      worlds: [{ id: 'components', users: [{ role: 'admin', email: 'delivery+widgets-components-admin@example.invalid' }] }],
+      states: [{ id: 'C-Picker-01', screen: 'Picker', name: 'Picker: defaults', design: 'C-Picker-01', reach: { world: 'components', role: 'admin', steps: [{ goto: '/admin/design/components' }] }, buttons: [] }],
+    });
+    writeJson(join(repo.dir, 'docs/delivery/widgets/gallery-states.json'), { states: [{ id: 'C-Picker-01', component: 'Picker', props: {} }] });
+    // The working copy already says built (--mark-built ran locally); HEAD has never seen that.
+    writeJson(join(repo.dir, 'docs/delivery/components.json'), componentsFile('built'));
+
+    const noGit = await pictureFacts(paths, { profile });
+    assert.deepEqual(noGit.componentsUnbuilt, [], 'no git handle: falls back to the working copy, same as before');
+
+    const shownAtHead = [];
+    const staleGit = { show: async (ref, p) => { shownAtHead.push([ref, p]); return JSON.stringify(componentsFile('new')); } };
+    const stillUnbuilt = await pictureFacts(paths, { profile, git: staleGit });
+    assert.deepEqual(stillUnbuilt.componentsUnbuilt, ['Picker'], 'HEAD has not seen the mark-built yet: still owed a commit and a push');
+    assert.deepEqual(shownAtHead, [['HEAD', 'docs/delivery/components.json']]);
+
+    const caughtUpGit = { show: async () => JSON.stringify(componentsFile('built')) };
+    const doneAtHead = await pictureFacts(paths, { profile, git: caughtUpGit });
+    assert.deepEqual(doneAtHead.componentsUnbuilt, [], 'once HEAD itself says built, NEXT and ready finally agree');
   } finally { repo.cleanup(); }
 });

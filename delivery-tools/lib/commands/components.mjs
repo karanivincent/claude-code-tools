@@ -115,6 +115,15 @@ common options:
       entry.builtHash = entry.design.hash;
       entry.status = 'built';
       ctx.out.line(`marked ${name} built at ${entry.design.hash}`);
+      // The builder deletes a replaced file in the same PR (briefs/builder-picture.md); once it is
+      // actually gone, "open" (still to switch over) is stale — retire it instead of leaving a
+      // caller-facing decision that already happened unrecorded (fix round, I14).
+      for (const r of entry.replaces ?? []) {
+        if (r.state === 'open' && !existsSync(join(ctx.repoRoot, r.file))) {
+          r.state = 'retired';
+          ctx.out.line(`${r.file}: retired (the file no longer exists)`);
+        }
+      }
     }
     if (markBuilt.length) await writeComponentsMap(path, map);
 
