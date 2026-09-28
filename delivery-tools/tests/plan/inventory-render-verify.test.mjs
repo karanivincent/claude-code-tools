@@ -36,6 +36,8 @@ test('inventory: each state has a reference, a render or a reason, and controls 
     state('WL-06', { controls: [{ label: '', role: 'none', target: 'none', effect: 'none' }] }),
     state('WL-07', { controls: [{ label: 'Go', role: 'link', target: 'WL-99', effect: 'none' }] }),
     state('WL-08', { reach: { kind: 'unspecified', unspecified: 'empty' }, render: { status: 'impossible', why: 'the design draws no empty list' } }),
+    state('WL-09', { reach: { kind: 'preset', props: { screen: 'settings' } } }),
+    state('WL-10', { reach: { kind: 'preset' } }),
   ]);
   const f = checkInventory({ inventory: inv, renderExists: (id, ext) => !(id === 'WL-01' && ext === 'png') });
   const by = (id) => f.filter((x) => x.message.includes(`${id} `) || x.message.includes(`${id}.`)).map((x) => x.code).sort();
@@ -47,6 +49,10 @@ test('inventory: each state has a reference, a render or a reason, and controls 
   assert.deepEqual(by('WL-06'), []);
   assert.deepEqual(by('WL-07'), ['control-invalid']);
   assert.deepEqual(by('WL-08'), []);
+  // A7: a preset reach with props is a reference (its props are applied as a runtime set, not
+  // baked as defaults), the same way a "prop" reach with props is; one with no props is not.
+  assert.deepEqual(by('WL-09'), []);
+  assert.deepEqual(by('WL-10'), ['state-no-reference']);
 });
 
 test('inventory: a stale tree is refused; a redesign needs capabilities with evidence', () => {

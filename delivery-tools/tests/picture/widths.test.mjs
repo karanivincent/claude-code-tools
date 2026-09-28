@@ -191,7 +191,7 @@ test('item selection: an id picks every width, id@phone one width, and ! leaves 
   assert.deepEqual(selectStates(sampleMap(), ['KC-05@phone']).unknown, ['KC-05@phone']);
 });
 
-test('capture order: every width reads before any width writes, one context per width', () => {
+test('capture order: every width reads before any width writes, desktop writes before phone, one context per entry', () => {
   const m = phoneMap();
   m.states.push({ id: 'KC-06', screen: 'To check', name: 'Member', reach: { world: 'design', role: 'member', steps: [{ goto: '/dashboard/knowledge' }] } });
   const order = captureOrder(selectStates(m).items, m);
@@ -199,11 +199,16 @@ test('capture order: every width reads before any width writes, one context per 
     'design/member@desktop: KC-06',
     'design/member@phone: KC-06@phone',
     'design/admin@desktop: KC-05 KC-04',
-    'design/admin@phone: KC-05@phone KC-04@phone KC-20@phone KC-08@phone',
+    'design/admin@phone: KC-05@phone KC-04@phone KC-20@phone',
     'design/admin@desktop: KC-08',
+    'design/admin@phone: KC-08@phone',
   ]);
-  assert.deepEqual(order[3].writes, ['KC-08@phone']);
+  // A7: KC-08 writes at both widths, so desktop is shot first, then the world is re-seeded
+  // (reseedAfter) before the phone shot uses fresh data too; nothing after the last write needs it.
   assert.deepEqual(order[4].writes, ['KC-08']);
+  assert.equal(order[4].reseedAfter, true);
+  assert.deepEqual(order[5].writes, ['KC-08@phone']);
+  assert.equal(order[5].reseedAfter, undefined);
 });
 
 test('writing is judged by the steps of the width: reach.phone can save where the desktop does not', () => {

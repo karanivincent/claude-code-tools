@@ -98,6 +98,17 @@ Full mode (coverage plan, waves of units, mechanical gates, graded audit) is sti
 that asks for it by name. It decides readiness through `delivery ready`, and its Scope issue
 carries the owner's decisions.
 
+### Render and shoot details
+
+- `design render` hashes every picture. Two different states with the same picture fail the render, naming both ids and the hash. If a state really shares a picture, add `"samePictureAs": "<id>"` to its inventory entry.
+- A design that reacts only when a prop changes needs `"kind": "preset"` with `props`. Render boots the design, then applies the props with a `set`, the way a `{"set": ...}` step does. A `prop` reach still bakes its props in as defaults.
+- `shoot` scrolls a components state into view and pictures it with `locator.screenshot()`, so a page that scrolls inside `<main>` is pictured whole. Fixed bars and dev overlays are hidden at every width.
+- A state that changes data and is shot at both widths is shot at desktop first. The world is then re-seeded (`refreshWorld`) before the phone shot.
+
+### Shared slots
+
+Heavy work shares one machine-wide file, `~/.delivery/slots.json` (override with `DELIVERY_SLOTS_FILE`), with at most two holders. `delivery shoot` takes a slot and releases it itself. The e2e command in a project's profile can be wrapped the same way: `delivery slot run -- pnpm e2e ...`. A holder whose process has died is reclaimed. A waiting command prints who holds the slots and gives up (exit 4) after 30 minutes, or `--timeout <s>`.
+
 ## Components first
 
 Since 0.9.0, a design component is built once and every page imports it, instead of each page

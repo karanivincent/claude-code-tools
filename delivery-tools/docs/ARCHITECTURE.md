@@ -104,6 +104,7 @@ request in its report and works around it locally.
 | `tests/fixtures/capture/**` | C |
 | `lib/commands/map.mjs` | C |
 | `lib/commands/shoot.mjs` | C |
+| `lib/commands/slot.mjs` | C |
 | `lib/commands/review.mjs` | C |
 | `lib/commands/sign-in.mjs` | C |
 | `lib/commands/rules.mjs` | C |
@@ -174,7 +175,7 @@ lib/components/               C   map.mjs: componentsMapPath, readComponentsMap,
                                    check.mjs: usedComponents, componentProblems (the `ready`
                                    components check, rules 1-4); states.mjs: componentStates,
                                    galleryStates, componentsInventory (a components run's states)
-lib/capture/                  C   run, validate, spot, served-sha, job file
+lib/capture/                  C   run, validate, spot, served-sha, job file, slots (the machine-wide slot file)
 lib/report/                   C   report (tldr), punch list
 lib/brief/                    C   brief.mjs: nextBriefPath, fillTemplate, briefProblems, packBrief,
                                    recordSent (intent/briefs/sent.json)

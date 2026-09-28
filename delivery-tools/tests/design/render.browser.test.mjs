@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { makeTestCtx } from '../helpers/ctx.mjs';
 import { makeProfile } from '../helpers/fixtures.mjs';
 import { validateAgainst } from '../../lib/core/schema.mjs';
-import { makeDesignRepo } from './helpers.mjs';
+import { makeDesignRepo, widgetsInventory } from './helpers.mjs';
 import renderCommand from '../../lib/commands/design-render.mjs';
 
 const PW = process.env.DELIVERY_PLAYWRIGHT_ROOT;
@@ -65,4 +65,49 @@ test('design render: a runtime script the repo cannot answer is aborted offline,
     assert.match(fails[0], /WL-01: the design did not boot: toy runtime: failed to load/);
     assert.match(stderr.text(), /offline: aborted requests to https:\/\/cdn\.example\.invalid/);
   } finally { repo.cleanup(); }
+});
+
+// A7: a preset only ever applies on a prop *change* (a design's componentDidUpdate), so baking its
+// props in as new defaults (a plain "prop" reach) never triggers it; render applies a preset's
+// props as a runtime set after boot instead, the same way WL-04's {"set": ...} step does.
+test('design render: a preset state applies its props as a runtime set after boot', { skip, timeout: 120_000 }, async () => {
+  const inv = widgetsInventory([
+    ...widgetsInventory().states,
+    { id: 'PR-01', screen: 'Widgets', name: 'settings preset', reach: { kind: 'preset', props: { screen: 'settings', owner: 'Priya' } }, shots: [], render: { status: 'ok' }, controls: [] },
+  ]);
+  const repo = makeDesignRepo({ inventory: inv });
+  try {
+    const { ctx, stdout } = await makeTestCtx({ repoRoot: repo.dir, feature: 'widgets', profile: makeProfile(), env: { DELIVERY_PLAYWRIGHT_ROOT: PW } });
+    const exit = await renderCommand.run(ctx, ['--offline', '--states', 'PR-01']);
+    assert.equal(exit, 0, stdout.text());
+    const txt = readFileSync(join(repo.dir, '.delivery/widgets/design/PR-01.txt'), 'utf8').split('\n').filter(Boolean);
+    assert.ok(txt.includes('Settings for Priya are saved as you type.'), txt.join('\n'));
+  } finally { repo.cleanup(); }
+});
+
+// A7: design render hashes every picture and refuses two different states whose rendered pictures
+// are byte-identical, naming both ids and the hash, unless one names the other "samePictureAs".
+test('design render: two states with an identical picture are refused, unless one names the other samePictureAs', { skip, timeout: 120_000 }, async () => {
+  const dupe = widgetsInventory([
+    ...widgetsInventory().states,
+    { id: 'WL-08', screen: 'Widgets', name: 'same as WL-01', reach: { kind: 'click-path', steps: [] }, shots: [], render: { status: 'ok' }, controls: [] },
+  ]);
+  const repo = makeDesignRepo({ inventory: dupe });
+  try {
+    const { ctx, stdout } = await makeTestCtx({ repoRoot: repo.dir, feature: 'widgets', profile: makeProfile(), env: { DELIVERY_PLAYWRIGHT_ROOT: PW } });
+    const exit = await renderCommand.run(ctx, ['--offline', '--states', 'WL-01,WL-08']);
+    assert.equal(exit, 1);
+    assert.match(stdout.text(), /WL-08:.*renders the same picture as WL-01 \(sha256 [0-9a-f]{64}\)/);
+  } finally { repo.cleanup(); }
+
+  const escaped = widgetsInventory([
+    ...widgetsInventory().states,
+    { id: 'WL-09', screen: 'Widgets', name: 'same as WL-01, on purpose', samePictureAs: 'WL-01', reach: { kind: 'click-path', steps: [] }, shots: [], render: { status: 'ok' }, controls: [] },
+  ]);
+  const repo2 = makeDesignRepo({ inventory: escaped });
+  try {
+    const { ctx, stdout } = await makeTestCtx({ repoRoot: repo2.dir, feature: 'widgets', profile: makeProfile(), env: { DELIVERY_PLAYWRIGHT_ROOT: PW } });
+    const exit = await renderCommand.run(ctx, ['--offline', '--states', 'WL-01,WL-09']);
+    assert.equal(exit, 0, stdout.text());
+  } finally { repo2.cleanup(); }
 });

@@ -40,12 +40,13 @@
           "id": { "$ref": "common.schema.json#/$defs/Id" },
           "screen": { "$ref": "common.schema.json#/$defs/Text" },
           "name": { "$ref": "common.schema.json#/$defs/Text" },
+          "samePictureAs": { "$ref": "common.schema.json#/$defs/Id" },
           "reach": {
             "type": "object",
             "additionalProperties": false,
             "required": ["kind"],
             "properties": {
-              "kind": { "enum": ["click-path", "prop", "shot-only", "unspecified"] },
+              "kind": { "enum": ["click-path", "prop", "preset", "shot-only", "unspecified"] },
               "steps": { "type": "array", "items": { "$ref": "#/$defs/DesignStep" } },
               "props": { "type": "object", "additionalProperties": true },
               "unspecified": { "enum": ["loading", "empty", "error", "permission", "one", "many"] },

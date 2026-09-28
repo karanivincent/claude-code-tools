@@ -15,7 +15,7 @@ export const COMMAND_ORDER = Object.freeze([
   'design candidates', 'design render', 'design review', 'map', 'components', 'brief new', 'brief check', 'brief pack', 'brief sent', 'rules', 'inventory check', 'baseline',
   'plan verify', 'plan check', 'plan render',
   'issues sync', 'scope post', 'scope read', 'claims open', 'claims verify', 'dupes',
-  'sidefx', 'seed', 'shoot', 'review', 'sign-in',
+  'sidefx', 'seed', 'shoot', 'slot', 'review', 'sign-in',
   'wave start', 'wave merge', 'wave end', 'gate', 'capture', 'check', 'audit compile',
   'ci', 'ready', 'pr-body', 'handover', 'report', 'land',
   'hook session-start', 'hook pre-bash', 'hook pre-browser',
