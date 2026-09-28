@@ -20,8 +20,15 @@ This file says which skill owns each step and what may never happen. Load the sk
 | 2 Preflight | this skill, `delivery preflight` | every probe is green or waived |
 | 3 Pictures | `design-inventory`, steps 1 to 4 only | every in-scope design state has a render |
 | 4 Map, worlds, build, rounds, ship | `picture-build` (`delivery prepush` before the first push) | the last round is compiled, CI is green, and the founder has the preview and the comparison page |
+| 5 Retro | `delivery retro` (`delivery land` runs it last; NEXT names it once `ready` is green) | the run's line is in `runs.jsonl`, and the report lists what changed automatically, what it reverted and what needs the founder |
 
 `delivery status` prints where the run is and one NEXT line. If memory and NEXT disagree, NEXT wins.
+
+**The last step is the retro.** `delivery retro` records the run, checks the changes earlier retros made, and
+sorts what repeated: a small fix is applied by itself through a plugin PR (or written to the run's
+`steers.md`), a large one becomes a proposal file and a `needs-decision` issue and is never applied.
+Copy its "Needs you" section, and its "Changed automatically" and "Reverted" lists, into the run's final
+report. It never schedules itself, seeds, dials or touches production.
 
 **Full mode** is the older path: coverage plan, units in waves, mechanical gates and a graded
 audit (`coverage-plan`, `epic-build`, `design-audit`). Use it only when the founder asks for it by

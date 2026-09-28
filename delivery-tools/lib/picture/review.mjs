@@ -5,6 +5,7 @@
 // rounds on disk.
 
 import { listRounds, roundInfo } from './rounds.mjs';
+import { tunable } from '../retro/tunables.mjs';
 import { mapItems, normaliseItemKey } from './widths.mjs';
 
 const NOTE_KINDS = ['must fix', 'small', 'design', 'data gap'];
@@ -280,11 +281,11 @@ h1 { font-size:1.6rem; font-weight:600; margin:0; text-wrap:balance; }
 // ---- Review only what changed, and batch it (A6) ----
 
 /** The share of pixels that may differ (by more than PIXEL_TOLERANCE in any channel) for an item to skip its reviewer. */
-export const AUTO_MATCH_MAX_DIFF = 0.005;
+export const AUTO_MATCH_MAX_DIFF = tunable('review.autoMatchMaxDiff');
 /** How far one colour channel may differ before a pixel counts as different (anti-aliasing noise). */
-export const PIXEL_TOLERANCE = 16;
-export const MAX_BATCH_ITEMS = 20;
-export const MAX_PARALLEL_REVIEWERS = 4;
+export const PIXEL_TOLERANCE = tunable('review.pixelTolerance');
+export const MAX_BATCH_ITEMS = tunable('review.maxBatchItems');
+export const MAX_PARALLEL_REVIEWERS = tunable('review.maxParallelReviewers');
 
 /**
  * What a picture's dom.json says, cut to the page area (elements at or right of `left`): the

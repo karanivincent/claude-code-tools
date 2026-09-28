@@ -21,6 +21,7 @@ import { buildItems, buildJob, newCaptureRunId, parseVersionProbe, itemKey, MODE
 import { judgeInputs } from './validate.mjs';
 import { judgeItems } from './judge.mjs';
 import { probeServedSha } from './served-sha.mjs';
+import { tunable } from '../retro/tunables.mjs';
 
 /** Cross-slice calls, injectable so tests never need another slice's implementation. */
 export const DEFAULT_HOOKS = Object.freeze({ resolvePreview, refreshWorld, seedScanGate, teardownRows, probeServedSha });
@@ -84,7 +85,7 @@ export async function resolveTarget(ctx, o) {
       command: fillCommand(profile.commands.devServer, { dir, port }),
       url: baseUrl,
       cwd: dir,
-      timeoutMs: 300_000,
+      timeoutMs: tunable('capture.devServerTimeoutMs'),
       // Read from that tree, never from what this capture expects: a SHA the capture supplies is a
       // SHA the version probe can only agree with, whatever the server is actually serving.
       env: { BUILD_SHA: dirHead, PORT: String(port) },
@@ -105,7 +106,7 @@ export async function resolveTarget(ctx, o) {
       baseUrl, expectedSha,
       webServer: {
         command: `${fillCommand(profile.commands.prodBuild, {})} && ${fillCommand(profile.commands.prodStart, { port })}`,
-        url: baseUrl, cwd: ctx.repoRoot, timeoutMs: 900_000, env: { BUILD_SHA: expectedSha, PORT: String(port) },
+        url: baseUrl, cwd: ctx.repoRoot, timeoutMs: tunable('capture.prodBuildTimeoutMs'), env: { BUILD_SHA: expectedSha, PORT: String(port) },
       },
       detail: `a local production build stands in: ${pv.detail}`,
     };
@@ -221,7 +222,7 @@ export async function captureRun(ctx, opts, hooks = ctx.captureHooks ?? DEFAULT_
     }
   }
 
-  const res = await ctx.runner.sh(command, { cwd: ctx.repoRoot, env, timeoutMs: opts.timeoutMs ?? 90 * 60_000 });
+  const res = await ctx.runner.sh(command, { cwd: ctx.repoRoot, env, timeoutMs: opts.timeoutMs ?? tunable('shoot.commandTimeoutMs') });
 
   // Judge from the files, never from the spec's own exit code.
   const rows = new Map((plan?.rows ?? []).map((r) => [r.id, r]));

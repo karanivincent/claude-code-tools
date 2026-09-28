@@ -261,6 +261,47 @@ branch behind its base; and the components rule `ready` runs after CI. Set `path
 second check on; without `orgScopedLists` it is skipped. The removed-name search covers
 `componentGlobs`, `appRouteGlobs` and the message files at the merge base and at HEAD.
 
+## The retro and the size rule
+
+`delivery retro` closes a run. `delivery land` runs it as its last step (a retro that fails warns and
+never fails land); once `ready` is green, NEXT names it too. It runs in the delivery session only: no
+schedule, no cron. It never touches production, never dials, never seeds and never opens a database.
+It writes four things: the runs ledger (`<deliveryRoot>/runs.jsonl`, one line per run, replaced on a
+re-run; commit it with the run), the run's own `steers.md` and `proposals/`, and the plugin checkout
+through pull requests.
+
+One line holds the phase minutes from the journal, the founder's waiting, each round's counts, reviewer
+tokens and minutes where `batches.json` records them, CI failures seen after the PR opened, and the
+entries of the run's `workflow-improvements.md`. A phase 30% over the median of earlier runs in two or
+more runs (this one included), a phase over an hour more than that median in one run, or the same
+improvement written up in two runs becomes a proposal with its evidence, its change and the number
+it should move.
+
+`lib/retro/size.mjs` sorts each proposal. Small only when every rule holds: the kind is a tunable in
+`tunables.json`, a steer, a sentence in a brief, or a new check that only warns; it touches no
+seed-safety file (`delivery-safety.json`, its schema, guards, never-dial rules, `lib/seed/**`,
+`hooks/**`); it deletes or loosens no check or gate (each tunable says which direction loosens it);
+it adds no command or agent and changes no agent's isolation or model; the real diff is 50 lines or
+fewer; and it does not undo an earlier decision. Anything else, or anything the rule cannot read, is
+large. Nothing large is ever applied.
+
+- Small: a steer goes straight into `steers.md`. Anything else needs a plugin checkout, named by
+  `DELIVERY_PLUGIN_REPO` or the profile's `retro.pluginRepo` (never a path under
+  `~/.claude/plugins/cache/`; `DELIVERY_PLUGIN_GH` or `retro.pluginRepoSlug` names its GitHub repo). The
+  retro branches `retro/<feature>-<id>`, edits, checks the real diff with the size rule again, runs
+  the plugin's suite, pushes, opens a PR and squash-merges it. Without a checkout, or if any step
+  fails, the change becomes a proposal.
+- Large: `<deliveryRoot>/<feature>/proposals/<id>.md` (evidence, change, recommended default, why it is
+  large) and a `needs-decision` issue in the plugin repo.
+- Each applied change names its metric. Every later retro measures it on the runs after it: worse than
+  its baseline in two runs in a row and it is reverted through a PR; otherwise it is marked kept or
+  mixed.
+- `delivery retro --dry-run` shows what it would do. `--propose <file.json>` adds proposals of your own.
+  The report ends with "Changed automatically", "Reverted" and "Needs you". Put "Needs you" in the
+  run's final report.
+
+The numbers a small change may move live in `tunables.json`; the code reads them from there.
+
 ## The Trust rule
 
 Section 20 of the spec gates real use. 20.2 (the real-artefact tests) passed on 2026-09-21. 20.5

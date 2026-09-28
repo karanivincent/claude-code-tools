@@ -8,8 +8,9 @@ import { join } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { readJson, writeJsonAtomic, withLock } from '../core/fs.mjs';
 import { DeliveryError, EXIT } from '../core/exit.mjs';
+import { tunable } from '../retro/tunables.mjs';
 
-export const MAX_SLOTS = 2;
+export const MAX_SLOTS = tunable('slots.max');
 
 /** @param {Record<string, string|undefined>} [env] */
 export function slotsFile(env = process.env) {
@@ -48,7 +49,7 @@ export async function takeSlot(o = {}) {
   const alive = o.isAlive ?? pidAlive;
   const now = o.now ?? Date.now;
   const sleep = o.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
-  const timeoutMs = o.timeoutMs ?? 30 * 60_000;
+  const timeoutMs = o.timeoutMs ?? tunable('slots.waitTimeoutMs');
   const pollMs = o.pollMs ?? 2000;
   const id = randomBytes(6).toString('hex');
   const start = now();

@@ -12,7 +12,7 @@ its file.
 |---|---|
 | F | Foundation: core library, schemas, CLI entry, manifest, test helpers, this file. Frozen once the slices start; changes go through a request in a slice report. |
 | A1 | Run machinery: `status`, `advance`, `ready` (and `--check`), `waive`, `hook`; state and journal semantics; resume (spec 11.3); the phase gates 0 to 7; `hooks/`. |
-| A2 | GitHub and lifecycle: `init`, `intake`, `preflight`, `issues sync`, `scope post/read`, `claims open/verify`, `dupes`, `ci`, `wave start/merge/end`, `pr-body`, `handover`, `land`. |
+| A2 | GitHub and lifecycle: `init`, `intake`, `preflight`, `issues sync`, `scope post/read`, `claims open/verify`, `dupes`, `ci`, `wave start/merge/end`, `pr-body`, `handover`, `land`, `retro`. |
 | B1 | Checks: `check` for M1, M3 to M12, M14 to M17; `inventory check`; `plan verify/check/render`; `gate <unit>`; the severity policy (spec 8.3). |
 | B2 | Code analysis and seeding: `baseline` (M2), `sidefx`, `seed` (every mode), M13; `adapters/data/`. |
 | C | Design, capture and reports: `design candidates/render`; `adapters/design/`; `capture` (every mode); `templates/`; `audit compile`; `report`. |
@@ -68,6 +68,11 @@ request in its report and works around it locally.
 | `tests/prepush/**` | A2 |
 | `tests/github/**` | A2 |
 | `tests/fixtures/lifecycle/**` | A2 |
+| `lib/commands/retro.mjs` | A2 |
+| `lib/retro/**` | A2 |
+| `tests/retro/**` | A2 |
+| `tests/fixtures/retro/**` | A2 |
+| `tunables.json` | A2 |
 | `lib/commands/check.mjs` | B1 |
 | `lib/commands/inventory-check.mjs` | B1 |
 | `lib/commands/plan-*.mjs` | B1 |
@@ -159,6 +164,7 @@ lib/gates/phase-0.mjs ... phase-7.mjs A1  gate(ctx) -> Promise<GateResult>
 lib/run/                      A1  ready.mjs (checkReady), inflight.mjs (recordDispatch, clearDispatch), and A1's own modules
 lib/lifecycle/                A2  intake, preflight (PROBES), prepush (prepushProblems), preview, wave, land
 lib/github/                   A2  issues, scope, claims, dupes, ci
+lib/retro/                    A2  record (runRecord), compare (proposals), size (classify: small or large), apply (applyChange, revertChange), tunables (tunable); tunables.json at the plugin root holds the numbers a small change may move
 lib/plan/                     B1  inventory-check, check (M1), render (spec.md), verify
 lib/checks/                   B1  index (registry, runChecks), severity, one module per check
 lib/gate/                     B1  unit (unitGateStatus, the unit gate)
@@ -287,6 +293,8 @@ sidefx, seedplan, preflight, candidates) that fails its schema is exit 5: tamper
 | ready | `.delivery/<f>/ready.json` | ready | ready (A1) | hook, land, report |
 | state | `.delivery/<f>/state.json` | state | only through `lib/core/state.mjs` | status, gates |
 | punch list | `.delivery/<f>/punch-list.html` | (html) | audit compile (C) | the main session |
+| runs ledger | `docs/delivery/runs.jsonl` (one line per run) | run-record | retro (A2) | retro (compare, check), report |
+| tunables | `tunables.json` (plugin root) | (no schema; `lib/retro/tunables.mjs` reads it) | a person; retro through a PR (A2) | picture review, capture slots, capture run (C) |
 
 File paths inside `capture.json` are relative to that capture run's directory. The `.txt`
 beside a render or capture holds one visible text element per line, in reading order. In a
