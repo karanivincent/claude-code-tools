@@ -255,9 +255,16 @@ export function libraryTargets(map) {
 }
 
 /** Names of map entries (design and base) absent from the design system export's manifest. */
+/**
+ * Names the design-system project's own manifest lacks, among what this repo has actually
+ * finished: every base entry (always available once scanned), and a design entry only once it is
+ * built (fix round, M6) — an entry still "new" or "stale" was never built here yet, so its absence
+ * from the design system is expected, not something /design-sync owes fixing.
+ */
 export function missingFromDesignSystem(map, manifestComponents) {
   const have = new Set((manifestComponents ?? []).map((c) => c.name));
-  return (map.components ?? []).filter((c) => !have.has(c.name)).map((c) => c.name).sort();
+  const finished = (map.components ?? []).filter((c) => c.kind === 'base' || c.status === 'built');
+  return finished.filter((c) => !have.has(c.name)).map((c) => c.name).sort();
 }
 
 /** The first <exportDir>/_ds/*\/_ds_manifest.json, or null when the export carries none. */

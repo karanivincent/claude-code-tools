@@ -3,7 +3,7 @@
 // phase-0 gate recomputed from the files.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { writeZip, readZip } from '../../lib/core/zip.mjs';
 import { listTree } from '../../lib/core/hash.mjs';
@@ -257,6 +257,54 @@ test('--components: refuses while a design entry has no target (NEXT names the m
     const rewritten = JSON.parse(readFileSync(mapFile, 'utf8'));
     assert.equal(rewritten.components.find((c) => c.name === 'Picker').status, 'new'); // still new: builtHash is only set by land / --mark-built
     assert.equal(repo.git('-C', wt, 'status', '--porcelain'), '', 'the inventory, map and world file are committed with the run');
+  } finally { repo.cleanup(); }
+});
+
+// Fix round (M5): once every component is built and the design has not moved on, a components
+// intake has nothing new or stale to add. It must say so and exit 0 without touching the
+// inventory, gallery-states.json, map.json or world file it wrote the first time — those are the
+// real, already-built records, not something to blank out just because there is nothing new.
+test('--components with nothing new or stale says so, exits 0, and never wipes the existing inventory/map', async () => {
+  const repo = await makeRunRepo({ run: false });
+  try {
+    const zip = join(repo.root, 'components-export.zip');
+    componentsExportZip(zip);
+    const profile = makeProfile({ components: { map: 'docs/delivery/components.json', galleryRoute: '/admin/design/components' } });
+    const { ctx } = await ctxFor(repo.primary, { feature: null, profile });
+
+    const first = await runIntake(ctx, { source: zip, components: true });
+    const wt = first.worktree;
+    const mapFile = join(wt, 'docs/delivery/components.json');
+    const written = JSON.parse(readFileSync(mapFile, 'utf8'));
+    written.components.find((c) => c.name === 'Picker').target = 'src/ui/picker.tsx';
+    writeFileSync(mapFile, `${JSON.stringify(written, null, 2)}\n`);
+    mkdirSync(join(wt, 'src/ui'), { recursive: true });
+    writeFileSync(join(wt, 'src/ui/picker.tsx'), 'export const Picker = () => null;\n');
+
+    const second = await runIntake(ctx, { source: zip, components: true });
+    assert.equal(second.exit, 0, JSON.stringify(second.failures));
+    const inventoryPath = join(wt, 'docs/delivery/components/inventory.json');
+    const galleryPath = join(wt, 'docs/delivery/components/gallery-states.json');
+    const mapPath = join(wt, 'docs/delivery/components/map.json');
+    const inventoryBefore = readFileSync(inventoryPath, 'utf8');
+    const galleryBefore = readFileSync(galleryPath, 'utf8');
+    const mapBefore = readFileSync(mapPath, 'utf8');
+
+    // Mark it built (what --mark-built does), matching the export's own hash: nothing left to build.
+    const afterSecond = JSON.parse(readFileSync(mapFile, 'utf8'));
+    const picker = afterSecond.components.find((c) => c.name === 'Picker');
+    picker.builtHash = picker.design.hash;
+    picker.status = 'built';
+    writeFileSync(mapFile, `${JSON.stringify(afterSecond, null, 2)}\n`);
+    repo.git('-C', wt, 'add', '-A');
+    repo.git('-C', wt, 'commit', '-q', '-m', 'mark built');
+
+    const third = await runIntake(ctx, { source: zip, components: true });
+    assert.equal(third.exit, 0, JSON.stringify(third.failures));
+    assert.match(third.lines.join('\n'), /nothing to build: every component is built/);
+    assert.equal(readFileSync(inventoryPath, 'utf8'), inventoryBefore, 'the real inventory must survive a no-op intake');
+    assert.equal(readFileSync(galleryPath, 'utf8'), galleryBefore, 'the real gallery-states.json must survive');
+    assert.equal(readFileSync(mapPath, 'utf8'), mapBefore, 'the real map.json must survive');
   } finally { repo.cleanup(); }
 });
 

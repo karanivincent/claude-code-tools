@@ -139,6 +139,30 @@ test('missingFromDesignSystem: every name but Sheet, against the fixture manifes
   assert.deepEqual(missingFromDesignSystem(map, manifest.components), ['Badge', 'Button']);
 });
 
+// Fix round (M6): a design entry still "new" or "stale" was never built here, so it was never
+// going to be in the design system either — only a built design entry (and every base entry,
+// which carries no status at all) counts as something /design-sync actually owes.
+test('missingFromDesignSystem only counts built design entries, never a "new" or "stale" one', () => {
+  const designEntry = (name, status) => ({
+    kind: 'design', name, design: { file: `${name}.dc.html`, hash: H1 },
+    target: `src/ui/${name.toLowerCase()}.tsx`, status, builtHash: status === 'built' ? H1 : null,
+    props: {}, owns: [], builtOn: [], replaces: [], uses: [], states: [],
+  });
+  const map = {
+    version: 1,
+    components: [
+      designEntry('Picker', 'built'),
+      designEntry('Table', 'new'),
+      designEntry('Chart', 'stale'),
+      { kind: 'base', name: 'Sheet', target: 'ui/sheet.tsx', owns: [], source: 'scan' },
+    ],
+  };
+  // The manifest has none of them: only the built design entry and the base entry are owed.
+  assert.deepEqual(missingFromDesignSystem(map, []), ['Picker', 'Sheet']);
+  // Once the manifest also has Picker, only the base entry is left.
+  assert.deepEqual(missingFromDesignSystem(map, [{ name: 'Picker' }]), ['Sheet']);
+});
+
 test('validateComponentsMap: a missing target file, and a builtOn naming no base entry', () => {
   const map = {
     version: 1,

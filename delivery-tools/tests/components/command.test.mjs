@@ -191,19 +191,30 @@ test('--used prints the run\'s used components with their target and props, and 
   } finally { t.cleanup(); }
 });
 
-test('plain components: exits 1 on a stale entry, and prints the design-sync NEXT line when the export manifest misses an entry', async () => {
+test('plain components: exits 1 on a stale entry, and prints the design-sync NEXT line when the export manifest misses a built entry', async () => {
   const t = makeTempDir();
   const mapRel = 'docs/delivery/components.json';
   try {
     write(t.dir, 'src/ui/picker.tsx', 'export const Picker = () => null;\n');
+    write(t.dir, 'src/ui/table.tsx', 'export const Table = () => null;\n');
     write(t.dir, mapRel, {
       version: 1,
-      components: [{
-        kind: 'design', name: 'Picker',
-        design: { file: 'Picker.dc.html', hash: H2 },
-        target: 'src/ui/picker.tsx', status: 'stale', builtHash: H1,
-        props: {}, owns: [], builtOn: [], replaces: [], uses: [], states: [],
-      }],
+      components: [
+        {
+          kind: 'design', name: 'Picker',
+          design: { file: 'Picker.dc.html', hash: H2 },
+          target: 'src/ui/picker.tsx', status: 'stale', builtHash: H1,
+          props: {}, owns: [], builtOn: [], replaces: [], uses: [], states: [],
+        },
+        // Fix round (M6): a still-stale entry is never something /design-sync owes; Table (built)
+        // is what should show up as missing from the manifest below.
+        {
+          kind: 'design', name: 'Table',
+          design: { file: 'Table.dc.html', hash: H1 },
+          target: 'src/ui/table.tsx', status: 'built', builtHash: H1,
+          props: {}, owns: [], builtOn: [], replaces: [], uses: [], states: [],
+        },
+      ],
     });
     write(t.dir, 'export/_ds/x/_ds_manifest.json', { components: [{ name: 'Sheet' }] });
     const profile = makeProfile({ components: { map: mapRel } });
@@ -211,7 +222,8 @@ test('plain components: exits 1 on a stale entry, and prints the design-sync NEX
     const code = await command.run(ctx, ['--export', join(t.dir, 'export')]);
     assert.equal(code, 1);
     assert.match(stdout.text(), /stale/);
-    assert.match(stdout.text(), /NEXT: run \/design-sync on the design-system project: it lacks Picker/);
+    assert.match(stdout.text(), /NEXT: run \/design-sync on the design-system project: it lacks Table/);
+    assert.doesNotMatch(stdout.text(), /it lacks.*Picker/);
   } finally { t.cleanup(); }
 });
 

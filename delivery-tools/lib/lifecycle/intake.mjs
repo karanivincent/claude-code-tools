@@ -447,6 +447,14 @@ async function runComponentsIntake({ profile, worktree, paths, treeSha256, drift
   const byName = new Map(design.map((c) => [c.name, c]));
   const toBuild = drift.exported.filter((c) => ['new', 'stale'].includes(byName.get(c.name)?.status));
 
+  // Fix round (M5): nothing new or stale means every component is already built. Writing an empty
+  // inventory/gallery/map/world here would also silently wipe out the real ones from an earlier
+  // components run that already built something — this run just has nothing left to add.
+  if (!toBuild.length) {
+    lines.push('nothing to build: every component is built');
+    return { lines, failures: [], next: null };
+  }
+
   const inventoryPart = componentsInventory(toBuild, order);
   const gallery = galleryStates(toBuild, order);
   const inventory = { schemaVersion: 1, feature: paths.feature, designTreeSha256: treeSha256, candidates: [], ...inventoryPart };
