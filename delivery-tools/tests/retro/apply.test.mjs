@@ -119,6 +119,17 @@ test('a tunable whose from is not what the checkout holds is not applied', async
   } finally { s.cleanup(); }
 });
 
+test('a warn-check that would rewrite an existing check is not applied: a new warning only adds files', async () => {
+  const s = await setup();
+  try {
+    const rewrite = { kind: 'warn-check', description: 'warn on long labels', onlyWarns: true, files: { 'tunables.json': '{}\n' } };
+    const out = await applyChange(s.env.ctx, { proposal: proposalOf(rewrite), feature: 'widgets', checkout: s.checkout, gh: s.env.pluginGh, history: [] });
+    assert.equal(out.status, 'proposal');
+    assert.match(out.reason, /already exists/);
+    assert.equal(s.plugin.git('rev-parse', '--abbrev-ref', 'HEAD'), 'main');
+  } finally { s.cleanup(); }
+});
+
 test('a checkout with uncommitted changes is left alone', async () => {
   const s = await setup();
   try {

@@ -22,9 +22,10 @@ profile, in that project's repository (spec section 18).
 node --test 'tests/**/*.test.mjs' 'skills/**/*.test.mjs'
 ```
 
-1015 tests: 999 pass, 0 fail, 16 skipped (the replay tests, which need the private replay set, and
+1101 tests: 1085 pass, 0 fail, 16 skipped (the replay tests, which need the private replay set, and
 two real-browser render tests, which need `DELIVERY_PLAYWRIGHT_ROOT`). That is the whole suite after
-0.11.1 (a baseline refresh that adds nothing no longer writes `baseline.json`, so `ready` stops
+0.12.0 (Part C: `delivery retro`, the runs ledger, the size rule in `lib/retro/size.mjs`, and
+`tunables.json`), 0.11.1 (a baseline refresh that adds nothing no longer writes `baseline.json`, so `ready` stops
 dirtying its own head), and 0.11.0 (A5 `delivery prepush` and A6 reviewing only what changed, in batches the CLI writes). A9
 (Jev as a first-pass grader) is not adopted: its offline measurement has not run, so it has not
 met the 95% bar. 0.10.0 was the first half of the delivery improvements plan (A1 to A4, A7, A8: data needs per state,

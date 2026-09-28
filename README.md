@@ -78,7 +78,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### delivery-tools `v0.11.1`
+### delivery-tools `v0.12.0`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -120,7 +120,12 @@ batches itself (20 items, desktop and phone together, four at once, the run's `s
 carries forward any item whose pictures did not change, and matches without a reviewer only when
 text, test ids and buttons agree exactly and under 0.5% of pixels differ. Since 0.11.1 `ready`
 no longer rewrites `baseline.json` when the base moved but added nothing, which had kept it
-failing its own `head` check. An export
+failing its own `head` check. Since 0.12.0 the system improves itself: `delivery retro`, run by
+`land` at the end of each run, writes one record per run to `docs/delivery/runs.jsonl`, turns a
+slowdown seen in two runs (or an hour lost in one) into a proposal, applies only small changes (a
+number in `tunables.json` that does not loosen a check, a steer, a brief sentence, a new warning;
+under 50 lines) through a PR, files every large one as a `needs-decision` issue for the founder, and
+reverts an automatic change that made its number worse two runs running. An export
 holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run
@@ -151,7 +156,7 @@ mapper uses `briefs/components-mapper.md`.
 | `epic-build` | Full mode: parallel builders, wave by wave, into one integration branch |
 | `design-audit` | Full mode: graded captures with severity floors |
 
-**CLI:** `delivery <command>`, 50 commands. Picture mode uses `map` (check the button map and
+**CLI:** `delivery <command>`, 51 commands. Picture mode uses `map` (check the button map and
 write the checklist; `--from-plan` converts a full-mode run), `seed` (`--refresh all` resets every
 world), `shoot` (full-height pictures of the page area next to the cropped design, at desktop and phone
 widths, a button check, a sideways-scroll check on the phone, data-changing states last), `review` (the reviewers' notes into `review.json` and a comparison

@@ -206,6 +206,8 @@ export function editPlugin(dir, change) {
     if (!files.length) throw new Error('the change carries no code for the new check');
     for (const [rel, content] of files) {
       const abs = inside(rel);
+      // A new check only adds files. Rewriting an existing check could loosen it, which is large.
+      if (existsSync(abs)) throw new Error(`${rel} already exists: a new warning may only add files`);
       mkdirSync(dirname(abs), { recursive: true });
       writeFileSync(abs, String(content));
     }
