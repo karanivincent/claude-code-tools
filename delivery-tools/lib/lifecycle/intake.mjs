@@ -489,9 +489,13 @@ export async function findComponentsWorldTemplate(worktree, skipFeature) {
       const doc = await readJson(join(worldsDir, name), { optional: true }).catch(() => null);
       const rows = doc?.rows;
       if (!Array.isArray(rows)) continue;
-      const hasOrg = rows.some((r) => r.key === 'org');
-      const hasAdminMembership = rows.some((r) => JSON.stringify(r.values ?? {}).includes('"user:admin"'));
-      if (hasOrg && hasAdminMembership) return rows;
+      // Only the organisation row and the admin's own rows that point at nothing but it: a page
+      // run's world also seeds contacts, calls and a member, none of which the gallery needs, and
+      // a row referencing a user this world does not have would fail the seed.
+      const refsOk = (r) => [...JSON.stringify(r.values ?? {}).matchAll(/"\$ref":"([^"]+)"/g)].every((m) => m[1] === 'org' || m[1] === 'user:admin');
+      const org = rows.find((r) => r.key === 'org' && refsOk(r));
+      const admin = rows.filter((r) => r.key !== 'org' && JSON.stringify(r.values ?? {}).includes('"user:admin"') && refsOk(r));
+      if (org && admin.length) return [org, ...admin];
     }
   }
   return null;

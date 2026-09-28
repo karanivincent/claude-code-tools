@@ -316,6 +316,9 @@ test('findComponentsWorldTemplate finds a sibling run\'s world file with an org 
         rows: [
           { key: 'org', table: 'organizations', values: { name: { $orgName: true }, slug: 'widgets-demo' } },
           { key: 'member-admin', table: 'organization_members', values: { organization_id: { $ref: 'org' }, user_id: { $ref: 'user:admin' }, role: 'admin' } },
+          // A page run's own data and a second user: never copied, the gallery needs neither.
+          { key: 'member-member', table: 'organization_members', values: { organization_id: { $ref: 'org' }, user_id: { $ref: 'user:member' }, role: 'member' } },
+          { key: 'contact-1', table: 'contacts', values: { organization_id: { $ref: 'org' }, name: 'Sample Contact' } },
         ],
       },
       // A world file with no admin membership must be skipped even though it has an "org" row.
@@ -325,7 +328,7 @@ test('findComponentsWorldTemplate finds a sibling run\'s world file with an org 
     });
     const template = await findComponentsWorldTemplate(repo.primary, 'components');
     assert.ok(template, 'a template was found');
-    assert.equal(template.length, 2);
+    assert.equal(template.length, 2, 'only the org row and the admin membership, never the page run\'s other rows');
 
     const rows = componentsWorldRows(template, 'components');
     assert.equal(rows[0].table, 'organizations');
