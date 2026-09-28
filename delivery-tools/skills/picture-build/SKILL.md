@@ -37,7 +37,7 @@ must land first.
 | 1 Pictures | this session | `design-inventory` steps 1 to 4 only (candidates, states, assemble, render); when the map declares the phone, `delivery design render --width phone` too | `.delivery/<f>/design/<ID>.png`, `<ID>@phone.png` |
 | 2 Map | one mapper agent | `<plugin>/briefs/mapper.md`, then `delivery map` | `map.json`, `checklist.md`, world files; also fills in the states of any `picture`-proof rule that needed them (rerun `<plugin>/briefs/rules.md` if one is still missing its states) |
 | 3 Worlds | this session | `delivery seed --plan`, `--check`, `--apply` | fixture worlds on the test project |
-| 4 Build | one builder agent | before dispatch: `delivery rules` must exit 0 (a non-zero exit names an owed rule; go back to step 0b); then `<plugin>/briefs/builder-picture.md` | commits on the run's branch |
+| 4 Build | one `delivery-tools:picture-builder` agent | before dispatch: `delivery rules` must exit 0 (a non-zero exit names an owed rule; go back to step 0b); then `<plugin>/briefs/builder-picture.md` | commits on the run's branch |
 | 5 Shoot | this session | dev server in the background, then `delivery shoot --base-url <url>` (every width the map declares) | `rounds/<n>/<ITEM>.live.png`, `<ITEM>.design.png`, `shoot.json` |
 | 6 Review | one reviewer per screen | `<plugin>/briefs/reviewer-picture.md` | `rounds/<n>/review-<screen>.md` |
 | 7 Compile | this session | `delivery review --round <n>` | `review.json`, `compare.html` |
@@ -73,8 +73,11 @@ Feature: <slug>   Worktree: <absolute path of the run's worktree>
 <reviewer: Round: .delivery/<f>/rounds/<n>/   States: <ITEMS, e.g. KC-05 KC-05@phone>   Write: review-<screen-slug>.md>
 ```
 
-- The builder is one agent (model: opus), in the background: a first build takes about an hour.
-  Resume the same builder for each fix round (SendMessage), so it keeps what it learned.
+- The builder is one `delivery-tools:picture-builder` agent (model: opus), in the background: a
+  first build takes about an hour. Resume the same builder for each fix round (SendMessage), so it
+  keeps what it learned. Never dispatch it as `delivery-tools:delivery-builder` — that agent works
+  in a fresh worktree of its own, off the integration branch, which this run's dev server cannot
+  see; a builder dispatched that way can work for an hour with nothing to show for it.
 - Reviewers: one per screen, 15 to 20 items each, all in one message (model: sonnet). A screen
   with more items is split in two; keep a state's desktop and phone items with the same reviewer.
 - Never more than four agents at once.

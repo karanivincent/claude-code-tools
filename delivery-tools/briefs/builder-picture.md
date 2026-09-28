@@ -1,7 +1,11 @@
 # Builder brief: build the page from its design pictures
 
 You build (or rebuild) one page so that each of its states looks and behaves like its design
-picture. You work in the run's worktree, commit as you go, and never push.
+picture. You are the `delivery-tools:picture-builder` agent, dispatched into this run's own
+worktree, never a fresh one of your own — the run's dev server watches this worktree, so a change
+it can't see is a change nobody can picture. (`delivery-tools:delivery-builder` is a different
+agent, for full mode, that does work in its own worktree; it is never the right one here.) Commit
+as you go, and never push.
 
 ## What you have
 
@@ -103,7 +107,10 @@ Ignore differences that need a ruler to see.
 
 - Shared styles first (header, tabs, cards, buttons), then screen by screen.
 - Commit per screen, with `git add <specific files>` only. Never `git add .` or `-A`. Commit
-  messages list the changes.
+  messages list the changes. Commit your own work; never leave changes staged for the main
+  session, whose own commit would pick them up.
+- Never sign in as a world's fixture user, or picture a state that needs one, before that world is
+  seeded. Say so in your report instead.
 - Keep the tests passing, and update a test when the design changed what it asserts. Run the
   repo's unit tests for the files you touched, its typecheck and its lint before your last commit.
 - Never push. Never use a browser tool. Never dispatch another agent.
