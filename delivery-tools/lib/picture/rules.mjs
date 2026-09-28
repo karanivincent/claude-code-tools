@@ -27,6 +27,7 @@ export function readRules(paths) {
  * and in intent/briefs/ (copied by intake --brief). Not uploads/, rounds/ or intake's sentence.txt.
  */
 export function briefFiles(paths) {
+  if (!paths.intentDir) return [];
   const list = (dir, prefix) => (existsSync(dir) ? readdirSync(dir, { withFileTypes: true }) : [])
     .filter((e) => e.isFile() && /\.(md|txt)$/i.test(e.name) && e.name !== 'sentence.txt')
     .map((e) => prefix + e.name);
@@ -67,7 +68,10 @@ export function validateRules(doc, opts = {}) {
     if (known) {
       for (const s of states) if (!known.has(parseItemKey(s).id)) problems.push(`${id}: names state ${s}, which is not in map.json`);
     }
-    if (r.proof === 'picture' && !states.length) problems.push(`${id}: proof is picture but it names no state; name the states whose design shows it`);
+    // Before the map exists (the rules agent's first pass, straight after intake, A3) no state id
+    // has been assigned yet, so a picture rule with no states is not a gap; `known` is set once
+    // map.json exists, and from then on every picture rule must name at least one.
+    if (r.proof === 'picture' && !states.length && known) problems.push(`${id}: proof is picture but it names no state; name the states whose design shows it`);
     if (r.proof === 'cut' && !r.cut?.trim?.()) problems.push(`${id}: proof is cut but there is no cut reason; quote the Scope line the founder saw`);
     if (r.proof === 'owed-design') problems.push(`${id} is owed to the design: send "${r.text}" to the design, then map it to the new state (${r.source})`);
     if (r.proof === 'test' && stage === 'ready') {
@@ -81,6 +85,11 @@ export function validateRules(doc, opts = {}) {
     }
   }
   return problems;
+}
+
+/** Rules still owed to the design (proof "owed-design"), in file order, for NEXT's design-send step. */
+export function owedDesignRules(doc) {
+  return (doc?.rules ?? []).filter((r) => r?.proof === 'owed-design');
 }
 
 /** Counts by proof, for status and ready lines. */

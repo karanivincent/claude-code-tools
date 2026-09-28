@@ -8,9 +8,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { renderChecklist } from '../../lib/picture/map.mjs';
 import { pictureNext } from '../../lib/picture/next.mjs';
-import { briefFiles, ruleCounts, rulesForState, validateRules } from '../../lib/picture/rules.mjs';
+import { briefFiles, owedDesignRules, ruleCounts, rulesForState, validateRules } from '../../lib/picture/rules.mjs';
 import { ruleReadiness } from '../../lib/run/ready-compute.mjs';
 import { sampleMap } from './map.test.mjs';
+import { makeTempRepo } from '../helpers/tmp-repo.mjs';
+import { makeTestCtx } from '../helpers/ctx.mjs';
+import rulesCommand from '../../lib/commands/rules.mjs';
 
 const stateIds = sampleMap().states.map((s) => s.id);
 const has = (problems, text) => problems.some((p) => p.includes(text));
@@ -91,6 +94,18 @@ test('counts by proof, and the rules a state shows include those naming only its
   assert.deepEqual(rulesForState(sampleRules(), 'KC-08').map((r) => r.id), []);
 });
 
+test('owedDesignRules names only the rules still owed to the design, in file order', () => {
+  const doc = { rules: [
+    { id: 'R1', text: 'a', source: 's', proof: 'picture', states: ['KC-05'] },
+    { id: 'R2', text: 'b', source: 's', proof: 'owed-design', states: [] },
+    { id: 'R3', text: 'c', source: 's', proof: 'cut', cut: 'Scope: later' },
+    { id: 'R4', text: 'd', source: 's', proof: 'owed-design', states: [] },
+  ] };
+  assert.deepEqual(owedDesignRules(doc).map((r) => r.id), ['R2', 'R4']);
+  assert.deepEqual(owedDesignRules(null), []);
+  assert.deepEqual(owedDesignRules({ rules: [] }), []);
+});
+
 // ---- Checklist ----
 
 test('the checklist lists each rule under the states that show it, and the rest in their own section', () => {
@@ -111,16 +126,25 @@ test('a checklist without rules is exactly what 0.5.0 rendered', () => {
 
 const facts = (over = {}) => ({ designed: 5, hasMap: true, mapError: null, problemCount: 0, checklistStale: false, seedStale: false, rounds: [], phoneRenderOwed: false, ...over });
 
-test('status sends the rules agent in after the map when there are briefs and no rules.json', () => {
-  const next = pictureNext(facts({ rulesOwed: true }), { cli: 'delivery' });
+test('status sends the rules agent in straight after intake, before the pictures, when there are briefs and no rules.json (A3)', () => {
+  const next = pictureNext(facts({ designed: 0, hasMap: false, rulesOwed: true }), { cli: 'delivery' });
   assert.equal(next.step, 'rules');
   assert.match(next.text, /briefs\/rules\.md/);
 });
 
+test('an owed-design rule sends the design brief with design-send before picture-build starts, ahead of pictures and the map (A3)', () => {
+  const next = pictureNext(facts({ designed: 0, hasMap: false, owedDesignRules: ['R4', 'R7'] }), { cli: 'delivery' });
+  assert.equal(next.step, 'design-send');
+  assert.equal(next.skill, 'design-send');
+  assert.match(next.text, /R4, R7/);
+  assert.match(next.text, /design-send/);
+  assert.match(next.text, /before picture-build starts/);
+});
+
 test('status stops on a rule gap before the worlds, and names the first one', () => {
-  const next = pictureNext(facts({ rulesProblem: 'R4 is owed to the design', ruleProblemCount: 2, seedStale: true }), { cli: 'delivery' });
+  const next = pictureNext(facts({ rulesProblem: 'R4: no text', ruleProblemCount: 2, seedStale: true }), { cli: 'delivery' });
   assert.equal(next.step, 'rules');
-  assert.match(next.text, /2 problem\(s\); first: R4 is owed to the design/);
+  assert.match(next.text, /2 problem\(s\); first: R4: no text/);
 });
 
 test('with no briefs and no rules, status goes straight on as in 0.5.0', () => {
@@ -170,4 +194,36 @@ test('ready: a test rule whose test is missing is red; once the test exists, rea
     assert.equal(green.ok, true);
     assert.match(green.detail, /3 rule\(s\): 1 shown by a state, 1 proved by a named test, 1 cut/);
   } finally { r.done(); }
+});
+
+// ---- Builder-dispatch guard (A3) ----
+// picture-build runs `delivery rules` before dispatching the first builder; it must refuse an
+// owed-design rule and pass once the founder cuts it.
+
+async function guardCtx() {
+  const repo = makeTempRepo({ files: { 'docs/delivery/widgets/map.json': sampleMap({ feature: 'widgets' }) } });
+  const t = await makeTestCtx({ repoRoot: repo.dir, feature: 'widgets' });
+  return { repo, ...t };
+}
+
+test('the builder-dispatch guard (delivery rules) fails, naming the owed rule, while a rule is owed to the design', async () => {
+  const { repo, ctx, stdout } = await guardCtx();
+  try {
+    writeFileSync(join(repo.dir, 'docs', 'delivery', 'widgets', 'rules.json'), JSON.stringify({
+      rules: [{ id: 'R4', text: 'Removing someone shows Undo.', source: 'intent/03.md', proof: 'owed-design', states: [] }],
+    }));
+    const exit = await rulesCommand.run(ctx, []);
+    assert.equal(exit, 1);
+    assert.match(stdout.text(), /R4 is owed to the design: send "Removing someone shows Undo\."/);
+  } finally { repo.cleanup(); }
+});
+
+test('the builder-dispatch guard passes once the founder cuts the rule instead', async () => {
+  const { repo, ctx } = await guardCtx();
+  try {
+    writeFileSync(join(repo.dir, 'docs', 'delivery', 'widgets', 'rules.json'), JSON.stringify({
+      rules: [{ id: 'R4', text: 'Removing someone shows Undo.', source: 'intent/03.md', proof: 'cut', cut: 'Scope: Undo is later' }],
+    }));
+    assert.equal(await rulesCommand.run(ctx, []), 0);
+  } finally { repo.cleanup(); }
 });

@@ -9,7 +9,7 @@ import { featurePaths } from '../core/paths.mjs';
 import { listRounds, roundInfo } from './rounds.mjs';
 import { backToDesignItems } from './review.mjs';
 import { designFor, hasPhone, mapItems } from './widths.mjs';
-import { ruleFacts, rulesPath } from './rules.mjs';
+import { owedDesignRules, readRules, ruleFacts, rulesPath } from './rules.mjs';
 import { componentsMapPath, effectiveComponentsFor, findDesignSystemManifest, missingFromDesignSystem } from '../components/map.mjs';
 import { usedComponents } from '../components/check.mjs';
 import { readExportComponents } from '../design/components.mjs';
@@ -163,7 +163,11 @@ export async function pictureFacts(paths, opts = {}) {
   const latest = [...latestVerdicts(paths).values()];
   const count = (v) => latest.filter((s) => s.verdict === v).length;
   const desktopPictures = [...designed].filter((id) => !id.includes('@')).length;
-  const rules = map ? ruleFacts(paths, { stateIds: map.states.map((st) => st.id) }) : null;
+  // Rules run straight after intake (A3), so they are read whether or not map.json exists yet;
+  // known-state checking simply skips until the map does.
+  const rules = ruleFacts(paths, { stateIds: map ? map.states.map((st) => st.id) : undefined });
+  let owedDesign = [];
+  try { owedDesign = owedDesignRules(readRules(paths)); } catch { /* rules.error already reports a parse problem */ }
   let from = null;
   let journal = [];
   try {
@@ -220,6 +224,10 @@ export async function pictureFacts(paths, opts = {}) {
     rulesProblem: rules?.problems[0] ?? null,
     ruleProblemCount: rules?.problems.length ?? 0,
     ruleCounts: rules?.counts ?? null,
+    // Rules whose proof is still "owed-design": send-to-design blocks picture-build's first
+    // builder dispatch until each is either drawn (proof becomes picture/test) or cut by the
+    // founder (proof becomes cut, with a Scope line).
+    owedDesignRules: owedDesign.map((r) => r.id),
     seedStale: Boolean(map) && (!existsSync(paths.seedplan) || mtime(paths.seedplan) < Math.max(mtime(mapPath(paths)), newestWorld)),
     rounds,
     backToDesign: backToDesignItems(paths).length,
@@ -248,6 +256,13 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   if (f.landedComponentsRun && f.designSyncMissing?.length) {
     return { step: 'design-sync', skill: null, text: `run /design-sync on the design-system project: it lacks ${f.designSyncMissing.join(', ')}` };
   }
+  // A3: the rules pass runs straight after intake, before pictures or the map, so a behaviour the
+  // briefs state but the design never drew is sent back before picture-build starts, not found by
+  // a builder mid-round.
+  if (f.rulesOwed) return { step: 'rules', skill, text: `dispatch the rules agent with briefs/rules.md to write rules.json from the briefs in intent/, then ${cli} rules` };
+  if (f.owedDesignRules?.length) {
+    return { step: 'design-send', skill: 'design-send', text: `${f.owedDesignRules.length} rule(s) are owed to the design (${f.owedDesignRules.join(', ')}): send the design brief with design-send before picture-build starts, or have the founder cut them (proof: cut, with a Scope line) in rules.json` };
+  }
   if (!f.designed) return { step: 'pictures', skill: 'design-inventory', text: `render the design's states: ${cli} design render` };
   if (!f.hasMap && !f.mapError) return { step: 'map', skill, text: 'dispatch the mapper agent with briefs/mapper.md to write map.json from the design pictures' };
   if (f.mapError) return { step: 'map', skill, text: `fix map.json (${f.problemCount || 1} problem(s); first: ${f.mapError}), then ${cli} map` };
@@ -258,7 +273,6 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
     return { step: 'components', skill, text: `run the components run first: ${intakeCmd} (used component(s) not built: ${f.pageBlockedComponents.join(', ')})` };
   }
   if (f.phoneRenderOwed) return { step: 'pictures', skill: 'design-inventory', text: `render the design at phone width (the map checks the phone): ${cli} design render --width phone, then ${cli} map` };
-  if (f.rulesOwed) return { step: 'rules', skill, text: `dispatch the rules agent with briefs/rules.md to write rules.json from the briefs in intent/, then ${cli} rules and ${cli} map` };
   if (f.rulesProblem) return { step: 'rules', skill, text: `fix rules.json (${f.ruleProblemCount} problem(s); first: ${f.rulesProblem}), then ${cli} rules and ${cli} map` };
   if (f.checklistStale) return { step: 'map', skill, text: `${cli} map (the checklist is older than map.json)` };
   if (f.seedStale) return { step: 'worlds', skill, text: `${cli} seed --plan, then --check, then --apply (the seed plan is older than the map or a world file)` };

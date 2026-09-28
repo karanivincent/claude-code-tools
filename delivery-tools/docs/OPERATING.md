@@ -62,14 +62,22 @@ comparison page (a row per width under each state), `status` and `ready` all cou
 at a width. A map without `widths` checks the desktop only, exactly as before.
 
 Since 0.6.0 decisions made in words are checked too. Every brief sent to the design is saved in
-`docs/delivery/<feature>/intent/` (the spec with `--brief` as well). After the map, a rules agent
-(`briefs/rules.md`) writes `rules.json`: one numbered rule per behaviour the briefs state, each with
-one proof. `picture` names the design states that show it; `delivery map` writes the rule under
-those states in the checklist, and reviewers mark a broken rule `must fix: R<n>`. `test` means no
-picture can show it; the builder writes a test named `R<n>: ...` and lists its file. `cut` quotes
-the Scope line the founder saw. `owed-design` means the design never drew it, and the run stays red
-until it does. `delivery rules` prints every gap; `status` stops on one; `ready` adds a `rules`
-check that also requires each named test to exist. A run with no briefs is unchanged.
+`docs/delivery/<feature>/intent/` (the spec with `--brief` as well). A rules agent (`briefs/rules.md`)
+writes `rules.json`: one numbered rule per behaviour the briefs state, each with one proof.
+`picture` names the design states that show it; `delivery map` writes the rule under those states
+in the checklist, and reviewers mark a broken rule `must fix: R<n>`. `test` means no picture can
+show it; the builder writes a test named `R<n>: ...` and lists its file. `cut` quotes the Scope
+line the founder saw. `owed-design` means the design never drew it, and the run stays red until it
+does. `delivery rules` prints every gap; `status` stops on one; `ready` adds a `rules` check that
+also requires each named test to exist. A run with no briefs is unchanged.
+
+The rules agent now runs twice: straight after intake, before the design's states are even
+rendered, so an undrawn behaviour is caught before a map and a build are spent on it, and again
+after `delivery map` to fill in each `picture` rule's states. `status`'s NEXT line asks for the
+rules pass before it asks for anything else. When a rule comes back `owed-design`, NEXT names the
+`design-send` skill and stops there — `picture-build` refuses to dispatch the builder while
+`delivery rules` still exits non-zero on an owed rule, until it is either sent to the design or the
+founder cuts it (proof `cut`, with a Scope line).
 
 Since 0.7.0 a page that was already built gets an update run when its design changes:
 `delivery intake <new export> --feature <slug>-update --from <slug> --intent "<sentence>"`. It
