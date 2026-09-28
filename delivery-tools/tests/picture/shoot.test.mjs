@@ -244,3 +244,31 @@ test('no element matches the crop selector: not reached, and nothing is shot', a
     assert.equal(screenshots.length, 0);
   } finally { cleanup(); }
 });
+
+test('a reach step waits for the requests it started: a slow save is pictured after it answers', async () => {
+  const { trackRequests, waitForQuiet } = await import('../../lib/picture/shoot.mjs');
+  const handlers = {};
+  const page = { on: (ev, fn) => { handlers[ev] = fn; } };
+  const net = trackRequests(page);
+  let t = 0;
+  const now = () => t;
+  const post = { resourceType: () => 'fetch' };
+  handlers.request(post);
+  // The save answers 1.1 s after the click, as in the run that found this.
+  const sleep = async (ms) => { t += ms; if (t >= 1100 && net.count) handlers.requestfinished(post); };
+  assert.equal(await waitForQuiet(net, { now, sleep }), true);
+  assert.ok(t >= 1600, `waited until 500 ms after the response (${t} ms), not a fixed second`);
+});
+
+test('a stream or a request that never ends does not hold a step past the cap', async () => {
+  const { trackRequests, waitForQuiet, SETTLE_CAP_MS } = await import('../../lib/picture/shoot.mjs');
+  const handlers = {};
+  const net = trackRequests({ on: (ev, fn) => { handlers[ev] = fn; } });
+  handlers.request({ resourceType: () => 'eventsource' });
+  assert.equal(net.count, 0, 'a stream is not counted');
+  handlers.request({ resourceType: () => 'fetch' });
+  let t = 0;
+  assert.equal(await waitForQuiet(net, { now: () => t, sleep: async (ms) => { t += ms; } }), false);
+  assert.ok(t >= SETTLE_CAP_MS && t < SETTLE_CAP_MS + 100);
+  assert.equal(trackRequests({}).count, 0, 'a page without events (the test fakes) never waits');
+});

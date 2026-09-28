@@ -22,9 +22,9 @@ profile, in that project's repository (spec section 18).
 node --test 'tests/**/*.test.mjs' 'skills/**/*.test.mjs'
 ```
 
-1127 tests: 1111 pass, 0 fail, 16 skipped (the replay tests, which need the private replay set, and
+1129 tests: 1113 pass, 0 fail, 16 skipped (the replay tests, which need the private replay set, and
 two real-browser render tests, which need `DELIVERY_PLAYWRIGHT_ROOT`). That is the whole suite after
-0.13.0 (the shadow grader in `review`, which records an outside model's answers and never changes
+0.13.1 (`shoot` waits for each reach step's requests to answer), 0.13.0 (the shadow grader in `review`, which records an outside model's answers and never changes
 a verdict), 0.12.0 (Part C: `delivery retro`, the runs ledger, the size rule in `lib/retro/size.mjs`, and
 `tunables.json`), 0.11.1 (a baseline refresh that adds nothing no longer writes `baseline.json`, so `ready` stops
 dirtying its own head), and 0.11.0 (A5 `delivery prepush` and A6 reviewing only what changed, in batches the CLI writes). A9
