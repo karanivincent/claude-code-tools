@@ -124,6 +124,37 @@ test('planRenders: a component file state passes file and props through, and ren
   assert.equal(by['WL-01'].file, undefined, 'a page state names no file');
 });
 
+// A7: a preset only ever applies on a prop *change*, so its props are never baked into the served
+// file as new defaults (unlike a plain "prop" reach); render applies them as a runtime set after
+// boot instead (lib/design/render.mjs).
+test('planRenders: a preset state carries its props to apply after load, not as baked defaults, and refuses one with none', () => {
+  const inv = widgetsInventory([
+    ...widgetsInventory().states,
+    { id: 'PR-01', screen: 'Widgets', name: 'settings preset', reach: { kind: 'preset', props: { screen: 'settings', owner: 'Priya' } }, shots: [], render: { status: 'ok' }, controls: [] },
+    { id: 'PR-02', screen: 'Widgets', name: 'no props', reach: { kind: 'preset' }, shots: [], render: { status: 'ok' }, controls: [] },
+  ]);
+  const plan = planRenders(inv, { states: null, adapter: 'claude-design' });
+  const by = Object.fromEntries(plan.map((p) => [p.id, p]));
+  assert.equal(by['PR-01'].action, 'render');
+  assert.deepEqual(by['PR-01'].preset, { screen: 'settings', owner: 'Priya' });
+  assert.equal(by['PR-01'].props, null, 'a preset\'s props are never baked in as defaults');
+  assert.equal(by['PR-02'].action, 'fail');
+  assert.match(by['PR-02'].why, /names no props/);
+});
+
+// A7: a design render refuses two different states whose rendered pictures are identical, unless
+// one names the other "samePictureAs" in the inventory (design/render.mjs hashes every picture).
+test('planRenders: samePictureAs passes through to the render item, for design render\'s duplicate-picture check', () => {
+  const inv = widgetsInventory([
+    ...widgetsInventory().states,
+    { id: 'WL-08', screen: 'Widgets', name: 'same as WL-01', samePictureAs: 'WL-01', reach: { kind: 'click-path', steps: [] }, shots: [], render: { status: 'ok' }, controls: [] },
+  ]);
+  const plan = planRenders(inv, { states: null, adapter: 'claude-design' });
+  const by = Object.fromEntries(plan.map((p) => [p.id, p]));
+  assert.equal(by['WL-08'].samePictureAs, 'WL-01');
+  assert.equal(by['WL-01'].samePictureAs, undefined);
+});
+
 test('componentNames: unique, sorted, minus the root host\'s own name', () => {
   assert.deepEqual(
     componentNames([{ name: 'Picker', root: true }, { name: 'Table', root: false }, { name: 'Table', root: false }, { name: 'Row', root: false }]),

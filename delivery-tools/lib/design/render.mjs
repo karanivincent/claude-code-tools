@@ -8,6 +8,7 @@ import { ensureDir } from '../core/fs.mjs';
 import { writeArtefact } from '../core/artefacts.mjs';
 import { resolvePlaywright, playwrightSearchDirs } from '../core/playwright.mjs';
 import { ConfigError } from '../core/exit.mjs';
+import { sha256 } from '../core/hash.mjs';
 import { startStaticServer, contentTypeFor } from './server.mjs';
 import { prepareServeDir, writePropCopy } from './serve.mjs';
 import { vendorResolver } from './vendor.mjs';
@@ -80,8 +81,15 @@ export function planRenders(inventory, opts) {
     const props = reach.props && Object.keys(reach.props).length ? reach.props : null;
     // A component with its defaults (no props) is still a valid state when it names its own file.
     if (reach.kind === 'prop' && !props && !reach.file) { out.push({ id: s.id, action: 'fail', why: 'a prop state names no props' }); continue; }
-    const item = { id: s.id, action: 'render', steps: reach.steps ?? [], props };
+    // A preset only ever applies on a prop *change* (a design's componentDidUpdate), never at
+    // mount, so a preset's props are never baked into the served file as new defaults: render
+    // boots the design's own defaults, then sets the preset's props at runtime (spec 4.2 step 3),
+    // the same way a click-path reach step can. A prop-only reach still bakes props as defaults.
+    if (reach.kind === 'preset' && !props) { out.push({ id: s.id, action: 'fail', why: 'a preset state names no props to set' }); continue; }
+    const item = { id: s.id, action: 'render', steps: reach.steps ?? [], props: reach.kind === 'preset' ? null : props };
+    if (reach.kind === 'preset') item.preset = props;
     if (reach.file) item.file = reach.file;
+    if (s.samePictureAs) item.samePictureAs = s.samePictureAs;
     out.push(item);
   }
   return out;
@@ -251,6 +259,11 @@ export async function renderDesign(ctx, opts) {
       throw new ConfigError(`Playwright could not start Chromium: ${String(err.message).split('\n')[0]} (install it with the repo's Playwright: "playwright install chromium")`);
     }
     const previewCache = new Map();
+    // Duplicate-picture check (A7): two different states that render byte-identical pictures at
+    // this width are refused, unless one names the other with "samePictureAs" in its inventory
+    // entry. Scoped to this one call (one width), since desktop and phone renders never collide.
+    const seenHashes = new Map();
+    const sameEscape = new Map(toRender.filter((p) => p.samePictureAs).map((p) => [p.id, p.samePictureAs]));
     for (const p of toRender) {
       const errors = [];
       const dcFile = p.file ?? serve.dcFile;
@@ -290,12 +303,25 @@ export async function renderDesign(ctx, opts) {
         await settle(page);
         const logicError = await page.evaluate(() => { const e = document.querySelector('.sc-logic-error'); return e ? e.textContent : null; });
         if (logicError) throw new Error(`the design's logic failed: ${logicError.trim().slice(0, 200)}`);
+        if (p.preset) {
+          // Applied after boot, the same way a {"set": {...}} reach step is: a preset's props are
+          // never baked in as new defaults, because presets only run on a prop *change*.
+          const ok = await page.evaluate((patch) => (typeof window.__deliverySet === 'function' ? window.__deliverySet(patch) : false), p.preset);
+          if (!ok) throw new Error(`preset: found no design component to set ${JSON.stringify(p.preset)} on`);
+          await settle(page);
+        }
         for (let i = 0; i < p.steps.length; i++) await runDesignStep(page, p.steps[i], i + 1);
         const hosts = await page.evaluate(() => [...document.querySelectorAll('.sc-host[data-sc-name]')]
           .map((e) => ({ name: e.getAttribute('data-sc-name'), root: e.parentElement?.id === 'dc-root' })));
         await writeFile(outFile(p.id, 'components.json'), JSON.stringify({ names: componentNames(hosts) }, null, 2) + '\n');
         const { lines, dom } = await page.evaluate(pageExtract, {});
         const png = await page.screenshot({ fullPage: true, animations: 'disabled', caret: 'hide' });
+        const hash = sha256(png);
+        const dupe = seenHashes.get(hash);
+        if (dupe && dupe !== p.id && p.samePictureAs !== dupe && sameEscape.get(dupe) !== p.id) {
+          throw new Error(`renders the same picture as ${dupe} (sha256 ${hash}); if that is expected, add "samePictureAs": "${dupe}" to ${p.id}'s inventory entry`);
+        }
+        if (!dupe) seenHashes.set(hash, p.id);
         await writeFile(outFile(p.id, 'png'), png);
         await writeFile(outFile(p.id, 'txt'), linesToText(lines));
         if (width === 'desktop') await writeArtefact(paths, 'design-dom', dom, { key: p.id });

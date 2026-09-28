@@ -6,6 +6,7 @@ import { parseCommandArgs } from '../core/args.mjs';
 import { EXIT, UsageError } from '../core/exit.mjs';
 import { resolvePlaywright } from '../core/playwright.mjs';
 import { createDataAdapter } from '../../adapters/data/supabase.mjs';
+import { refreshWorld } from '../seed/scan.mjs';
 import { designIds, readMap, validateMap } from '../picture/map.mjs';
 import { nextRound, roundDir, WORK_ROUND } from '../picture/rounds.mjs';
 import { runShoot, selectStates, writeShootJson } from '../picture/shoot.mjs';
@@ -84,6 +85,12 @@ common options:
       auth: { signInHash: (email) => db.signInHash(email) },
       chromium,
       log: (l) => ctx.out.line(l),
+      // A state that changes data and is checked at both widths uses a freshly seeded world each
+      // time: reuse the seed plan's own apply path (spec 7.4), the same one `seed --refresh` runs.
+      reseed: async (worldId) => {
+        const gate = await refreshWorld(ctx, worldId);
+        if (!gate.ok) ctx.out.warn(`re-seeding ${worldId} before the next width's shot found problems: ${gate.failures.map((f) => f.message).join('; ')}`);
+      },
     });
     const doc = await writeShootJson(outDir, { baseUrl, at: ctx.clock.now().toISOString(), report });
 

@@ -27,6 +27,15 @@ every state of an image-folder design) gets its first shot copied as <ID>.png, w
 Steps: {"click": "<exact visible text>"} or {"click": "<playwright selector>"} such as
 text=..., css=..., role=...; {"set": {...}} writes the design component's own state.
 
+A "prop" reach's props are baked into the served file as new defaults, so the design mounts
+with them already set. A "preset" reach's props never are: they are applied with the same
+{"set": ...} mechanism, after the page has booted, because a preset commonly applies only on a
+prop *change* (a design's componentDidUpdate) and never fires from a default.
+
+Every rendered picture is hashed; two different states whose pictures come out byte-identical
+are refused (both ids and the hash are named), unless one names the other in the inventory with
+"samePictureAs": "<id>".
+
 A named width renders at that width's size: desktop is 1440 x 900 with today's file names, and
 phone is 390 x 844 and adds @phone (<ID>@phone.png, <ID>@phone.txt, <ID>@phone.dom.json), for a
 picture-mode map that declares "widths": ["desktop", "phone"]. At phone width a picture-only state

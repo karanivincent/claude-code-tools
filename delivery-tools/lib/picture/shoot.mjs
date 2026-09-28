@@ -38,9 +38,13 @@ export function selectStates(map, picks = []) {
  * Capture order. One group per fixture user, in first-seen order; groups that change data (a save,
  * a discard, an add) come after groups that do not. Inside a group, every width's reading items
  * come before any width's writing items, so a save at one width cannot change what another width
- * reads. Each entry is one browser context at one width: consecutive entries at the same width are
+ * reads; among the writing items, desktop is shot before phone (widths.WIDTHS' own order), so a
+ * state that writes and is checked at both widths uses a freshly seeded world for each: every
+ * writing entry but the group's last carries `reseedAfter: true`, which runShoot reads to re-seed
+ * the world before the next entry (the desktop write "uses up" the data a phone write also needs).
+ * Each entry is one browser context at one width: consecutive entries at the same width are
  * joined, so a desktop-only group is one entry with its writing items last.
- * @returns {{ width: string, world: string, role: string, items: object[], writes: string[] }[]}
+ * @returns {{ width: string, world: string, role: string, items: object[], writes: string[], reseedAfter?: boolean }[]}
  */
 export function captureOrder(items, map) {
   const groups = new Map();
@@ -56,7 +60,7 @@ export function captureOrder(items, map) {
     const writes = (i) => writesData(i.state, map, i.width);
     const entries = [];
     for (const w of widths) entries.push({ width: w, world, role, items: list.filter((i) => i.width === w && !writes(i)), writes: [] });
-    for (const w of [...widths].reverse()) {
+    for (const w of widths) {
       const ws = list.filter((i) => i.width === w && writes(i));
       entries.push({ width: w, world, role, items: ws, writes: ws.map((i) => i.key) });
     }
@@ -65,6 +69,8 @@ export function captureOrder(items, map) {
       const prev = joined[joined.length - 1];
       if (prev && prev.width === e.width) { prev.items.push(...e.items); prev.writes.push(...e.writes); } else joined.push(e);
     }
+    const writing = joined.filter((e) => e.writes.length);
+    for (let i = 0; i < writing.length - 1; i++) writing[i].reseedAfter = true;
     ordered.push({ writes: list.some(writes), entries: joined });
   }
   return ordered.sort((a, b) => Number(a.writes) - Number(b.writes)).flatMap((g) => g.entries);
@@ -142,11 +148,6 @@ function documentWidth() {
   return { scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth };
 }
 
-/** How far the page has scrolled, to turn a viewport-relative boundingBox() into page coordinates. */
-function pageScroll() {
-  return { x: window.scrollX, y: window.scrollY };
-}
-
 /**
  * A bar fixed along the bottom of the window across (nearly) its full width: a phone's tab bar.
  * It is the app's shared navigation, like the desktop sidebar, so it is hidden before the
@@ -217,6 +218,9 @@ export function contextOptions(width) {
  * @param {{ signInHash: (email: string) => Promise<string> }} o.auth
  * @param {any} o.chromium
  * @param {(line: string) => void} o.log
+ * @param {((world: string) => Promise<void>)} [o.reseed] re-seeds one world, between a
+ *   data-changing state's desktop shot and its phone shot (captureOrder's reseedAfter); optional
+ *   so a caller that does not need it (or a test) can omit it
  * @returns {Promise<Record<string, object>>} keyed by item key
  */
 export async function runShoot(o) {
@@ -256,26 +260,16 @@ export async function runShoot(o) {
         o.log(resultLine(it.key, report[it.key]));
       }
       await context.close();
+      if (entry.reseedAfter && o.reseed) {
+        o.log(`re-seeding ${entry.world} before the next width's shot of the same data-changing state(s)`);
+        await o.reseed(entry.world);
+      }
     }
     await cropDesigns(browser, o, o.items);
   } finally {
     await browser.close();
   }
   return report;
-}
-
-/**
- * A components map's crop: the state's own wrapper element, grown by 24px of padding on every
- * side and clamped to the page, rather than the page-area rectangle every other kind uses.
- */
-const GALLERY_CROP_PADDING = 24;
-async function galleryClip(page, box) {
-  const dims = await page.evaluate(() => ({ w: document.documentElement.scrollWidth, h: document.documentElement.scrollHeight }));
-  const x = Math.max(0, box.x - GALLERY_CROP_PADDING);
-  const y = Math.max(0, box.y - GALLERY_CROP_PADDING);
-  const x2 = Math.min(dims.w, box.x + box.width + GALLERY_CROP_PADDING);
-  const y2 = Math.min(dims.h, box.y + box.height + GALLERY_CROP_PADDING);
-  return { x, y, width: Math.max(1, x2 - x), height: Math.max(1, y2 - y) };
 }
 
 async function shootItem(page, it, o) {
@@ -315,17 +309,23 @@ async function shootItem(page, it, o) {
   await page.waitForTimeout(600);
 
   if (o.map.kind === 'components') {
-    const box = rec.reached ? await page.locator(crop.selector).first().boundingBox().catch(() => null) : null;
+    const loc = page.locator(crop.selector).first();
+    const box = rec.reached ? await loc.boundingBox().catch(() => null) : null;
     if (!box) {
       rec.reached = false;
       rec.problems.push(`no element matches ${crop.selector}`);
       return rec;
     }
-    // boundingBox() is relative to the current scroll position; page coordinates (what a
-    // fullPage screenshot's clip needs) add back however far the page has scrolled.
-    const scroll = await page.evaluate(pageScroll);
-    const docBox = { x: box.x + scroll.x, y: box.y + scroll.y, width: box.width, height: box.height };
-    await page.screenshot({ path: join(o.outDir, roundFiles(it.key).live), clip: await galleryClip(page, docBox), fullPage: true, animations: 'disabled', caret: 'hide' });
+    // locator.screenshot() scrolls the element into view itself (any ancestor's own scroll, not
+    // only the window's) and captures its full box even where that box is taller than the current
+    // viewport, so a gallery state that scrolls inside a container such as <main> is pictured
+    // whole; a page.screenshot({fullPage: true, clip}) only ever stitches the *document's* own
+    // scroll, and cut off every state below the first screen when the scrolling was <main>'s
+    // (found on the first components run). Fixed layers (a phone tab bar, a dev-server overlay)
+    // are hidden first so they never paint over a state's own picture.
+    await loc.scrollIntoViewIfNeeded().catch(() => {});
+    await page.evaluate(hideBottomBars, BOTTOM_BAR_MAX).catch(() => 0);
+    await loc.screenshot({ path: join(o.outDir, roundFiles(it.key).live), animations: 'disabled', caret: 'hide' });
     return rec;
   }
 
@@ -345,7 +345,9 @@ async function shootItem(page, it, o) {
   await page.setViewportSize({ width: size.width, height });
   await page.waitForTimeout(300);
   const top = await page.evaluate(pageAreaTop, left);
-  if (phone) await page.evaluate(hideBottomBars, BOTTOM_BAR_MAX).catch(() => 0);
+  // Every width, not only the phone: a fixed bar (a bottom tab bar, a dev-server overlay) is
+  // shared chrome, hidden before the picture rather than graded, at any width it happens to show.
+  await page.evaluate(hideBottomBars, BOTTOM_BAR_MAX).catch(() => 0);
   await page.screenshot({ path: join(o.outDir, roundFiles(it.key).live), clip: { x: left, y: top, width: size.width - left, height: height - top }, animations: 'disabled', caret: 'hide' });
   return rec;
 }
