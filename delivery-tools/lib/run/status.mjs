@@ -66,9 +66,12 @@ export async function statusReport(ctx, run, opts = {}) {
 
   // pictureFacts' components-first facts (spec §4-8) need the profile (componentsMapPath reads
   // profile.components.map); status must never fail over this, so a missing or invalid profile
-  // just leaves those facts empty rather than surfacing here.
+  // just leaves those facts empty rather than surfacing here. A2's guards-to-approve fact needs
+  // the safety file the same way.
   let profile = null;
   try { profile = await rctx.profile(); } catch { /* status still works without it */ }
+  let safety = null;
+  try { safety = (await rctx.safety()).safety; } catch { /* status still works without it */ }
 
   // A components run whose intake was refused (a design entry has no target) never gets as far as
   // writing map.json, so it never reaches picture mode below; the general intake gate would
@@ -82,7 +85,7 @@ export async function statusReport(ctx, run, opts = {}) {
 
   // Picture mode: a run with a map.json follows the picture loop, not the phase gates.
   if (!run.broken && run.state && existsSync(mapPath(paths))) {
-    const facts = await pictureFacts(paths, profile ? { profile, git: rctx.git } : { git: rctx.git });
+    const facts = await pictureFacts(paths, { ...(profile ? { profile } : {}), ...(safety ? { safety } : {}), git: rctx.git });
     const lastReady = (run.state.readyRecords ?? []).at(-1);
     const pnext = pictureNext(facts, { cli, readyOk: Boolean(lastReady?.ok), epic: run.state.epic ?? null });
     const next = { text: pnext.text, skill: pnext.skill, phase: `picture:${pnext.step}`, line: `NEXT: ${pnext.text}${pnext.skill ? ` (skill: ${pnext.skill})` : ''}` };
