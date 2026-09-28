@@ -10,12 +10,16 @@ import { listTree } from '../../lib/core/hash.mjs';
 import { loadState } from '../../lib/core/state.mjs';
 import { featurePaths } from '../../lib/core/paths.mjs';
 import { hasMarker, makeMarker } from '../../lib/core/markers.mjs';
-import { validExample, makeProfile } from '../helpers/fixtures.mjs';
+import { validExample, makeProfile, makeSafety } from '../helpers/fixtures.mjs';
 import { validateAgainst } from '../../lib/core/schema.mjs';
-import { runIntake, verifyIntake, slugify, stripCommonRoot, parseSnapshotReadme, renderIntentMd } from '../../lib/lifecycle/intake.mjs';
+import {
+  runIntake, verifyIntake, slugify, stripCommonRoot, parseSnapshotReadme, renderIntentMd,
+  componentsWorldEmail, componentsWorldOrgName, findComponentsWorldTemplate, componentsWorldRows,
+} from '../../lib/lifecycle/intake.mjs';
+import { buildSeedPlan } from '../../lib/seed/plan.mjs';
 import intakeCommand from '../../lib/commands/intake.mjs';
 import statusCommand from '../../lib/commands/status.mjs';
-import { makeRunRepo, ctxFor } from './support.mjs';
+import { makeRunRepo, ctxFor, write } from './support.mjs';
 
 /** A stand-in for slice C's Claude Design adapter, with the same interface. */
 const fakeAdapter = {
@@ -211,7 +215,7 @@ test('--components: refuses while a design entry has no target (NEXT names the m
     const zip = join(repo.root, 'components-export.zip');
     componentsExportZip(zip);
     const profile = makeProfile({ components: { map: 'docs/delivery/components.json', galleryRoute: '/admin/design/components' } });
-    const { ctx } = await ctxFor(repo.primary, { feature: null, profile });
+    const { ctx } = await ctxFor(repo.primary, { feature: null, profile, safety: makeSafety() });
 
     const first = await runIntake(ctx, { source: zip, components: true });
     assert.equal(first.exit, 1);
@@ -234,7 +238,9 @@ test('--components: refuses while a design entry has no target (NEXT names the m
 
     const second = await runIntake(ctx, { source: zip, components: true });
     assert.equal(second.exit, 0, JSON.stringify(second.failures));
-    assert.equal(second.next, null);
+    // Fix round (0.9.1, bug 2): no sibling run's world file exists in this repo to copy an
+    // organisation row template from, so the minimal world is written and NEXT says so.
+    assert.match(second.next, /^NEXT: fill in docs\/delivery\/components\/worlds\/components\.json before seeding \(no other run's world file was found/);
 
     const inventory = JSON.parse(readFileSync(join(wt, 'docs/delivery/components/inventory.json'), 'utf8'));
     assert.deepEqual(inventory.states.map((s) => s.id), ['C-Picker-01', 'C-Picker-02']);
@@ -257,17 +263,162 @@ test('--components: refuses while a design entry has no target (NEXT names the m
     assert.equal(map.kind, 'components');
     assert.equal(map.route, '/admin/design/components');
     assert.deepEqual(map.widths, ['desktop', 'phone']);
-    assert.deepEqual(map.worlds, [{ id: 'components', users: [{ role: 'admin', email: profile.auth.robotAdminEmail }] }]);
+    // Fix round (0.9.1, bug 2): a fixture email seed --check accepts (never the real-looking
+    // profile.auth.robotAdminEmail), plus kind and orgName so this world seeds like any other.
+    assert.equal(map.worlds.length, 1);
+    assert.equal(map.worlds[0].id, 'components');
+    assert.equal(map.worlds[0].kind, 'design');
+    assert.equal(map.worlds[0].orgName, 'Acme Store');
+    assert.equal(map.worlds[0].users.length, 1);
+    assert.equal(map.worlds[0].users[0].role, 'admin');
+    assert.equal(map.worlds[0].users[0].email, 'delivery+comp-admin@example.invalid');
+    assert.match(map.worlds[0].users[0].email, new RegExp(makeSafety().fixtureUserPattern));
+    assert.notEqual(map.worlds[0].users[0].email, profile.auth.robotAdminEmail);
     assert.deepEqual(map.states.map((s) => s.id), ['C-Picker-01', 'C-Picker-02']);
     assert.equal(map.states[0].design, 'C-Picker-01');
     assert.deepEqual(map.states[0].reach, { world: 'components', role: 'admin', steps: [{ goto: '/admin/design/components' }] });
 
+    // No sibling run's world file exists in this repo, so the minimal world is written as before.
     const world = JSON.parse(readFileSync(join(wt, 'docs/delivery/components/worlds/components.json'), 'utf8'));
     assert.deepEqual(world, { schemaVersion: 1, world: 'components', rows: [{ key: 'org', table: 'organizations', values: { name: { $orgName: true } } }] });
 
     const rewritten = JSON.parse(readFileSync(mapFile, 'utf8'));
     assert.equal(rewritten.components.find((c) => c.name === 'Picker').status, 'new'); // still new: builtHash is only set by land / --mark-built
     assert.equal(repo.git('-C', wt, 'status', '--porcelain'), '', 'the inventory, map and world file are committed with the run');
+  } finally { repo.cleanup(); }
+});
+
+// Fix round (0.9.1, bug 2): the components world's fixture user, org name, and world-file rows.
+test('componentsWorldEmail derives a fixture email from the feature slug and matches the safety pattern', () => {
+  const safety = makeSafety();
+  assert.equal(componentsWorldEmail('components', safety), 'delivery+comp-admin@example.invalid');
+  assert.match(componentsWorldEmail('components', safety), new RegExp(safety.fixtureUserPattern));
+  // A dated run keeps its own date rather than colliding with the plain "components" address.
+  assert.equal(componentsWorldEmail('components-20260115', safety), 'delivery+comp-20260115-admin@example.invalid');
+});
+
+test('componentsWorldEmail refuses rather than silently seeding an address the repo\'s own pattern rejects', () => {
+  const safety = makeSafety({ fixtureUserPattern: '^only-this@example\\.invalid$' });
+  assert.throws(() => componentsWorldEmail('components', safety), /does not match this repo's safety\.fixtureUserPattern/);
+});
+
+test('componentsWorldOrgName: the profile\'s test data when it names one, else "Acme Store"', () => {
+  assert.equal(componentsWorldOrgName(makeProfile()), 'Acme Store');
+  assert.equal(componentsWorldOrgName(makeProfile({ testData: { mode: 'tenant', orgName: 'Widgets Test Co' } })), 'Widgets Test Co');
+});
+
+test('findComponentsWorldTemplate finds a sibling run\'s world file with an org row and an admin membership; componentsWorldRows swaps only the slug', async () => {
+  const repo = await makeRunRepo({ run: false });
+  try {
+    write(repo.primary, {
+      'docs/delivery/widgets/worlds/design.json': {
+        schemaVersion: 1, world: 'design',
+        rows: [
+          { key: 'org', table: 'organizations', values: { name: { $orgName: true }, slug: 'widgets-demo' } },
+          { key: 'member-admin', table: 'organization_members', values: { organization_id: { $ref: 'org' }, user_id: { $ref: 'user:admin' }, role: 'admin' } },
+        ],
+      },
+      // A world file with no admin membership must be skipped even though it has an "org" row.
+      'docs/delivery/other/worlds/lonely.json': {
+        schemaVersion: 1, world: 'lonely', rows: [{ key: 'org', table: 'organizations', values: { name: { $orgName: true } } }],
+      },
+    });
+    const template = await findComponentsWorldTemplate(repo.primary, 'components');
+    assert.ok(template, 'a template was found');
+    assert.equal(template.length, 2);
+
+    const rows = componentsWorldRows(template, 'components');
+    assert.equal(rows[0].table, 'organizations');
+    assert.equal(rows[0].values.slug, 'delivery-comp-components', 'the template\'s own slug is replaced, never left pointing at its own organisation');
+    assert.deepEqual(rows[0].values.name, { $orgName: true }, 'the $orgName placeholder is kept as-is');
+    assert.equal(rows[1].table, 'organization_members');
+    assert.deepEqual(rows[1].values, { organization_id: { $ref: 'org' }, user_id: { $ref: 'user:admin' }, role: 'admin' }, '$ref placeholders and literal non-slug values are copied verbatim');
+  } finally { repo.cleanup(); }
+});
+
+test('findComponentsWorldTemplate returns null when the repo has no such world file yet', async () => {
+  const repo = await makeRunRepo({ run: false });
+  try {
+    assert.equal(await findComponentsWorldTemplate(repo.primary, 'components'), null);
+  } finally { repo.cleanup(); }
+});
+
+test('--components copies a sibling run\'s organisation-row template into its own world file, and the result feeds seed --plan without crashing', async () => {
+  const repo = await makeRunRepo({ run: false });
+  try {
+    // Committed and pushed to main: intake creates the components run's own worktree from
+    // origin/main, so a file only sitting uncommitted in repo.primary would never reach it.
+    write(repo.primary, {
+      'docs/delivery/widgets/worlds/design.json': {
+        schemaVersion: 1, world: 'design',
+        rows: [
+          { key: 'org', table: 'organizations', values: { name: { $orgName: true }, slug: 'widgets-demo' } },
+          { key: 'member-admin', table: 'organization_members', values: { organization_id: { $ref: 'org' }, user_id: { $ref: 'user:admin' }, role: 'admin' } },
+        ],
+      },
+    });
+    repo.git('add', '-A');
+    repo.git('commit', '-q', '-m', 'an earlier widgets run\'s world file');
+    repo.git('push', '-q', 'origin', 'main');
+    const zip = join(repo.root, 'components-export.zip');
+    componentsExportZip(zip);
+    const profile = makeProfile({ components: { map: 'docs/delivery/components.json', galleryRoute: '/admin/design/components' } });
+    const safety = makeSafety();
+    const { ctx } = await ctxFor(repo.primary, { feature: null, profile, safety });
+
+    const first = await runIntake(ctx, { source: zip, components: true });
+    const mapFile = join(first.worktree, 'docs/delivery/components.json');
+    const written = JSON.parse(readFileSync(mapFile, 'utf8'));
+    written.components.find((c) => c.name === 'Picker').target = 'src/ui/picker.tsx';
+    writeFileSync(mapFile, `${JSON.stringify(written, null, 2)}\n`);
+
+    const second = await runIntake(ctx, { source: zip, components: true });
+    assert.equal(second.exit, 0, JSON.stringify(second.failures));
+    assert.equal(second.next, null, 'a template was found, so there is nothing left to ask a person to fill in');
+
+    const world = JSON.parse(readFileSync(join(second.worktree, 'docs/delivery/components/worlds/components.json'), 'utf8'));
+    assert.deepEqual(world.rows[0], { key: 'org', table: 'organizations', values: { name: { $orgName: true }, slug: 'delivery-comp-components' } });
+    assert.deepEqual(world.rows[1], { key: 'member-admin', table: 'organization_members', values: { organization_id: { $ref: 'org' }, user_id: { $ref: 'user:admin' }, role: 'admin' } });
+
+    const map = JSON.parse(readFileSync(join(second.worktree, 'docs/delivery/components/map.json'), 'utf8'));
+    const worldFiles = { components: world };
+    // seed --plan's own path: map.worlds becomes the plan, exactly as lib/commands/seed.mjs's
+    // planMode does in picture mode. This used to crash on the missing orgName/kind; now it must not.
+    const seedPlan = buildSeedPlan({
+      feature: 'components', runId: 'r-1', project: 'p', plan: { worlds: map.worlds }, worldFiles, safety,
+    });
+    assert.equal(seedPlan.worlds.length, 1);
+    assert.equal(seedPlan.users.length, 1);
+    assert.equal(seedPlan.users[0].email, 'delivery+comp-admin@example.invalid');
+    const org = seedPlan.rows.find((r) => r.table === 'organizations');
+    assert.equal(org.values.name, `${safety.fixtureOrgPrefix}Acme Store`);
+    assert.equal(org.values.slug, 'delivery-comp-components');
+  } finally { repo.cleanup(); }
+});
+
+// Fix round (0.9.1, bug 1): ctx.feature resolves to "the single run in this worktree" before a
+// command ever sees --components. Running intake --components from inside a finished page run's
+// own integration worktree, with no --feature, must still start the components run — never adopt
+// that worktree's own feature and overwrite its snapshot.
+test('--components inside another run\'s worktree ignores that run\'s own feature and starts the components run', async () => {
+  const repo = await makeRunRepo(); // creates the "widgets" page run and its own integration worktree
+  try {
+    const beforeHead = repo.wtGit('rev-parse', 'HEAD');
+    const zip = join(repo.root, 'components-export.zip');
+    componentsExportZip(zip);
+    const profile = makeProfile({ components: { map: 'docs/delivery/components.json', galleryRoute: '/admin/design/components' } });
+    // No --feature: ctx.feature auto-resolves to "widgets" (the single run in this worktree).
+    const { ctx } = await ctxFor(repo.worktree, { feature: null, profile });
+
+    const res = await runIntake(ctx, { source: zip, components: true });
+    assert.equal(res.feature, 'components', "the components default, not the worktree's own run");
+    assert.notEqual(res.worktree, repo.worktree, 'a fresh worktree for the components run, not the widgets one');
+    assert.equal(existsSync(join(res.worktree, 'docs/delivery/components.json')), true);
+    assert.equal(existsSync(join(repo.worktree, 'docs/delivery/components.json')), false, "never written into the widgets run's worktree");
+
+    // The widgets run's own worktree and branch are untouched.
+    assert.equal(repo.wtGit('rev-parse', 'HEAD'), beforeHead, "no new commit landed on the widgets run's branch");
+    assert.equal(repo.wtGit('status', '--porcelain'), '', "the widgets run's worktree has no uncommitted changes either");
   } finally { repo.cleanup(); }
 });
 
@@ -281,7 +432,7 @@ test('--components with nothing new or stale says so, exits 0, and never wipes t
     const zip = join(repo.root, 'components-export.zip');
     componentsExportZip(zip);
     const profile = makeProfile({ components: { map: 'docs/delivery/components.json', galleryRoute: '/admin/design/components' } });
-    const { ctx } = await ctxFor(repo.primary, { feature: null, profile });
+    const { ctx } = await ctxFor(repo.primary, { feature: null, profile, safety: makeSafety() });
 
     const first = await runIntake(ctx, { source: zip, components: true });
     const wt = first.worktree;
@@ -330,7 +481,7 @@ test('a refused --from components run has no map.json at all; status names the m
     const zip = join(repo.root, 'components-export.zip');
     componentsExportZip(zip);
     const profile = makeProfile({ components: { map: 'docs/delivery/components.json', galleryRoute: '/admin/design/components' } });
-    const { ctx } = await ctxFor(repo.primary, { feature: null, profile });
+    const { ctx } = await ctxFor(repo.primary, { feature: null, profile, safety: makeSafety() });
 
     const first = await runIntake(ctx, { source: zip, components: true });
     const mapFile = join(first.worktree, 'docs/delivery/components.json');
@@ -375,7 +526,7 @@ test('--components --from components gets its own dated feature slug, once "comp
     const zip = join(repo.root, 'components-export.zip');
     componentsExportZip(zip);
     const profile = makeProfile({ components: { map: 'docs/delivery/components.json', galleryRoute: '/admin/design/components' } });
-    const { ctx } = await ctxFor(repo.primary, { feature: null, profile }); // clock frozen at 2026-01-15
+    const { ctx } = await ctxFor(repo.primary, { feature: null, profile, safety: makeSafety() }); // clock frozen at 2026-01-15
 
     const first = await runIntake(ctx, { source: zip, components: true });
     assert.equal(first.feature, 'components');
@@ -423,7 +574,7 @@ test('the first ever components run still gets the plain "components" feature sl
     const zip = join(repo.root, 'components-export.zip');
     componentsExportZip(zip);
     const profile = makeProfile({ components: { map: 'docs/delivery/components.json', galleryRoute: '/admin/design/components' } });
-    const { ctx } = await ctxFor(repo.primary, { feature: null, profile });
+    const { ctx } = await ctxFor(repo.primary, { feature: null, profile, safety: makeSafety() });
     const first = await runIntake(ctx, { source: zip, components: true });
     assert.equal(first.feature, 'components');
   } finally { repo.cleanup(); }
