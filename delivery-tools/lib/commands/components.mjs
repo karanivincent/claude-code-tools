@@ -41,7 +41,7 @@ printed as-is. This never writes components.json: a components run's intake (a l
 what records a fresh hash; this command only reports drift.
 
 --used needs a run resolved in this worktree (--feature, or the worktree's own run): prints each
-component the run's design states show (from docs/delivery/<feature>/design/<ID>.components.json),
+component the run's design states show (from .delivery/<feature>/design/<ID>.components.json),
 one line each, as "<Name> -> <target> (props: design->code, ...)". For the builder: run this
 instead of reading the map yourself.
 
