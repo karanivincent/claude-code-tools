@@ -188,6 +188,15 @@
         "handoverPattern": { "$ref": "common.schema.json#/$defs/Text" }
       }
     },
+    "retro": {
+      "description": "Optional. Where delivery retro finds the plugin checkout it may change through PRs, and that repo's GitHub name. DELIVERY_PLUGIN_REPO and DELIVERY_PLUGIN_GH override these. A path under ~/.claude/plugins/cache is always refused.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pluginRepo": { "type": "string" },
+        "pluginRepoSlug": { "type": "string" }
+      }
+    },
     "founder": {
       "type": "object",
       "additionalProperties": false,

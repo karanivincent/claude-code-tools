@@ -12,7 +12,7 @@ its file.
 |---|---|
 | F | Foundation: core library, schemas, CLI entry, manifest, test helpers, this file. Frozen once the slices start; changes go through a request in a slice report. |
 | A1 | Run machinery: `status`, `advance`, `ready` (and `--check`), `waive`, `hook`; state and journal semantics; resume (spec 11.3); the phase gates 0 to 7; `hooks/`. |
-| A2 | GitHub and lifecycle: `init`, `intake`, `preflight`, `issues sync`, `scope post/read`, `claims open/verify`, `dupes`, `ci`, `wave start/merge/end`, `pr-body`, `handover`, `land`. |
+| A2 | GitHub and lifecycle: `init`, `intake`, `preflight`, `issues sync`, `scope post/read`, `claims open/verify`, `dupes`, `ci`, `wave start/merge/end`, `pr-body`, `handover`, `land`, `retro`. |
 | B1 | Checks: `check` for M1, M3 to M12, M14 to M17; `inventory check`; `plan verify/check/render`; `gate <unit>`; the severity policy (spec 8.3). |
 | B2 | Code analysis and seeding: `baseline` (M2), `sidefx`, `seed` (every mode), M13; `adapters/data/`. |
 | C | Design, capture and reports: `design candidates/render`; `adapters/design/`; `capture` (every mode); `templates/`; `audit compile`; `report`. |

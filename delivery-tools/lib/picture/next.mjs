@@ -333,7 +333,7 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
     const mapPathText = f.componentsMapRelPath ?? 'docs/.../components.json';
     return { step: 'components-build', skill, text: `${cli} components --mark-built ${f.componentsUnbuilt.join(' ')}, commit ${mapPathText} and push` };
   }
-  if (readyOk) return { step: 'land', skill, text: `ready is green: mark the PR ready; after the founder's merge, ${cli} land --epic ${epic ?? '<epic>'}${tail}` };
+  if (readyOk) return { step: 'land', skill, text: `ready is green: mark the PR ready, then run ${cli} retro (it records the run and files what it learned; land runs it too); after the founder's merge, ${cli} land --epic ${epic ?? '<epic>'}${tail}` };
   return { step: 'ship', skill, text: `ship: the full CI chain, push, ${cli} ci --pr <n>, then give the founder the preview, a sign-in link and round ${last.round}'s comparison page${tail}` };
 }
 

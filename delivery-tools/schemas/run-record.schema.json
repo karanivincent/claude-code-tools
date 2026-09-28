@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delivery-tools.invalid/schemas/run-record.schema.json",
+  "title": "One run's record (one line of docs/delivery/runs.jsonl)",
+  "description": "Supplementary schema. Written by delivery retro at the end of a run, one JSON line per feature (a re-run replaces the feature's line). Phase numbers are minutes from the run's journal; a phase the journal never reached is null. autoChanges are the retro's own changes and what happened to them.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "feature", "endedAt", "pluginVersion", "phases", "founder", "rounds", "reviewers", "ciAfterPr", "improvements", "autoChanges"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "feature": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,62}$" },
+    "endedAt": { "$ref": "common.schema.json#/$defs/Timestamp" },
+    "pluginVersion": { "type": "string" },
+    "phases": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["intake", "render", "map", "seed", "build", "shoot", "review", "ci"],
+      "properties": {
+        "intake": { "type": ["number", "null"], "minimum": 0 },
+        "render": { "type": ["number", "null"], "minimum": 0 },
+        "map": { "type": ["number", "null"], "minimum": 0 },
+        "seed": { "type": ["number", "null"], "minimum": 0 },
+        "build": { "type": ["number", "null"], "minimum": 0 },
+        "shoot": { "type": ["number", "null"], "minimum": 0 },
+        "review": { "type": ["number", "null"], "minimum": 0 },
+        "ci": { "type": ["number", "null"], "minimum": 0 }
+      }
+    },
+    "founder": {
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["waitMinutes", "questions"],
+          "properties": {
+            "waitMinutes": { "type": "number", "minimum": 0 },
+            "questions": { "$ref": "common.schema.json#/$defs/Count" }
+          }
+        }
+      ]
+    },
+    "rounds": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["round", "match", "small", "toFix", "notReached", "dataGap", "carried"],
+        "properties": {
+          "round": { "type": "integer", "minimum": 1 },
+          "match": { "$ref": "common.schema.json#/$defs/Count" },
+          "small": { "$ref": "common.schema.json#/$defs/Count" },
+          "toFix": { "$ref": "common.schema.json#/$defs/Count" },
+          "notReached": { "$ref": "common.schema.json#/$defs/Count" },
+          "dataGap": { "$ref": "common.schema.json#/$defs/Count" },
+          "carried": { "$ref": "common.schema.json#/$defs/Count" }
+        }
+      }
+    },
+    "reviewers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["round", "batch", "tokens", "minutes"],
+        "properties": {
+          "round": { "type": "integer", "minimum": 1 },
+          "batch": { "type": "integer", "minimum": 1 },
+          "tokens": { "type": ["number", "null"], "minimum": 0 },
+          "minutes": { "type": ["number", "null"], "minimum": 0 }
+        }
+      }
+    },
+    "ciAfterPr": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["check", "cause"],
+        "properties": {
+          "check": { "type": "string" },
+          "cause": { "type": "string" }
+        }
+      }
+    },
+    "improvements": { "type": "array", "items": { "type": "string" } },
+    "autoChanges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "at", "kind", "change", "size", "status", "metric"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
+          "at": { "$ref": "common.schema.json#/$defs/Timestamp" },
+          "kind": { "enum": ["tunable", "steer", "brief-sentence", "warn-check", "other"] },
+          "change": { "type": "object", "additionalProperties": {} },
+          "size": { "enum": ["small", "large"] },
+          "status": { "enum": ["applied", "proposed", "kept", "mixed", "reverted"] },
+          "metric": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "baseline", "better"],
+            "properties": {
+              "name": { "type": "string" },
+              "baseline": { "type": ["number", "null"] },
+              "better": { "enum": ["lower", "higher"] }
+            }
+          },
+          "pr": { "type": ["integer", "null"], "minimum": 1 },
+          "mergeSha": { "type": ["string", "null"] },
+          "revertPr": { "type": ["integer", "null"], "minimum": 1 },
+          "issue": { "type": ["integer", "null"], "minimum": 1 },
+          "measured": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["feature", "value"],
+              "properties": { "feature": { "type": "string" }, "value": { "type": ["number", "null"] } }
+            }
+          },
+          "note": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -4,6 +4,7 @@
 import { defineCommand } from '../core/command.mjs';
 import { parseCommandArgs, intFlag } from '../core/args.mjs';
 import { landEvidence, landResult, runLand, withRun } from '../lifecycle/land.mjs';
+import { runRetro, reportLines } from '../retro/retro.mjs';
 
 export default defineCommand({
   name: "land",
@@ -63,6 +64,14 @@ common options:
       counts: { ok: ev.checks.filter((c) => c.ok).length, red: ev.checks.filter((c) => !c.ok).length, sha: String(ev.mergeSha ?? 'none').slice(0, 12), closed: res.closed ? 1 : 0 },
       inputs: { epic }, outputs: ev.checks.map((c) => [c.id, c.ok]),
     });
+    // The last step of a run: the retro records it. A retro that fails warns and never fails land.
+    if (!values.check && res.exit === 0 && run.paths) {
+      try {
+        for (const l of reportLines(await runRetro(run, run.paths))) ctx.out.line(l);
+      } catch (err) {
+        ctx.out.warn(`retro failed (land is unaffected): ${err.message}`);
+      }
+    }
     return res.exit;
   },
 });

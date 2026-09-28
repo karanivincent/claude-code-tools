@@ -7,7 +7,7 @@ import { SCHEMA_DIR, schemaNames, validateAgainst, assertValid, assertKeywords }
 import { FIXTURES_DIR, loadFixture } from '../helpers/fixtures.mjs';
 
 const SECTION_17 = ['profile', 'safety', 'intent', 'inventory', 'baseline', 'plan', 'unit-file', 'unit-report', 'sidefx', 'seedplan', 'capture', 'findings', 'state', 'ready'];
-const SUPPLEMENTARY = ['preflight', 'candidates', 'dom', 'capture-errors', 'capture-controls', 'components'];
+const SUPPLEMENTARY = ['preflight', 'candidates', 'dom', 'capture-errors', 'capture-controls', 'components', 'run-record'];
 const ARTEFACTS = [...SECTION_17, ...SUPPLEMENTARY];
 // A bare array has nowhere to carry schemaVersion; the capture manifest that names it does.
 const BARE_ARRAYS = ['capture-controls'];

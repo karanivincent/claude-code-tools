@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "feature": "widgets",
+  "endedAt": "2026-01-20T18:00:00.000Z",
+  "pluginVersion": "0.12.0",
+  "phases": { "intake": 4, "render": 22.5, "map": 31, "seed": 12, "build": 95, "shoot": 18, "review": -3, "ci": 26 },
+  "founder": null,
+  "rounds": [],
+  "reviewers": [],
+  "ciAfterPr": [],
+  "improvements": [],
+  "autoChanges": []
+}
