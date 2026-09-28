@@ -142,6 +142,11 @@ function documentWidth() {
   return { scrollWidth: document.documentElement.scrollWidth, innerWidth: window.innerWidth };
 }
 
+/** How far the page has scrolled, to turn a viewport-relative boundingBox() into page coordinates. */
+function pageScroll() {
+  return { x: window.scrollX, y: window.scrollY };
+}
+
 /**
  * A bar fixed along the bottom of the window across (nearly) its full width: a phone's tab bar.
  * It is the app's shared navigation, like the desktop sidebar, so it is hidden before the
@@ -243,7 +248,11 @@ export async function runShoot(o) {
         await context.storageState({ path: sessionFile });
       }
       for (const it of entry.items) {
-        report[it.key] = await shootItem(page, it, o);
+        try {
+          report[it.key] = await shootItem(page, it, o);
+        } catch (err) {
+          report[it.key] = { user: `${entry.world}/${entry.role}`, width: it.width, reached: false, problems: [String(err?.message ?? err).split('\n')[0]], buttons: [] };
+        }
         o.log(resultLine(it.key, report[it.key]));
       }
       await context.close();
@@ -312,7 +321,11 @@ async function shootItem(page, it, o) {
       rec.problems.push(`no element matches ${crop.selector}`);
       return rec;
     }
-    await page.screenshot({ path: join(o.outDir, roundFiles(it.key).live), clip: await galleryClip(page, box), animations: 'disabled', caret: 'hide' });
+    // boundingBox() is relative to the current scroll position; page coordinates (what a
+    // fullPage screenshot's clip needs) add back however far the page has scrolled.
+    const scroll = await page.evaluate(pageScroll);
+    const docBox = { x: box.x + scroll.x, y: box.y + scroll.y, width: box.width, height: box.height };
+    await page.screenshot({ path: join(o.outDir, roundFiles(it.key).live), clip: await galleryClip(page, docBox), fullPage: true, animations: 'disabled', caret: 'hide' });
     return rec;
   }
 
