@@ -22,8 +22,11 @@ profile, in that project's repository (spec section 18).
 node --test 'tests/**/*.test.mjs' 'skills/**/*.test.mjs'
 ```
 
-930 tests: 916 pass, 0 fail, 14 skipped (the replay tests, which need the private replay set).
-That is the whole suite after 0.9.2, whose one fix is that `ready`'s components rule 3 no longer
+976 tests: 960 pass, 0 fail, 16 skipped (the replay tests, which need the private replay set, and
+two real-browser render tests, which need `DELIVERY_PLAYWRIGHT_ROOT`). That is the whole suite after
+0.10.0, the first half of the delivery improvements plan (A1 to A4, A7, A8: data needs per state,
+guards and CHECK rules at `seed --plan`, the rules pass before building, the `picture-builder` agent,
+render and shoot fixes, and the shared slot file). Before it, 930 tests after 0.9.2, whose one fix is that `ready`'s components rule 3 no longer
 counts a file under the design or delivery folders (the design snapshot's own `DatePicker.dc.html`)
 as a redrawn component. 0.9.1 fixed three bugs the first real components run hit: `intake
 --components` run from inside another run's own worktree no longer adopts that worktree's feature;

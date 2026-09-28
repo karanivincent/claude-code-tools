@@ -311,7 +311,7 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   if (f.seedStale) return { step: 'worlds', skill, text: `${cli} seed --plan, then --check, then --apply (the seed plan is older than the map or a world file)` };
   const last = f.rounds[f.rounds.length - 1];
   if (!last && f.update) return { step: 'shoot', skill, text: `update run from ${f.update}: picture the page as it is before building. Start the dev server, then ${cli} shoot --base-url <url> (round 1); the reviewers list what the new design changed, and the builder fixes only that` };
-  if (!last) return { step: 'build', skill, text: `dispatch the builder with briefs/builder-picture.md; when it reports, start the dev server and run ${cli} shoot --base-url <url> (round 1)` };
+  if (!last) return { step: 'build', skill, text: `dispatch delivery-tools:picture-builder (opus, no worktree) with briefs/builder-picture.md; when it reports, start the dev server and run ${cli} shoot --base-url <url> (round 1)` };
   if (!last.shot) return { step: 'shoot', skill, text: `${cli} shoot --base-url <url> --round ${last.round}` };
   if (!last.reviews) return { step: 'review', skill, text: `dispatch the reviewers (briefs/reviewer-picture.md), one per screen, into round ${last.round}` };
   if (!last.compiled) return { step: 'review', skill, text: `${cli} review --round ${last.round}` };
