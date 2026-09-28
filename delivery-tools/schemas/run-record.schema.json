@@ -109,6 +109,7 @@
           },
           "pr": { "type": ["integer", "null"], "minimum": 1 },
           "mergeSha": { "type": ["string", "null"] },
+          "file": { "type": ["string", "null"] },
           "revertPr": { "type": ["integer", "null"], "minimum": 1 },
           "issue": { "type": ["integer", "null"], "minimum": 1 },
           "measured": {
