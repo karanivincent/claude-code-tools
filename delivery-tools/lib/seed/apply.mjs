@@ -1,6 +1,8 @@
 // Writing a seed plan: fixture users first, then each world's rows in plan order (organisation
-// rows before anything that names them), with relative times resolved at the moment of writing.
-// Only seed --apply and seed --refresh call this, through an adapter built for that write mode.
+// rows before anything that names them), with relative times resolved at the moment of writing,
+// then the columns a row could not be written with (a forward reference: the row it names comes
+// later) set by id once every row is there. Only seed --apply and seed --refresh call this,
+// through an adapter built for that write mode.
 
 import { resolveValues } from './evaluate.mjs';
 
@@ -9,8 +11,9 @@ import { resolveValues } from './evaluate.mjs';
  * @param {object} seedPlan
  * @param {{ worlds?: string[], now: Date, users?: boolean, live?: { table: string, id: string, values: object }[] | null }} opts
  *   live: the rows the database holds now (liveWorldRows); a planned row it already holds exactly
- *   as planned is not written again. Without it every row is written.
- * @returns {Promise<{ rows: number, unchanged: number, users: { created: number, existing: number } }>}
+ *   as planned, deferred columns included, is not written again. Without it every row is written.
+ * @returns {Promise<{ rows: number, unchanged: number, deferred: number, users: { created: number, existing: number } }>}
+ *   deferred: the rows whose forward references were set after every row was written
  */
 export async function applyRows(db, seedPlan, opts) {
   const only = opts.worlds ? new Set(opts.worlds) : null;
@@ -30,6 +33,7 @@ export async function applyRows(db, seedPlan, opts) {
   let written = 0;
   let unchanged = 0;
   let batch = null;
+  const updates = [];
   const flush = async () => {
     if (!batch) return;
     await db.upsert(batch.table, batch.rows, { idless: batch.idless });
@@ -41,14 +45,19 @@ export async function applyRows(db, seedPlan, opts) {
     // columns it joins; everything else carries its derived id, which is what makes a re-seed an
     // idempotent upsert.
     const resolved = resolveValues(r.values, opts.now);
-    if (holds?.(r, resolved)) { unchanged++; continue; }
+    // A row is as planned only with its forward references set too, so it is compared with the
+    // values it ends with; the null it is first written with is never what it holds.
+    const later = r.deferred && !r.idless ? resolveValues(r.deferred, opts.now) : null;
+    if (holds?.(r, later ? { ...resolved, ...later } : resolved)) { unchanged++; continue; }
     const values = r.idless ? resolved : { ...resolved, id: r.id };
     if (batch && (batch.table !== r.table || batch.idless !== Boolean(r.idless))) await flush();
     batch ??= { table: r.table, idless: Boolean(r.idless), rows: [] };
     batch.rows.push(values);
+    if (later) updates.push({ table: r.table, id: r.id, values: later });
   }
   await flush();
-  return { rows: written, unchanged, users: userCounts };
+  for (const u of updates) await db.updateById(u.table, u.id, u.values);
+  return { rows: written, unchanged, deferred: updates.length, users: userCounts };
 }
 
 /**

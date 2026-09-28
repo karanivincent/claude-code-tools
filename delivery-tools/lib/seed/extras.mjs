@@ -11,6 +11,7 @@
 
 import { ORG_COLUMNS } from './check.mjs';
 import { idArrayLiteral } from './db.mjs';
+import { plannedValues } from './plan.mjs';
 
 const SAFE_ID = /^[A-Za-z0-9._:-]+$/;
 const TABLE = /^[a-z_][a-z0-9_]*$/;
@@ -110,7 +111,7 @@ export function deleteOrder(seedPlan, worldId, tables) {
   const parentsOf = new Map([...want].map((t) => [t, new Set()]));
   for (const r of rows) {
     if (!want.has(r.table)) continue;
-    for (const [k, v] of Object.entries(r.values ?? {})) {
+    for (const [k, v] of Object.entries(plannedValues(r) ?? {})) {
       if (k === 'id') continue;
       for (const leaf of leaves(v)) {
         const parent = tableOf.get(leaf);

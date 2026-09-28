@@ -3,6 +3,7 @@
 
 import { sqlTokenize } from '../sidefx/sql.mjs';
 import { ORG_COLUMNS } from './check.mjs';
+import { plannedValues } from './plan.mjs';
 
 const SAFE_ID = /^[A-Za-z0-9._:-]+$/;
 const TABLE = /^[a-z_][a-z0-9_]*$/;
@@ -126,8 +127,8 @@ export function rowRuleFailure(rules, rows) {
     let re;
     try { re = new RegExp(rule.pattern); } catch (err) { return `row rule ${rule.table}.${rule.column} has an invalid pattern (${err.message})`; }
     const selected = rows.filter((r) => r.table === rule.table
-      && Object.entries(rule.where ?? {}).every(([k, v]) => r.values?.[k] === v));
-    const bad = selected.filter((r) => typeof r.values?.[rule.column] !== 'string' || !re.test(r.values[rule.column]));
+      && Object.entries(rule.where ?? {}).every(([k, v]) => plannedValues(r)?.[k] === v));
+    const bad = selected.filter((r) => typeof plannedValues(r)?.[rule.column] !== 'string' || !re.test(plannedValues(r)[rule.column]));
     if (bad.length) {
       const first = bad[0];
       return `${bad.length} ${rule.table} row(s) break the row rule ${rule.column} ~ ${rule.pattern}, first ${first.id ?? '(no id)'} with ${JSON.stringify(first.values?.[rule.column] ?? null)}`;

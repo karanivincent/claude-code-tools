@@ -16,6 +16,12 @@
 //   $rel           a time relative to the moment the row is written ("today" worlds stay today)
 // Row keys are unique within a world; the organisation row's key is "org". A row may not set its
 // own id. References across worlds are refused: a world is its own organisation.
+//
+// Rows are written in file order, the organisation first. A $ref to a row written later (a forward
+// reference) cannot be written with its row: the row it names is not there yet, and a plain
+// foreign key refuses the insert. Two tables that name each other (a script's live version, a
+// version's script) need one, whichever comes first. So the column is planned as null and the
+// value kept in the row's `deferred`; seed --apply writes every row, then sets those columns.
 
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
@@ -74,6 +80,16 @@ export function worldFilePath(paths, worldId) {
 }
 
 /**
+ * A planned row's values as they stand once seed --apply is done: its deferred columns (forward
+ * references, written after every row) set to the ids they name rather than the null written first.
+ * @param {{ values: object, deferred?: object }} row
+ * @returns {object}
+ */
+export function plannedValues(row) {
+  return row.deferred ? { ...row.values, ...row.deferred } : row.values;
+}
+
+/**
  * Read and validate one world file.
  * @param {import('../core/paths.mjs').FeaturePaths} paths
  * @param {string} worldId
@@ -123,10 +139,15 @@ export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safet
       users.push({ world: w.id, role: u.role, email: u.email, id, ...(u.name ? { name: u.name } : {}) });
     }
     const keys = new Map();
-    for (const r of file.rows) {
+    // Where each row is written: the organisation first, then the rest in file order.
+    const order = new Map();
+    file.rows.forEach((r, i) => {
       if (keys.has(r.key)) problems.push(`world ${w.id}: row key "${r.key}" is used twice`);
       keys.set(r.key, r.key === 'org' ? orgId : fixtureId(feature, w.id, r.key));
-    }
+      if (!order.has(r.key)) order.set(r.key, r.key === 'org' ? -1 : i);
+    });
+    let writing = -1;
+    let forward = false;
     if (!keys.has('org')) problems.push(`world ${w.id}: no row with key "org" (the world's organisation)`);
     const resolve = (v, where) => {
       if (Array.isArray(v)) return v.map((x, i) => resolve(x, `${where}[${i}]`));
@@ -142,6 +163,7 @@ export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safet
             return id ?? null;
           }
           if (!keys.has(target)) problems.push(`world ${w.id} ${where}: $ref "${target}" names no row of this world`);
+          else if (order.get(target) > writing) forward = true;
           return keys.get(target) ?? null;
         }
         if (k.length === 1 && k[0] === '$orgName') return w.orgName.startsWith(safety.fixtureOrgPrefix) ? w.orgName : `${safety.fixtureOrgPrefix}${w.orgName}`;
@@ -158,13 +180,31 @@ export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safet
       }
       return v;
     };
-    for (const r of file.rows) {
+    file.rows.forEach((r, i) => {
       if (Object.prototype.hasOwnProperty.call(r.values, 'id')) problems.push(`world ${w.id} row "${r.key}": sets its own id; ids are derived`);
       const id = keys.get(r.key);
       const idless = Boolean(tablesWithoutId?.has(r.table));
-      const values = resolve(r.values, `row "${r.key}"`);
-      rows.push({ world: w.id, table: r.table, id, ...(idless ? { idless: true } : {}), values: idless ? values : { id, ...values } });
-    }
+      writing = r.key === 'org' ? -1 : i;
+      const values = {};
+      const deferred = {};
+      const dollar = Object.keys(r.values).filter((col) => col.startsWith('$'));
+      if (dollar.length) problems.push(`world ${w.id} row "${r.key}": ${dollar.map((col) => `"${col}"`).join(', ')} ${dollar.length === 1 ? 'is not a' : 'are not'} placeholder${dollar.length === 1 ? '' : 's'}; the world file placeholders are $ref, $orgName and $rel`);
+      for (const [col, v] of Object.entries(r.values)) {
+        forward = false;
+        const resolved = resolve(v, `row "${r.key}".${col}`);
+        if (!forward) { values[col] = resolved; continue; }
+        values[col] = null;
+        deferred[col] = resolved;
+      }
+      const later = Object.keys(deferred);
+      // A join row has no id to set a column by afterwards, so it must come after what it names.
+      if (idless && later.length) problems.push(`world ${w.id} row "${r.key}": ${later.join(', ')} names a row written after it, and a ${r.table} row has no id to set it by later; move the row after the rows it names`);
+      rows.push({
+        world: w.id, table: r.table, id, ...(idless ? { idless: true } : {}),
+        values: idless ? values : { id, ...values },
+        ...(later.length && !idless ? { deferred } : {}),
+      });
+    });
     // A world's users are created in the auth system by seed --apply and joined to its organisation
     // by the world file, because only the repo knows which table and columns that join lives in.
     // A world file that never references a user leaves that user belonging to nothing, and nothing

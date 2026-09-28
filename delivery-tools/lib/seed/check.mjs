@@ -9,6 +9,7 @@
 // The caller supplies everything that needs the database; nothing here does I/O.
 
 import { resolveValues, matchPredicate, describeFilters } from './evaluate.mjs';
+import { plannedValues } from './plan.mjs';
 import { phonesIn, isFakeNumber, neverDialMatch, emailsIn, onDomain, stringLeaves } from './contacts.mjs';
 
 export const ORG_COLUMNS = Object.freeze(['organization_id', 'organisation_id', 'org_id', 'tenant_id']);
@@ -37,7 +38,8 @@ export function evaluateSeedSafety(input) {
   const reasons = [];
   const accepted = new Map();
 
-  const resolved = rows.map((r) => ({ ...r, resolved: resolveValues(r.values ?? {}, now) }));
+  // A planned row is judged by the values it ends with, its forward references set.
+  const resolved = rows.map((r) => ({ ...r, resolved: resolveValues(plannedValues({ values: r.values ?? {}, deferred: r.deferred }), now) }));
 
   // Layer 1
   const byTable = new Map();

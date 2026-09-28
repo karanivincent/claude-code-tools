@@ -70,6 +70,11 @@
           "idless": {
             "description": "The table has no id column (a join table), so the row is written without one and torn down with its organisation.",
             "type": "boolean"
+          },
+          "deferred": {
+            "description": "Columns that name a row written later (a forward reference). They are planned as null in values, and seed --apply sets them to these values by id once every row is written; teardown clears them before deleting.",
+            "type": "object",
+            "additionalProperties": true
           }
         }
       }
