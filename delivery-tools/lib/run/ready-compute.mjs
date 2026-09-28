@@ -5,6 +5,8 @@
 // Every check is one line of ready.json. A slice that cannot answer (not implemented, a crash)
 // makes its line red with that exit, so ready is never green by omission.
 
+import { existsSync, readFileSync } from 'node:fs';
+import { join, posix } from 'node:path';
 import { artefactHash, readArtefact, writeArtefact } from '../core/artefacts.mjs';
 import { EXIT, UsageError, worstExit } from '../core/exit.mjs';
 import { readFindings } from '../core/findings.mjs';
@@ -21,6 +23,10 @@ import { CHECK_IDS, runChecks } from '../checks/index.mjs';
 import { readMap } from '../picture/map.mjs';
 import { MAX_ROUNDS, latestVerdicts, pictureFacts } from '../picture/next.mjs';
 import { ruleFacts } from '../picture/rules.mjs';
+import { designFor } from '../picture/widths.mjs';
+import { componentsMapPath, readComponentsMap } from '../components/map.mjs';
+import { componentProblems, usedComponents } from '../components/check.mjs';
+import { readStateComponents, renderFileName } from '../design/render.mjs';
 import { readyBlockers } from '../checks/severity.mjs';
 import { latestCaptureRun, validateCaptureItems } from '../capture/validate.mjs';
 import { spotRecapture } from '../capture/spot.mjs';
@@ -86,12 +92,113 @@ async function servedByCapture(ctx, headSha) {
   return { ok: true, runId, items: seen.length };
 }
 
-async function changedPaths(git, base) {
+/** The merge base with the branch's remote base, falling back to the local base ref. */
+async function mergeBaseWith(git, base) {
   for (const ref of [`origin/${base}`, base]) {
     const mb = await git.mergeBase(ref, 'HEAD');
-    if (mb) return git.diffNames(mb, 'HEAD');
+    if (mb) return mb;
   }
   return null;
+}
+
+async function changedPaths(git, base) {
+  const mb = await mergeBaseWith(git, base);
+  return mb === null ? null : git.diffNames(mb, 'HEAD');
+}
+
+/** Paths this branch adds (git status "A") against its merge base, or null when no base ref resolves. */
+async function addedPaths(git, base) {
+  const mb = await mergeBaseWith(git, base);
+  if (mb === null) return null;
+  const out = await git.ok(['diff', '--name-status', mb, 'HEAD']);
+  if (!out) return [];
+  return out.split('\n').filter(Boolean).filter((l) => /^A\d*\t/.test(l)).map((l) => l.slice(l.indexOf('\t') + 1));
+}
+
+const IMPORT_SPEC_RE = /\b(?:import|export)\b[^;\n]*?\bfrom\s+['"]([^'"]+)['"]/g;
+const RESOLVE_EXTS = ['', '.tsx', '.ts', '.jsx', '.js', '/index.tsx', '/index.ts', '/index.jsx', '/index.js'];
+
+/** The repo-relative directory a repo-relative file lives in, "" for the repo root. */
+function relDir(file) {
+  const d = posix.dirname(file);
+  return d === '.' ? '' : d;
+}
+
+/** dir and every ancestor up to and including the repo root (""). */
+function ancestorDirs(dir) {
+  const out = [];
+  let d = dir;
+  for (;;) {
+    out.push(d);
+    if (d === '') break;
+    const parent = posix.dirname(d);
+    d = parent === '.' ? '' : parent;
+  }
+  return out;
+}
+
+/** The nearest tsconfig.json walking up from a directory, or null. Cached per starting directory. */
+function findTsconfig(repoRoot, dir, cache) {
+  if (cache.has(dir)) return cache.get(dir);
+  let found = null;
+  for (const d of ancestorDirs(dir)) {
+    const abs = join(repoRoot, d, 'tsconfig.json');
+    if (existsSync(abs)) {
+      try {
+        const json = JSON.parse(readFileSync(abs, 'utf8'));
+        found = { dir: d, compilerOptions: json.compilerOptions ?? {} };
+      } catch { found = null; }
+      break;
+    }
+  }
+  cache.set(dir, found);
+  return found;
+}
+
+/** Resolve an alias specifier (the common "@/*": ["./src/*"] form, with baseUrl if present) to a repo path. */
+function resolveAlias(tsconfig, spec) {
+  if (!tsconfig) return null;
+  const { dir, compilerOptions } = tsconfig;
+  const base = posix.normalize(posix.join(dir, compilerOptions.baseUrl ?? '.'));
+  for (const [pattern, list] of Object.entries(compilerOptions.paths ?? {})) {
+    const target = list?.[0];
+    if (!target) continue;
+    if (pattern.endsWith('/*') && spec.startsWith(pattern.slice(0, -1))) {
+      const rest = spec.slice(pattern.length - 1);
+      const prefix = target.endsWith('/*') ? target.slice(0, -2) : target;
+      return posix.normalize(posix.join(base, prefix, rest));
+    }
+    if (pattern === spec) return posix.normalize(posix.join(base, target));
+  }
+  return null;
+}
+
+/**
+ * The `components` check's importsOf: every static `import … from '…'`/`export … from '…'`
+ * specifier a file has, with a relative or tsconfig-alias one resolved to a repo path (extensionless
+ * is fine; componentProblems compares without extensions). A package specifier is left as its name.
+ */
+function makeImportsOf(repoRoot) {
+  const tsconfigCache = new Map();
+  return function importsOf(file) {
+    let src;
+    try { src = readFileSync(join(repoRoot, file), 'utf8'); } catch { return []; }
+    const dir = relDir(file);
+    return [...src.matchAll(IMPORT_SPEC_RE)].map((m) => m[1]).map((spec) => {
+      if (spec.startsWith('.')) return posix.normalize(posix.join(dir, spec));
+      return resolveAlias(findTsconfig(repoRoot, dir, tsconfigCache), spec) ?? spec;
+    });
+  };
+}
+
+/** The `components` check's importGraph: paths plus, one level deep, whichever of their imports resolve to a real repo file. */
+function makeImportGraph(repoRoot, importsOf) {
+  const resolve = (spec) => RESOLVE_EXTS.map((ext) => `${spec}${ext}`).find((cand) => existsSync(join(repoRoot, cand))) ?? null;
+  return function importGraph(paths) {
+    const out = new Set(paths);
+    for (const p of paths) for (const spec of importsOf(p) ?? []) { const r = resolve(spec); if (r) out.add(r); }
+    return out;
+  };
 }
 
 /**
@@ -157,7 +264,8 @@ export async function computeReady(ctx, { pr }) {
   const head = shortSha(headSha);
   // Picture mode proves the page with its rounds of pictures and reviews, not a full capture,
   // the M-checks and an audit's severities, which a picture run never produces.
-  const pictureMode = Boolean(readMap(paths));
+  const runMap = readMap(paths);
+  const pictureMode = Boolean(runMap);
 
   const checks = [];
   const exits = [];
@@ -289,6 +397,66 @@ export async function computeReady(ctx, { pr }) {
       const r = ruleReadiness(paths);
       add('rules', r.ok, r.detail, r.evidence);
     });
+    const compPath = componentsMapPath(ctx.repoRoot, profile);
+    if (compPath) {
+      await attempt('components', async () => {
+        const compMap = await readComponentsMap(compPath);
+        if (!compMap) {
+          return add('components', false, `no component map at ${profile.components.map}: the mapper writes it (briefs/components-mapper.md), or delivery components --scan-base starts one`, profile.components.map);
+        }
+
+        // The design ids this run's states show, at both widths (spec: a state's design may be a
+        // string or { desktop, phone }); readStateComponents is [] when a state has no picture yet.
+        const ids = new Set();
+        for (const s of runMap.states ?? []) {
+          for (const width of ['desktop', 'phone']) {
+            const d = designFor(s, width);
+            if (d) ids.add(d.id);
+          }
+        }
+        const stateNames = [];
+        let anyRecord = false;
+        for (const id of ids) {
+          for (const width of ['desktop', 'phone']) {
+            if (existsSync(join(paths.designRenders, renderFileName(id, width, 'components.json')))) anyRecord = true;
+            stateNames.push(await readStateComponents(paths, id, width));
+          }
+        }
+        // A run rendered before 0.9 has no per-state component records at all; it is not held to this check.
+        if (!anyRecord) return add('components', true, 'no component records (design rendered before 0.9)', '');
+        const used = usedComponents(stateNames);
+
+        const changed = await changedPaths(ctx.git, profile.repo.base);
+        if (changed === null) return add('components', false, `cannot list the paths this branch changes against ${profile.repo.base}`);
+        const added = (await addedPaths(ctx.git, profile.repo.base)) ?? [];
+
+        const isComponentsRun = runMap.kind === 'components';
+        let buildingNow = [];
+        if (isComponentsRun) {
+          let gallery = null;
+          try { gallery = JSON.parse(readFileSync(join(paths.deliveryDir, 'gallery-states.json'), 'utf8')); } catch { gallery = null; }
+          buildingNow = gallery ? [...new Set((gallery.states ?? []).map((s) => s.component))] : [];
+        }
+
+        const importsOf = makeImportsOf(ctx.repoRoot);
+        const importGraph = makeImportGraph(ctx.repoRoot, importsOf);
+        const problems = componentProblems({ map: compMap, used, changed, added, importsOf, importGraph, buildingNow });
+
+        // A components run also proves, from the PR head's own committed components.json, that
+        // every component it builds was marked built before ready (land never commits: spec
+        // correction #2, so --mark-built is the one place this status change is recorded).
+        if (isComponentsRun && buildingNow.length) {
+          const raw = await ctx.git.show(headSha, profile.components.map);
+          const atHead = raw ? JSON.parse(raw.toString('utf8')) : null;
+          const byName = new Map((atHead?.components ?? []).filter((c) => c.kind === 'design').map((c) => [c.name, c]));
+          const notBuilt = buildingNow.filter((name) => byName.get(name)?.status !== 'built');
+          if (notBuilt.length) problems.unshift(`run delivery components --mark-built ${notBuilt.join(' ')}`);
+        }
+
+        if (problems.length) return add('components', false, problems.slice(0, 4).join('; '), profile.components.map);
+        add('components', true, `${used.length} component(s) used, none rebuilt`, profile.components.map);
+      });
+    }
   } else {
   await attempt('capture', async () => {
     captureRunId = await dep(ctx, 'latestCaptureRun', latestCaptureRun)(ctx, { mode: 'full' });

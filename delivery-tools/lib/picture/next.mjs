@@ -8,6 +8,9 @@ import { checklistPath, designIds, mapPath, validateMap } from './map.mjs';
 import { listRounds, roundInfo } from './rounds.mjs';
 import { designFor, hasPhone, mapItems } from './widths.mjs';
 import { ruleFacts, rulesPath } from './rules.mjs';
+import { componentsMapPath, findDesignSystemManifest, missingFromDesignSystem } from '../components/map.mjs';
+import { usedComponents } from '../components/check.mjs';
+import { parseEvent } from '../core/state.mjs';
 
 /** Round 1 is the first build; two fix rounds follow at most. */
 export const MAX_ROUNDS = 3;
@@ -39,8 +42,51 @@ export function phoneRenderOwed(map, designed) {
   return mapItems(map).some((i) => i.width === 'phone' && !i.state.reach?.test && designFor(i.state, 'phone') && !designFor(i.state, 'phone').separate);
 }
 
-/** Read what the picture loop needs from a run's files. */
-export function pictureFacts(paths) {
+function readJsonSync(path) {
+  try { return JSON.parse(readFileSync(path, 'utf8')); } catch { return null; }
+}
+
+/** A design render's recorded component names (the same file readStateComponents reads), read synchronously. */
+function stateComponentNames(paths, id, width) {
+  if (!paths.designRenders) return [];
+  const file = join(paths.designRenders, width === 'phone' ? `${id}@phone.components.json` : `${id}.components.json`);
+  const data = readJsonSync(file);
+  return Array.isArray(data?.names) ? data.names : [];
+}
+
+/** The component names a page run's own states show, at both widths (design ids from designFor). */
+function mapUsedComponents(paths, map) {
+  const stateNames = [];
+  for (const s of map.states ?? []) {
+    for (const width of ['desktop', 'phone']) {
+      const d = designFor(s, width);
+      if (d) stateNames.push(stateComponentNames(paths, d.id, width));
+    }
+  }
+  return usedComponents(stateNames);
+}
+
+/** The component names a components run's gallery-states.json says it is building. */
+function galleryBuildingNames(paths) {
+  const doc = readJsonSync(join(paths.deliveryDir, 'gallery-states.json'));
+  return doc ? [...new Set((doc.states ?? []).map((s) => s.component))] : [];
+}
+
+/** Whether the run's journal already recorded a successful, epic-closing land. */
+function alreadyLanded(journal) {
+  return (journal ?? []).some((e) => {
+    const { command, exit, counts } = parseEvent(e.event);
+    return /^land --epic \d+$/.test(command) && exit === 0 && counts.closed === '1';
+  });
+}
+
+/**
+ * Read what the picture loop needs from a run's files.
+ * @param {import('../core/paths.mjs').FeaturePaths} paths
+ * @param {{ profile?: object }} [opts] profile: needed for the components-first facts (componentsUnbuilt,
+ *   pageBlockedComponents, designSyncMissing); omitted, those are empty/null and nothing else changes.
+ */
+export function pictureFacts(paths, opts = {}) {
   const designed = designIds(paths);
   let map = null;
   let mapError = null;
@@ -65,7 +111,32 @@ export function pictureFacts(paths) {
   const desktopPictures = [...designed].filter((id) => !id.includes('@')).length;
   const rules = map ? ruleFacts(paths, { stateIds: map.states.map((st) => st.id) }) : null;
   let from = null;
-  try { from = JSON.parse(readFileSync(paths.state, 'utf8')).from ?? null; } catch { /* no state yet */ }
+  let journal = [];
+  try {
+    const st = JSON.parse(readFileSync(paths.state, 'utf8'));
+    from = st.from ?? null;
+    journal = st.journal ?? [];
+  } catch { /* no state yet */ }
+
+  // Components-first (spec §4, §6, §8.1): only meaningful with a profile (componentsMapPath needs
+  // it) and, for componentsUnbuilt/designSyncMissing, a components-kind map.
+  const isComponentsRun = map?.kind === 'components';
+  const compPath = opts.profile ? componentsMapPath(paths.repoRoot, opts.profile) : null;
+  const compMap = compPath ? readJsonSync(compPath) : null;
+  const compByName = new Map((compMap?.components ?? []).filter((c) => c.kind === 'design').map((c) => [c.name, c]));
+  const componentsUnbuilt = isComponentsRun && compMap
+    ? galleryBuildingNames(paths).filter((name) => compByName.get(name)?.status !== 'built')
+    : [];
+  const pageBlockedComponents = !isComponentsRun && map && compMap
+    ? mapUsedComponents(paths, map).filter((name) => ['new', 'stale'].includes(compByName.get(name)?.status))
+    : [];
+  const landedComponentsRun = isComponentsRun && alreadyLanded(journal);
+  let designSyncMissing = null;
+  if (landedComponentsRun && compMap) {
+    const manifestPath = findDesignSystemManifest(paths.designSnapshot);
+    if (manifestPath) designSyncMissing = missingFromDesignSystem(compMap, readJsonSync(manifestPath)?.components ?? []);
+  }
+
   return {
     designed: desktopPictures,
     phonePictures: designed.size - desktopPictures,
@@ -85,6 +156,10 @@ export function pictureFacts(paths) {
     ruleCounts: rules?.counts ?? null,
     seedStale: Boolean(map) && (!existsSync(paths.seedplan) || mtime(paths.seedplan) < Math.max(mtime(mapPath(paths)), newestWorld)),
     rounds,
+    pageBlockedComponents,
+    componentsUnbuilt,
+    landedComponentsRun,
+    designSyncMissing,
   };
 }
 
@@ -95,9 +170,17 @@ export function pictureFacts(paths) {
  */
 export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   const skill = 'picture-build';
+  // A components run that has already landed has nothing left in the picture loop; the only thing
+  // still owed is syncing the design-system project with what this run built (spec §8.1).
+  if (f.landedComponentsRun && f.designSyncMissing?.length) {
+    return { step: 'design-sync', skill: null, text: `run /design-sync on the design-system project: it lacks ${f.designSyncMissing.join(', ')}` };
+  }
   if (!f.designed) return { step: 'pictures', skill: 'design-inventory', text: `render the design's states: ${cli} design render` };
   if (!f.hasMap && !f.mapError) return { step: 'map', skill, text: 'dispatch the mapper agent with briefs/mapper.md to write map.json from the design pictures' };
   if (f.mapError) return { step: 'map', skill, text: `fix map.json (${f.problemCount || 1} problem(s); first: ${f.mapError}), then ${cli} map` };
+  if (f.pageBlockedComponents?.length) {
+    return { step: 'components', skill, text: `run the components run first: ${cli} intake --components <export> (used component(s) not built: ${f.pageBlockedComponents.join(', ')})` };
+  }
   if (f.phoneRenderOwed) return { step: 'pictures', skill: 'design-inventory', text: `render the design at phone width (the map checks the phone): ${cli} design render --width phone, then ${cli} map` };
   if (f.rulesOwed) return { step: 'rules', skill, text: `dispatch the rules agent with briefs/rules.md to write rules.json from the briefs in intent/, then ${cli} rules and ${cli} map` };
   if (f.rulesProblem) return { step: 'rules', skill, text: `fix rules.json (${f.ruleProblemCount} problem(s); first: ${f.rulesProblem}), then ${cli} rules and ${cli} map` };
@@ -116,6 +199,9 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
     return { step: 'fix', skill, text: `fix round: send the builder round ${last.round}'s review.json (${open} ${noun}(s) open), re-seed the worlds it names, then ${cli} shoot --base-url <url> (round ${last.round + 1})` };
   }
   const tail = open ? `; ${open} ${noun}(s) stay open after ${MAX_ROUNDS} rounds and go to the founder as a list` : '';
+  if (f.componentsUnbuilt?.length) {
+    return { step: 'components-build', skill, text: `${cli} components --mark-built ${f.componentsUnbuilt.join(' ')}` };
+  }
   if (readyOk) return { step: 'land', skill, text: `ready is green: mark the PR ready; after the founder's merge, ${cli} land --epic ${epic ?? '<epic>'}${tail}` };
   return { step: 'ship', skill, text: `ship: the full CI chain, push, ${cli} ci --pr <n>, then give the founder the preview, a sign-in link and round ${last.round}'s comparison page${tail}` };
 }

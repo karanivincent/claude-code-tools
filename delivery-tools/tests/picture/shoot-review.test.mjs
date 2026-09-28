@@ -1,10 +1,15 @@
 // delivery shoot's pure helpers, the review compiler, and picture-mode NEXT.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { captureOrder, isLocal, resultLine, selectStates, signInUrl, testidSelector, userFor } from '../../lib/picture/shoot.mjs';
 import { parseReview, renderCompare, summarise } from '../../lib/picture/review.mjs';
-import { MAX_ROUNDS, pictureNext } from '../../lib/picture/next.mjs';
+import { MAX_ROUNDS, pictureFacts, pictureNext } from '../../lib/picture/next.mjs';
 import { sampleMap } from './map.test.mjs';
+import { featurePaths } from '../../lib/core/paths.mjs';
+import { makeTempDir } from '../helpers/tmp-repo.mjs';
+import { makeProfile } from '../helpers/fixtures.mjs';
 
 test('a shoot takes every capture-reachable state, or the ids given, minus !ids', () => {
   const m = sampleMap();
@@ -125,4 +130,90 @@ test('picture NEXT walks the loop', () => {
   const shipped = pictureNext(facts({ rounds: [{ ...open, round: MAX_ROUNDS }] }), { cli: 'node scripts/delivery.mjs', readyOk: true, epic: 1947 });
   assert.equal(shipped.step, 'land');
   assert.match(shipped.text, /after the founder's merge, node scripts\/delivery\.mjs land --epic 1947/);
+});
+
+test('picture NEXT: components-first branches (page blocked, components run unbuilt, landed components run owing design-sync)', () => {
+  // A page run whose screens use a component that is not built yet stops right after "no map",
+  // before phone render, rules or worlds.
+  const blocked = next(facts({ phoneRenderOwed: true, pageBlockedComponents: ['Picker'] }));
+  assert.equal(blocked.step, 'components');
+  assert.match(blocked.text, /run the components run first/);
+  assert.match(blocked.text, /intake --components/);
+  assert.match(blocked.text, /Picker/);
+
+  // A components run whose gallery still has an unmarked component is stopped before land/ship,
+  // even once every round is clean.
+  const openNone = { round: MAX_ROUNDS, shot: true, reviews: 1, compiled: true, counts: { must: 0, notReached: 0 } };
+  const unbuilt = next(facts({ rounds: [openNone], componentsUnbuilt: ['Picker', 'TimePicker'] }));
+  assert.equal(unbuilt.step, 'components-build');
+  assert.match(unbuilt.text, /components --mark-built Picker TimePicker/);
+
+  // No other step is reachable for a landed components run whose manifest still lacks entries.
+  const synced = next(facts({ designed: 0, landedComponentsRun: true, designSyncMissing: ['Picker', 'Sheet'] }));
+  assert.equal(synced.step, 'design-sync');
+  assert.equal(synced.skill, null);
+  assert.match(synced.text, /run \/design-sync on the design-system project: it lacks Picker, Sheet/);
+
+  // Facts with no components-first fields at all (every run before this task) walk the loop exactly
+  // as before: nothing here regresses a run with no profile.components block.
+  assert.equal(next(facts()).step, 'build');
+});
+
+const H = `sha256:${'3'.repeat(64)}`;
+
+function writeJson(abs, value) {
+  mkdirSync(join(abs, '..'), { recursive: true });
+  writeFileSync(abs, JSON.stringify(value));
+}
+
+function componentsFile(status) {
+  return {
+    version: 1,
+    components: [{
+      kind: 'design', name: 'Picker', design: { file: 'Picker.dc.html', hash: H },
+      target: 'src/ui/picker.tsx', status, builtHash: status === 'built' ? H : null,
+      props: {}, owns: [], builtOn: [], replaces: [], uses: [], states: ['C-Picker-01'],
+    }],
+  };
+}
+
+test('pictureFacts: components-first facts read from real files, with a profile', () => {
+  const repo = makeTempDir();
+  try {
+    const paths = featurePaths(repo.dir, 'widgets');
+    const profile = makeProfile({ components: { map: 'docs/delivery/components.json' } });
+
+    // A page run whose one state shows Picker, which is not built yet.
+    writeJson(join(repo.dir, 'docs/delivery/components.json'), componentsFile('new'));
+    writeJson(join(repo.dir, 'docs/delivery/widgets/map.json'), {
+      schemaVersion: 1, feature: 'widgets', title: 'Widgets', kind: 'redesign', route: '/dashboard/widgets',
+      pageArea: { left: 240, designLeft: 240 },
+      worlds: [{ id: 'design', users: [{ role: 'admin', email: 'delivery+widgets-design-admin@example.invalid' }] }],
+      states: [{ id: 'W-01', screen: 'Main', name: 'Everything', reach: { world: 'design', role: 'admin', steps: [{ goto: '/dashboard/widgets' }] }, buttons: [] }],
+    });
+    mkdirSync(paths.designRenders, { recursive: true });
+    writeFileSync(join(paths.designRenders, 'W-01.components.json'), JSON.stringify({ names: ['Picker'] }));
+    assert.deepEqual(pictureFacts(paths, { profile }).pageBlockedComponents, ['Picker']);
+    assert.deepEqual(pictureFacts(paths).pageBlockedComponents, [], 'no profile: no components facts computed');
+
+    // A components run whose gallery is building Picker, still unbuilt.
+    writeJson(join(repo.dir, 'docs/delivery/widgets/map.json'), {
+      schemaVersion: 1, feature: 'widgets', title: 'Components', kind: 'components', route: '/admin/design/components',
+      widths: ['desktop', 'phone'],
+      worlds: [{ id: 'components', users: [{ role: 'admin', email: 'delivery+widgets-components-admin@example.invalid' }] }],
+      states: [{ id: 'C-Picker-01', screen: 'Picker', name: 'Picker: defaults', design: 'C-Picker-01', reach: { world: 'components', role: 'admin', steps: [{ goto: '/admin/design/components' }] }, buttons: [] }],
+    });
+    writeJson(join(repo.dir, 'docs/delivery/widgets/gallery-states.json'), { states: [{ id: 'C-Picker-01', component: 'Picker', props: {} }] });
+    assert.deepEqual(pictureFacts(paths, { profile }).componentsUnbuilt, ['Picker']);
+
+    // Once built, and the run's journal already landed, a manifest missing Picker owes design-sync.
+    writeJson(join(repo.dir, 'docs/delivery/components.json'), componentsFile('built'));
+    writeJson(paths.state, { journal: [{ at: '2026-01-01T00:00:00.000Z', event: 'land --epic 42 | exit=0 | ok=1 | red=0 | sha=abcdef123456 | closed=1' }] });
+    writeJson(join(repo.dir, 'docs/design/widgets/_ds/x/_ds_manifest.json'), { components: [{ name: 'Sheet' }] });
+    const landed = pictureFacts(paths, { profile });
+    assert.equal(landed.componentsUnbuilt.length, 0);
+    assert.equal(landed.landedComponentsRun, true);
+    assert.deepEqual(landed.designSyncMissing, ['Picker']);
+    assert.equal(pictureNext(landed, { cli: 'node scripts/delivery.mjs' }).step, 'design-sync');
+  } finally { repo.cleanup(); }
 });

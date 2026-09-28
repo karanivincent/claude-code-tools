@@ -81,6 +81,9 @@ don't write code.
   The capture only ever clicks `none` and `free`. A state behind a `metered` or `dials` click needs
   `reach.intercept` (`{ "method", "url", "status", "body" }`, answered from a fixture) or a
   component test.
+  - A state whose render named a design-first component (its `<ID>.components.json` lists it)
+    only gets a button entry for that component when the component has its own controls on that
+    state (a date field's own calendar icon, say) — not for the component's whole surface.
 - `reach.writes: true` marks a state reached by saving, adding, discarding or any other click
   that changes the test data. Those states are captured last, and their world is re-seeded before
   the next capture.
