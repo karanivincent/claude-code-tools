@@ -9,8 +9,8 @@ import { readFileSync } from 'node:fs';
 import { validateAgainst } from '../../lib/core/schema.mjs';
 import { validExample, loadFixture } from '../helpers/fixtures.mjs';
 import {
-  refreshDesignEntries, scanBase, libraryTargets, missingFromDesignSystem, validateComponentsMap,
-  findDesignSystemManifest,
+  effectiveComponents, refreshDesignEntries, scanBase, libraryTargets, missingFromDesignSystem,
+  validateComponentsMap, findDesignSystemManifest,
 } from '../../lib/components/map.mjs';
 
 const FIXTURES_DIR = join(fileURLToPath(new URL('.', import.meta.url)), '..', 'fixtures', 'components');
@@ -61,6 +61,39 @@ test('refreshDesignEntries: new, then built once builtHash matches, then stale o
   assert.equal(picker.target, 'src/ui/picker.tsx'); // kept, not touched
   assert.deepEqual(picker.props, { label: 'label' }); // kept, not touched
   assert.deepEqual(changed, ['Picker']);
+});
+
+// Fix round (I3): a page run's intake never calls refreshDesignEntries, so components.json's own
+// design.hash/status can go stale, and a used component the map has never heard of at all used to
+// be silently skipped. effectiveComponents computes status against the caller's real export instead.
+test('effectiveComponents: missing from the map is "new", a moved-on hash is "stale", a matching one is "built"', () => {
+  const map = {
+    version: 1,
+    components: [
+      { kind: 'design', name: 'Picker', design: { file: 'Picker.dc.html', hash: H1 }, builtHash: H1, target: 'src/ui/picker.tsx', status: 'built', props: {}, owns: [], builtOn: [], replaces: [], uses: [], states: [] },
+      { kind: 'design', name: 'Table', design: { file: 'Table.dc.html', hash: H1 }, builtHash: null, target: null, status: 'new', props: {}, owns: [], builtOn: [], replaces: [], uses: [], states: [] },
+    ],
+  };
+  const exportComponents = [
+    { name: 'Picker', hash: H1 }, // matches builtHash: built
+    { name: 'Table', hash: H1 }, // never built (builtHash null): new
+    { name: 'Sheet', hash: H2 }, // not in the map at all: new, the same as an unmapped component
+  ];
+  const effective = effectiveComponents(map, exportComponents);
+  assert.equal(effective.get('Picker'), 'built');
+  assert.equal(effective.get('Table'), 'new');
+  assert.equal(effective.get('Sheet'), 'new');
+});
+
+test('effectiveComponents: a design that moved past what was built is "stale", regardless of the map\'s own recorded status', () => {
+  const map = {
+    version: 1,
+    components: [
+      { kind: 'design', name: 'Picker', design: { file: 'Picker.dc.html', hash: H1 }, builtHash: H1, target: 'src/ui/picker.tsx', status: 'built', props: {}, owns: [], builtOn: [], replaces: [], uses: [], states: [] },
+    ],
+  };
+  const effective = effectiveComponents(map, [{ name: 'Picker', hash: H2 }]);
+  assert.equal(effective.get('Picker'), 'stale');
 });
 
 test('scanBase: Badge owns nothing, Button owns @radix-ui/react-slot, Sheet owns @radix-ui/react-dialog; the test file is skipped', () => {

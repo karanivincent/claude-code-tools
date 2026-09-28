@@ -290,7 +290,7 @@ function componentsFile(status) {
   };
 }
 
-test('pictureFacts: components-first facts read from real files, with a profile', () => {
+test('pictureFacts: components-first facts read from real files, with a profile', async () => {
   const repo = makeTempDir();
   try {
     const paths = featurePaths(repo.dir, 'widgets');
@@ -306,8 +306,8 @@ test('pictureFacts: components-first facts read from real files, with a profile'
     });
     mkdirSync(paths.designRenders, { recursive: true });
     writeFileSync(join(paths.designRenders, 'W-01.components.json'), JSON.stringify({ names: ['Picker'] }));
-    assert.deepEqual(pictureFacts(paths, { profile }).pageBlockedComponents, ['Picker']);
-    assert.deepEqual(pictureFacts(paths).pageBlockedComponents, [], 'no profile: no components facts computed');
+    assert.deepEqual((await pictureFacts(paths, { profile })).pageBlockedComponents, ['Picker']);
+    assert.deepEqual((await pictureFacts(paths)).pageBlockedComponents, [], 'no profile: no components facts computed');
 
     // A components run whose gallery is building Picker, still unbuilt.
     writeJson(join(repo.dir, 'docs/delivery/widgets/map.json'), {
@@ -317,13 +317,13 @@ test('pictureFacts: components-first facts read from real files, with a profile'
       states: [{ id: 'C-Picker-01', screen: 'Picker', name: 'Picker: defaults', design: 'C-Picker-01', reach: { world: 'components', role: 'admin', steps: [{ goto: '/admin/design/components' }] }, buttons: [] }],
     });
     writeJson(join(repo.dir, 'docs/delivery/widgets/gallery-states.json'), { states: [{ id: 'C-Picker-01', component: 'Picker', props: {} }] });
-    assert.deepEqual(pictureFacts(paths, { profile }).componentsUnbuilt, ['Picker']);
+    assert.deepEqual((await pictureFacts(paths, { profile })).componentsUnbuilt, ['Picker']);
 
     // Once built, and the run's journal already landed, a manifest missing Picker owes design-sync.
     writeJson(join(repo.dir, 'docs/delivery/components.json'), componentsFile('built'));
     writeJson(paths.state, { journal: [{ at: '2026-01-01T00:00:00.000Z', event: 'land --epic 42 | exit=0 | ok=1 | red=0 | sha=abcdef123456 | closed=1' }] });
     writeJson(join(repo.dir, 'docs/design/widgets/_ds/x/_ds_manifest.json'), { components: [{ name: 'Sheet' }] });
-    const landed = pictureFacts(paths, { profile });
+    const landed = await pictureFacts(paths, { profile });
     assert.equal(landed.componentsUnbuilt.length, 0);
     assert.equal(landed.landedComponentsRun, true);
     assert.deepEqual(landed.designSyncMissing, ['Picker']);

@@ -126,6 +126,50 @@ export function refreshDesignEntries(map, designComponents) {
 }
 
 /**
+ * A design component's status computed against the run's own design snapshot, rather than
+ * whatever components.json last recorded (fix round: a page run's intake never calls
+ * refreshDesignEntries, so the map's own status/design.hash can be stale, and a used component the
+ * map has never heard of was silently skipped instead of blocking).
+ * @param {object} map components.json
+ * @param {{ name: string, hash: string }[]} exportComponents from readExportComponents (or, for a
+ *   caller with no snapshot handy, a stand-in of the same shape)
+ * @returns {Map<string, 'new'|'stale'|'built'>} keyed by name; missing from the map -> "new", a
+ *   hash that has moved past what was last built -> "stale"
+ */
+export function effectiveComponents(map, exportComponents) {
+  const byName = new Map((map?.components ?? []).filter((c) => c.kind === 'design').map((c) => [c.name, c]));
+  const out = new Map();
+  for (const dc of exportComponents ?? []) {
+    const c = byName.get(dc.name);
+    if (!c) { out.set(dc.name, 'new'); continue; }
+    const builtHash = c.builtHash ?? null;
+    out.set(dc.name, builtHash === null ? 'new' : builtHash === dc.hash ? 'built' : 'stale');
+  }
+  return out;
+}
+
+/**
+ * effectiveComponents, but for a fixed list of names rather than a whole export: each name falls
+ * back to its own map-recorded design hash when the real export (or no export at all) has nothing
+ * to say about it. That reproduces the old map-only status for a caller with no snapshot handy,
+ * while still using the live export's hash, and catching an unmapped name, when one is available.
+ * @param {object} map components.json
+ * @param {string[]} names
+ * @param {{ name: string, hash: string }[]} [exportComponents]
+ * @returns {Map<string, 'new'|'stale'|'built'>}
+ */
+export function effectiveComponentsFor(map, names, exportComponents = []) {
+  const byName = new Map((map?.components ?? []).filter((c) => c.kind === 'design').map((c) => [c.name, c]));
+  const forEffective = (names ?? []).map((name) => {
+    const real = (exportComponents ?? []).find((e) => e.name === name);
+    if (real) return real;
+    const c = byName.get(name);
+    return { name, hash: c?.design?.hash ?? null };
+  });
+  return effectiveComponents(map, forEffective);
+}
+
+/**
  * PascalCase of a kebab-case file stem: "date-picker" -> "DatePicker", "input-otp" -> "InputOtp".
  * @param {string} stem
  */

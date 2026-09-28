@@ -327,7 +327,7 @@ function tmpRun() {
   return { root, paths, round, cleanup: () => rmSync(root, { recursive: true, force: true }) };
 }
 
-test('latestVerdicts and pictureReadiness key and count by item', () => {
+test('latestVerdicts and pictureReadiness key and count by item', async () => {
   const r = tmpRun();
   try {
     r.round(1, { 'KC-05': 'must', 'KC-05@phone': 'must', 'KC-04': 'match', 'KC-04@phone': 'must' });
@@ -336,11 +336,11 @@ test('latestVerdicts and pictureReadiness key and count by item', () => {
     assert.deepEqual([...latest.keys()].sort(), ['KC-04', 'KC-04@phone', 'KC-05', 'KC-05@phone']);
     assert.deepEqual(latest.get('KC-05@phone'), { verdict: 'must', round: 1 });
     assert.deepEqual(latest.get('KC-04@phone'), { verdict: 'small', round: 2 });
-    const red = pictureReadiness(r.paths);
+    const red = await pictureReadiness(r.paths);
     assert.equal(red.ok, false);
     assert.match(red.detail, /^1 item\(s\) still to fix and 1 fix round\(s\) left: KC-05@phone \(round 1\)/);
     r.round(3, { 'KC-05@phone': 'match' });
-    const green = pictureReadiness(r.paths);
+    const green = await pictureReadiness(r.paths);
     assert.equal(green.ok, true);
     assert.equal(green.detail, '4 item(s): 3 match, 1 small differences, every pictured item reached');
   } finally { r.cleanup(); }
@@ -392,11 +392,11 @@ test('a desktop-only map keeps 0.4.5\'s file names, design sources, review keys 
   assert.match(html, /<span class="pill must">1 to fix<\/span><\/header>\n  <div class="trio">/);
 });
 
-test('a desktop-only run reads state(s), not item(s), in readiness', () => {
+test('a desktop-only run reads state(s), not item(s), in readiness', async () => {
   const r = tmpRun();
   try {
     r.round(1, { 'KC-05': 'match', 'KC-04': 'small' });
-    assert.equal(pictureReadiness(r.paths).detail, '2 state(s): 1 match, 1 small differences, every pictured state reached');
+    assert.equal((await pictureReadiness(r.paths)).detail, '2 state(s): 1 match, 1 small differences, every pictured state reached');
   } finally { r.cleanup(); }
 });
 

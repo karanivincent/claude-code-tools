@@ -16,6 +16,7 @@ import { notImplementedError } from '../../lib/core/exit.mjs';
 import { PASS } from '../../lib/core/gate.mjs';
 import { makeMarker } from '../../lib/core/markers.mjs';
 import { makeProfile, validExample } from '../helpers/fixtures.mjs';
+import { sha256Text } from '../../lib/design/components.mjs';
 import { commitAll, ctxFor, gitIn, makeRunRepo, planWith, startRun, writeFiles } from './support.mjs';
 import { sampleMap } from '../picture/map.test.mjs';
 
@@ -464,6 +465,39 @@ test('components: a tsconfig "@/*" alias import resolves to the target (rule 4 s
   } finally { f.repo.cleanup(); }
 });
 
+// Fix round (I16, the weaker form): rule 4 used to go red on an update run that never touches the
+// component's own caller, even though the target is imported somewhere in the repo. menu.tsx here
+// is committed on main (before the PR branches off), so it never appears in this PR's own changed
+// files; only a whole-repo scan finds it importing Picker.
+test('components: rule 4 passes when nothing this PR changes reaches the target, but some other tracked file in the repo imports it (I16)', async () => {
+  const { repo, dir } = makeRunRepo({
+    worktree: true,
+    files: { 'src/pages/menu.tsx': "import { Picker } from '../ui/picker';\n" },
+    profile: COMPONENTS_PROFILE,
+  });
+  try {
+    writeFiles(dir, {
+      'docs/delivery/widgets/plan.json': planWith(),
+      'docs/delivery/widgets/map.json': PAGE_MAP,
+      'docs/delivery/components.json': componentsMap(),
+      'src/ui/picker.tsx': 'export const Picker = () => null;\n',
+      'docs/notes.md': 'unrelated change; menu.tsx (the real caller) is untouched by this PR\n',
+    });
+    const head = commitAll(dir, 'the feature');
+    const paths = await startRun(dir, { phase: 'pr', wave: 2 });
+    const t = await ctxFor(dir, { deps: greenDeps(head) });
+    const pr = await t.gh.prCreate({ title: 'Widgets', body: makeMarker({ feature: 'widgets', kind: 'pr' }), base: 'main', head: 'epic/101-widgets' });
+    t.gh.setHead(pr.number, head);
+    const capture = { ...validExample('capture'), runId: 'c-full-1', mode: 'full', expectedSha: head };
+    await writeArtefact(paths, 'capture', capture, { key: 'c-full-1' });
+    writeComponentRecord(paths, 'W-01', ['Picker']);
+
+    const { ready } = await computeReady(t.ctx, { pr: pr.number });
+    const components = ready.checks.find((c) => c.id === 'components');
+    assert.equal(components.ok, true, components.detail);
+  } finally { repo.cleanup(); }
+});
+
 test('components: a used component that is not built is red and names it', async () => {
   const f = await fixture({
     changed: { ...PAGE_USES_PICKER, 'docs/delivery/components.json': componentsMap({ status: 'new', builtHash: null }) },
@@ -480,10 +514,75 @@ test('components: a used component that is not built is red and names it', async
   } finally { f.repo.cleanup(); }
 });
 
+// Fix round (I3): components.json's own design.hash/status is only ever refreshed by a components
+// run's own intake, so a page run trusting it alone can miss a design that has moved on since. The
+// check now reads the run's real design snapshot and catches what the map alone would call built.
+test('components: reads the real design snapshot, catching a hash the map alone would still call built (I3)', async () => {
+  const liveHtml = '<x-dc><div>updated</div></x-dc>';
+  const f = await fixture({
+    changed: {
+      ...PAGE_USES_PICKER,
+      'docs/design/widgets/Main.dc.html': '<x-dc>\n<dc-import name="Picker"></dc-import>\n</x-dc>',
+      'docs/design/widgets/Picker.dc.html': liveHtml,
+    },
+    profile: COMPONENTS_PROFILE,
+  });
+  try {
+    writeComponentRecord(f.paths, 'W-01', ['Picker']);
+    // components.json still says built at the old COMPONENTS_H; the live export's hash has moved on.
+    const { ready } = await computeReady(f.ctx, { pr: f.pr });
+    const components = ready.checks.find((c) => c.id === 'components');
+    assert.equal(components.ok, false, components.detail);
+    assert.match(components.detail, /Picker/);
+    assert.match(components.detail, /not built/);
+    assert.notEqual(sha256Text(liveHtml), COMPONENTS_H, 'the fixture must actually disagree with the map to prove anything');
+  } finally { f.repo.cleanup(); }
+});
+
+// Fix round (I3): a used component the map has no entry for at all used to be silently skipped
+// (byName.get(name) was undefined, so rule 1 just `continue`d); it now blocks the same as "new",
+// and a page run's message points at the components run rather than at --mark-built (I4).
+test('components: a used component the map has never heard of blocks the same as "new", and tells a page run to run the components run (I3, I4)', async () => {
+  const f = await fixture({
+    changed: {
+      ...PAGE_USES_PICKER,
+      'docs/delivery/components.json': JSON.stringify({
+        version: 1, allowOwns: [],
+        components: [{ kind: 'base', name: 'Sheet', target: 'src/ui/sheet.tsx', owns: ['@radix-ui/react-dialog'], source: 'shadcn' }],
+      }),
+    },
+    profile: COMPONENTS_PROFILE,
+  });
+  try {
+    writeComponentRecord(f.paths, 'W-01', ['Picker']);
+    const { ready } = await computeReady(f.ctx, { pr: f.pr });
+    const components = ready.checks.find((c) => c.id === 'components');
+    assert.equal(components.ok, false, components.detail);
+    assert.match(components.detail, /Picker/);
+    assert.match(components.detail, /delivery intake --components/);
+  } finally { f.repo.cleanup(); }
+});
+
 test('components: a run rendered before 0.9 (no per-state component records) passes as not held to it', async () => {
   const f = await fixture({ changed: PAGE_USES_PICKER, profile: COMPONENTS_PROFILE });
   try {
     // No writeComponentRecord: this run's design was rendered before the components-first release.
+    const { ready } = await computeReady(f.ctx, { pr: f.pr });
+    const components = ready.checks.find((c) => c.id === 'components');
+    assert.equal(components.ok, true, components.detail);
+    assert.equal(components.detail, 'no component records (design rendered before 0.9)');
+  } finally { f.repo.cleanup(); }
+});
+
+// Fix round (I5): the "no component records" pass must win even when there is no component map
+// at all yet — a pre-0.9 run owes this check nothing either way, so the map's absence should never
+// be what turns it red.
+test('components: no component records and no components.json at all still passes as pre-0.9', async () => {
+  const f = await fixture({
+    changed: { 'docs/delivery/widgets/map.json': PAGE_MAP },
+    profile: COMPONENTS_PROFILE,
+  });
+  try {
     const { ready } = await computeReady(f.ctx, { pr: f.pr });
     const components = ready.checks.find((c) => c.id === 'components');
     assert.equal(components.ok, true, components.detail);

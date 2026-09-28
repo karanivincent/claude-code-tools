@@ -9,9 +9,21 @@ import { listRounds, roundInfo } from './rounds.mjs';
 import { backToDesignItems } from './review.mjs';
 import { designFor, hasPhone, mapItems } from './widths.mjs';
 import { ruleFacts, rulesPath } from './rules.mjs';
-import { componentsMapPath, findDesignSystemManifest, missingFromDesignSystem } from '../components/map.mjs';
+import { componentsMapPath, effectiveComponentsFor, findDesignSystemManifest, missingFromDesignSystem } from '../components/map.mjs';
 import { usedComponents } from '../components/check.mjs';
+import { readExportComponents } from '../design/components.mjs';
 import { parseEvent } from '../core/state.mjs';
+
+/**
+ * The run's real design snapshot, for effectiveComponents (I3: a page run's intake never calls
+ * refreshDesignEntries, so components.json's own status/hash can be stale, or simply not know a
+ * component the run's states show). No snapshot yet (an old run, or a test with no export on disk)
+ * is not an error here: effectiveComponentsFor falls back to each name's own map-recorded hash.
+ */
+async function safeExportComponents(dir) {
+  if (!dir || !existsSync(dir)) return [];
+  try { return (await readExportComponents(dir)).components; } catch { return []; }
+}
 
 /** Round 1 is the first build; two fix rounds follow at most. */
 export const MAX_ROUNDS = 3;
@@ -86,8 +98,9 @@ function alreadyLanded(journal) {
  * @param {import('../core/paths.mjs').FeaturePaths} paths
  * @param {{ profile?: object }} [opts] profile: needed for the components-first facts (componentsUnbuilt,
  *   pageBlockedComponents, designSyncMissing); omitted, those are empty/null and nothing else changes.
+ * @returns {Promise<object>}
  */
-export function pictureFacts(paths, opts = {}) {
+export async function pictureFacts(paths, opts = {}) {
   const designed = designIds(paths);
   let map = null;
   let mapError = null;
@@ -124,12 +137,20 @@ export function pictureFacts(paths, opts = {}) {
   const isComponentsRun = map?.kind === 'components';
   const compPath = opts.profile ? componentsMapPath(paths.repoRoot, opts.profile) : null;
   const compMap = compPath ? readJsonSync(compPath) : null;
-  const compByName = new Map((compMap?.components ?? []).filter((c) => c.kind === 'design').map((c) => [c.name, c]));
+  const exportComponents = compMap ? await safeExportComponents(paths.designSnapshot) : [];
   const componentsUnbuilt = isComponentsRun && compMap
-    ? galleryBuildingNames(paths).filter((name) => compByName.get(name)?.status !== 'built')
+    ? (() => {
+      const names = galleryBuildingNames(paths);
+      const effective = effectiveComponentsFor(compMap, names, exportComponents);
+      return names.filter((name) => effective.get(name) !== 'built');
+    })()
     : [];
   const pageBlockedComponents = !isComponentsRun && map && compMap
-    ? mapUsedComponents(paths, map).filter((name) => ['new', 'stale'].includes(compByName.get(name)?.status))
+    ? (() => {
+      const names = mapUsedComponents(paths, map);
+      const effective = effectiveComponentsFor(compMap, names, exportComponents);
+      return names.filter((name) => ['new', 'stale'].includes(effective.get(name)));
+    })()
     : [];
   const landedComponentsRun = isComponentsRun && alreadyLanded(journal);
   let designSyncMissing = null;

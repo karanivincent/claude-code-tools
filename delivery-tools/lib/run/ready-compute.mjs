@@ -25,8 +25,9 @@ import { MAX_ROUNDS, latestVerdicts, pictureFacts } from '../picture/next.mjs';
 import { ruleFacts } from '../picture/rules.mjs';
 import { designFor } from '../picture/widths.mjs';
 import { componentsMapPath, readComponentsMap } from '../components/map.mjs';
-import { componentProblems, usedComponents } from '../components/check.mjs';
+import { componentProblems, normalisePath, usedComponents } from '../components/check.mjs';
 import { readStateComponents, renderFileName } from '../design/render.mjs';
+import { readExportComponents } from '../design/components.mjs';
 import { readyBlockers } from '../checks/severity.mjs';
 import { latestCaptureRun, validateCaptureItems } from '../capture/validate.mjs';
 import { spotRecapture } from '../capture/spot.mjs';
@@ -201,6 +202,29 @@ function makeImportGraph(repoRoot, importsOf) {
   };
 }
 
+const SOURCE_EXT_RE = /\.(tsx|ts|jsx|js|mjs|cjs)$/;
+
+/**
+ * Rule 4's weaker form (fix round, #: an update run that never touches a component's own caller
+ * used to go red even when the target is wired in somewhere): which of the map's design targets
+ * some tracked file in the whole repo imports, not only what this PR's own changes reach. Bounded
+ * by the map's own target count, not the repo's size: it stops scanning once every target is found.
+ */
+async function anyImporterTargets(git, compMap, importsOf) {
+  const targets = new Set((compMap.components ?? []).filter((c) => c.target).map((c) => normalisePath(c.target)));
+  if (!targets.size) return new Set();
+  const files = (await git.lsTree('HEAD')).filter((f) => SOURCE_EXT_RE.test(f));
+  const found = new Set();
+  for (const f of files) {
+    if (found.size === targets.size) break;
+    for (const spec of importsOf(f) ?? []) {
+      const np = normalisePath(spec);
+      if (targets.has(np)) found.add(np);
+    }
+  }
+  return found;
+}
+
 /**
  * @param {import('../core/ctx.mjs').Ctx} ctx
  * @param {{ pr: number }} opts
@@ -213,10 +237,10 @@ function makeImportGraph(repoRoot, importsOf) {
  * spent (they then go to the founder as a list, with the comparison page). A state keeps the
  * verdict of the newest round that pictured it, so a round that re-shoots a few states counts.
  * @param {{ runDir: string, deliveryDir: string }} paths
- * @returns {{ ok: boolean, detail: string, evidence: string }}
+ * @returns {Promise<{ ok: boolean, detail: string, evidence: string }>}
  */
-export function pictureReadiness(paths) {
-  const rounds = pictureFacts(paths).rounds.filter((r) => r.shot);
+export async function pictureReadiness(paths) {
+  const rounds = (await pictureFacts(paths)).rounds.filter((r) => r.shot);
   if (!rounds.length) return { ok: false, detail: 'no picture round yet: delivery shoot, the reviewers, then delivery review', evidence: '' };
   const stale = rounds.find((r) => !r.compiled);
   if (stale) return { ok: false, detail: `round ${stale.round} is pictured but its reviews are not compiled: delivery review --round ${stale.round}`, evidence: `rounds/${stale.round}` };
@@ -390,7 +414,7 @@ export async function computeReady(ctx, { pr }) {
   const checkNotes = [];
   if (pictureMode) {
     await attempt('pictures', async () => {
-      const r = pictureReadiness(paths);
+      const r = await pictureReadiness(paths);
       add('pictures', r.ok, r.detail, r.evidence);
     });
     await attempt('rules', async () => {
@@ -400,11 +424,6 @@ export async function computeReady(ctx, { pr }) {
     const compPath = componentsMapPath(ctx.repoRoot, profile);
     if (compPath) {
       await attempt('components', async () => {
-        const compMap = await readComponentsMap(compPath);
-        if (!compMap) {
-          return add('components', false, `no component map at ${profile.components.map}: the mapper writes it (briefs/components-mapper.md), or delivery components --scan-base starts one`, profile.components.map);
-        }
-
         // The design ids this run's states show, at both widths (spec: a state's design may be a
         // string or { desktop, phone }); readStateComponents is [] when a state has no picture yet.
         const ids = new Set();
@@ -422,8 +441,15 @@ export async function computeReady(ctx, { pr }) {
             stateNames.push(await readStateComponents(paths, id, width));
           }
         }
-        // A run rendered before 0.9 has no per-state component records at all; it is not held to this check.
+        // A run rendered before 0.9 has no per-state component records at all; it is not held to
+        // this check, whether or not a component map exists yet (fix round, I5: this pass must win
+        // over "no component map" — a pre-0.9 run owes this check nothing either way).
         if (!anyRecord) return add('components', true, 'no component records (design rendered before 0.9)', '');
+
+        const compMap = await readComponentsMap(compPath);
+        if (!compMap) {
+          return add('components', false, `no component map at ${profile.components.map}: the mapper writes it (briefs/components-mapper.md), or delivery components --scan-base starts one`, profile.components.map);
+        }
         const used = usedComponents(stateNames);
 
         const changed = await changedPaths(ctx.git, profile.repo.base);
@@ -438,9 +464,21 @@ export async function computeReady(ctx, { pr }) {
           buildingNow = gallery ? [...new Set((gallery.states ?? []).map((s) => s.component))] : [];
         }
 
+        // The run's own design snapshot (I3): components.json's own design.hash/status can be
+        // stale for a page run, which never refreshes it, so rule 1 checks against what the design
+        // actually looks like right now rather than trusting the map alone.
+        let exportComponents = [];
+        if (existsSync(paths.designSnapshot)) {
+          try { exportComponents = (await readExportComponents(paths.designSnapshot)).components; } catch { exportComponents = []; }
+        }
+
         const importsOf = makeImportsOf(ctx.repoRoot);
         const importGraph = makeImportGraph(ctx.repoRoot, importsOf);
-        const problems = componentProblems({ map: compMap, used, changed, added, importsOf, importGraph, buildingNow });
+        const importedAnywhere = await anyImporterTargets(ctx.git, compMap, importsOf);
+        const problems = componentProblems({
+          map: compMap, used, changed, added, importsOf, importGraph, buildingNow,
+          isComponentsRun, exportComponents, importedAnywhere,
+        });
 
         // A components run also proves, from the PR head's own committed components.json, that
         // every component it builds was marked built before ready (land never commits: spec

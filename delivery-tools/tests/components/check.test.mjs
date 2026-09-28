@@ -46,7 +46,7 @@ test('a used, built component imported by a changed file, with no lookalike adde
 
 test('rule 1: a used component not built, or built from a hash the design has since moved past, is red', () => {
   const map = baseMap();
-  map.components[0].status = 'stale';
+  map.components[0].builtHash = `sha256:${'2'.repeat(64)}`; // stale: no longer matches design.hash
   const problems = componentProblems({
     map, used: ['Picker'], changed: ['src/pages/menu.tsx'], added: [],
     importsOf: importsOfOk, importGraph: importGraphIdentity,
@@ -56,9 +56,55 @@ test('rule 1: a used component not built, or built from a hash the design has si
   assert.match(problems[0], /not built/);
 });
 
+// Fix round: rule 1's status now comes from effectiveComponents (hash-driven), not the map's own
+// possibly-stale "status" field, so flipping status alone no longer means anything on its own.
+test('rule 1 does not trust a "status" field that disagrees with the hashes: builtHash matching design.hash is built regardless', () => {
+  const map = baseMap();
+  map.components[0].status = 'stale'; // the hashes still agree; this field alone must not matter
+  const problems = componentProblems({
+    map, used: ['Picker'], changed: ['src/pages/menu.tsx'], added: [],
+    importsOf: importsOfOk, importGraph: importGraphIdentity,
+  });
+  assert.deepEqual(problems, []);
+});
+
+test('rule 1: a used component absent from the map entirely blocks the same as "new"', () => {
+  const map = baseMap();
+  map.components = map.components.filter((c) => c.name !== 'Picker');
+  const problems = componentProblems({
+    map, used: ['Picker'], changed: [], added: [],
+    importsOf: () => [], importGraph: () => new Set(),
+  });
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /Picker/);
+  assert.match(problems[0], /not built/);
+});
+
+test('rule 1 uses the real design snapshot when the caller has one, over the map\'s own recorded hash', () => {
+  const map = baseMap(); // Picker built at H, and the map's own design.hash still says H too
+  const staleExport = [{ name: 'Picker', hash: `sha256:${'9'.repeat(64)}` }]; // the live design moved on
+  const problems = componentProblems({
+    map, used: ['Picker'], changed: ['src/pages/menu.tsx'], added: [],
+    importsOf: importsOfOk, importGraph: importGraphIdentity, exportComponents: staleExport,
+  });
+  assert.equal(problems.length, 1, problems.join('; '));
+  assert.match(problems[0], /Picker/);
+  assert.match(problems[0], /not built/);
+});
+
+test('rule 1\'s message tells a page run to run the components run, and a components run to mark built and commit', () => {
+  const map = baseMap();
+  map.components = map.components.filter((c) => c.name !== 'Picker');
+  const page = componentProblems({ map, used: ['Picker'], changed: [], added: [], importsOf: () => [], importGraph: () => new Set() });
+  assert.match(page[0], /delivery intake --components/);
+  const componentsRun = componentProblems({ map, used: ['Picker'], changed: [], added: [], importsOf: () => [], importGraph: () => new Set(), isComponentsRun: true });
+  assert.match(componentsRun[0], /delivery components --mark-built Picker/);
+  assert.match(componentsRun[0], /commit components\.json/);
+});
+
 test('rule 1 is skipped for a component the run is building now', () => {
   const map = baseMap();
-  map.components[0].status = 'stale';
+  map.components[0].builtHash = `sha256:${'2'.repeat(64)}`;
   const problems = componentProblems({
     map, used: ['Picker'], changed: ['src/pages/menu.tsx'], added: [],
     importsOf: importsOfOk, importGraph: importGraphIdentity, buildingNow: ['Picker'],
@@ -109,6 +155,17 @@ test('rule 3 is not raised for the component\'s own target, or an unrelated adde
   }), []);
 });
 
+// Fix round: rule 3 used to flag a component's own colocated test file (its target's path plus
+// .test/.spec/.stories) as a redraw. Only the exact colocated companion is exempt; a same-named
+// file elsewhere (rule 3's own "picker.stories.tsx" case above, under src/pages/) still counts.
+test('rule 3 does not flag a component\'s own colocated .test/.spec/.stories companion', () => {
+  const map = baseMap();
+  const noArgs = { map, used: [], changed: [], importsOf: () => [], importGraph: () => new Set() };
+  assert.deepEqual(componentProblems({ ...noArgs, added: ['src/ui/picker.test.tsx'] }), []);
+  assert.deepEqual(componentProblems({ ...noArgs, added: ['src/ui/picker.spec.tsx'] }), []);
+  assert.deepEqual(componentProblems({ ...noArgs, added: ['src/ui/picker.stories.tsx'] }), []);
+});
+
 /** Table and PeopleTable, both built, for the rule-3 segment-matching cases. */
 function tableMap() {
   return {
@@ -148,6 +205,19 @@ test('rule 4: a used component whose target nothing this PR changes reaches is r
   assert.equal(problems.length, 1);
   assert.match(problems[0], /Picker/);
   assert.match(problems[0], /src\/ui\/picker\.tsx/);
+});
+
+// Fix round: an update run that touches only, say, a copy fix never re-imports the component's
+// own caller, which used to go red on rule 4 even though the target is wired in somewhere in the
+// repo. importedAnywhere is the weaker form: it passes when any tracked file imports the target,
+// not only ones this PR's changes reach.
+test('rule 4 passes when nothing this PR changes reaches the target, but some other tracked file imports it', () => {
+  const map = baseMap();
+  const problems = componentProblems({
+    map, used: ['Picker'], changed: ['src/pages/other.tsx'], added: [],
+    importsOf: () => [], importGraph: importGraphIdentity, importedAnywhere: new Set(['src/ui/picker']),
+  });
+  assert.deepEqual(problems, []);
 });
 
 test('rule 4 is skipped for a component the run is building now', () => {
