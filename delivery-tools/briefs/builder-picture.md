@@ -26,11 +26,11 @@ already pictured it: change only what the round's review lists, and keep everyth
 
 ## Components
 
-When the product has design-first components (`docs/delivery/components.json`), your prompt also
-lists the components this page uses, each with its `target` (the file to import) and its `props`
-(design prop name to code prop name). Import these; never draw your own copy of a control the
-design already built as a component. A built component that looks wrong on this page is a finding
-against the components run, not something to patch here.
+When the product has design-first components (`docs/delivery/components.json`), run
+`delivery components --used` for the components this page uses, each with its `target` (the file
+to import) and its `props` (design prop name to code prop name). Import these; never draw your own
+copy of a control the design already built as a component. A built component that looks wrong on
+this page is a finding against the components run, not something to patch here.
 
 In a components run (the map's `"kind"` is `"components"`) you are building the gallery page
 itself, not a product page:

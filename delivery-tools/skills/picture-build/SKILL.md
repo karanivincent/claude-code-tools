@@ -66,7 +66,7 @@ prompt and nothing else:
 Read <plugin>/briefs/<brief>.md and follow it.
 Feature: <slug>   Worktree: <absolute path of the run's worktree>
 <mapper and rules agent: nothing more>
-<builder: Dev server: <url>   Round: <n>   (fix round: Review: .delivery/<f>/rounds/<n-1>/review.json)>
+<builder: Dev server: <url>   Round: <n>   Components: run `delivery components --used`   (fix round: Review: .delivery/<f>/rounds/<n-1>/review.json)>
 <reviewer: Round: .delivery/<f>/rounds/<n>/   States: <ITEMS, e.g. KC-05 KC-05@phone>   Write: review-<screen-slug>.md>
 ```
 

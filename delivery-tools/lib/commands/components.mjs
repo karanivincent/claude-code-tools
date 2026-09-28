@@ -12,11 +12,13 @@ import {
   scanBase, missingFromDesignSystem, findDesignSystemManifest, refreshDesignEntries,
 } from '../components/map.mjs';
 import { readExportComponents, componentOrder } from '../design/components.mjs';
+import { readMap } from '../picture/map.mjs';
+import { mapUsedComponents } from '../picture/next.mjs';
 
 export default defineCommand({
   name: 'components',
   summary: 'The component map, checked against the repo and the design system export',
-  usage: `usage: delivery components [--scan-base] [--mark-built <Name>]... [--export <dir>]
+  usage: `usage: delivery components [--scan-base] [--mark-built <Name>]... [--export <dir>] [--used]
 
 Product-wide, not a run: prints docs/delivery/components.json (profile.components.map), each
 entry's status, checked against the repo. Needs no --feature. With no profile.components block,
@@ -24,7 +26,8 @@ prints that components are not configured and exits 0.
 
 --scan-base rewrites every "kind": "base" entry from profile.components.baseDir, recording which
 of profile.components.baseLibraries each file imports (a trailing /* matches any subpath). Design
-entries are left untouched. Creates the map when it does not exist yet.
+entries are left untouched. Creates the map when it does not exist yet. A base entry whose file no
+longer exists is dropped and reported.
 
 --mark-built <Name> sets a design entry's builtHash to its current design hash and its status to
 built. Refused (exit 2) when the entry has no target yet, or its target is missing on disk. May
@@ -37,13 +40,18 @@ used instead. With neither, both comparisons are skipped and the map's own recor
 printed as-is. This never writes components.json: a components run's intake (a later slice) is
 what records a fresh hash; this command only reports drift.
 
+--used needs a run resolved in this worktree (--feature, or the worktree's own run): prints each
+component the run's design states show (from docs/delivery/<feature>/design/<ID>.components.json),
+one line each, as "<Name> -> <target> (props: design->code, ...)". For the builder: run this
+instead of reading the map yourself.
+
 exit: 0 configured and every check passes; 1 a design entry is stale, one is in the export but
       not the map, a file in baseDir has no base entry, the export has a malformed dc-import, its
       uses form a cycle, or validateComponentsMap finds a problem; 2 usage, or no components.json
       to work with
 
 common options:
-  --feature <slug>   only used, if a run is resolved, to find its design snapshot
+  --feature <slug>   only used, if a run is resolved, to find its design snapshot, or with --used
   --json             machine output: one JSON object on stdout
   --help             this text`,
   async run(ctx, argv) {
@@ -52,6 +60,7 @@ common options:
         'scan-base': { type: 'boolean' },
         'mark-built': { type: 'string', multiple: true },
         export: { type: 'string' },
+        used: { type: 'boolean' },
       },
     });
     const profile = await ctx.profile();
@@ -62,6 +71,23 @@ common options:
     }
 
     let map = await readComponentsMap(path);
+
+    if (values.used) {
+      const runPaths = ctx.paths;
+      if (!runPaths) throw new UsageError('--used needs a run resolved in this worktree; pass --feature <slug>');
+      const runMap = readMap(runPaths);
+      if (!runMap) throw new UsageError(`no map.json for this run at ${runPaths.deliveryDir}; run delivery map first`);
+      const byName = new Map((map?.components ?? []).filter((c) => c.kind === 'design').map((c) => [c.name, c]));
+      const used = mapUsedComponents(runPaths, runMap);
+      for (const name of used) {
+        const c = byName.get(name);
+        const target = c?.target ?? '(not mapped yet)';
+        const props = Object.entries(c?.props ?? {}).map(([d, code]) => `${d}->${code}`).join(', ') || 'none';
+        ctx.out.line(`${name} -> ${target} (props: ${props})`);
+      }
+      ctx.out.set('components', { used });
+      return EXIT.PASS;
+    }
 
     if (values['scan-base']) {
       if (!profile.components.baseDir) throw new UsageError('profile.components.baseDir is not set; add it before running --scan-base');

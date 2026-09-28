@@ -68,7 +68,7 @@ function stateComponentNames(paths, id, width) {
 }
 
 /** The component names a page run's own states show, at both widths (design ids from designFor). */
-function mapUsedComponents(paths, map) {
+export function mapUsedComponents(paths, map) {
   const stateNames = [];
   for (const s of map.states ?? []) {
     for (const width of ['desktop', 'phone']) {

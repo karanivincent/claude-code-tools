@@ -1,5 +1,6 @@
-// delivery components: --scan-base, --mark-built, and the plain listing's stale/NEXT behaviour.
-// Product-wide: none of these need --feature.
+// delivery components: --scan-base, --mark-built, --used, and the plain listing's stale/NEXT
+// behaviour. --scan-base, --mark-built and the plain listing are product-wide (no --feature);
+// --used needs a run resolved in the worktree.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
@@ -8,6 +9,7 @@ import command from '../../lib/commands/components.mjs';
 import { makeTestCtx } from '../helpers/ctx.mjs';
 import { makeTempDir } from '../helpers/tmp-repo.mjs';
 import { makeProfile } from '../helpers/fixtures.mjs';
+import { featurePaths } from '../../lib/core/paths.mjs';
 
 const H1 = `sha256:${'1'.repeat(64)}`;
 const H2 = `sha256:${'2'.repeat(64)}`;
@@ -110,6 +112,41 @@ test('--mark-built refuses a design entry with no target (exit 2), succeeds once
     const picker = saved.components.find((c) => c.name === 'Picker');
     assert.equal(picker.status, 'built');
     assert.equal(picker.builtHash, H1);
+  } finally { t.cleanup(); }
+});
+
+// Fix round (I9): the builder used to be told its prompt "also lists" the components; it does not
+// — the builder now runs this command itself.
+test('--used prints the run\'s used components with their target and props, and refuses with no run resolved', async () => {
+  const t = makeTempDir();
+  try {
+    const profile = makeProfile({ components: { map: 'docs/delivery/components.json' } });
+    write(t.dir, 'docs/delivery/components.json', {
+      version: 1,
+      components: [{
+        kind: 'design', name: 'Picker',
+        design: { file: 'Picker.dc.html', hash: H1 },
+        target: 'src/ui/picker.tsx', status: 'built', builtHash: H1,
+        props: { label: 'label', onPick: 'onPick' }, owns: [], builtOn: [], replaces: [], uses: [], states: [],
+      }],
+    });
+    write(t.dir, 'docs/delivery/widgets/map.json', {
+      schemaVersion: 1, feature: 'widgets', title: 'Widgets', kind: 'redesign', route: '/dashboard/widgets',
+      pageArea: { left: 240, designLeft: 240 },
+      worlds: [{ id: 'design', users: [{ role: 'admin', email: 'delivery+widgets-design-admin@example.invalid' }] }],
+      states: [{ id: 'W-01', screen: 'Main', name: 'Everything', reach: { world: 'design', role: 'admin', steps: [{ goto: '/dashboard/widgets' }] }, buttons: [] }],
+    });
+    const paths = featurePaths(t.dir, 'widgets');
+    mkdirSync(paths.designRenders, { recursive: true });
+    writeFileSync(join(paths.designRenders, 'W-01.components.json'), JSON.stringify({ names: ['Picker'] }));
+
+    const { ctx, stdout } = await makeTestCtx({ repoRoot: t.dir, profile, feature: 'widgets' });
+    const code = await command.run(ctx, ['--used']);
+    assert.equal(code, 0, stdout.text());
+    assert.match(stdout.text(), /Picker -> src\/ui\/picker\.tsx \(props: label->label, onPick->onPick\)/);
+
+    const { ctx: noFeature } = await makeTestCtx({ repoRoot: t.dir, profile });
+    await assert.rejects(command.run(noFeature, ['--used']), (e) => e.exit === 2 && /needs a run resolved/.test(e.message));
   } finally { t.cleanup(); }
 });
 
