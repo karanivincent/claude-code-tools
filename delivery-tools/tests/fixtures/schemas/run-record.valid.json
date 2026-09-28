@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "feature": "widgets",
+  "endedAt": "2026-01-20T18:00:00.000Z",
+  "pluginVersion": "0.12.0",
+  "phases": { "intake": 4, "render": 22.5, "map": 31, "seed": 12, "build": 95, "shoot": 18, "review": 44, "ci": 26 },
+  "founder": { "waitMinutes": 120, "questions": 2 },
+  "rounds": [
+    { "round": 1, "match": 10, "small": 4, "toFix": 3, "notReached": 1, "dataGap": 0, "carried": 0 },
+    { "round": 2, "match": 16, "small": 2, "toFix": 0, "notReached": 0, "dataGap": 0, "carried": 9 }
+  ],
+  "reviewers": [{ "round": 1, "batch": 1, "tokens": 84000, "minutes": 11 }],
+  "ciAfterPr": [{ "check": "e2e", "cause": "a seeded row was missing" }],
+  "improvements": ["Shoot the empty state before the filled one"],
+  "autoChanges": [
+    {
+      "id": "batch-size-25",
+      "at": "2026-01-20T18:05:00.000Z",
+      "kind": "tunable",
+      "change": { "kind": "tunable", "key": "review.maxBatchItems", "from": 20, "to": 25 },
+      "size": "small",
+      "status": "applied",
+      "metric": { "name": "phases.review", "baseline": 40, "better": "lower" },
+      "pr": 12,
+      "measured": []
+    }
+  ]
+}
