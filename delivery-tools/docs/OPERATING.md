@@ -90,6 +90,68 @@ Full mode (coverage plan, waves of units, mechanical gates, graded audit) is sti
 that asks for it by name. It decides readiness through `delivery ready`, and its Scope issue
 carries the owner's decisions.
 
+## Components first
+
+Since 0.9.0, a design component is built once and every page imports it, instead of each page
+drawing its own copy. `docs/delivery/components.json` is the product-wide record: one entry per
+component Claude Design named (`kind: "design"`) and one per shadcn-style part the repo already
+has (`kind: "base"`). A project enables it with a `components` block in its profile
+(`components.map`, `components.baseDir`, `components.baseLibraries`, `components.galleryRoute`).
+
+1. `delivery components --scan-base` writes or refreshes the `kind: "base"` entries from
+   `components.baseDir`, recording which of `components.baseLibraries` each one wraps. Run it once
+   to start the map, and again whenever a base part is added.
+2. `delivery intake <export> --components` snapshots the design, adds or updates every
+   `kind: "design"` entry (name, hash, `uses`, `status`), and writes a components run: its own
+   `inventory.json`, `gallery-states.json` and `map.json` (`"kind": "components"`), one state per
+   component state, at both widths. Refused when a design entry has no `target` yet — the mapper
+   must run first.
+3. Dispatch the mapper agent with `briefs/components-mapper.md`. It fills each entry's `target`,
+   `props`, `builtOn`, `owns` and `replaces`; `delivery components` checks the result.
+4. The components run then follows the same picture loop as any other run (`picture-build`): one
+   builder builds every component from its design picture, reviewers compare, fix rounds follow.
+5. Before `ready`, mark what the builder finished: `delivery components --mark-built <Name>`
+   (repeatable). `delivery ready` adds a `components` check with four rules: a screen's used
+   component must be built at the design's current hash; a changed file must not import a
+   component's owned library directly; a new file named like a component must be that component's
+   own target, not a redraw of it; a used component's target must actually be imported by what the
+   PR changes.
+6. A page run's `ready` reads which components its screens show from the design render's
+   `<ID>.components.json` record and refuses to land while one of them is unbuilt; `picture-build`'s
+   NEXT line says so and names `delivery intake <export> --components` as the fix.
+7. Once a components run lands, NEXT has one thing left: `/design-sync` on the design-system
+   project, so its own manifest knows what this run built. `delivery components --export <dir>`
+   (or a page run's own design snapshot) reports drift against an export at any time, without
+   writing anything — a components run's `land` is what persists a fresh hash.
+
+## Briefing and reviewing the design
+
+Since 0.9.0, sending Claude Design a change and checking what came back both go through the CLI,
+so a brief is checked before it is sent and a reply is judged from its export rather than from a
+screenshot.
+
+1. `delivery brief new <slug>` writes `intent/briefs/NN-<slug>.md` from
+   `templates/design-brief.md`: what changes and why, each screen's Desktop and Phone line, the
+   components to use (named from `components.json`, never described in words), numbered
+   behaviours, and generic data. `--from-review` pre-fills it from the latest
+   `delivery design review`; `--from-run` pre-fills it from a picture-mode round's `design:` notes
+   (the items that go back to the design instead of being fixed in code).
+2. `delivery brief check <file>` refuses a leaked name (`design.forbiddenNames`), a screen missing
+   its phone line, a component described instead of named, or an unnumbered behaviour.
+3. `delivery brief pack <file> [<image>...]` builds the pack folder the `design-send` skill sends:
+   the checked brief as `00-brief.md`, plus every image in order.
+4. The `design-send` skill hands the pack to Claude Design in the in-app browser and waits for the
+   final edit.
+5. `delivery brief sent <file> --chat <url>` records the send (the file, the chat link, the time),
+   so a later session can tell what was sent and whether the file has changed since.
+6. `delivery design review <export>` compares the new export with the run's current snapshot:
+   components and screens whose hash changed, states added or removed, the changed states
+   re-rendered before and after. It writes `review.json` and `compare.html` under
+   `.delivery/<feature>/design-review/`, and lists rules gaps and forbidden names it found in the
+   rendered text. Use this instead of canvas screenshots — the export already renders headlessly,
+   and canvas screenshots lag and show one state at a time.
+7. Findings feed the next brief: `delivery brief new <slug> --from-review`.
+
 ## Things a session must do that nothing else will
 
 - **Enter the run's worktree.** `intake` creates the run in its own worktree. A session in any other
