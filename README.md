@@ -78,7 +78,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### delivery-tools `v0.12.0`
+### delivery-tools `v0.13.0`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -125,7 +125,11 @@ failing its own `head` check. Since 0.12.0 the system improves itself: `delivery
 slowdown seen in two runs (or an hour lost in one) into a proposal, applies only small changes (a
 number in `tunables.json` that does not loosen a check, a steer, a brief sentence, a new warning;
 under 50 lines) through a PR, files every large one as a `needs-decision` issue for the founder, and
-reverts an automatic change that made its number worse two runs running. An export
+reverts an automatic change that made its number worse two runs running. Since 0.13.0 a project
+can name a shadow grader in its profile (`review.shadowGrader`): `review` records that model's
+code bug / data gap / known steer answer for every finding in `rounds/<n>/shadow.json` without
+ever changing a verdict, and `review --shadow-export` splits the answers from the findings so they
+can be scored against blind labels. An export
 holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run
