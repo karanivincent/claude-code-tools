@@ -20,7 +20,7 @@
           "id": { "$ref": "common.schema.json#/$defs/Text" },
           "kind": { "$ref": "#/$defs/CandidateKind" },
           "source": { "$ref": "common.schema.json#/$defs/Text" },
-          "mappedTo": { "type": ["string", "null"], "pattern": "^[A-Z]{1,6}-\\d{2,3}$" },
+          "mappedTo": { "type": ["string", "null"], "pattern": "^(?:[A-Z]{1,6}-\\d{2,3}|C-[A-Z][A-Za-z0-9]{0,40}-\\d{2,3})$" },
           "excluded": {
             "type": "object",
             "additionalProperties": false,

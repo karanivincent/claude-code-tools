@@ -70,6 +70,14 @@ test('a review parses into must-fix and small notes per state, wrapped lines joi
   assert.deepEqual(r['KC-04'].small, ['The divider is lighter than the design.']);
 });
 
+// Fix round 1: a components run's gallery state ids ("C-<Name>-NN") need no change here — the
+// heading regex was already id-shape-agnostic — but nothing pinned that down, so this does.
+test('a reviewer note headed by a components-run gallery state id parses, "@phone" included', () => {
+  const r = parseReview('## C-Picker-01@phone\n- must fix: the padding is tighter than the design.\n');
+  assert.deepEqual(Object.keys(r), ['C-Picker-01@phone']);
+  assert.deepEqual(r['C-Picker-01@phone'].must, ['the padding is tighter than the design.']);
+});
+
 test('summarise gives every state a verdict', () => {
   const m = sampleMap();
   const shoot = { states: { 'KC-05': { reached: true }, 'KC-04': { reached: true }, 'KC-08': { reached: false } } };

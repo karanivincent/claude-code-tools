@@ -31,7 +31,7 @@ import { matchesAny } from './glob.mjs';
 import { captureEvidence, readyInputs, sameSha, shortSha } from './ready.mjs';
 
 const BUILT = new Set(['keep', 'change', 'new', 'adapt']);
-const STATE_ID = /^[A-Z]{1,6}-\d{2,3}$/;
+const STATE_ID = /^(?:[A-Z]{1,6}-\d{2,3}|C-[A-Z][A-Za-z0-9]{0,40}-\d{2,3})$/;
 const CAP_ID = /^CAP-\d{3}$/;
 
 /** A plan row for a designed state (capability rows are CAP-nnn, which the state pattern also fits). */

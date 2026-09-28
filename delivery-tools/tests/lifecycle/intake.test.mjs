@@ -11,6 +11,7 @@ import { loadState } from '../../lib/core/state.mjs';
 import { featurePaths } from '../../lib/core/paths.mjs';
 import { hasMarker, makeMarker } from '../../lib/core/markers.mjs';
 import { validExample, makeProfile } from '../helpers/fixtures.mjs';
+import { validateAgainst } from '../../lib/core/schema.mjs';
 import { runIntake, verifyIntake, slugify, stripCommonRoot, parseSnapshotReadme, renderIntentMd } from '../../lib/lifecycle/intake.mjs';
 import intakeCommand from '../../lib/commands/intake.mjs';
 import { makeRunRepo, ctxFor } from './support.mjs';
@@ -230,6 +231,10 @@ test('--components: refuses while a design entry has no target (NEXT names the m
     assert.deepEqual(inventory.states[0].reach, { kind: 'prop', file: 'Picker.dc.html', props: {} });
     assert.equal(inventory.states[1].name, 'Picker: label=Day');
     assert.deepEqual(inventory.states[1].reach, { kind: 'prop', file: 'Picker.dc.html', props: { label: 'Day' } });
+    // Fix round 1: components-run ids ("C-Picker-01") widened schemas/common.schema.json's Id;
+    // this is the end-to-end check that the file intake actually writes still validates.
+    const invCheck = validateAgainst('inventory', inventory);
+    assert.equal(invCheck.ok, true, JSON.stringify(invCheck.errors));
 
     const gallery = JSON.parse(readFileSync(join(wt, 'docs/delivery/components/gallery-states.json'), 'utf8'));
     assert.deepEqual(gallery.states, [

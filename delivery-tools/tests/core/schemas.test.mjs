@@ -107,3 +107,20 @@ test('fixtures carry nothing project-specific', () => {
   const name = new RegExp('ksatilet'.split('').reverse().join(''), 'i');
   for (const word of [name, /254\d{9}/, /supabase\.co/, /vercel\.app/]) assert.doesNotMatch(all, word);
 });
+
+// Fix round 1: a components run's gallery state ids ("C-<Name>-NN", components-first spec §3)
+// widened common.schema.json's Id (and inventory's inline mappedTo copy) alongside it, so a
+// components run's inventory.json (states[].id) and any candidate mapped to one still validate.
+test('Id (and inventory\'s mappedTo copy) accepts a components-run gallery state id, still rejects a lowercase one or a single digit', () => {
+  const base = () => loadFixture('schemas/inventory.valid.json');
+  const withStateId = (id) => { const inv = base(); inv.states = [{ ...inv.states[0], id }]; return inv; };
+  assert.equal(validateAgainst('inventory', withStateId('C-Picker-01')).ok, true);
+  assert.equal(validateAgainst('inventory', withStateId('C-DatePicker-12')).ok, true);
+  assert.equal(validateAgainst('inventory', withStateId('c-picker-01')).ok, false);
+  assert.equal(validateAgainst('inventory', withStateId('C-Picker-1')).ok, false);
+  assert.equal(validateAgainst('inventory', withStateId('KC-05')).ok, true, 'the screen-id form still validates');
+
+  const withMappedTo = (mappedTo) => { const inv = base(); inv.candidates = [{ ...inv.candidates[0], mappedTo }]; return inv; };
+  assert.equal(validateAgainst('inventory', withMappedTo('C-Picker-01')).ok, true);
+  assert.equal(validateAgainst('inventory', withMappedTo('c-picker-01')).ok, false);
+});
