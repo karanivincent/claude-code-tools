@@ -70,16 +70,25 @@ Read <plugin>/briefs/<brief>.md and follow it.
 Feature: <slug>   Worktree: <absolute path of the run's worktree>
 <mapper and rules agent: nothing more>
 <builder: Dev server: <url>   Round: <n>   Components: run `delivery components --used`   (fix round: Review: .delivery/<f>/rounds/<n-1>/review.json)>
-<reviewer: Round: .delivery/<f>/rounds/<n>/   States: <ITEMS, e.g. KC-05 KC-05@phone>   Write: review-<screen-slug>.md>
+<reviewer: Round: .delivery/<f>/rounds/<n>/   States: <ITEMS, e.g. KC-05 KC-05@phone>   Write: review-batch-<k>.md>
 ```
+
+You do not write the reviewer prompts. `delivery review --plan --round <n>` does, and dispatch is
+copying: it writes `batches.json` and one `batch-<k>.prompt.md` per batch into the round's folder.
+Dispatch each prompt file as it is. It also leaves out what needs no reviewer: an item whose live and
+design pictures are both unchanged since the last round keeps that round's label (carried), and an
+item whose text, test ids and buttons equal the design's with almost no pixel difference is marked
+a match (auto). Both show on the comparison page. If `docs/delivery/<f>/steers.md` exists, its text
+is added to every prompt; put anything you would otherwise repeat to each reviewer there.
 
 - The builder is one `delivery-tools:picture-builder` agent (model: opus), in the background: a
   first build takes about an hour. Resume the same builder for each fix round (SendMessage), so it
   keeps what it learned. Never dispatch it as `delivery-tools:delivery-builder` — that agent works
   in a fresh worktree of its own, off the integration branch, which this run's dev server cannot
   see; a builder dispatched that way can work for an hour with nothing to show for it.
-- Reviewers: one per screen, 15 to 20 items each, all in one message (model: sonnet). A screen
-  with more items is split in two; keep a state's desktop and phone items with the same reviewer.
+- Reviewers: one per batch from `batches.json` (up to 20 items, a state's desktop and phone
+  together, a screen kept whole where it fits; model: sonnet). `batches.json` lists the waves:
+  dispatch one wave in one message, and the next when it is done.
 - Never more than four agents at once.
 
 ## Rules

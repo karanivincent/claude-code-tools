@@ -177,6 +177,7 @@ export async function pictureFacts(paths, opts = {}) {
       round: n,
       shot: Boolean(info.shoot),
       reviews: info.reviews.length,
+      planned: info.reviewPlan ? info.reviewPlan.batches : null,
       compiled: Boolean(info.review) && mtime(join(info.dir, 'review.json')) >= newestReview,
       counts: info.review?.counts ?? null,
       compare: info.compare,
@@ -313,7 +314,8 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   if (!last && f.update) return { step: 'shoot', skill, text: `update run from ${f.update}: picture the page as it is before building. Start the dev server, then ${cli} shoot --base-url <url> (round 1); the reviewers list what the new design changed, and the builder fixes only that` };
   if (!last) return { step: 'build', skill, text: `dispatch delivery-tools:picture-builder (opus, no worktree) with briefs/builder-picture.md; when it reports, start the dev server and run ${cli} shoot --base-url <url> (round 1)` };
   if (!last.shot) return { step: 'shoot', skill, text: `${cli} shoot --base-url <url> --round ${last.round}` };
-  if (!last.reviews) return { step: 'review', skill, text: `dispatch the reviewers (briefs/reviewer-picture.md), one per screen, into round ${last.round}` };
+  if (last.planned === null && !last.reviews) return { step: 'review', skill, text: `${cli} review --plan --round ${last.round}: it carries unchanged items forward, matches exact ones without a reviewer and writes the batches; then dispatch the batch prompt files it lists, as written, at most four at once (briefs/reviewer-picture.md)` };
+  if (!last.reviews && last.planned > 0) return { step: 'review', skill, text: `dispatch the ${last.planned} batch prompt file(s) in .delivery/<f>/rounds/${last.round}/batches.json, as written, at most four at once (briefs/reviewer-picture.md); then ${cli} review --round ${last.round}` };
   if (!last.compiled) return { step: 'review', skill, text: `${cli} review --round ${last.round}` };
   const o = f.open ?? last.counts ?? {};
   const open = (o.must ?? 0) + (o.notReached ?? 0);
@@ -342,7 +344,7 @@ export function pictureStatusLines(run, f, next) {
   if (f.ruleCounts) lines.push(`rules: ${f.ruleCounts.total} (${f.ruleCounts.picture} by a state, ${f.ruleCounts.test} by a test, ${f.ruleCounts.cut} cut)${f.ruleProblemCount ? `; ${f.ruleProblemCount} gap(s)` : ''}`);
   for (const r of f.rounds) {
     const c = r.counts;
-    lines.push(`round ${r.round}: ${!r.shot ? 'not shot' : !r.reviews ? 'shot, not reviewed' : !r.compiled ? 'reviewed, not compiled' : `${c.match} match, ${c.small} small, ${c.must} to fix, ${c.notReached} not reached`}`);
+    lines.push(`round ${r.round}: ${!r.shot ? 'not shot' : (!r.reviews && r.planned !== 0) ? 'shot, not reviewed' : !r.compiled ? 'reviewed, not compiled' : `${c.match} match, ${c.small} small, ${c.must} to fix, ${c.notReached} not reached`}`);
   }
   lines.push(`NEXT: ${next.text}${next.skill ? ` (skill: ${next.skill})` : ''}`);
   return lines;
