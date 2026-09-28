@@ -57,17 +57,21 @@ export async function unpackExport(source) {
  * main file's template and script (spec §8.4: "screens ... whose hash changed"). When the main
  * page's screen state cannot be resolved -- one value only, or no screen key at all, true of most
  * components-only exports and of a page with a single screen -- it falls back to a single "main"
- * entry hashing the whole main file.
+ * entry hashing the whole main file. `mainHash` is that whole-file hash, always computed (even
+ * when the screens resolve): `diffExports` falls back to it when the two exports disagree on
+ * whether the screen state resolves at all, since a `{main}` map cannot be compared to a per-value
+ * map screen by screen.
  * @param {string} dir an export directory (already unpacked)
- * @returns {Promise<{ components: object[], errors: string[], screens: Record<string, string>, screenKey: string|null, mainFile: string|null }>}
+ * @returns {Promise<{ components: object[], errors: string[], screens: Record<string, string>, screenKey: string|null, mainFile: string|null, mainHash: string|null }>}
  */
 export async function readExportSnapshot(dir) {
   const { components, errors } = await readExportComponents(dir);
   const dc = await findDcFile(dir);
-  if (dc.error) return { components, errors: [...errors, dc.error], screens: {}, screenKey: null, mainFile: null };
+  if (dc.error) return { components, errors: [...errors, dc.error], screens: {}, screenKey: null, mainFile: null, mainHash: null };
   const mainText = await readFile(join(dir, dc.file), 'utf8');
+  const mainHash = sha256Text(mainText);
   const screen = claudeDesignScreens(mainText);
-  if (!screen) return { components, errors, screens: { main: sha256Text(mainText) }, screenKey: null, mainFile: dc.file };
+  if (!screen) return { components, errors, screens: { main: mainHash }, screenKey: null, mainFile: dc.file, mainHash };
   const parts = splitDcHtml(mainText);
   const map = screenMap(parts, screen);
   const templateLines = parts.template ? parts.template.text.split('\n') : [];
@@ -80,13 +84,17 @@ export async function readExportSnapshot(dir) {
     });
     screens[value] = sha256Text(`${kept.join('\n')}\n\x00\n${scriptText}`);
   }
-  return { components, errors, screens, screenKey: screen.key, mainFile: dc.file };
+  return { components, errors, screens, screenKey: screen.key, mainFile: dc.file, mainHash };
 }
 
 /**
- * Screens and components whose hash changed between two exports (pure; spec §8.4).
- * @param {{ components: {name: string, hash: string}[], screens: Record<string, string> }} before
- * @param {{ components: {name: string, hash: string}[], screens: Record<string, string> }} after
+ * Screens and components whose hash changed between two exports (pure; spec §8.4). `screens` is
+ * only comparable value-by-value when both exports resolved the same way; when one resolved a
+ * screen key and the other fell back to a single "main" entry (or neither resolved but a caller
+ * built the maps some other way), the two `screens` maps do not share keys the way a per-value
+ * diff needs, so the whole main file's hash (`mainHash`) is compared instead.
+ * @param {{ components: {name: string, hash: string}[], screens: Record<string, string>, screenKey?: string|null, mainHash?: string|null }} before
+ * @param {{ components: {name: string, hash: string}[], screens: Record<string, string>, screenKey?: string|null, mainHash?: string|null }} after
  * @returns {{ componentsChanged: string[], componentsAdded: string[], componentsRemoved: string[], screensChanged: string[] }}
  */
 export function diffExports(before, after) {
@@ -95,10 +103,15 @@ export function diffExports(before, after) {
   const componentsAdded = [...a.keys()].filter((n) => !b.has(n)).sort();
   const componentsRemoved = [...b.keys()].filter((n) => !a.has(n)).sort();
   const componentsChanged = [...a.keys()].filter((n) => b.has(n) && b.get(n) !== a.get(n)).sort();
-  const beforeScreens = before.screens ?? {};
-  const afterScreens = after.screens ?? {};
-  const screenNames = new Set([...Object.keys(beforeScreens), ...Object.keys(afterScreens)]);
-  const screensChanged = [...screenNames].filter((n) => beforeScreens[n] !== afterScreens[n]).sort();
+  let screensChanged;
+  if (Boolean(before.screenKey) !== Boolean(after.screenKey)) {
+    screensChanged = before.mainHash !== after.mainHash ? ['main'] : [];
+  } else {
+    const beforeScreens = before.screens ?? {};
+    const afterScreens = after.screens ?? {};
+    const screenNames = new Set([...Object.keys(beforeScreens), ...Object.keys(afterScreens)]);
+    screensChanged = [...screenNames].filter((n) => beforeScreens[n] !== afterScreens[n]).sort();
+  }
   return { componentsChanged, componentsAdded, componentsRemoved, screensChanged };
 }
 
@@ -116,8 +129,11 @@ function stateScreenValue(reach, key) {
  * Which inventory states need re-rendering after a design change: a state whose last render named
  * a changed component (from its "<ID>.components.json"), or every state of a changed screen (its
  * reach props or set-steps give the prototype's screen prop that value). When the screen state
- * cannot be resolved, every state is returned as soon as anything changed at all -- there is no way
- * to tell which states a change touches, so all of them are re-checked.
+ * cannot be resolved, every state is returned as soon as anything changed at all -- a changed
+ * component *or* a changed screen (the "main" fallback) -- because there is no way to tell which
+ * states a screen change touches, and a component-only change (the design's other components
+ * untouched) still needs every state re-checked for the same reason. Nothing is returned when
+ * neither changed.
  * @param {import('../core/paths.mjs').FeaturePaths} paths
  * @param {{ states: object[] }} inventory
  * @param {{ componentsChanged: string[], screensChanged: string[] }} diff
@@ -126,7 +142,10 @@ function stateScreenValue(reach, key) {
  */
 export async function statesToReview(paths, inventory, diff, screenKey) {
   const states = inventory?.states ?? [];
-  if (!screenKey) return diff.screensChanged.length ? [...states.map((s) => s.id)].sort() : [];
+  if (!screenKey) {
+    const changed = diff.screensChanged.length || diff.componentsChanged.length;
+    return changed ? [...states.map((s) => s.id)].sort() : [];
+  }
   const changedComponents = new Set(diff.componentsChanged);
   const changedScreens = new Set(diff.screensChanged);
   const out = new Set();
@@ -202,7 +221,10 @@ export async function reviewExport(ctx, { exportDir }) {
       readExportSnapshot(unpacked.dir),
     ]);
     const diff = diffExports(before, after);
-    const screenKey = after.screenKey ?? before.screenKey ?? null;
+    // Only trust a screen key when both exports resolved the same one: diffExports itself falls
+    // back to the whole-file "main" hash whenever they disagree, so statesToReview must use the
+    // same fallback rather than matching real state screen values against a diff that names none.
+    const screenKey = before.screenKey && after.screenKey === before.screenKey ? after.screenKey : null;
 
     const inventory = await readArtefact(paths, 'inventory', { optional: true });
     const changedStates = inventory ? await statesToReview(paths, inventory, diff, screenKey) : [];

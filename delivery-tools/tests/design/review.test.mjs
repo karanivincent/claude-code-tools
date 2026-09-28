@@ -23,6 +23,9 @@ import { makeProfile, FIXTURES_DIR } from '../helpers/fixtures.mjs';
 const FIXTURE_DIR = join(FIXTURES_DIR, 'design', 'review');
 const BEFORE_DIR = join(FIXTURE_DIR, 'before');
 const AFTER_DIR = join(FIXTURE_DIR, 'after');
+// Main.dc.html and Table.dc.html unchanged from BEFORE_DIR; only Picker.dc.html differs (same
+// change as AFTER_DIR's) -- a component-only edit, for the fallback statesToReview coverage below.
+const COMPONENT_ONLY_AFTER_DIR = join(FIXTURE_DIR, 'component-only-after');
 
 function write(dir, rel, content) {
   const abs = join(dir, rel);
@@ -59,6 +62,22 @@ test('diffExports: a component present only in one export is added or removed, n
   const before = { components: [{ name: 'A', hash: 'h1' }], screens: {} };
   const after = { components: [{ name: 'B', hash: 'h2' }], screens: {} };
   assert.deepEqual(diffExports(before, after), { componentsChanged: [], componentsAdded: ['B'], componentsRemoved: ['A'], screensChanged: [] });
+});
+
+test('diffExports: a component-only change (Main.dc.html untouched) changes no screen', async () => {
+  const before = await readExportSnapshot(BEFORE_DIR);
+  const after = await readExportSnapshot(COMPONENT_ONLY_AFTER_DIR);
+  assert.deepEqual(diffExports(before, after), {
+    componentsChanged: ['Picker'], componentsAdded: [], componentsRemoved: [], screensChanged: [],
+  });
+});
+
+test('diffExports: when the two exports disagree on whether the screen state resolves, screens are compared on the whole-file hash instead of the mismatched maps', () => {
+  const before = { components: [], screens: { main: 'h1' }, screenKey: null, mainHash: 'h1' };
+  const resolvedDifferent = { components: [], screens: { Desktop: 'x', Settings: 'y' }, screenKey: 'screen', mainHash: 'h2' };
+  assert.deepEqual(diffExports(before, resolvedDifferent), { componentsChanged: [], componentsAdded: [], componentsRemoved: [], screensChanged: ['main'] });
+  const resolvedSameMain = { ...resolvedDifferent, mainHash: 'h1' };
+  assert.deepEqual(diffExports(before, resolvedSameMain), { componentsChanged: [], componentsAdded: [], componentsRemoved: [], screensChanged: [] });
 });
 
 // --- unpackExport --------------------------------------------------------------------------------
@@ -114,11 +133,15 @@ test('statesToReview: a resolvable screen key selects a state by a changed compo
   } finally { t.cleanup(); }
 });
 
-test('statesToReview: an unresolved screen key renders every state once anything changed, none when nothing did', async () => {
+test('statesToReview: an unresolved screen key renders every state once anything changed (a screen or a component-only change), none when nothing did', async () => {
   const paths = featurePaths('/unused', 'widgets');
   const inventory = { states: [{ id: 'A' }, { id: 'B' }] };
-  assert.deepEqual(await statesToReview(paths, inventory, { screensChanged: ['main'] }, null), ['A', 'B']);
-  assert.deepEqual(await statesToReview(paths, inventory, { screensChanged: [] }, null), []);
+  assert.deepEqual(await statesToReview(paths, inventory, { screensChanged: ['main'], componentsChanged: [] }, null), ['A', 'B']);
+  // a component-only edit (Main.dc.html untouched) gives screensChanged: [] but componentsChanged
+  // non-empty -- every state still needs re-checking, since there is no per-state usage record to
+  // consult once the screen state cannot be resolved at all
+  assert.deepEqual(await statesToReview(paths, inventory, { screensChanged: [], componentsChanged: ['Picker'] }, null), ['A', 'B']);
+  assert.deepEqual(await statesToReview(paths, inventory, { screensChanged: [], componentsChanged: [] }, null), []);
 });
 
 // --- reviewExport / delivery design review (offline: Playwright not resolvable) ------------------
@@ -160,6 +183,18 @@ test('reviewExport: writes review.json and compare.html, and skips pictures with
     assert.deepEqual(onDisk.diff, review.diff);
     assert.ok(existsSync(join(reviewDir, 'compare.html')));
     assert.match(readFileSync(join(reviewDir, 'compare.html'), 'utf8'), /WL-01/);
+  } finally { t.cleanup(); }
+});
+
+test('reviewExport: a component-only change (Main.dc.html untouched, so screensChanged is empty) still selects every state', async () => {
+  const t = makeTempDir();
+  try {
+    seedRun(t.dir);
+    const { ctx } = await makeTestCtx({ repoRoot: t.dir, feature: 'widgets', profile: makeProfile() });
+    const review = await reviewExport(ctx, { exportDir: COMPONENT_ONLY_AFTER_DIR });
+    assert.deepEqual(review.diff, { componentsChanged: ['Picker'], componentsAdded: [], componentsRemoved: [], screensChanged: [] });
+    assert.deepEqual(review.changedStates, ['WL-01', 'WL-02']);
+    assert.deepEqual(review.findings, ['Component Picker changed.']);
   } finally { t.cleanup(); }
 });
 
