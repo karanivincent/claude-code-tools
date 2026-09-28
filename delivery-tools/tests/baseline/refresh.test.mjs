@@ -30,17 +30,32 @@ test('refresh: a capability landing on the base mid-run gets an id, a migrate ro
     const added = b.capabilities.find((c) => c.signature === 'api:POST /api/widgets/[id]/runs action=bulk-send');
     assert.ok(added && early.added.includes(added.id), 'the new discriminator value is a capability');
     assert.ok(Number(added.id.slice(4)) > before.capabilities.length, 'appended after every id already given out');
-    assert.equal(b.refreshes.length, 2);
-    assert.equal(b.refreshes[1].sha, upstream);
+    assert.equal(b.refreshes.length, 1, 'the first refresh added nothing, so it left no record');
+    assert.equal(b.refreshes[0].sha, upstream);
     await writeArtefact(c2.paths, 'plan', validExample('plan'));
     const later = await refreshBaseline(c2);
     assert.deepEqual(later, { added: [], unclassed: [] }, 'the earlier arrival gets its row once a plan exists');
-    assert.equal((await readArtefact(c2.paths, 'baseline')).refreshes.length, 2, 'nothing new at the same base commit: no refresh record, so ready does not dirty its own head');
+    assert.equal((await readArtefact(c2.paths, 'baseline')).refreshes.length, 1, 'nothing new at the same base commit: no refresh record, so ready does not dirty its own head');
     const plan = await readArtefact(c2.paths, 'plan');
     assert.equal(plan.rows.find((x) => x.id === added.id).class, 'migrate');
     const decision = JSON.parse(readFileSync(join(repo.dir, `.claude/decisions/delivery-widgets-baseline-refresh-${upstream.slice(0, 9)}.json`), 'utf8'));
     assert.equal(decision.tier, 1);
     assert.match(decision.why, /action=bulk-send/);
+  } finally { repo.cleanup(); }
+});
+
+test('refresh: the base moving with nothing new leaves baseline.json byte for byte, so ready can go green', async () => {
+  const { repo, ctx, baseSha } = await setup();
+  try {
+    await baselineCommand.run(ctx, []);
+    const file = join(repo.dir, 'docs/delivery/widgets/baseline.json');
+    const before = readFileSync(file, 'utf8');
+    repo.git('checkout', '-q', '-b', 'upstream', baseSha);
+    const moved = apply(repo, { 'README.md': 'unrelated change on the base\n' }, 'the base moves, nothing in scope');
+    repo.git('update-ref', 'refs/remotes/origin/main', moved);
+    repo.git('checkout', '-q', '-');
+    for (let i = 0; i < 2; i++) assert.deepEqual(await refreshBaseline(ctx), { added: [], unclassed: [] });
+    assert.equal(readFileSync(file, 'utf8'), before, 'no refreshes entry appended: the tracked file is unchanged');
   } finally { repo.cleanup(); }
 });
 
