@@ -238,6 +238,17 @@ Two picture-mode changes that move seed problems earlier, from the middle of a r
 | A run whose pull request was closed unmerged closes with `advance closed` | otherwise the session-start hook tells every later session to resume it |
 | A run builds the screens its sentence names, and no other screen in the export | an export is the whole project; without this a Calls run would inventory, plan and rebuild Scripts too |
 
+## Before the first push
+
+Run `delivery prepush`. It fails, one line per problem, on: a test id or visible text the base
+branch's design plans (`<deliveryRoot>/replay/**/plan.json`) or e2e specs still name that the branch
+removed (the design gate and E2E read the base, so the PR cannot fix it); a migration the branch adds
+that creates a table with the org column and is missing from a list in `paths.orgScopedLists`; a
+branch behind its base; and the components rule `ready` runs after CI. Set `paths.migrationsGlob`,
+`paths.orgScopedLists` (and `paths.orgColumn`, default `organization_id`) in the profile to turn the
+second check on; without `orgScopedLists` it is skipped. The removed-name search covers
+`componentGlobs`, `appRouteGlobs` and the message files at the merge base and at HEAD.
+
 ## The Trust rule
 
 Section 20 of the spec gates real use. 20.2 (the real-artefact tests) passed on 2026-09-21. 20.5

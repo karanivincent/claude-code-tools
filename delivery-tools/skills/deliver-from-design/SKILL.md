@@ -19,7 +19,7 @@ This file says which skill owns each step and what may never happen. Load the sk
 | 1 Intake | this skill, `delivery intake` | the design snapshot is hashed, `intent.json` validates, the epic and the run's worktree exist |
 | 2 Preflight | this skill, `delivery preflight` | every probe is green or waived |
 | 3 Pictures | `design-inventory`, steps 1 to 4 only | every in-scope design state has a render |
-| 4 Map, worlds, build, rounds, ship | `picture-build` | the last round is compiled, CI is green, and the founder has the preview and the comparison page |
+| 4 Map, worlds, build, rounds, ship | `picture-build` (`delivery prepush` before the first push) | the last round is compiled, CI is green, and the founder has the preview and the comparison page |
 
 `delivery status` prints where the run is and one NEXT line. If memory and NEXT disagree, NEXT wins.
 
@@ -82,6 +82,7 @@ Stop and run `delivery status`:
 
 - You are about to open a browser tool, for any reason.
 - You are about to click something by hand to reach a state.
+- You are about to make the first push without a clean `delivery prepush`.
 - You are about to write "done" before the last round is compiled and CI is green for the head
   you pushed.
 - A permission prompt appeared after preflight.

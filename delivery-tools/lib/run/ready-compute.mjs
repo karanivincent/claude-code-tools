@@ -226,6 +226,92 @@ async function anyImporterTargets(git, compMap, importsOf) {
 }
 
 /**
+ * The `components` ready check for a picture-mode run: the design ids the run's states show, the
+ * component map, and componentProblems over what this branch changed. Shared by ready and
+ * `delivery prepush` (the same rule, before the first push instead of after CI).
+ * @param {import('../core/ctx.mjs').Ctx} ctx
+ * @param {{ paths: object, profile: object, runMap: object, headSha?: string|null }} o
+ * @returns {Promise<{ ok: boolean, detail: string, evidence: string, problems?: string[] }>}
+ */
+export async function componentsCheck(ctx, { paths, profile, runMap, headSha = null }) {
+  const compPath = componentsMapPath(ctx.repoRoot, profile);
+  if (!compPath) return { ok: true, detail: 'no component map configured', evidence: '', problems: [] };
+  headSha ??= await ctx.git.revParse('HEAD');
+  // The design ids this run's states show, at both widths (spec: a state's design may be a
+  // string or { desktop, phone }); readStateComponents is [] when a state has no picture yet.
+  const ids = new Set();
+  for (const s of runMap.states ?? []) {
+    for (const width of ['desktop', 'phone']) {
+      const d = designFor(s, width);
+      if (d) ids.add(d.id);
+    }
+  }
+  const stateNames = [];
+  let anyRecord = false;
+  for (const id of ids) {
+    for (const width of ['desktop', 'phone']) {
+      if (existsSync(join(paths.designRenders, renderFileName(id, width, 'components.json')))) anyRecord = true;
+      stateNames.push(await readStateComponents(paths, id, width));
+    }
+  }
+  // A run rendered before 0.9 has no per-state component records at all; it is not held to
+  // this check, whether or not a component map exists yet (fix round, I5: this pass must win
+  // over "no component map" — a pre-0.9 run owes this check nothing either way).
+  if (!anyRecord) return { ok: true, detail: 'no component records (design rendered before 0.9)', evidence: '' };
+
+  const compMap = await readComponentsMap(compPath);
+  if (!compMap) {
+    return { ok: false, detail: `no component map at ${profile.components.map}: the mapper writes it (briefs/components-mapper.md), or delivery components --scan-base starts one`, evidence: profile.components.map };
+  }
+  const used = usedComponents(stateNames);
+
+  const changed = await changedPaths(ctx.git, profile.repo.base);
+  if (changed === null) return { ok: false, detail: `cannot list the paths this branch changes against ${profile.repo.base}`, evidence: '' };
+  const added = (await addedPaths(ctx.git, profile.repo.base)) ?? [];
+
+  const isComponentsRun = runMap.kind === 'components';
+  let buildingNow = [];
+  if (isComponentsRun) {
+    let gallery = null;
+    try { gallery = JSON.parse(readFileSync(join(paths.deliveryDir, 'gallery-states.json'), 'utf8')); } catch { gallery = null; }
+    buildingNow = gallery ? [...new Set((gallery.states ?? []).map((s) => s.component))] : [];
+  }
+
+  // The run's own design snapshot (I3): components.json's own design.hash/status can be
+  // stale for a page run, which never refreshes it, so rule 1 checks against what the design
+  // actually looks like right now rather than trusting the map alone.
+  let exportComponents = [];
+  if (existsSync(paths.designSnapshot)) {
+    try { exportComponents = (await readExportComponents(paths.designSnapshot)).components; } catch { exportComponents = []; }
+  }
+
+  const importsOf = makeImportsOf(ctx.repoRoot);
+  const importGraph = makeImportGraph(ctx.repoRoot, importsOf);
+  const importedAnywhere = await anyImporterTargets(ctx.git, compMap, importsOf);
+  const problems = componentProblems({
+    map: compMap, used, changed, added, importsOf, importGraph, buildingNow,
+    docDirs: [profile.paths?.designRoot, profile.paths?.deliveryRoot],
+    isComponentsRun, exportComponents, importedAnywhere,
+  });
+
+  // A components run also proves, from the PR head's own committed components.json, that
+  // every component it builds was marked built before ready (land never commits: spec
+  // correction #2, so --mark-built is the one place this status change is recorded).
+  if (isComponentsRun && buildingNow.length) {
+    const raw = await ctx.git.show(headSha, profile.components.map);
+    const atHead = raw ? JSON.parse(raw.toString('utf8')) : null;
+    const byName = new Map((atHead?.components ?? []).filter((c) => c.kind === 'design').map((c) => [c.name, c]));
+    const notBuilt = buildingNow.filter((name) => byName.get(name)?.status !== 'built');
+    // Same combined instruction as NEXT's (fix round, I14): whether the working copy already
+    // says built or not, what actually clears this is committing and pushing it.
+    if (notBuilt.length) problems.unshift(`run delivery components --mark-built ${notBuilt.join(' ')}, commit ${profile.components.map} and push`);
+  }
+
+  if (problems.length) return { ok: false, detail: problems.slice(0, 4).join('; '), evidence: profile.components.map, problems };
+  return { ok: true, detail: `${used.length} component(s) used, none rebuilt`, evidence: profile.components.map, problems: [] };
+}
+
+/**
  * @param {import('../core/ctx.mjs').Ctx} ctx
  * @param {{ pr: number }} opts
  * @returns {Promise<{ ready: object, exit: number, digest: string, notes: string[] }>} notes: runChecks' lines worth printing
@@ -432,78 +518,8 @@ export async function computeReady(ctx, { pr }) {
     const compPath = componentsMapPath(ctx.repoRoot, profile);
     if (compPath) {
       await attempt('components', async () => {
-        // The design ids this run's states show, at both widths (spec: a state's design may be a
-        // string or { desktop, phone }); readStateComponents is [] when a state has no picture yet.
-        const ids = new Set();
-        for (const s of runMap.states ?? []) {
-          for (const width of ['desktop', 'phone']) {
-            const d = designFor(s, width);
-            if (d) ids.add(d.id);
-          }
-        }
-        const stateNames = [];
-        let anyRecord = false;
-        for (const id of ids) {
-          for (const width of ['desktop', 'phone']) {
-            if (existsSync(join(paths.designRenders, renderFileName(id, width, 'components.json')))) anyRecord = true;
-            stateNames.push(await readStateComponents(paths, id, width));
-          }
-        }
-        // A run rendered before 0.9 has no per-state component records at all; it is not held to
-        // this check, whether or not a component map exists yet (fix round, I5: this pass must win
-        // over "no component map" — a pre-0.9 run owes this check nothing either way).
-        if (!anyRecord) return add('components', true, 'no component records (design rendered before 0.9)', '');
-
-        const compMap = await readComponentsMap(compPath);
-        if (!compMap) {
-          return add('components', false, `no component map at ${profile.components.map}: the mapper writes it (briefs/components-mapper.md), or delivery components --scan-base starts one`, profile.components.map);
-        }
-        const used = usedComponents(stateNames);
-
-        const changed = await changedPaths(ctx.git, profile.repo.base);
-        if (changed === null) return add('components', false, `cannot list the paths this branch changes against ${profile.repo.base}`);
-        const added = (await addedPaths(ctx.git, profile.repo.base)) ?? [];
-
-        const isComponentsRun = runMap.kind === 'components';
-        let buildingNow = [];
-        if (isComponentsRun) {
-          let gallery = null;
-          try { gallery = JSON.parse(readFileSync(join(paths.deliveryDir, 'gallery-states.json'), 'utf8')); } catch { gallery = null; }
-          buildingNow = gallery ? [...new Set((gallery.states ?? []).map((s) => s.component))] : [];
-        }
-
-        // The run's own design snapshot (I3): components.json's own design.hash/status can be
-        // stale for a page run, which never refreshes it, so rule 1 checks against what the design
-        // actually looks like right now rather than trusting the map alone.
-        let exportComponents = [];
-        if (existsSync(paths.designSnapshot)) {
-          try { exportComponents = (await readExportComponents(paths.designSnapshot)).components; } catch { exportComponents = []; }
-        }
-
-        const importsOf = makeImportsOf(ctx.repoRoot);
-        const importGraph = makeImportGraph(ctx.repoRoot, importsOf);
-        const importedAnywhere = await anyImporterTargets(ctx.git, compMap, importsOf);
-        const problems = componentProblems({
-          map: compMap, used, changed, added, importsOf, importGraph, buildingNow,
-          docDirs: [profile.paths?.designRoot, profile.paths?.deliveryRoot],
-          isComponentsRun, exportComponents, importedAnywhere,
-        });
-
-        // A components run also proves, from the PR head's own committed components.json, that
-        // every component it builds was marked built before ready (land never commits: spec
-        // correction #2, so --mark-built is the one place this status change is recorded).
-        if (isComponentsRun && buildingNow.length) {
-          const raw = await ctx.git.show(headSha, profile.components.map);
-          const atHead = raw ? JSON.parse(raw.toString('utf8')) : null;
-          const byName = new Map((atHead?.components ?? []).filter((c) => c.kind === 'design').map((c) => [c.name, c]));
-          const notBuilt = buildingNow.filter((name) => byName.get(name)?.status !== 'built');
-          // Same combined instruction as NEXT's (fix round, I14): whether the working copy already
-          // says built or not, what actually clears this is committing and pushing it.
-          if (notBuilt.length) problems.unshift(`run delivery components --mark-built ${notBuilt.join(' ')}, commit ${profile.components.map} and push`);
-        }
-
-        if (problems.length) return add('components', false, problems.slice(0, 4).join('; '), profile.components.map);
-        add('components', true, `${used.length} component(s) used, none rebuilt`, profile.components.map);
+        const r = await componentsCheck(ctx, { paths, profile, runMap, headSha });
+        add('components', r.ok, r.detail, r.evidence);
       });
     }
   } else {

@@ -42,7 +42,7 @@ must land first.
 | 6 Review | one reviewer per screen | `<plugin>/briefs/reviewer-picture.md` | `rounds/<n>/review-<screen>.md` |
 | 7 Compile | this session | `delivery review --round <n>` | `review.json`, `compare.html` |
 | 8 Fix | the same builder | the round's `review.json` | commits; then 5 to 7 again |
-| 9 Ship | this session | full CI chain, push, `delivery ci --pr <n>` | the preview, a sign-in link, the comparison page |
+| 9 Ship | this session | full CI chain, `delivery prepush`, push, `delivery ci --pr <n>` | the preview, a sign-in link, the comparison page |
 
 `delivery status` prints where the run is and one NEXT line. Rules run first, straight after
 intake, so a behaviour the briefs state but the design never drew is sent back before anything is
@@ -118,7 +118,10 @@ Feature: <slug>   Worktree: <absolute path of the run's worktree>
 2. The full CI chain through the heavy wrapper (`commands.heavy` around `commands.gate`). If a
    package isn't installed in the worktree, install from the lockfile (`commands.bootstrap`) and
    run it again.
-3. Push. `delivery ci --pr <n>` until it is green (a profile's `ci.knownRed` workflows excepted),
+3. Run `delivery prepush` and fix every FAIL line first: a test id or text the base branch's design plans
+   or specs still name, an org-scoped table missing from a retirement list, a branch behind its base,
+   or a components problem. Each of these fails after the push and the pull request cannot fix the
+   first one. Then push. `delivery ci --pr <n>` until it is green (a profile's `ci.knownRed` workflows excepted),
    then `delivery ready --pr <n>`. In picture mode it checks the rounds instead of a full capture:
    every round compiled, every state's newest picture reached, open states only once the fix rounds
    are spent, and every rule proved (`delivery rules --ready`). The hook refuses `gh pr ready` until it is green.
