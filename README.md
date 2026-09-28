@@ -78,7 +78,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### delivery-tools `v0.11.0`
+### delivery-tools `v0.11.1`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -118,7 +118,9 @@ or e2e specs name, an organisation-scoped table missing from the profile's retir
 lists, a branch behind its base, or an unbuilt component; and `review --plan` writes the reviewer
 batches itself (20 items, desktop and phone together, four at once, the run's `steers.md` appended),
 carries forward any item whose pictures did not change, and matches without a reviewer only when
-text, test ids and buttons agree exactly and under 0.5% of pixels differ. An export
+text, test ids and buttons agree exactly and under 0.5% of pixels differ. Since 0.11.1 `ready`
+no longer rewrites `baseline.json` when the base moved but added nothing, which had kept it
+failing its own `head` check. An export
 holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run

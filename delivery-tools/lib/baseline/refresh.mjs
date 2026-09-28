@@ -33,9 +33,11 @@ export async function refreshBaseline(ctx, opts = {}) {
     .sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || (a.signature < b.signature ? -1 : 1));
   let next = baseline.capabilities.reduce((m, c) => Math.max(m, Number(c.id.slice(4))), 0) + 1;
   const added = fresh.map((c) => ({ id: `CAP-${String(next++).padStart(3, '0')}`, kind: c.kind, signature: c.signature, screen: c.screen ?? '', evidence: c.evidence }));
-  // Nothing new at the same base commit: leave the file alone. ready refreshes on every run and
-  // then requires a clean tree, so a record appended each time made ready dirty its own head.
-  const same = !added.length && baseline.refreshes.at(-1)?.sha === r.sha;
+  // Nothing new: leave the file alone, even when the base has moved. ready refreshes on every run
+  // and then requires a clean tree, so a record appended each time (the base moves with every merge
+  // to it) made ready dirty its own head and never go green. A refresh that added nothing records
+  // nothing M2 needs: the diff re-reads the base at the merge base itself.
+  const same = !added.length;
   const updated = same ? baseline : {
     ...baseline,
     capabilities: [...baseline.capabilities, ...added],
