@@ -28,7 +28,7 @@ options:
 exit: 0 written (or, with --check, would write); 1 a problem, one FAIL line each; 2 usage`;
 
 const FEATURE_RE = /^[a-z0-9][a-z0-9-]{0,62}$/;
-const STATE_ID_RE = /^[A-Z]{1,6}-\d{2,3}$/;
+const STATE_ID_RE = /^(?:[A-Z]{1,6}-\d{2,3}|C-[A-Z][A-Za-z0-9]{0,40}-\d{2,3})$/;
 const SHARED_REASON_NOTE_AT = 5;
 
 /**
@@ -120,7 +120,7 @@ export function assembleInventory({ feature, candidates, parts, previous = null,
   }
 
   for (const s of states) {
-    if (typeof s?.id !== 'string' || !STATE_ID_RE.test(s.id)) fail('state-id', `state id "${s?.id}" must look like AB-01`);
+    if (typeof s?.id !== 'string' || !STATE_ID_RE.test(s.id)) fail('state-id', `state id "${s?.id}" must look like AB-01 (or C-<Name>-NN for a components run)`);
     for (const ctl of Array.isArray(s?.controls) ? s.controls : []) {
       if (typeof ctl?.target === 'string' && STATE_ID_RE.test(ctl.target) && !stateIds.has(ctl.target)) {
         fail('unknown-target', `${s.id}: control "${ctl.label}" leads to ${ctl.target}, which no group defines`);

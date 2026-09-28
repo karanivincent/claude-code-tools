@@ -20,7 +20,7 @@
           "id": { "$ref": "common.schema.json#/$defs/Text" },
           "kind": { "$ref": "#/$defs/CandidateKind" },
           "source": { "$ref": "common.schema.json#/$defs/Text" },
-          "mappedTo": { "type": ["string", "null"], "pattern": "^[A-Z]{1,6}-\\d{2,3}$" },
+          "mappedTo": { "type": ["string", "null"], "pattern": "^(?:[A-Z]{1,6}-\\d{2,3}|C-[A-Z][A-Za-z0-9]{0,40}-\\d{2,3})$" },
           "excluded": {
             "type": "object",
             "additionalProperties": false,
@@ -48,7 +48,8 @@
               "kind": { "enum": ["click-path", "prop", "shot-only", "unspecified"] },
               "steps": { "type": "array", "items": { "$ref": "#/$defs/DesignStep" } },
               "props": { "type": "object", "additionalProperties": true },
-              "unspecified": { "enum": ["loading", "empty", "error", "permission", "one", "many"] }
+              "unspecified": { "enum": ["loading", "empty", "error", "permission", "one", "many"] },
+              "file": { "$ref": "common.schema.json#/$defs/Text" }
             }
           },
           "shots": { "$ref": "common.schema.json#/$defs/Strings" },

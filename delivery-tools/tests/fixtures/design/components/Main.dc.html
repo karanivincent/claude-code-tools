@@ -1,0 +1,7 @@
+<x-dc>
+<dc-import name="Picker" label="Day" value="{{ md.day.value }}" open="{{ md.day.open }}" on-pick="{{ md.day.pick }}" hint-size="100%,78px"></dc-import>
+<dc-import name="Picker" range="{{ true }}" label="Dates"></dc-import>
+<dc-import name="Picker" label="Day" open="{{ true }}" allowed-days="{{ [1,2] }}"/>
+<dc-import name="Table" check="{{ true }}" on-change="{{ t.change }}"></dc-import>
+<script type="text/x-dc" data-dc-script data-props="{&quot;screen&quot;:{&quot;default&quot;:&quot;Desktop&quot;}}"></script>
+</x-dc>

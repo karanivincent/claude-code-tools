@@ -106,7 +106,7 @@ export function renderPunchList(o) {
 
 /** "OV-05.design.admin.1440.en.light.txt:4" -> { key, line }; null when where names no capture file. */
 export function captureKeyOf(where) {
-  const m = /^([A-Z]{1,6}-\d{2,3}\.[A-Za-z0-9._-]+?)\.(txt|dom\.json|png|errors\.json)(?::(\d+))?/.exec(String(where ?? ''));
+  const m = /^((?:[A-Z]{1,6}-\d{2,3}|C-[A-Z][A-Za-z0-9]{0,40}-\d{2,3})\.[A-Za-z0-9._-]+?)\.(txt|dom\.json|png|errors\.json)(?::(\d+))?/.exec(String(where ?? ''));
   return m ? { key: m[1], line: m[3] ? Number(m[3]) : null } : null;
 }
 

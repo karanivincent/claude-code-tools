@@ -2,7 +2,7 @@
 // its click path or prop values, and save what the page shows: <ID>.png, <ID>.txt (one line per
 // text element, read from the rendered page, never transcribed from source) and <ID>.dom.json.
 
-import { copyFile, writeFile } from 'node:fs/promises';
+import { copyFile, readFile, writeFile } from 'node:fs/promises';
 import { join, extname } from 'node:path';
 import { ensureDir } from '../core/fs.mjs';
 import { writeArtefact } from '../core/artefacts.mjs';
@@ -11,13 +11,29 @@ import { ConfigError } from '../core/exit.mjs';
 import { startStaticServer, contentTypeFor } from './server.mjs';
 import { prepareServeDir, writePropCopy } from './serve.mjs';
 import { vendorResolver } from './vendor.mjs';
+import { declaredProps } from './components.mjs';
 import { pageExtract, linesToText } from '../capture/page-extract.mjs';
-import { itemKey } from '../picture/widths.mjs';
+import { itemKey, WIDTHS } from '../picture/widths.mjs';
 
 export const DEFAULT_VIEWPORT = Object.freeze({ width: 1440, height: 900 });
 const BOOT_SELECTOR = '#dc-root .sc-host';
 const STEP_TIMEOUT_MS = 5000;
 const BOOT_TIMEOUT_MS = 20000;
+
+/**
+ * The viewport to render a component's own $preview at, for one render width. At desktop the
+ * preview's own size is used untouched; at any narrower width (fix round, I10) it is clamped to
+ * that width's own maximum, since $preview is a desktop-sized default and a component rendered at
+ * phone width must never come out wider than a phone layout allows. Height is never touched.
+ * @param {{ width: number, height: number|null }} preview
+ * @param {string} width a WIDTHS name ("desktop", "phone", ...)
+ * @returns {{ width: number, height: number }}
+ */
+export function previewViewport(preview, width) {
+  const cap = WIDTHS[width]?.width;
+  const w = width === 'desktop' || !cap ? preview.width : Math.min(preview.width, cap);
+  return { width: w, height: preview.height ?? 600 };
+}
 
 const KILL_MOTION_CSS = '*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important;scroll-behavior:auto!important}';
 
@@ -62,8 +78,11 @@ export function planRenders(inventory, opts) {
       continue;
     }
     const props = reach.props && Object.keys(reach.props).length ? reach.props : null;
-    if (reach.kind === 'prop' && !props) { out.push({ id: s.id, action: 'fail', why: 'a prop state names no props' }); continue; }
-    out.push({ id: s.id, action: 'render', steps: reach.steps ?? [], props });
+    // A component with its defaults (no props) is still a valid state when it names its own file.
+    if (reach.kind === 'prop' && !props && !reach.file) { out.push({ id: s.id, action: 'fail', why: 'a prop state names no props' }); continue; }
+    const item = { id: s.id, action: 'render', steps: reach.steps ?? [], props };
+    if (reach.file) item.file = reach.file;
+    out.push(item);
   }
   return out;
 }
@@ -74,6 +93,54 @@ export function planRenders(inventory, opts) {
  */
 export function renderFileName(id, width, ext) {
   return `${itemKey(id, width ?? 'desktop')}.${ext}`;
+}
+
+/**
+ * The design components a rendered state's page actually shows: every `.sc-host[data-sc-name]`
+ * host's name, minus the root host's own name (the state's own component, not one it uses).
+ * @param {{ name: string, root: boolean }[]} hosts
+ * @returns {string[]} sorted, unique
+ */
+export function componentNames(hosts) {
+  const root = hosts.find((h) => h.root);
+  const names = new Set(hosts.map((h) => h.name));
+  if (root) names.delete(root.name);
+  return [...names].sort();
+}
+
+/**
+ * A component file's own preview size, read once. Never throws: a `reach.file` that does not
+ * resolve in the served snapshot (or cannot be read for any other reason) is reported in `why`
+ * instead, so a caller can fail that one state and carry on rather than aborting the whole render.
+ * @param {string} serveDir
+ * @param {string} file
+ * @returns {Promise<{ preview: {width:number, height:number|null}|null, why: string|null }>}
+ */
+export async function readComponentPreview(serveDir, file) {
+  let html;
+  try {
+    html = await readFile(join(serveDir, file), 'utf8');
+  } catch (err) {
+    return { preview: null, why: `cannot read component file ${file}: ${err.code ?? err.message}` };
+  }
+  return { preview: declaredProps(html).preview, why: null };
+}
+
+/**
+ * The components a rendered state showed, from the "<ID>[@width].components.json" file written
+ * beside its png. Empty when the file is absent (older renders, or a render that failed).
+ * @param {import('../core/paths.mjs').FeaturePaths} paths
+ * @param {string} stateId
+ * @param {string} [width]
+ * @returns {Promise<string[]>}
+ */
+export async function readStateComponents(paths, stateId, width = 'desktop') {
+  paths.designRender(stateId, 'components.json'); // checks the id
+  const file = join(paths.designRenders, renderFileName(stateId, width, 'components.json'));
+  let raw;
+  try { raw = await readFile(file, 'utf8'); } catch (err) { if (err.code === 'ENOENT') return []; throw err; }
+  const data = JSON.parse(raw);
+  return Array.isArray(data.names) ? data.names : [];
 }
 
 /** A Playwright selector string, or exact visible text. */
@@ -131,28 +198,35 @@ export async function runDesignStep(page, step, n) {
  * @param {import('../core/ctx.mjs').Ctx} ctx
  * @param {{ paths: import('../core/paths.mjs').FeaturePaths, inventory: object, adapter: string, states?: string[]|null,
  *           port?: number, offline?: boolean, viewport?: { width: number, height: number }, width?: string,
- *           e2eDir?: string|null, playwrightRoot?: string|null }} opts
+ *           e2eDir?: string|null, playwrightRoot?: string|null,
+ *           snapshotDir?: string, serveDir?: string, outDir?: string }} opts
+ *   snapshotDir, serveDir and outDir default to paths.designSnapshot, paths.designServe and
+ *   paths.designRenders; `delivery design review` (plan task 8) renders a different export into its
+ *   own scratch folders instead of the run's own snapshot and renders.
  * @returns {Promise<{ rendered: string[], shots: string[], skipped: { id: string, why: string }[], failed: { id: string, why: string }[], escaped: string[] }>}
  */
 export async function renderDesign(ctx, opts) {
   const { paths, inventory } = opts;
   const width = opts.width ?? 'desktop';
+  const snapshotDir = opts.snapshotDir ?? paths.designSnapshot;
+  const serveDir = opts.serveDir ?? paths.designServe;
+  const outDir = opts.outDir ?? paths.designRenders;
   const plan = planRenders(inventory, { states: opts.states ?? null, adapter: opts.adapter, width });
   const outFile = (id, ext) => {
     paths.designRender(id, ext); // checks the id
-    return join(paths.designRenders, renderFileName(id, width, ext));
+    return join(outDir, renderFileName(id, width, ext));
   };
   const result = { rendered: [], shots: [], skipped: [], failed: [], escaped: [] };
-  await ensureDir(paths.designRenders);
+  await ensureDir(outDir);
 
   for (const p of plan) {
     if (p.action === 'skip') result.skipped.push({ id: p.id, why: p.why });
     if (p.action === 'fail') result.failed.push({ id: p.id, why: p.why });
     if (p.action === 'shot') {
-      const src = join(paths.designSnapshot, p.shot);
+      const src = join(snapshotDir, p.shot);
       if (extname(src).toLowerCase() !== '.png') { result.failed.push({ id: p.id, why: `shot ${p.shot} is not a png` }); continue; }
       try {
-        await copyFile(src, paths.designRender(p.id, 'png'));
+        await copyFile(src, outFile(p.id, 'png'));
         result.shots.push(p.id);
       } catch (err) {
         result.failed.push({ id: p.id, why: `cannot copy shot ${p.shot}: ${err.code ?? err.message}` });
@@ -166,8 +240,8 @@ export async function renderDesign(ctx, opts) {
   const pw = await resolvePlaywright({ repoRoot: root, e2eDir: opts.e2eDir ?? null });
   // The repo's own packages answer the runtime's CDN scripts; a separate Playwright root is a fallback.
   const vendor = vendorResolver([...playwrightSearchDirs(ctx.repoRoot, opts.e2eDir ?? null), ...(opts.playwrightRoot ? [opts.playwrightRoot] : [])]);
-  const serve = await prepareServeDir(paths.designSnapshot, paths.designServe);
-  const server = await startStaticServer(paths.designServe, { port: opts.port ?? 0 });
+  const serve = await prepareServeDir(snapshotDir, serveDir);
+  const server = await startStaticServer(serveDir, { port: opts.port ?? 0 });
   const escaped = new Set();
   let browser;
   try {
@@ -176,9 +250,20 @@ export async function renderDesign(ctx, opts) {
     } catch (err) {
       throw new ConfigError(`Playwright could not start Chromium: ${String(err.message).split('\n')[0]} (install it with the repo's Playwright: "playwright install chromium")`);
     }
+    const previewCache = new Map();
     for (const p of toRender) {
       const errors = [];
-      const context = await browser.newContext({ viewport: opts.viewport ?? DEFAULT_VIEWPORT, deviceScaleFactor: 1, colorScheme: 'light', reducedMotion: 'reduce', locale: 'en-US' });
+      const dcFile = p.file ?? serve.dcFile;
+      let viewport = opts.viewport ?? DEFAULT_VIEWPORT;
+      if (p.file) {
+        if (!previewCache.has(p.file)) previewCache.set(p.file, await readComponentPreview(serveDir, p.file));
+        const { preview, why } = previewCache.get(p.file);
+        if (why) { result.failed.push({ id: p.id, why }); continue; }
+        if (preview) {
+          viewport = previewViewport(preview, width);
+        }
+      }
+      const context = await browser.newContext({ viewport, deviceScaleFactor: 1, colorScheme: 'light', reducedMotion: 'reduce', locale: 'en-US' });
       try {
         await context.addInitScript({ content: SET_STATE_INIT });
         await context.route('**/*', async (route) => {
@@ -192,7 +277,7 @@ export async function renderDesign(ctx, opts) {
         const page = await context.newPage();
         page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
         page.on('pageerror', (e) => errors.push(String(e.message)));
-        const file = p.props ? await writePropCopy(paths.designServe, serve.dcFile, p.id, p.props) : serve.dcFile;
+        const file = p.props ? await writePropCopy(serveDir, dcFile, p.id, p.props) : dcFile;
         await page.goto(server.url(file), { waitUntil: 'load' });
         try {
           await page.waitForSelector(BOOT_SELECTOR, { timeout: BOOT_TIMEOUT_MS });
@@ -206,6 +291,9 @@ export async function renderDesign(ctx, opts) {
         const logicError = await page.evaluate(() => { const e = document.querySelector('.sc-logic-error'); return e ? e.textContent : null; });
         if (logicError) throw new Error(`the design's logic failed: ${logicError.trim().slice(0, 200)}`);
         for (let i = 0; i < p.steps.length; i++) await runDesignStep(page, p.steps[i], i + 1);
+        const hosts = await page.evaluate(() => [...document.querySelectorAll('.sc-host[data-sc-name]')]
+          .map((e) => ({ name: e.getAttribute('data-sc-name'), root: e.parentElement?.id === 'dc-root' })));
+        await writeFile(outFile(p.id, 'components.json'), JSON.stringify({ names: componentNames(hosts) }, null, 2) + '\n');
         const { lines, dom } = await page.evaluate(pageExtract, {});
         const png = await page.screenshot({ fullPage: true, animations: 'disabled', caret: 'hide' });
         await writeFile(outFile(p.id, 'png'), png);

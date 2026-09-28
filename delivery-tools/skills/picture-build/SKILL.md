@@ -21,6 +21,13 @@ is the desktop, `KC-05@phone` the phone. The loop below is the same at two width
 pictures: the shoot takes every item, reviewers review items, and every count is of items. A
 desktop-only run is exactly as before.
 
+## Components
+
+A page run's used components come from `docs/delivery/components.json`, not from writing them by
+hand: when a design state names a component that isn't built there yet, NEXT names the components
+run (`delivery intake <export> --components`) instead of the next picture-loop step, and that run
+must land first.
+
 ## The loop
 
 | Step | Who | Command or brief | Output |
@@ -59,7 +66,7 @@ prompt and nothing else:
 Read <plugin>/briefs/<brief>.md and follow it.
 Feature: <slug>   Worktree: <absolute path of the run's worktree>
 <mapper and rules agent: nothing more>
-<builder: Dev server: <url>   Round: <n>   (fix round: Review: .delivery/<f>/rounds/<n-1>/review.json)>
+<builder: Dev server: <url>   Round: <n>   Components: run `delivery components --used`   (fix round: Review: .delivery/<f>/rounds/<n-1>/review.json)>
 <reviewer: Round: .delivery/<f>/rounds/<n>/   States: <ITEMS, e.g. KC-05 KC-05@phone>   Write: review-<screen-slug>.md>
 ```
 

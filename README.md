@@ -78,7 +78,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### delivery-tools `v0.8.0`
+### delivery-tools `v0.9.0`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -94,7 +94,11 @@ or cut; `delivery rules` lists the gaps and `delivery ready` stays red while one
 0.7.0 a page already built gets an update run (`intake --from <feature>`) that starts from the
 earlier run's map and pictures the page before building, so only what the design changed is fixed. Since
 0.8.0 a world file may name a row that comes later in it, so two tables that point at each other can be
-seeded: the seed writes that column empty, then fills it once every row is there. An export
+seeded: the seed writes that column empty, then fills it once every row is there. Since 0.9.0 a
+design component is built once from `docs/delivery/components.json` and every page imports it
+instead of redrawing it, `delivery ready` refuses a screen whose component isn't built or a file
+that bypasses one, and briefs are written, checked, packed, sent and reviewed against a design
+export through the CLI rather than by hand. An export
 holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run
@@ -109,7 +113,8 @@ and keep it current is in [`delivery-tools/docs/OPERATING.md`](delivery-tools/do
 | `delivery-auditor` | Full mode: judges captured screens against the design and writes findings |
 
 Picture mode's mapper, builder and reviewers are general agents given one brief each:
-`briefs/mapper.md`, `briefs/builder-picture.md` and `briefs/reviewer-picture.md`.
+`briefs/mapper.md`, `briefs/builder-picture.md` and `briefs/reviewer-picture.md`; a components run's
+mapper uses `briefs/components-mapper.md`.
 
 **Skills:**
 
@@ -118,15 +123,19 @@ Picture mode's mapper, builder and reviewers are general agents given one brief 
 | `deliver-from-design` | The umbrella: intake, preflight, then the design pictures and the picture loop. Full mode only when the founder asks for it by name |
 | `design-inventory` | Renders every in-scope design state to a picture (picture mode stops there); in full mode, also lists every word and control and what the old page does |
 | `picture-build` | The picture loop: the button map, test worlds, one builder, full-height pictures of the page's own area at every width the map declares (desktop, phone), reviewer agents, a comparison page, at most two fix rounds, and shipping |
+| `design-send` | Hands a checked, packed design brief to Claude Design in the in-app browser and records when it was sent |
 | `coverage-plan` | Full mode: one row per state and per capability, each with a class, an owning unit and how a capture reaches it |
 | `epic-build` | Full mode: parallel builders, wave by wave, into one integration branch |
 | `design-audit` | Full mode: graded captures with severity floors |
 
-**CLI:** `delivery <command>`, 41 commands. Picture mode uses `map` (check the button map and
+**CLI:** `delivery <command>`, 48 commands. Picture mode uses `map` (check the button map and
 write the checklist; `--from-plan` converts a full-mode run), `seed` (`--refresh all` resets every
 world), `shoot` (full-height pictures of the page area next to the cropped design, at desktop and phone
 widths, a button check, a sideways-scroll check on the phone, data-changing states last), `review` (the reviewers' notes into `review.json` and a comparison
-page) and `sign-in` (a one-time link that signs a person in as a world's test user). `delivery status` prints the one NEXT line the run is steered by.
+page) and `sign-in` (a one-time link that signs a person in as a world's test user). `delivery status` prints the one NEXT line the run is steered by. Since 0.9.0: `components`
+(the product-wide component map, checked against the repo and a design export), `design review`
+(compares a new export with the run's snapshot, headlessly) and `brief new|check|pack|sent` (write,
+check, pack and record a design brief from `templates/design-brief.md`).
 
 ## Releases
 

@@ -19,6 +19,9 @@ import { pictureFacts, pictureNext, pictureStatusLines } from '../picture/next.m
 /** Lines --brief may print, all included (spec 11.3 step 5). */
 export const BRIEF_MAX_LINES = 12;
 
+/** A components run's own feature slug (I12): "components" for the first one, "components-<date>" later. */
+const COMPONENTS_FEATURE_RE = /^components(-\d{8})?$/;
+
 async function quiet(fn, fallback = null) {
   try { return await fn(); } catch { return fallback; }
 }
@@ -61,9 +64,25 @@ export async function statusReport(ctx, run, opts = {}) {
   const here = ctx.repoRoot === run.worktree;
   const empty = { earlier: [], leaving: null, backTo: null };
 
+  // pictureFacts' components-first facts (spec §4-8) need the profile (componentsMapPath reads
+  // profile.components.map); status must never fail over this, so a missing or invalid profile
+  // just leaves those facts empty rather than surfacing here.
+  let profile = null;
+  try { profile = await rctx.profile(); } catch { /* status still works without it */ }
+
+  // A components run whose intake was refused (a design entry has no target) never gets as far as
+  // writing map.json, so it never reaches picture mode below; the general intake gate would
+  // otherwise send it to the intent extractor, which a components run never has (fix round, I15).
+  if (!run.broken && run.state && COMPONENTS_FEATURE_RE.test(run.feature) && !existsSync(mapPath(paths))) {
+    const text = `dispatch the mapper with briefs/components-mapper.md, then run ${cli} intake --components again`;
+    const next = { text, skill: 'picture-build', phase: 'components-mapper', line: `NEXT: ${text} (skill: picture-build)` };
+    const lines = [`run ${run.feature} (components run) in ${run.worktree} on ${run.branch ?? '(no branch)'}`, 'map.json not written yet: a design entry has no target', next.line];
+    return { lines: opts.brief ? lines.slice(-BRIEF_MAX_LINES) : lines, next, exit: EXIT.RED, data: { feature: run.feature, worktree: run.worktree, mode: 'components-mapper', next: { text: next.text, skill: next.skill, phase: next.phase } } };
+  }
+
   // Picture mode: a run with a map.json follows the picture loop, not the phase gates.
   if (!run.broken && run.state && existsSync(mapPath(paths))) {
-    const facts = pictureFacts(paths);
+    const facts = await pictureFacts(paths, profile ? { profile, git: rctx.git } : { git: rctx.git });
     const lastReady = (run.state.readyRecords ?? []).at(-1);
     const pnext = pictureNext(facts, { cli, readyOk: Boolean(lastReady?.ok), epic: run.state.epic ?? null });
     const next = { text: pnext.text, skill: pnext.skill, phase: `picture:${pnext.step}`, line: `NEXT: ${pnext.text}${pnext.skill ? ` (skill: ${pnext.skill})` : ''}` };
@@ -82,8 +101,6 @@ export async function statusReport(ctx, run, opts = {}) {
   }
 
   const state = run.state;
-  let profile = null;
-  try { profile = await rctx.profile(); } catch { profile = null; }
   let inconsistent = null;
   const plan = await readArtefact(paths, 'plan', { optional: true }).catch(() => null);
   const intent = await readArtefact(paths, 'intent', { optional: true }).catch(() => null);

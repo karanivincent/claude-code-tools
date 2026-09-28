@@ -3,16 +3,18 @@
 // phase-0 gate recomputed from the files.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { writeZip, readZip } from '../../lib/core/zip.mjs';
 import { listTree } from '../../lib/core/hash.mjs';
 import { loadState } from '../../lib/core/state.mjs';
 import { featurePaths } from '../../lib/core/paths.mjs';
 import { hasMarker, makeMarker } from '../../lib/core/markers.mjs';
-import { validExample } from '../helpers/fixtures.mjs';
+import { validExample, makeProfile } from '../helpers/fixtures.mjs';
+import { validateAgainst } from '../../lib/core/schema.mjs';
 import { runIntake, verifyIntake, slugify, stripCommonRoot, parseSnapshotReadme, renderIntentMd } from '../../lib/lifecycle/intake.mjs';
 import intakeCommand from '../../lib/commands/intake.mjs';
+import statusCommand from '../../lib/commands/status.mjs';
 import { makeRunRepo, ctxFor } from './support.mjs';
 
 /** A stand-in for slice C's Claude Design adapter, with the same interface. */
@@ -181,6 +183,273 @@ test('a feature named on the first intake is kept by later runs inside its workt
     assert.equal(again.feature, 'gizmos');
     assert.equal(again.worktree, res.worktree);
     assert.equal(first.gh.db.writes.filter((w) => w.op === 'issueCreate').length, 1);
+  } finally { repo.cleanup(); }
+});
+
+/** A real (not faked) Claude Design export of one page importing one component. */
+function componentsExportZip(path, pickerHtml = '<x-dc><div>{{ label }}</div></x-dc>') {
+  writeFileSync(path, writeZip([
+    { name: 'Components/Main.dc.html', data: '<x-dc>\n<dc-import name="Picker" label="Day"></dc-import>\n</x-dc>' },
+    { name: 'Components/Picker.dc.html', data: pickerHtml },
+    { name: 'Components/support.js', data: 'window.demo = 1;' },
+  ]));
+}
+
+/** A later export: Picker again, plus a brand-new Sheet component with no target yet. */
+function componentsExportZipWithSheet(path) {
+  writeFileSync(path, writeZip([
+    { name: 'Components/Main.dc.html', data: '<x-dc>\n<dc-import name="Picker" label="Day"></dc-import>\n<dc-import name="Sheet"></dc-import>\n</x-dc>' },
+    { name: 'Components/Picker.dc.html', data: '<x-dc><div>{{ label }}</div></x-dc>' },
+    { name: 'Components/Sheet.dc.html', data: '<x-dc><div>a sheet</div></x-dc>' },
+    { name: 'Components/support.js', data: 'window.demo = 1;' },
+  ]));
+}
+
+test('--components: refuses while a design entry has no target (NEXT names the mapper); once one is set it writes components.json, the inventory, the map and gallery-states.json', async () => {
+  const repo = await makeRunRepo({ run: false });
+  try {
+    const zip = join(repo.root, 'components-export.zip');
+    componentsExportZip(zip);
+    const profile = makeProfile({ components: { map: 'docs/delivery/components.json', galleryRoute: '/admin/design/components' } });
+    const { ctx } = await ctxFor(repo.primary, { feature: null, profile });
+
+    const first = await runIntake(ctx, { source: zip, components: true });
+    assert.equal(first.exit, 1);
+    assert.equal(first.feature, 'components');
+    assert.match(first.next, /NEXT: dispatch the mapper with briefs\/components-mapper\.md/);
+    assert.ok(first.failures.some((f) => /Picker: no target yet/.test(f.message)), JSON.stringify(first.failures));
+
+    const wt = first.worktree;
+    const mapFile = join(wt, 'docs/delivery/components.json');
+    const written = JSON.parse(readFileSync(mapFile, 'utf8'));
+    const picker = written.components.find((c) => c.name === 'Picker');
+    assert.equal(picker.status, 'new');
+    assert.equal(picker.target, null);
+    assert.equal(existsSync(join(wt, 'docs/delivery/components/inventory.json')), false, 'refused before the inventory was written');
+    assert.equal(repo.git('-C', wt, 'status', '--porcelain'), '', 'the refusal still commits the drift into components.json');
+
+    // The mapper (briefs/components-mapper.md) sets a target; a second components intake builds it.
+    picker.target = 'src/ui/picker.tsx';
+    writeFileSync(mapFile, `${JSON.stringify(written, null, 2)}\n`);
+
+    const second = await runIntake(ctx, { source: zip, components: true });
+    assert.equal(second.exit, 0, JSON.stringify(second.failures));
+    assert.equal(second.next, null);
+
+    const inventory = JSON.parse(readFileSync(join(wt, 'docs/delivery/components/inventory.json'), 'utf8'));
+    assert.deepEqual(inventory.states.map((s) => s.id), ['C-Picker-01', 'C-Picker-02']);
+    assert.equal(inventory.states[0].name, 'Picker: defaults');
+    assert.deepEqual(inventory.states[0].reach, { kind: 'prop', file: 'Picker.dc.html', props: {} });
+    assert.equal(inventory.states[1].name, 'Picker: label=Day');
+    assert.deepEqual(inventory.states[1].reach, { kind: 'prop', file: 'Picker.dc.html', props: { label: 'Day' } });
+    // Fix round 1: components-run ids ("C-Picker-01") widened schemas/common.schema.json's Id;
+    // this is the end-to-end check that the file intake actually writes still validates.
+    const invCheck = validateAgainst('inventory', inventory);
+    assert.equal(invCheck.ok, true, JSON.stringify(invCheck.errors));
+
+    const gallery = JSON.parse(readFileSync(join(wt, 'docs/delivery/components/gallery-states.json'), 'utf8'));
+    assert.deepEqual(gallery.states, [
+      { id: 'C-Picker-01', component: 'Picker', props: {} },
+      { id: 'C-Picker-02', component: 'Picker', props: { label: 'Day' } },
+    ]);
+
+    const map = JSON.parse(readFileSync(join(wt, 'docs/delivery/components/map.json'), 'utf8'));
+    assert.equal(map.kind, 'components');
+    assert.equal(map.route, '/admin/design/components');
+    assert.deepEqual(map.widths, ['desktop', 'phone']);
+    assert.deepEqual(map.worlds, [{ id: 'components', users: [{ role: 'admin', email: profile.auth.robotAdminEmail }] }]);
+    assert.deepEqual(map.states.map((s) => s.id), ['C-Picker-01', 'C-Picker-02']);
+    assert.equal(map.states[0].design, 'C-Picker-01');
+    assert.deepEqual(map.states[0].reach, { world: 'components', role: 'admin', steps: [{ goto: '/admin/design/components' }] });
+
+    const world = JSON.parse(readFileSync(join(wt, 'docs/delivery/components/worlds/components.json'), 'utf8'));
+    assert.deepEqual(world, { schemaVersion: 1, world: 'components', rows: [{ key: 'org', table: 'organizations', values: { name: { $orgName: true } } }] });
+
+    const rewritten = JSON.parse(readFileSync(mapFile, 'utf8'));
+    assert.equal(rewritten.components.find((c) => c.name === 'Picker').status, 'new'); // still new: builtHash is only set by land / --mark-built
+    assert.equal(repo.git('-C', wt, 'status', '--porcelain'), '', 'the inventory, map and world file are committed with the run');
+  } finally { repo.cleanup(); }
+});
+
+// Fix round (M5): once every component is built and the design has not moved on, a components
+// intake has nothing new or stale to add. It must say so and exit 0 without touching the
+// inventory, gallery-states.json, map.json or world file it wrote the first time — those are the
+// real, already-built records, not something to blank out just because there is nothing new.
+test('--components with nothing new or stale says so, exits 0, and never wipes the existing inventory/map', async () => {
+  const repo = await makeRunRepo({ run: false });
+  try {
+    const zip = join(repo.root, 'components-export.zip');
+    componentsExportZip(zip);
+    const profile = makeProfile({ components: { map: 'docs/delivery/components.json', galleryRoute: '/admin/design/components' } });
+    const { ctx } = await ctxFor(repo.primary, { feature: null, profile });
+
+    const first = await runIntake(ctx, { source: zip, components: true });
+    const wt = first.worktree;
+    const mapFile = join(wt, 'docs/delivery/components.json');
+    const written = JSON.parse(readFileSync(mapFile, 'utf8'));
+    written.components.find((c) => c.name === 'Picker').target = 'src/ui/picker.tsx';
+    writeFileSync(mapFile, `${JSON.stringify(written, null, 2)}\n`);
+    mkdirSync(join(wt, 'src/ui'), { recursive: true });
+    writeFileSync(join(wt, 'src/ui/picker.tsx'), 'export const Picker = () => null;\n');
+
+    const second = await runIntake(ctx, { source: zip, components: true });
+    assert.equal(second.exit, 0, JSON.stringify(second.failures));
+    const inventoryPath = join(wt, 'docs/delivery/components/inventory.json');
+    const galleryPath = join(wt, 'docs/delivery/components/gallery-states.json');
+    const mapPath = join(wt, 'docs/delivery/components/map.json');
+    const inventoryBefore = readFileSync(inventoryPath, 'utf8');
+    const galleryBefore = readFileSync(galleryPath, 'utf8');
+    const mapBefore = readFileSync(mapPath, 'utf8');
+
+    // Mark it built (what --mark-built does), matching the export's own hash: nothing left to build.
+    const afterSecond = JSON.parse(readFileSync(mapFile, 'utf8'));
+    const picker = afterSecond.components.find((c) => c.name === 'Picker');
+    picker.builtHash = picker.design.hash;
+    picker.status = 'built';
+    writeFileSync(mapFile, `${JSON.stringify(afterSecond, null, 2)}\n`);
+    repo.git('-C', wt, 'add', '-A');
+    repo.git('-C', wt, 'commit', '-q', '-m', 'mark built');
+
+    const third = await runIntake(ctx, { source: zip, components: true });
+    assert.equal(third.exit, 0, JSON.stringify(third.failures));
+    assert.match(third.lines.join('\n'), /nothing to build: every component is built/);
+    assert.equal(readFileSync(inventoryPath, 'utf8'), inventoryBefore, 'the real inventory must survive a no-op intake');
+    assert.equal(readFileSync(galleryPath, 'utf8'), galleryBefore, 'the real gallery-states.json must survive');
+    assert.equal(readFileSync(mapPath, 'utf8'), mapBefore, 'the real map.json must survive');
+  } finally { repo.cleanup(); }
+});
+
+// Fix round (round 2 of I15): carryOver must never copy the earlier components run's map.json —
+// this run's own intake always writes a fresh one, only once it actually has something to build.
+// A dated --from run refused before that point (a new design entry with no target yet) must
+// therefore have no map.json at all, so status steers to the mapper instead of treating a stale,
+// copied-over map as proof this run is already in picture mode.
+test('a refused --from components run has no map.json at all; status names the mapper, not the extractor', async () => {
+  const repo = await makeRunRepo({ run: false });
+  try {
+    const zip = join(repo.root, 'components-export.zip');
+    componentsExportZip(zip);
+    const profile = makeProfile({ components: { map: 'docs/delivery/components.json', galleryRoute: '/admin/design/components' } });
+    const { ctx } = await ctxFor(repo.primary, { feature: null, profile });
+
+    const first = await runIntake(ctx, { source: zip, components: true });
+    const mapFile = join(first.worktree, 'docs/delivery/components.json');
+    const written = JSON.parse(readFileSync(mapFile, 'utf8'));
+    written.components.find((c) => c.name === 'Picker').target = 'src/ui/picker.tsx';
+    writeFileSync(mapFile, `${JSON.stringify(written, null, 2)}\n`);
+    const second = await runIntake(ctx, { source: zip, components: true });
+    assert.equal(second.exit, 0, JSON.stringify(second.failures));
+    assert.ok(existsSync(join(first.worktree, 'docs/delivery/components/map.json')), 'sanity: the earlier run really has one');
+
+    // Land it, the way --from's own sanity check (and carryOver's, for rules/worlds) expects.
+    const branch = repo.git('-C', first.worktree, 'rev-parse', '--abbrev-ref', 'HEAD');
+    repo.git('checkout', 'main');
+    repo.git('merge', '--no-ff', '-m', 'merge components', branch);
+    repo.git('push', 'origin', 'main');
+
+    // A later export adds Sheet, which has no target yet: this dated run is refused before it
+    // ever gets to writing its own map.json.
+    const zip2 = join(repo.root, 'components-export-2.zip');
+    componentsExportZipWithSheet(zip2);
+    const third = await runIntake(ctx, { source: zip2, components: true, from: 'components' });
+    assert.equal(third.exit, 1);
+    assert.equal(third.feature, 'components-20260115');
+    assert.ok(third.failures.some((f) => /Sheet: no target yet/.test(f.message)), JSON.stringify(third.failures));
+    assert.equal(existsSync(join(third.worktree, 'docs/delivery/components-20260115/map.json')), false,
+      'carryOver must not have copied the earlier run\'s map.json here');
+
+    const { ctx: statusCtx, stdout } = await ctxFor(third.worktree, { profile, feature: null });
+    assert.equal(await statusCommand.run(statusCtx, []), 1);
+    const next = stdout.text().trim().split('\n').at(-1);
+    assert.match(next, /^NEXT: dispatch the mapper with briefs\/components-mapper\.md, then run .*intake --components again/);
+    assert.doesNotMatch(next, /extractor/);
+  } finally { repo.cleanup(); }
+});
+
+// Fix round (I12): a later components export used to be refused outright — --from components
+// defaulted its own feature to "components" too (a components run's own default), which is exactly
+// what --from names, so the "an update run needs a new feature slug" check always fired.
+test('--components --from components gets its own dated feature slug, once "components" is already taken', async () => {
+  const repo = await makeRunRepo({ run: false });
+  try {
+    const zip = join(repo.root, 'components-export.zip');
+    componentsExportZip(zip);
+    const profile = makeProfile({ components: { map: 'docs/delivery/components.json', galleryRoute: '/admin/design/components' } });
+    const { ctx } = await ctxFor(repo.primary, { feature: null, profile }); // clock frozen at 2026-01-15
+
+    const first = await runIntake(ctx, { source: zip, components: true });
+    assert.equal(first.feature, 'components');
+    const mapFile = join(first.worktree, 'docs/delivery/components.json');
+    const written = JSON.parse(readFileSync(mapFile, 'utf8'));
+    written.components.find((c) => c.name === 'Picker').target = 'src/ui/picker.tsx';
+    writeFileSync(mapFile, `${JSON.stringify(written, null, 2)}\n`);
+    const second = await runIntake(ctx, { source: zip, components: true });
+    assert.equal(second.exit, 0, JSON.stringify(second.failures));
+
+    // --from reads the earlier run's files from the base branch, same as any other update run: the
+    // "components" run has to actually land before a later export can carry it over. Simulate that
+    // by merging its branch into main and pushing, the way `delivery land` would.
+    const branch = repo.git('-C', first.worktree, 'rev-parse', '--abbrev-ref', 'HEAD');
+    repo.git('checkout', 'main');
+    repo.git('merge', '--no-ff', '-m', 'merge components', branch);
+    repo.git('push', 'origin', 'main');
+
+    // A later export, explicitly continuing "components": no --feature given, so it would collide
+    // with --from's own name under the old default. It must not be refused, and must land on a
+    // fresh, dated feature slug distinct from "components".
+    const third = await runIntake(ctx, { source: zip, components: true, from: 'components' });
+    assert.equal(third.exit, 0, JSON.stringify(third.failures));
+    assert.equal(third.feature, 'components-20260115');
+    assert.notEqual(third.worktree, first.worktree);
+
+    // Fix round (round 2): a second --from components the same day must not collide with the
+    // dated slug the third call just took; it gets "-2", and a further one after that "-3".
+    const fourth = await runIntake(ctx, { source: zip, components: true, from: 'components' });
+    assert.equal(fourth.exit, 0, JSON.stringify(fourth.failures));
+    assert.equal(fourth.feature, 'components-20260115-2');
+    assert.notEqual(fourth.worktree, third.worktree);
+
+    const fifth = await runIntake(ctx, { source: zip, components: true, from: 'components' });
+    assert.equal(fifth.exit, 0, JSON.stringify(fifth.failures));
+    assert.equal(fifth.feature, 'components-20260115-3');
+  } finally { repo.cleanup(); }
+});
+
+// A components run that has never happened yet still gets the plain "components" slug — the dated
+// form only kicks in once that slug is already taken (--from given, or a prior run exists).
+test('the first ever components run still gets the plain "components" feature slug', async () => {
+  const repo = await makeRunRepo({ run: false });
+  try {
+    const zip = join(repo.root, 'components-export.zip');
+    componentsExportZip(zip);
+    const profile = makeProfile({ components: { map: 'docs/delivery/components.json', galleryRoute: '/admin/design/components' } });
+    const { ctx } = await ctxFor(repo.primary, { feature: null, profile });
+    const first = await runIntake(ctx, { source: zip, components: true });
+    assert.equal(first.feature, 'components');
+  } finally { repo.cleanup(); }
+});
+
+test('--components refuses when profile.components is not configured', async () => {
+  const repo = await makeRunRepo({ run: false });
+  try {
+    const zip = join(repo.root, 'components-export.zip');
+    componentsExportZip(zip);
+    const { ctx } = await ctxFor(repo.primary, { feature: null });
+    await assert.rejects(runIntake(ctx, { source: zip, components: true }), (e) => e.exit === 2 && /profile\.components is not configured/.test(e.message));
+  } finally { repo.cleanup(); }
+});
+
+test('a page run reports component drift but never writes components.json', async () => {
+  const repo = await makeRunRepo({ run: false });
+  try {
+    // A page export can itself import a component: the page run must report it, not build it.
+    const zip = join(repo.root, 'components-export.zip');
+    componentsExportZip(zip);
+    const profile = makeProfile({ components: { map: 'docs/delivery/components.json', galleryRoute: '/admin/design/components' } });
+    const { ctx } = await ctxFor(repo.primary, { feature: 'main-page', profile });
+    const res = await runIntake(ctx, { source: zip, sentence: 'Redesign the main page.' });
+    assert.ok(res.lines.some((l) => /Picker: new component \(found in the export\)/.test(l)), res.lines.join('\n'));
+    assert.equal(existsSync(join(res.worktree, 'docs/delivery/components.json')), false, 'a page run never writes the product-wide component map');
   } finally { repo.cleanup(); }
 });
 

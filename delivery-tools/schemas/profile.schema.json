@@ -234,6 +234,25 @@
       }
     },
     "safetyFile": { "$ref": "common.schema.json#/$defs/Text" },
+    "components": {
+      "description": "Optional (components-first spec §2). Absent: components are not configured, and every components-first feature is off.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "map": { "description": "Path to the committed component map, e.g. docs/delivery/components.json.", "$ref": "common.schema.json#/$defs/Text" },
+        "baseDir": { "description": "The shadcn-style base components directory, e.g. apps/web/src/components/ui.", "$ref": "common.schema.json#/$defs/Text" },
+        "baseLibraries": { "description": "Import specifiers that count as a base component's own library, e.g. \"@radix-ui/*\".", "$ref": "common.schema.json#/$defs/Strings" },
+        "galleryRoute": { "description": "The built gallery page's route, e.g. /admin/design/components.", "type": "string", "pattern": "^/" }
+      }
+    },
+    "design": {
+      "description": "Optional (components-first spec §8.2).",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "forbiddenNames": { "description": "Names that must never reach a design brief or its attachments (customers, prospects).", "$ref": "common.schema.json#/$defs/Strings" }
+      }
+    },
     "ci": {
       "type": "object",
       "additionalProperties": false,

@@ -1,0 +1,66 @@
+// delivery brief sent: record that a brief was sent to Claude Design (components-first spec §8.3,
+// plan task 7). Refuses the same problems `delivery brief check` would.
+
+import { readFile } from 'node:fs/promises';
+import { basename, resolve } from 'node:path';
+import { defineCommand } from '../core/command.mjs';
+import { parseCommandArgs } from '../core/args.mjs';
+import { EXIT, UsageError } from '../core/exit.mjs';
+import { briefProblems, briefComponents, recordSent } from '../brief/brief.mjs';
+import { repoRel } from '../lifecycle/run-info.mjs';
+
+export default defineCommand({
+  name: 'brief sent',
+  summary: 'Record that a brief was sent to Claude Design',
+  usage: `usage: delivery brief sent <file> --chat <url>
+
+Appends one entry to intent/briefs/sent.json: the file, the chat link, the time, and the sha256 of
+the brief's bytes. Runs the same checks as "delivery brief check" on the file first and refuses
+(writes nothing) on any problem.
+
+exit: 0 recorded; 1 a check problem was found; 2 usage (no run, no --chat)
+
+common options:
+  --feature <slug>   the run the brief belongs to (required)
+  --json             machine output: one JSON object on stdout
+  --help             this text`,
+  async run(ctx, argv) {
+    const { values, positionals } = parseCommandArgs(argv, {
+      options: { chat: { type: 'string' } },
+      positionals: { min: 1, max: 1, names: ['file'] },
+    });
+    if (!values.chat) throw new UsageError('--chat <url> is required');
+    const paths = ctx.requirePaths();
+    const file = resolve(ctx.cwd, positionals[0]);
+    const { forbiddenNames, componentNames } = await briefComponents(ctx);
+    let text;
+    try {
+      text = await readFile(file, 'utf8');
+    } catch (err) {
+      const message = err.code === 'ENOENT' ? `${file} does not exist` : `${file}: ${err.message}`;
+      ctx.out.fail('brief', message);
+      ctx.out.set('problems', 1);
+      await ctx.journal({ command: 'brief sent', exit: EXIT.RED, counts: { problems: 1 } });
+      return EXIT.RED;
+    }
+    // The file's own name is checked too (fix round, M3), same as "brief check" already does: a
+    // forbidden name can leak through a file name nobody read as text.
+    const problems = briefProblems(text, { forbiddenNames, componentNames, fileNames: [basename(file)], requireBehaviours: true });
+    if (problems.length) {
+      for (const p of problems) ctx.out.fail('brief', p);
+      ctx.out.set('problems', problems.length);
+      await ctx.journal({ command: 'brief sent', exit: EXIT.RED, counts: { problems: problems.length } });
+      return EXIT.RED;
+    }
+
+    // Recorded relative to the repo root (fix round, M3): an absolute path leaks this machine's
+    // own layout into a file the run commits, and is meaningless to read back on another one.
+    const recordAs = repoRel(ctx.repoRoot, file);
+    await recordSent(paths.intentDir, { file, recordAs, chat: values.chat, at: ctx.clock.now().toISOString() });
+    ctx.out.line(`recorded ${recordAs} sent to ${values.chat}`);
+    ctx.out.set('file', recordAs);
+    ctx.out.set('chat', values.chat);
+    await ctx.journal({ command: 'brief sent', exit: EXIT.PASS, outputs: [recordAs] });
+    return EXIT.PASS;
+  },
+});

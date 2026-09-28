@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "allowOwns": [
+    { "file": "src/ui/date-picker.tsx", "library": "react-day-picker", "why": "the calendar grid itself, wrapped by no base component" }
+  ],
+  "components": [
+    {
+      "kind": "design",
+      "name": "Picker",
+      "design": { "file": "Picker.dc.html", "hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222" },
+      "target": "src/ui/picker.tsx",
+      "status": "new",
+      "builtHash": null,
+      "props": { "label": "label", "onPick": "onPick" },
+      "owns": [],
+      "builtOn": ["Popover", "Calendar"],
+      "replaces": [
+        { "file": "src/old-picker.tsx", "state": "open", "why": null }
+      ],
+      "uses": [],
+      "states": []
+    },
+    { "kind": "base", "name": "Popover", "target": "src/ui/popover.tsx", "owns": ["@radix-ui/react-popover"], "source": "scan" },
+    { "kind": "base", "name": "Calendar", "target": "src/ui/calendar.tsx", "owns": ["react-day-picker"], "source": "scan" }
+  ]
+}

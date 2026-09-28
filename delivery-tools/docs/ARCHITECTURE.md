@@ -109,6 +109,13 @@ request in its report and works around it locally.
 | `lib/commands/rules.mjs` | C |
 | `lib/picture/**` | C |
 | `tests/picture/**` | C |
+| `lib/commands/components.mjs` | C |
+| `lib/components/**` | C |
+| `tests/components/**` | C |
+| `tests/fixtures/components/**` | C |
+| `lib/commands/brief-*.mjs` | C |
+| `lib/brief/**` | C |
+| `tests/brief/**` | C |
 | `skills/**` | — |
 | `agents/**` | — |
 | `briefs/**` | — |
@@ -157,10 +164,21 @@ lib/sidefx/                   B2  derive
 lib/seed/                     B2  safety (M13), scan, plan, apply
 adapters/data/supabase.mjs    B2  createDataAdapter
 adapters/design/              C   index (getDesignAdapter), claude-design, image-folder
-lib/design/                   C   candidates, render, static server
+lib/design/                   C   candidates, render (also records <ID>.components.json), static
+                                   server; components.mjs: readDesignComponents, componentOrder,
+                                   readExportComponents (dc-import parsing); review.mjs:
+                                   reviewExport, diffExports (delivery design review)
+lib/components/               C   map.mjs: componentsMapPath, readComponentsMap, writeComponentsMap,
+                                   validateComponentsMap, refreshDesignEntries, scanBase,
+                                   libraryTargets, missingFromDesignSystem, findDesignSystemManifest;
+                                   check.mjs: usedComponents, componentProblems (the `ready`
+                                   components check, rules 1-4); states.mjs: componentStates,
+                                   galleryStates, componentsInventory (a components run's states)
 lib/capture/                  C   run, validate, spot, served-sha, job file
 lib/report/                   C   report (tldr), punch list
-templates/                    C   delivery-capture.spec.ts, delivery-capture-support.ts, component-state.test.tsx, punch-list.html, version-route.ts
+lib/brief/                    C   brief.mjs: nextBriefPath, fillTemplate, briefProblems, packBrief,
+                                   recordSent (intent/briefs/sent.json)
+templates/                    C   delivery-capture.spec.ts, delivery-capture-support.ts, component-state.test.tsx, punch-list.html, version-route.ts, design-brief.md
 hooks/                        A1  hooks.json, session-start.sh, pre-bash.sh, pre-browser.sh
 ```
 
@@ -241,10 +259,12 @@ sidefx, seedplan, preflight, candidates) that fails its schema is exit 5: tamper
 |---|---|---|---|---|
 | profile | `.claude/delivery-profile.json` | profile | a person (drafted by `init`, A2) | everyone via `ctx.profile()` |
 | safety | `.claude/delivery-safety.json` | safety | the founder only; never the CLI | B2, A2 (P2) via `ctx.safety()` |
+| component map | `docs/delivery/components.json` (`profile.components.map`) | components | intake --components (design entries' name, hash, uses, status); `components --mark-built` persists a fresh hash (land never commits); `components --scan-base` (base entries); the mapper agent (target, props, owns, builtOn, replaces) | `components`, ready's components check (all C) |
 | intent | `docs/delivery/<f>/intent.json` | intent | intake (A2) | everyone |
 | candidates | `.delivery/<f>/candidates.json` | candidates | design candidates (C) | inventory check (B1) |
 | inventory | `docs/delivery/<f>/inventory.json` | inventory | extractor agents | B1, C |
-| design renders | `.delivery/<f>/design/<ID>.{png,txt,dom.json}`; at phone width (`--width phone`) `<ID>@phone.{png,txt,dom.json}` | dom (desktop only) | design render (C) | B1 (M4 to M6), auditors, shoot |
+| design renders | `.delivery/<f>/design/<ID>.{png,txt,dom.json}`; at phone width (`--width phone`) `<ID>@phone.{png,txt,dom.json}`; each also gets a companion `<ID>.components.json` (`{ names }`, the components that render showed) | dom (desktop only) | design render (C) | B1 (M4 to M6), auditors, shoot, ready's components check |
+| design review | `.delivery/<f>/design-review/{review.json,compare.html,before/,after/}` | (no schema; written with `writeJsonAtomic`, not `writeArtefact`) | design review (C) | brief new --from-review |
 | baseline | `docs/delivery/<f>/baseline.json` | baseline | baseline (B2) | B1 (M1), A1 |
 | baseline at HEAD | `.delivery/<f>/baseline-head.json` | baseline | baseline --against (B2) | M2 |
 | plan | `docs/delivery/<f>/plan.json` | plan | coverage-plan agents; scope read (A2); baseline --refresh (B2) | everyone |

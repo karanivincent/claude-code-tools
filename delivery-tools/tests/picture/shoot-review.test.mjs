@@ -1,10 +1,15 @@
 // delivery shoot's pure helpers, the review compiler, and picture-mode NEXT.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { captureOrder, isLocal, resultLine, selectStates, signInUrl, testidSelector, userFor } from '../../lib/picture/shoot.mjs';
-import { parseReview, renderCompare, summarise } from '../../lib/picture/review.mjs';
-import { MAX_ROUNDS, pictureNext } from '../../lib/picture/next.mjs';
+import { backToDesignItems, parseReview, renderCompare, summarise } from '../../lib/picture/review.mjs';
+import { MAX_ROUNDS, pictureFacts, pictureNext } from '../../lib/picture/next.mjs';
 import { sampleMap } from './map.test.mjs';
+import { featurePaths } from '../../lib/core/paths.mjs';
+import { makeTempDir } from '../helpers/tmp-repo.mjs';
+import { makeProfile } from '../helpers/fixtures.mjs';
 
 test('a shoot takes every capture-reachable state, or the ids given, minus !ids', () => {
   const m = sampleMap();
@@ -70,6 +75,14 @@ test('a review parses into must-fix and small notes per state, wrapped lines joi
   assert.deepEqual(r['KC-04'].small, ['The divider is lighter than the design.']);
 });
 
+// Fix round 1: a components run's gallery state ids ("C-<Name>-NN") need no change here — the
+// heading regex was already id-shape-agnostic — but nothing pinned that down, so this does.
+test('a reviewer note headed by a components-run gallery state id parses, "@phone" included', () => {
+  const r = parseReview('## C-Picker-01@phone\n- must fix: the padding is tighter than the design.\n');
+  assert.deepEqual(Object.keys(r), ['C-Picker-01@phone']);
+  assert.deepEqual(r['C-Picker-01@phone'].must, ['the padding is tighter than the design.']);
+});
+
 test('summarise gives every state a verdict', () => {
   const m = sampleMap();
   const shoot = { states: { 'KC-05': { reached: true }, 'KC-04': { reached: true }, 'KC-08': { reached: false } } };
@@ -77,7 +90,106 @@ test('summarise gives every state a verdict', () => {
   assert.equal(s.states['KC-05'].verdict, 'must');
   assert.equal(s.states['KC-08'].verdict, 'not-reached');
   assert.equal(s.states['KC-01'].verdict, 'test-only');
-  assert.deepEqual(s.counts, { match: 0, small: 0, must: 2, notReached: 1, testOnly: 1 });
+  assert.deepEqual(s.counts, { match: 0, small: 0, must: 2, notReached: 1, testOnly: 1, backToDesign: 0 });
+});
+
+// --- the "design:" bullet and the "back-to-design" verdict --------------------------------------
+
+const DESIGN_REVIEW = `1 states match, 1 has problems.
+
+## KC-08
+- design: the design shows a plain "Add" link; the product already uses a large button with a
+  + icon everywhere else on this page.
+
+## Matching
+KC-04
+`;
+
+test('a review parses a "design:" bullet, wrapped lines joined, distinct from must/small', () => {
+  const r = parseReview(DESIGN_REVIEW);
+  assert.deepEqual(Object.keys(r), ['KC-08']);
+  assert.deepEqual(r['KC-08'].must, []);
+  assert.deepEqual(r['KC-08'].small, []);
+  assert.equal(r['KC-08'].design[0], 'the design shows a plain "Add" link; the product already uses a large button with a + icon everywhere else on this page.');
+});
+
+test('"design" ending a plain sentence is never mistaken for a trailing design: marker', () => {
+  const r = parseReview('## KC-08\n- small: the focus ring does not match the design.\n');
+  assert.deepEqual(r['KC-08'].small, ['the focus ring does not match the design.']);
+  assert.deepEqual(r['KC-08'].design, []);
+});
+
+// Fix round: leadRe used to make the colon optional, so a bullet that just happened to start with
+// the ordinary word "design" (no colon) was misparsed as a design note even when it carried an
+// explicit must-fix/small marker.
+test('"design" starting a real note, with no colon, is not the design: lead; an explicit marker wins', () => {
+  const must = parseReview('## KC-08\n- Design shows a large Add button with a + icon and a chevron; the live page has none (must fix)\n');
+  assert.deepEqual(must['KC-08'].design, []);
+  assert.deepEqual(must['KC-08'].must, ['Design shows a large Add button with a + icon and a chevron; the live page has none']);
+
+  const small = parseReview('## KC-08\n- Design underlines the field label; the live page does not (small)\n');
+  assert.deepEqual(small['KC-08'].design, []);
+  assert.deepEqual(small['KC-08'].small, ['Design underlines the field label; the live page does not']);
+});
+
+test('a literal "design:" lead (colon required) still parses as a design note', () => {
+  const r = parseReview('## KC-08\n- design: the design lacks the Archive button\n');
+  assert.deepEqual(r['KC-08'].must, []);
+  assert.deepEqual(r['KC-08'].small, []);
+  assert.deepEqual(r['KC-08'].design, ['the design lacks the Archive button']);
+});
+
+test('an item whose only bullets are design: gets back-to-design, ranked after small and before test-only; a must/small item keeps its worse verdict but still collects its design notes', () => {
+  const m = sampleMap();
+  const shoot = { states: { 'KC-05': { reached: true }, 'KC-04': { reached: true }, 'KC-08': { reached: true } } };
+  const mixedReview = `## KC-05\n- must fix: the button is missing.\n- design: the empty state should show an illustration, like the rest of the product does.\n\n## KC-08\n- design: this screen should use the shared Table component, like every other list.\n`;
+  const s = summarise({ map: m, shoot, notes: parseReview(mixedReview) });
+  assert.equal(s.states['KC-05'].verdict, 'must');
+  assert.deepEqual(s.states['KC-05'].design, ['the empty state should show an illustration, like the rest of the product does.']);
+  assert.equal(s.states['KC-08'].verdict, 'back-to-design');
+  assert.deepEqual(s.states['KC-08'].design, ['this screen should use the shared Table component, like every other list.']);
+  assert.equal(s.counts.must, 1);
+  assert.equal(s.counts.backToDesign, 1);
+  // back-to-design does not count as open (must + notReached), matching the fix-round rule.
+  assert.equal(s.counts.notReached, 0);
+});
+
+test('back-to-design renders in its own group: pill text, tally and the design note, without being mistaken for a match', () => {
+  const m = sampleMap();
+  const shoot = { states: { 'KC-05': { reached: true }, 'KC-04': { reached: true }, 'KC-08': { reached: true } } };
+  const s = summarise({ map: m, shoot, notes: parseReview('## KC-05\n- design: use the shared empty state.\n') });
+  const html = renderCompare({ title: 't', round: 1, beforeRound: null, map: m, summary: s, pictures: () => ({ design: null, before: null, now: null }) });
+  assert.match(html, /<span class="pill back-to-design">1 back to design<\/span>/);
+  assert.match(html, /<li class="d">use the shared empty state\.<\/li>/);
+  assert.match(html, /<li><b>1<\/b>back to design<\/li>/);
+});
+
+function writeReviewRound(paths, n, states) {
+  const dir = join(paths.runDir, 'rounds', String(n));
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, 'review.json'), JSON.stringify({ round: n, states }));
+}
+
+test('backToDesignItems: one entry per design: bullet, from the last round with a compiled review only', () => {
+  const repo = makeTempDir();
+  try {
+    const paths = featurePaths(repo.dir, 'widgets');
+    assert.deepEqual(backToDesignItems(paths), [], 'no rounds yet');
+    writeReviewRound(paths, 1, {
+      'KC-05': { verdict: 'back-to-design', must: [], small: [], design: ['first note'] },
+      'KC-04': { verdict: 'match', must: [], small: [], design: [] },
+    });
+    assert.deepEqual(backToDesignItems(paths), [{ id: 'KC-05', note: 'first note' }]);
+    // A must/small item's design notes count too, and multiple design bullets on one item
+    // become multiple entries. Only the newest round with a review.json is read.
+    writeReviewRound(paths, 2, {
+      'KC-05': { verdict: 'must', must: ['still broken'], small: [], design: ['a', 'b'] },
+      'KC-08': { verdict: 'back-to-design', must: [], small: [], design: ['c'] },
+    });
+    assert.deepEqual(backToDesignItems(paths), [
+      { id: 'KC-05', note: 'a' }, { id: 'KC-05', note: 'b' }, { id: 'KC-08', note: 'c' },
+    ]);
+  } finally { repo.cleanup(); }
 });
 
 test('the comparison page shows each state, its pictures and notes, escaped', () => {
@@ -117,4 +229,199 @@ test('picture NEXT walks the loop', () => {
   const shipped = pictureNext(facts({ rounds: [{ ...open, round: MAX_ROUNDS }] }), { cli: 'node scripts/delivery.mjs', readyOk: true, epic: 1947 });
   assert.equal(shipped.step, 'land');
   assert.match(shipped.text, /after the founder's merge, node scripts\/delivery\.mjs land --epic 1947/);
+});
+
+test('picture NEXT: items sent back to the design get their own tail line at ship, independent of open must/not-reached items', () => {
+  const clean = { round: 1, shot: true, reviews: 1, compiled: true, counts: { must: 0, notReached: 0 } };
+  // back-to-design items never trigger another fix round on their own.
+  const shipClean = next(facts({ rounds: [clean], backToDesign: 2 }));
+  assert.equal(shipClean.step, 'ship');
+  assert.match(shipClean.text, /; 2 item\(s\) go back to the design: node scripts\/delivery\.mjs brief new <slug> --from-run$/);
+  // No back-to-design items: no such tail at all.
+  assert.doesNotMatch(next(facts({ rounds: [clean], backToDesign: 0 })).text, /back to the design/);
+  // Combines with the "stay open after MAX_ROUNDS" tail when both are true.
+  const stillOpen = { round: MAX_ROUNDS, shot: true, reviews: 1, compiled: true, counts: { must: 1, notReached: 0 } };
+  const both = next(facts({ rounds: [stillOpen], backToDesign: 1 }));
+  assert.match(both.text, /go to the founder as a list; 1 item\(s\) go back to the design: node scripts\/delivery\.mjs brief new <slug> --from-run$/);
+});
+
+test('picture NEXT: components-first branches (page blocked, components run unbuilt, landed components run owing design-sync)', () => {
+  // A page run whose screens use a component that is not built yet stops right after "no map",
+  // before phone render, rules or worlds.
+  const blocked = next(facts({ phoneRenderOwed: true, pageBlockedComponents: ['Picker'] }));
+  assert.equal(blocked.step, 'components');
+  assert.match(blocked.text, /run the components run first/);
+  assert.match(blocked.text, /intake --components/);
+  assert.match(blocked.text, /Picker/);
+  assert.doesNotMatch(blocked.text, /--from components/, 'no components run has ever happened yet');
+
+  // Fix round (I12): once a components run exists at all (componentsMapPath's file is proof),
+  // "components" is a taken feature slug, so the fix names --from components instead.
+  const blockedAgain = next(facts({ phoneRenderOwed: true, pageBlockedComponents: ['Picker'], componentsRunExists: true }));
+  assert.match(blockedAgain.text, /intake --components --from components <export>/);
+
+  // A components run whose gallery still has an unmarked component is stopped before land/ship,
+  // even once every round is clean.
+  const openNone = { round: MAX_ROUNDS, shot: true, reviews: 1, compiled: true, counts: { must: 0, notReached: 0 } };
+  const unbuilt = next(facts({ rounds: [openNone], componentsUnbuilt: ['Picker', 'TimePicker'], componentsMapRelPath: 'docs/delivery/components.json' }));
+  assert.equal(unbuilt.step, 'components-build');
+  assert.match(unbuilt.text, /components --mark-built Picker TimePicker/);
+  // Fix round (I14): --mark-built only writes the working copy, and ready reads the PR head, so
+  // the line always names committing and pushing too, not only marking built.
+  assert.match(unbuilt.text, /commit docs\/delivery\/components\.json and push/);
+
+  // No other step is reachable for a landed components run whose manifest still lacks entries.
+  const synced = next(facts({ designed: 0, landedComponentsRun: true, designSyncMissing: ['Picker', 'Sheet'] }));
+  assert.equal(synced.step, 'design-sync');
+  assert.equal(synced.skill, null);
+  assert.match(synced.text, /run \/design-sync on the design-system project: it lacks Picker, Sheet/);
+
+  // Facts with no components-first fields at all (every run before this task) walk the loop exactly
+  // as before: nothing here regresses a run with no profile.components block.
+  assert.equal(next(facts()).step, 'build');
+});
+
+const H = `sha256:${'3'.repeat(64)}`;
+
+function writeJson(abs, value) {
+  mkdirSync(join(abs, '..'), { recursive: true });
+  writeFileSync(abs, JSON.stringify(value));
+}
+
+function componentsFile(status) {
+  return {
+    version: 1,
+    components: [{
+      kind: 'design', name: 'Picker', design: { file: 'Picker.dc.html', hash: H },
+      target: 'src/ui/picker.tsx', status, builtHash: status === 'built' ? H : null,
+      props: {}, owns: [], builtOn: [], replaces: [], uses: [], states: ['C-Picker-01'],
+    }],
+  };
+}
+
+test('pictureFacts: components-first facts read from real files, with a profile', async () => {
+  const repo = makeTempDir();
+  try {
+    const paths = featurePaths(repo.dir, 'widgets');
+    const profile = makeProfile({ components: { map: 'docs/delivery/components.json' } });
+
+    // A page run whose one state shows Picker, which is not built yet.
+    writeJson(join(repo.dir, 'docs/delivery/components.json'), componentsFile('new'));
+    writeJson(join(repo.dir, 'docs/delivery/widgets/map.json'), {
+      schemaVersion: 1, feature: 'widgets', title: 'Widgets', kind: 'redesign', route: '/dashboard/widgets',
+      pageArea: { left: 240, designLeft: 240 },
+      worlds: [{ id: 'design', users: [{ role: 'admin', email: 'delivery+widgets-design-admin@example.invalid' }] }],
+      states: [{ id: 'W-01', screen: 'Main', name: 'Everything', reach: { world: 'design', role: 'admin', steps: [{ goto: '/dashboard/widgets' }] }, buttons: [] }],
+    });
+    mkdirSync(paths.designRenders, { recursive: true });
+    writeFileSync(join(paths.designRenders, 'W-01.components.json'), JSON.stringify({ names: ['Picker'] }));
+    assert.deepEqual((await pictureFacts(paths, { profile })).pageBlockedComponents, ['Picker']);
+    assert.deepEqual((await pictureFacts(paths)).pageBlockedComponents, [], 'no profile: no components facts computed');
+
+    // A components run whose gallery is building Picker, still unbuilt.
+    writeJson(join(repo.dir, 'docs/delivery/widgets/map.json'), {
+      schemaVersion: 1, feature: 'widgets', title: 'Components', kind: 'components', route: '/admin/design/components',
+      widths: ['desktop', 'phone'],
+      worlds: [{ id: 'components', users: [{ role: 'admin', email: 'delivery+widgets-components-admin@example.invalid' }] }],
+      states: [{ id: 'C-Picker-01', screen: 'Picker', name: 'Picker: defaults', design: 'C-Picker-01', reach: { world: 'components', role: 'admin', steps: [{ goto: '/admin/design/components' }] }, buttons: [] }],
+    });
+    writeJson(join(repo.dir, 'docs/delivery/widgets/gallery-states.json'), { states: [{ id: 'C-Picker-01', component: 'Picker', props: {} }] });
+    assert.deepEqual((await pictureFacts(paths, { profile })).componentsUnbuilt, ['Picker']);
+
+    // Once built, and the run's journal already landed, a manifest missing Picker owes design-sync.
+    writeJson(join(repo.dir, 'docs/delivery/components.json'), componentsFile('built'));
+    writeJson(paths.state, { journal: [{ at: '2026-01-01T00:00:00.000Z', event: 'land --epic 42 | exit=0 | ok=1 | red=0 | sha=abcdef123456 | closed=1' }] });
+    writeJson(join(repo.dir, 'docs/design/widgets/_ds/x/_ds_manifest.json'), { components: [{ name: 'Sheet' }] });
+    const landed = await pictureFacts(paths, { profile });
+    assert.equal(landed.componentsUnbuilt.length, 0);
+    assert.equal(landed.landedComponentsRun, true);
+    assert.deepEqual(landed.designSyncMissing, ['Picker']);
+    assert.equal(pictureNext(landed, { cli: 'node scripts/delivery.mjs' }).step, 'design-sync');
+  } finally { repo.cleanup(); }
+});
+
+// Fix round (I14): --mark-built only ever writes the working copy; ready reads the PR head. Before
+// this fix, componentsUnbuilt read the working copy directly, so NEXT said "done" the instant
+// --mark-built ran locally, while ready (reading HEAD) stayed red until it was committed and
+// pushed — two different answers to "is this done". pictureFacts must agree with ready: both read
+// the committed HEAD.
+test('pictureFacts: componentsUnbuilt reads the committed HEAD, not the working copy, once a git handle is given', async () => {
+  const repo = makeTempDir();
+  try {
+    const paths = featurePaths(repo.dir, 'widgets');
+    const profile = makeProfile({ components: { map: 'docs/delivery/components.json' } });
+    writeJson(join(repo.dir, 'docs/delivery/widgets/map.json'), {
+      schemaVersion: 1, feature: 'widgets', title: 'Components', kind: 'components', route: '/admin/design/components',
+      widths: ['desktop', 'phone'],
+      worlds: [{ id: 'components', users: [{ role: 'admin', email: 'delivery+widgets-components-admin@example.invalid' }] }],
+      states: [{ id: 'C-Picker-01', screen: 'Picker', name: 'Picker: defaults', design: 'C-Picker-01', reach: { world: 'components', role: 'admin', steps: [{ goto: '/admin/design/components' }] }, buttons: [] }],
+    });
+    writeJson(join(repo.dir, 'docs/delivery/widgets/gallery-states.json'), { states: [{ id: 'C-Picker-01', component: 'Picker', props: {} }] });
+    // The working copy already says built (--mark-built ran locally); HEAD has never seen that.
+    writeJson(join(repo.dir, 'docs/delivery/components.json'), componentsFile('built'));
+
+    const noGit = await pictureFacts(paths, { profile });
+    assert.deepEqual(noGit.componentsUnbuilt, [], 'no git handle: falls back to the working copy, same as before');
+
+    // pictureFacts also reads HEAD for componentsRunExists (I12, round 2) in the same call; the
+    // stub answers both paths, and only the components.json call matters to this test.
+    const shownAtHead = [];
+    const staleGit = { show: async (ref, p) => { shownAtHead.push([ref, p]); return p.endsWith('/components.json') ? JSON.stringify(componentsFile('new')) : null; } };
+    const stillUnbuilt = await pictureFacts(paths, { profile, git: staleGit });
+    assert.deepEqual(stillUnbuilt.componentsUnbuilt, ['Picker'], 'HEAD has not seen the mark-built yet: still owed a commit and a push');
+    assert.ok(shownAtHead.some(([ref, p]) => ref === 'HEAD' && p === 'docs/delivery/components.json'));
+
+    const caughtUpGit = { show: async () => JSON.stringify(componentsFile('built')) };
+    const doneAtHead = await pictureFacts(paths, { profile, git: caughtUpGit });
+    assert.deepEqual(doneAtHead.componentsUnbuilt, [], 'once HEAD itself says built, NEXT and ready finally agree');
+  } finally { repo.cleanup(); }
+});
+
+// Fix round (I12, round 2): componentsRunExists must mean "the first components run wrote its own
+// map.json" — the product-wide components.json existing is not proof of that; a page run's own
+// intake can write it too. Tested through pictureFacts with real files, both branches.
+test('pictureFacts: componentsRunExists reads the first components run\'s own map.json, not just components.json\'s presence', async () => {
+  const repo = makeTempDir();
+  try {
+    const paths = featurePaths(repo.dir, 'widgets');
+    const profile = makeProfile({ components: { map: 'docs/delivery/components.json' } });
+
+    // A page run blocked on Picker; components.json exists (a page run's own intake writes drift
+    // there too), but no components run has ever written docs/delivery/components/map.json.
+    writeJson(join(repo.dir, 'docs/delivery/components.json'), componentsFile('new'));
+    writeJson(join(repo.dir, 'docs/delivery/widgets/map.json'), {
+      schemaVersion: 1, feature: 'widgets', title: 'Widgets', kind: 'redesign', route: '/dashboard/widgets',
+      pageArea: { left: 240, designLeft: 240 },
+      worlds: [{ id: 'design', users: [{ role: 'admin', email: 'delivery+widgets-design-admin@example.invalid' }] }],
+      states: [{ id: 'W-01', screen: 'Main', name: 'Everything', reach: { world: 'design', role: 'admin', steps: [{ goto: '/dashboard/widgets' }] }, buttons: [] }],
+    });
+    mkdirSync(paths.designRenders, { recursive: true });
+    writeFileSync(join(paths.designRenders, 'W-01.png'), 'x');
+    writeFileSync(join(paths.designRenders, 'W-01.components.json'), JSON.stringify({ names: ['Picker'] }));
+
+    const before = await pictureFacts(paths, { profile });
+    assert.equal(before.componentsRunExists, false, 'components.json existing alone is not proof a components run happened');
+    const beforeNext = pictureNext(before, { cli: 'node scripts/delivery.mjs' });
+    assert.match(beforeNext.text, /intake --components <export>/);
+    assert.doesNotMatch(beforeNext.text, /--from components/);
+
+    // The first components run has now written its own map.json (working copy, no git handle).
+    writeJson(join(repo.dir, 'docs/delivery/components/map.json'), {
+      schemaVersion: 1, feature: 'components', title: 'Components', kind: 'components', route: '/admin/design/components',
+      worlds: [{ id: 'components', users: [{ role: 'admin', email: 'delivery+components-admin@example.invalid' }] }],
+      states: [],
+    });
+    const afterNoGit = await pictureFacts(paths, { profile });
+    assert.equal(afterNoGit.componentsRunExists, true, 'no git handle: falls back to the working copy');
+    const afterNext = pictureNext(afterNoGit, { cli: 'node scripts/delivery.mjs' });
+    assert.match(afterNext.text, /intake --components --from components <export>/);
+
+    // The git-HEAD path: HEAD has it even though the working copy no longer does.
+    const seenAt = [];
+    const git = { show: async (ref, p) => { seenAt.push([ref, p]); return '{"kind":"components"}'; } };
+    rmSync(join(repo.dir, 'docs/delivery/components/map.json'));
+    const afterGit = await pictureFacts(paths, { profile, git });
+    assert.equal(afterGit.componentsRunExists, true, 'HEAD says it exists even though the working copy was since removed');
+    assert.ok(seenAt.some(([ref, p]) => ref === 'HEAD' && p === 'docs/delivery/components/map.json'));
+  } finally { repo.cleanup(); }
 });

@@ -24,6 +24,33 @@ Paths are relative to the worktree root.
 In an update run (the run's state names a `from` run) the page already exists and round 1 has
 already pictured it: change only what the round's review lists, and keep everything else as it is.
 
+## Components
+
+When the product has design-first components (`docs/delivery/components.json`), run
+`delivery components --used` for the components this page uses, each with its `target` (the file
+to import) and its `props` (design prop name to code prop name). Import these; never draw your own
+copy of a control the design already built as a component. A built component that looks wrong on
+this page is a finding against the components run, not something to patch here.
+
+In a components run (the map's `"kind"` is `"components"`) you are building the gallery page
+itself, not a product page:
+
+- Build the gallery page at the profile's `components.galleryRoute`, rendering every state listed
+  in `docs/delivery/<feature>/gallery-states.json`. Wrap each state in
+  `<div data-delivery-state="<id>">…</div>` at that route — `delivery shoot` crops to that element,
+  so a state drawn outside its own wrapper, or two states sharing one, cannot be pictured.
+- An open popover, dropdown or tooltip renders inline, inside its own `[data-delivery-state]`
+  wrapper: give a Radix `Portal` a `container` pointed at the wrapper, or drop the portal
+  altogether on the gallery page. A default `Portal` renders to `document.body`, outside every
+  state's wrapper, so the crop never captures what a state opens.
+- Compose each component from its `builtOn` base parts (Popover, Calendar, Table, …); never
+  re-wrap the underlying library yourself.
+- For every file the map's `replaces` lists, switch its callers to the new target and delete the
+  old file in the same PR. When a caller's props can't be mapped onto the new component, leave
+  that file as it is and name it in your report instead of guessing (the mapper marks it `left`
+  with the reason). After deleting a replaced file, run `delivery components --scan-base`: it drops
+  the file's own base entry and reports the removal.
+
 ## How to see your work
 
 The dev server is already running; your prompt gives its URL. Never start or stop a server. To

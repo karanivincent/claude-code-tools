@@ -92,8 +92,16 @@ export function designFileCandidates(state, width) {
   return d.separate ? [narrow, `${d.id}.png`] : [narrow];
 }
 
-/** The page-area crop at a width: desktop is `pageArea`, the phone `pageArea.phone` (no sidebar). */
-export function cropFor(map, width) {
+/**
+ * The crop for one item: a components map (spec components-first §3) is one gallery page holding
+ * every state at once, so the crop is the state's own wrapper element, not a page-area rectangle.
+ * @param {object} map
+ * @param {string} width
+ * @param {string} [id] the state id; only read for a components map
+ * @returns {{ left: number, designLeft: number } | { selector: string }}
+ */
+export function cropFor(map, width, id) {
+  if (map?.kind === 'components') return { selector: `[data-delivery-state="${id}"]` };
   const area = map?.pageArea ?? {};
   if (width === 'desktop') {
     const left = area.left ?? 240;

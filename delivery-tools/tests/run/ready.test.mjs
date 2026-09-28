@@ -15,7 +15,8 @@ import { sha256File } from '../../lib/core/hash.mjs';
 import { notImplementedError } from '../../lib/core/exit.mjs';
 import { PASS } from '../../lib/core/gate.mjs';
 import { makeMarker } from '../../lib/core/markers.mjs';
-import { validExample } from '../helpers/fixtures.mjs';
+import { makeProfile, validExample } from '../helpers/fixtures.mjs';
+import { sha256Text } from '../../lib/design/components.mjs';
 import { commitAll, ctxFor, gitIn, makeRunRepo, planWith, startRun, writeFiles } from './support.mjs';
 import { sampleMap } from '../picture/map.test.mjs';
 
@@ -37,8 +38,8 @@ function greenDeps(head, over = {}) {
 }
 
 /** A run at phase pr in its integration worktree, with its draft PR at the worktree's HEAD and a full capture of it. */
-async function fixture({ deps = {}, changed = {} } = {}) {
-  const { repo, dir } = makeRunRepo({ worktree: true });
+async function fixture({ deps = {}, changed = {}, profile } = {}) {
+  const { repo, dir } = makeRunRepo({ worktree: true, ...(profile ? { profile } : {}) });
   writeFiles(dir, { 'docs/delivery/widgets/plan.json': planWith(), ...changed });
   const head = commitAll(dir, 'the feature');
   const paths = await startRun(dir, { phase: 'pr', wave: 2 });
@@ -376,5 +377,264 @@ test('picture mode: no round, open states with fix rounds left, an unreached new
     writeFileSync(join(three, 'shoot.json'), '{}');
     writeFileSync(join(three, 'review-to-check.md'), 'KC-05 matches');
     assert.match((await pictures()).detail, /round 3 is pictured but its reviews are not compiled: delivery review --round 3/);
+  } finally { f.repo.cleanup(); }
+});
+
+// The `components` ready check (components-first spec §5): only added to a picture-mode run's
+// checks when profile.components.map is set.
+const COMPONENTS_H = `sha256:${'7'.repeat(64)}`;
+const COMPONENTS_PROFILE = makeProfile({ components: { map: 'docs/delivery/components.json' } });
+
+/** docs/delivery/components.json: design Picker (built unless overridden) plus base Sheet. */
+function componentsMap(pickerOver = {}) {
+  return JSON.stringify({
+    version: 1,
+    allowOwns: [],
+    components: [
+      {
+        kind: 'design', name: 'Picker', design: { file: 'Picker.dc.html', hash: COMPONENTS_H },
+        target: 'src/ui/picker.tsx', status: 'built', builtHash: COMPONENTS_H,
+        props: {}, owns: [], builtOn: ['Sheet'], replaces: [], uses: [], states: ['C-Picker-01'],
+        ...pickerOver,
+      },
+      { kind: 'base', name: 'Sheet', target: 'src/ui/sheet.tsx', owns: ['@radix-ui/react-dialog'], source: 'shadcn' },
+    ],
+  });
+}
+
+const PAGE_MAP = JSON.stringify({
+  schemaVersion: 1, feature: 'widgets', title: 'Widgets', kind: 'redesign', route: '/dashboard/widgets',
+  pageArea: { left: 240, designLeft: 240 },
+  worlds: [{ id: 'design', users: [{ role: 'admin', email: 'delivery+widgets-design-admin@example.invalid' }] }],
+  states: [{ id: 'W-01', screen: 'Main', name: 'Everything', reach: { world: 'design', role: 'admin', steps: [{ goto: '/dashboard/widgets' }] }, buttons: [] }],
+});
+
+const PAGE_USES_PICKER = {
+  'docs/delivery/widgets/map.json': PAGE_MAP,
+  'docs/delivery/components.json': componentsMap(),
+  'src/ui/picker.tsx': 'export const Picker = () => null;\n',
+  'src/pages/menu.tsx': "import { Picker } from '../ui/picker';\nexport const Menu = () => null;\n",
+};
+
+/** A design render's recorded component names, written directly (the design renderer's own output). */
+function writeComponentRecord(paths, id, names, width) {
+  mkdirSync(paths.designRenders, { recursive: true });
+  const file = width === 'phone' ? `${id}@phone.components.json` : `${id}.components.json`;
+  writeFileSync(join(paths.designRenders, file), JSON.stringify({ names }));
+}
+
+test('components: absent from checks with no profile.components block, and a page run using a built, imported component is green', async () => {
+  const f = await fixture({ changed: PAGE_USES_PICKER, profile: COMPONENTS_PROFILE });
+  try {
+    writeComponentRecord(f.paths, 'W-01', ['Picker']);
+    const { ready } = await computeReady(f.ctx, { pr: f.pr });
+    assert.ok(ready.checks.some((c) => c.id === 'components'));
+    const components = ready.checks.find((c) => c.id === 'components');
+    assert.equal(components.ok, true, components.detail);
+    assert.match(components.detail, /^1 component\(s\) used, none rebuilt$/);
+  } finally { f.repo.cleanup(); }
+});
+
+test('components: no profile.components block adds no components check', async () => {
+  const f = await fixture({ changed: PICTURE_RUN });
+  try {
+    const { ready } = await computeReady(f.ctx, { pr: f.pr });
+    assert.equal(ready.checks.some((c) => c.id === 'components'), false);
+  } finally { f.repo.cleanup(); }
+});
+
+test('components: a tsconfig "@/*" alias import resolves to the target (rule 4 satisfied), and a direct import of an owned library is still red (rule 2)', async () => {
+  const f = await fixture({
+    changed: {
+      'tsconfig.json': JSON.stringify({ compilerOptions: { baseUrl: '.', paths: { '@/*': ['./src/*'] } } }),
+      'docs/delivery/widgets/map.json': PAGE_MAP,
+      'docs/delivery/components.json': componentsMap(),
+      'src/ui/picker.tsx': 'export const Picker = () => null;\n',
+      'src/pages/menu.tsx': "import { Picker } from '@/ui/picker';\nimport { Dialog } from '@radix-ui/react-dialog';\n",
+    },
+    profile: COMPONENTS_PROFILE,
+  });
+  try {
+    writeComponentRecord(f.paths, 'W-01', ['Picker']);
+    const { ready } = await computeReady(f.ctx, { pr: f.pr });
+    const components = ready.checks.find((c) => c.id === 'components');
+    assert.equal(components.ok, false);
+    assert.match(components.detail, /src\/pages\/menu\.tsx/);
+    assert.match(components.detail, /@radix-ui\/react-dialog/);
+    assert.doesNotMatch(components.detail, /not imported by anything/);
+  } finally { f.repo.cleanup(); }
+});
+
+// Fix round (I16, the weaker form): rule 4 used to go red on an update run that never touches the
+// component's own caller, even though the target is imported somewhere in the repo. menu.tsx here
+// is committed on main (before the PR branches off), so it never appears in this PR's own changed
+// files; only a whole-repo scan finds it importing Picker.
+test('components: rule 4 passes when nothing this PR changes reaches the target, but some other tracked file in the repo imports it (I16)', async () => {
+  const { repo, dir } = makeRunRepo({
+    worktree: true,
+    files: { 'src/pages/menu.tsx': "import { Picker } from '../ui/picker';\n" },
+    profile: COMPONENTS_PROFILE,
+  });
+  try {
+    writeFiles(dir, {
+      'docs/delivery/widgets/plan.json': planWith(),
+      'docs/delivery/widgets/map.json': PAGE_MAP,
+      'docs/delivery/components.json': componentsMap(),
+      'src/ui/picker.tsx': 'export const Picker = () => null;\n',
+      'docs/notes.md': 'unrelated change; menu.tsx (the real caller) is untouched by this PR\n',
+    });
+    const head = commitAll(dir, 'the feature');
+    const paths = await startRun(dir, { phase: 'pr', wave: 2 });
+    const t = await ctxFor(dir, { deps: greenDeps(head) });
+    const pr = await t.gh.prCreate({ title: 'Widgets', body: makeMarker({ feature: 'widgets', kind: 'pr' }), base: 'main', head: 'epic/101-widgets' });
+    t.gh.setHead(pr.number, head);
+    const capture = { ...validExample('capture'), runId: 'c-full-1', mode: 'full', expectedSha: head };
+    await writeArtefact(paths, 'capture', capture, { key: 'c-full-1' });
+    writeComponentRecord(paths, 'W-01', ['Picker']);
+
+    const { ready } = await computeReady(t.ctx, { pr: pr.number });
+    const components = ready.checks.find((c) => c.id === 'components');
+    assert.equal(components.ok, true, components.detail);
+  } finally { repo.cleanup(); }
+});
+
+test('components: a used component that is not built is red and names it', async () => {
+  const f = await fixture({
+    changed: { ...PAGE_USES_PICKER, 'docs/delivery/components.json': componentsMap({ status: 'new', builtHash: null }) },
+    profile: COMPONENTS_PROFILE,
+  });
+  try {
+    writeComponentRecord(f.paths, 'W-01', ['Picker']);
+    const { ready, exit } = await computeReady(f.ctx, { pr: f.pr });
+    assert.equal(exit, 1);
+    const components = ready.checks.find((c) => c.id === 'components');
+    assert.equal(components.ok, false);
+    assert.match(components.detail, /Picker/);
+    assert.match(components.detail, /not built/);
+  } finally { f.repo.cleanup(); }
+});
+
+// Fix round (I3): components.json's own design.hash/status is only ever refreshed by a components
+// run's own intake, so a page run trusting it alone can miss a design that has moved on since. The
+// check now reads the run's real design snapshot and catches what the map alone would call built.
+test('components: reads the real design snapshot, catching a hash the map alone would still call built (I3)', async () => {
+  const liveHtml = '<x-dc><div>updated</div></x-dc>';
+  const f = await fixture({
+    changed: {
+      ...PAGE_USES_PICKER,
+      'docs/design/widgets/Main.dc.html': '<x-dc>\n<dc-import name="Picker"></dc-import>\n</x-dc>',
+      'docs/design/widgets/Picker.dc.html': liveHtml,
+    },
+    profile: COMPONENTS_PROFILE,
+  });
+  try {
+    writeComponentRecord(f.paths, 'W-01', ['Picker']);
+    // components.json still says built at the old COMPONENTS_H; the live export's hash has moved on.
+    const { ready } = await computeReady(f.ctx, { pr: f.pr });
+    const components = ready.checks.find((c) => c.id === 'components');
+    assert.equal(components.ok, false, components.detail);
+    assert.match(components.detail, /Picker/);
+    assert.match(components.detail, /not built/);
+    assert.notEqual(sha256Text(liveHtml), COMPONENTS_H, 'the fixture must actually disagree with the map to prove anything');
+  } finally { f.repo.cleanup(); }
+});
+
+// Fix round (I3): a used component the map has no entry for at all used to be silently skipped
+// (byName.get(name) was undefined, so rule 1 just `continue`d); it now blocks the same as "new",
+// and a page run's message points at the components run rather than at --mark-built (I4).
+test('components: a used component the map has never heard of blocks the same as "new", and tells a page run to run the components run (I3, I4)', async () => {
+  const f = await fixture({
+    changed: {
+      ...PAGE_USES_PICKER,
+      'docs/delivery/components.json': JSON.stringify({
+        version: 1, allowOwns: [],
+        components: [{ kind: 'base', name: 'Sheet', target: 'src/ui/sheet.tsx', owns: ['@radix-ui/react-dialog'], source: 'shadcn' }],
+      }),
+    },
+    profile: COMPONENTS_PROFILE,
+  });
+  try {
+    writeComponentRecord(f.paths, 'W-01', ['Picker']);
+    const { ready } = await computeReady(f.ctx, { pr: f.pr });
+    const components = ready.checks.find((c) => c.id === 'components');
+    assert.equal(components.ok, false, components.detail);
+    assert.match(components.detail, /Picker/);
+    assert.match(components.detail, /delivery intake --components/);
+  } finally { f.repo.cleanup(); }
+});
+
+test('components: a run rendered before 0.9 (no per-state component records) passes as not held to it', async () => {
+  const f = await fixture({ changed: PAGE_USES_PICKER, profile: COMPONENTS_PROFILE });
+  try {
+    // No writeComponentRecord: this run's design was rendered before the components-first release.
+    const { ready } = await computeReady(f.ctx, { pr: f.pr });
+    const components = ready.checks.find((c) => c.id === 'components');
+    assert.equal(components.ok, true, components.detail);
+    assert.equal(components.detail, 'no component records (design rendered before 0.9)');
+  } finally { f.repo.cleanup(); }
+});
+
+// Fix round (I5): the "no component records" pass must win even when there is no component map
+// at all yet — a pre-0.9 run owes this check nothing either way, so the map's absence should never
+// be what turns it red.
+test('components: no component records and no components.json at all still passes as pre-0.9', async () => {
+  const f = await fixture({
+    changed: { 'docs/delivery/widgets/map.json': PAGE_MAP },
+    profile: COMPONENTS_PROFILE,
+  });
+  try {
+    const { ready } = await computeReady(f.ctx, { pr: f.pr });
+    const components = ready.checks.find((c) => c.id === 'components');
+    assert.equal(components.ok, true, components.detail);
+    assert.equal(components.detail, 'no component records (design rendered before 0.9)');
+  } finally { f.repo.cleanup(); }
+});
+
+const COMPONENTS_RUN_MAP = JSON.stringify({
+  schemaVersion: 1, feature: 'widgets', title: 'Components', kind: 'components', route: '/admin/design/components',
+  widths: ['desktop', 'phone'],
+  worlds: [{ id: 'components', users: [{ role: 'admin', email: 'delivery+widgets-components-admin@example.invalid' }] }],
+  states: [{ id: 'C-Picker-01', screen: 'Picker', name: 'Picker: defaults', design: 'C-Picker-01', reach: { world: 'components', role: 'admin', steps: [{ goto: '/admin/design/components' }] }, buttons: [] }],
+});
+const GALLERY_STATES = JSON.stringify({ states: [{ id: 'C-Picker-01', component: 'Picker', props: {} }] });
+
+test('components: a components run whose PR head has not marked its own component built is red, naming --mark-built', async () => {
+  const f = await fixture({
+    changed: {
+      'docs/delivery/widgets/map.json': COMPONENTS_RUN_MAP,
+      'docs/delivery/widgets/gallery-states.json': GALLERY_STATES,
+      'docs/delivery/components.json': componentsMap({ status: 'new', builtHash: null }),
+      'src/ui/picker.tsx': 'export const Picker = () => null;\n',
+    },
+    profile: COMPONENTS_PROFILE,
+  });
+  try {
+    writeComponentRecord(f.paths, 'C-Picker-01', []);
+    const { ready, exit } = await computeReady(f.ctx, { pr: f.pr });
+    assert.equal(exit, 1);
+    const components = ready.checks.find((c) => c.id === 'components');
+    assert.equal(components.ok, false);
+    assert.match(components.detail, /run delivery components --mark-built Picker/);
+    // Fix round (I14): the same combined instruction NEXT gives, so committing and pushing is
+    // never left implicit — --mark-built alone never turns this green (ready reads the PR head).
+    assert.match(components.detail, /commit docs\/delivery\/components\.json and push/);
+  } finally { f.repo.cleanup(); }
+});
+
+test('components: a components run whose PR head already marked its component built is green', async () => {
+  const f = await fixture({
+    changed: {
+      'docs/delivery/widgets/map.json': COMPONENTS_RUN_MAP,
+      'docs/delivery/widgets/gallery-states.json': GALLERY_STATES,
+      'docs/delivery/components.json': componentsMap(),
+      'src/ui/picker.tsx': 'export const Picker = () => null;\n',
+    },
+    profile: COMPONENTS_PROFILE,
+  });
+  try {
+    writeComponentRecord(f.paths, 'C-Picker-01', []);
+    const { ready } = await computeReady(f.ctx, { pr: f.pr });
+    const components = ready.checks.find((c) => c.id === 'components');
+    assert.equal(components.ok, true, components.detail);
   } finally { f.repo.cleanup(); }
 });
