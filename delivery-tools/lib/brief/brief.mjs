@@ -1,14 +1,16 @@
-// Design briefs (components-first spec §8.2): what a Claude Design chat is sent. A brief names
-// its screens (each with a Phone: line), the components to use by name from components.json,
-// numbered behaviours (`delivery rules` reads these) and data using only generic names, never a
-// real customer's or prospect's. Pure apart from briefComponents (reads the profile and the
-// component map through ctx) and packBrief (copies files for the send step).
+// Design briefs (components-first spec §8.2, §8.3): what a Claude Design chat is sent. A brief
+// names its screens (each with a Phone: line), the components to use by name from
+// components.json, numbered behaviours (`delivery rules` reads these) and data using only generic
+// names, never a real customer's or prospect's. Pure apart from briefComponents (reads the
+// profile and the component map through ctx), packBrief (copies files for the send step) and
+// recordSent (appends to the sent record on disk).
 
 import { existsSync, readdirSync } from 'node:fs';
 import { readFile, copyFile } from 'node:fs/promises';
 import { basename, join } from 'node:path';
-import { writeFileAtomic } from '../core/fs.mjs';
+import { writeFileAtomic, readJson, writeJsonAtomic } from '../core/fs.mjs';
 import { DeliveryError, EXIT } from '../core/exit.mjs';
+import { sha256File } from '../core/hash.mjs';
 import { componentsMapPath, readComponentsMap } from '../components/map.mjs';
 
 const NUMBERED_RE = /^\d+\.(\s|$)/;
@@ -185,4 +187,21 @@ export async function packBrief(briefPath, images, outDir, opts = {}) {
     files.push(name);
   }
   return { dir: outDir, files };
+}
+
+/**
+ * Append one entry to intent/briefs/sent.json (components-first spec §8.3), creating the file if
+ * it doesn't exist yet: `{ "sent": [ {file, chat, at, sha256}, ... ] }`. `sha256` is the hex digest
+ * of the brief file's bytes, read from `file`.
+ * @param {string} intentDir
+ * @param {{ file: string, chat: string, at?: string }} o  at: ISO timestamp; defaults to now
+ * @returns {Promise<void>}
+ */
+export async function recordSent(intentDir, { file, chat, at = new Date().toISOString() }) {
+  const sentPath = join(intentDir, 'briefs', 'sent.json');
+  const existing = await readJson(sentPath, { optional: true });
+  const sent = existing?.sent ?? [];
+  const digest = await sha256File(file);
+  sent.push({ file, chat, at, sha256: digest });
+  await writeJsonAtomic(sentPath, { sent });
 }
