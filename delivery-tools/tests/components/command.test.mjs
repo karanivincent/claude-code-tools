@@ -145,3 +145,39 @@ test('export drift: a component in the export but not in the map is reported, an
     assert.match(stdout.text(), /Table: not in the map yet/);
   } finally { t.cleanup(); }
 });
+
+test('an export whose dc-import names a file the export lacks is a problem that fails the command (exit 1), not a silent pass', async () => {
+  const t = makeTempDir();
+  const mapRel = 'docs/delivery/components.json';
+  try {
+    write(t.dir, mapRel, { version: 1, components: [] });
+    write(t.dir, 'export/Main.dc.html', '<x-dc><dc-import name="Ghost"></dc-import></x-dc>');
+    const profile = makeProfile({ components: { map: mapRel } });
+    const { ctx, stdout } = await makeTestCtx({ repoRoot: t.dir, profile });
+    const code = await command.run(ctx, ['--export', join(t.dir, 'export')]);
+    assert.equal(code, 1);
+    assert.match(stdout.text(), /FAIL components Main\.dc\.html:1: dc-import names Ghost, but Ghost\.dc\.html is not in the export/);
+  } finally { t.cleanup(); }
+});
+
+test('a design cycle (A uses B, B uses A) is reported as a problem, not a crash, and still lists every entry (by name)', async () => {
+  const t = makeTempDir();
+  const mapRel = 'docs/delivery/components.json';
+  const designEntry = (name, uses, hash) => ({
+    kind: 'design', name, design: { file: `${name}.dc.html`, hash },
+    target: `src/ui/${name.toLowerCase()}.tsx`, status: 'built', builtHash: hash,
+    props: {}, owns: [], builtOn: [], replaces: [], uses, states: [],
+  });
+  try {
+    write(t.dir, 'src/ui/a.tsx', 'export const A = () => null;\n');
+    write(t.dir, 'src/ui/b.tsx', 'export const B = () => null;\n');
+    write(t.dir, mapRel, { version: 1, components: [designEntry('A', ['B'], H1), designEntry('B', ['A'], H2)] });
+    const profile = makeProfile({ components: { map: mapRel } });
+    const { ctx, stdout } = await makeTestCtx({ repoRoot: t.dir, profile });
+    const code = await command.run(ctx, []);
+    assert.equal(code, 1);
+    assert.match(stdout.text(), /FAIL components component import cycle: A -> B -> A/);
+    assert.match(stdout.text(), /design A: built/);
+    assert.match(stdout.text(), /design B: built/);
+  } finally { t.cleanup(); }
+});

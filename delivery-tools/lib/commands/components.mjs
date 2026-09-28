@@ -38,8 +38,9 @@ printed as-is. This never writes components.json: a components run's intake (a l
 what records a fresh hash; this command only reports drift.
 
 exit: 0 configured and every check passes; 1 a design entry is stale, one is in the export but
-      not the map, a file in baseDir has no base entry, or validateComponentsMap finds a problem;
-      2 usage, or no components.json to work with
+      not the map, a file in baseDir has no base entry, the export has a malformed dc-import, its
+      uses form a cycle, or validateComponentsMap finds a problem; 2 usage, or no components.json
+      to work with
 
 common options:
   --feature <slug>   only used, if a run is resolved, to find its design snapshot
@@ -97,9 +98,11 @@ common options:
     let effectiveDesign = map.components.filter((c) => c.kind === 'design'); // "today" (no export): the persisted view
     const missingFromMap = [];
     const reported = new Set();
+    let exportErrorCount = 0;
 
     if (exportAvailable) {
       const { components: exported, errors } = await readExportComponents(exportDir);
+      exportErrorCount = errors.length;
       for (const e of errors) ctx.out.fail('components', e);
 
       const before = new Map(map.components.filter((c) => c.kind === 'design').map((c) => [c.name, c]));
@@ -141,7 +144,15 @@ common options:
     }
 
     const byName = new Map(effectiveDesign.map((c) => [c.name, c]));
-    const designOrder = componentOrder(effectiveDesign).map((name) => byName.get(name)).filter(Boolean);
+    let designOrder;
+    let cycle = false;
+    try {
+      designOrder = componentOrder(effectiveDesign).map((name) => byName.get(name)).filter(Boolean);
+    } catch (err) {
+      cycle = true;
+      ctx.out.fail('components', err.message);
+      designOrder = [...effectiveDesign].sort((a, b) => a.name.localeCompare(b.name));
+    }
     const baseSorted = map.components.filter((c) => c.kind === 'base').sort((a, b) => a.name.localeCompare(b.name));
     for (const c of designOrder) ctx.out.line(`design ${c.name}: ${c.status}${c.target ? ` -> ${c.target}` : ' (no target)'}`);
     for (const c of baseSorted) ctx.out.line(`base ${c.name}: ${c.target} (${(c.owns ?? []).join(', ') || 'no library'})`);
@@ -149,9 +160,10 @@ common options:
 
     ctx.out.set('components', {
       total: map.components.length, stale: stale.length, missingBase: missingBase.length,
-      missingFromMap: missingFromMap.length, problems: problems.length, next: nextLine,
+      missingFromMap: missingFromMap.length, problems: problems.length, exportErrors: exportErrorCount,
+      cycle, next: nextLine,
     });
-    const exit = problems.length || stale.length || missingBase.length || missingFromMap.length ? EXIT.RED : EXIT.PASS;
+    const exit = problems.length || stale.length || missingBase.length || missingFromMap.length || exportErrorCount || cycle ? EXIT.RED : EXIT.PASS;
     await ctx.journal({ command: 'components', exit, counts: { total: map.components.length, problems: problems.length } });
     return exit;
   },
