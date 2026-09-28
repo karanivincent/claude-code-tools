@@ -346,6 +346,23 @@ test('latestVerdicts and pictureReadiness key and count by item', async () => {
   } finally { r.cleanup(); }
 });
 
+test('A1: a data-gap verdict blocks ready apart from a code defect, and never spends a fix round', async () => {
+  const r = tmpRun();
+  try {
+    r.round(1, { 'KC-05': 'data-gap', 'KC-04': 'match' });
+    const gap = await pictureReadiness(r.paths);
+    assert.equal(gap.ok, false);
+    assert.match(gap.detail, /1 state\(s\) have a data gap, not a code defect.*KC-05 \(round 1\)/);
+    // A data gap keeps ready red even once the fix-round allowance a real must-fix gets is spent:
+    // there is no allowance for it at all, because reseeding costs nothing like a build round does.
+    r.round(2, { 'KC-05': 'data-gap' });
+    r.round(3, { 'KC-05': 'data-gap' });
+    const stillRed = await pictureReadiness(r.paths);
+    assert.equal(stillRed.ok, false);
+    assert.match(stillRed.detail, /data gap/);
+  } finally { r.cleanup(); }
+});
+
 test('status asks for the phone render when the map checks a responsive phone and none exists', () => {
   const m = phoneMap();
   assert.equal(phoneRenderOwed(m, new Set(desktopPictures)), true);

@@ -35,6 +35,11 @@ Look at the two pictures side by side and ask:
 7. Is the live page actually right, and the design wrong or missing something the product already
    does elsewhere? That is never `must fix` — the live page is not the thing to change. Write
    `design:` instead, so it goes back to whoever writes the design brief, not to the builder.
+8. Is the only thing wrong that the seeded world doesn't have enough of something? The checklist
+   lists each state's "Needs data" line when the map declares one (a table, a filter, a count). If
+   what you see missing matches that line — an empty list where the design shows several rows, a
+   count that's too low — write `data gap:`, not `must fix:`. That is the world's problem, not the
+   builder's: it costs no fix round and is fixed by re-seeding, not by changing code.
 
 An item the capture didn't reach gets one line saying so.
 
@@ -54,9 +59,10 @@ Write the file your prompt names, in the round folder:
 - Line 1: how many of your items match, and how many have problems.
 - One section per item with problems, headed `## <ID>` or `## <ID>@phone`. Put one bullet per problem, starting
   `must fix:` (missing, broken, wrong, or noticeable at a glance), `small:` (visible only on a
-  close look), or `design:` (the live page is right; the design should change to match it, or to
-  add something the product has elsewhere — never `must fix:` for this). Say what the design shows
-  and what the live page shows.
+  close look), `design:` (the live page is right; the design should change to match it, or to
+  add something the product has elsewhere — never `must fix:` for this), or `data gap:` (the world
+  the checklist's "Needs data" line asks for isn't there — never `must fix:` for this either). Say
+  what the design shows and what the live page shows.
 - End with one line listing the items that match.
 
 Be concrete. "The header is different" doesn't help. "The design's Add button is large, with a +

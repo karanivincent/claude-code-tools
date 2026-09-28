@@ -250,6 +250,14 @@ export async function pictureReadiness(paths) {
   const by = (v) => [...latest].filter(([, s]) => s.verdict === v).map(([id, s]) => `${id} (round ${s.round})`);
   const unreached = by('not-reached');
   if (unreached.length) return { ok: false, detail: `${unreached.length} ${noun}(s) whose newest picture was not reached: ${unreached.slice(0, 5).join(', ')}`, evidence: 'review.json' };
+  // A1: a data gap is the world's problem, not the builder's, so it is never counted against the
+  // MAX_ROUNDS fix-round allowance below and never quietly goes to the founder as an accepted open
+  // item the way a stale must-fix can. It always keeps ready red, listed apart from code defects,
+  // until the world is re-seeded (delivery seed --apply) and the state shot again.
+  const dataGaps = by('data-gap');
+  if (dataGaps.length) {
+    return { ok: false, detail: `${dataGaps.length} ${noun}(s) have a data gap, not a code defect: reseed the world (delivery seed --apply), then shoot again: ${dataGaps.slice(0, 5).join(', ')}`, evidence: 'review.json' };
+  }
   const open = by('must');
   const last = rounds.at(-1).round;
   if (open.length && rounds.length < MAX_ROUNDS) {

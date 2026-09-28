@@ -163,6 +163,32 @@ screenshot.
    and canvas screenshots lag and show one state at a time.
 7. Findings feed the next brief: `delivery brief new <slug> --from-review`.
 
+## Data gaps and seed guards (A1, A2)
+
+Two picture-mode changes that move seed problems earlier, from the middle of a review round to
+`seed --check`/`--apply` before any shoot, and from a founder discovering one guard proposal per
+`seed --apply` to seeing every guard a run's worlds need in one place, right after the map.
+
+- **A1, data gaps.** A state's map entry may carry `data`: what the picture needs to exist (a
+  table, a filter, a minimum count — briefs/mapper.md has the shape). `seed --check` and `--apply`
+  check it against the rows the worlds seed (the world files, not a live read) and name any state
+  whose world falls short, exiting non-zero the same way a safety layer does. A reviewer who
+  notices the live page is only wrong because that data is missing writes `data gap:` instead of
+  `must fix:` (checklist.md prints the "Needs data" line under the state so they can tell). A data
+  gap never spends one of the picture loop's fix rounds — it is the world's problem, not the
+  builder's — but `ready` never goes green over one either: `pictureReadiness`
+  (`lib/run/ready-compute.mjs`) lists it apart from code defects and always keeps ready red until
+  the world is re-seeded and the state shot again. That is the smallest honest behaviour: a data
+  gap can't silently ship, but it also can't burn a builder's fix round the way a real defect does.
+- **A2, guards and CHECK constraints.** `seed --plan` prints one grouped "guards to approve" list:
+  every table the worlds write that no guard in `.claude/delivery-safety.json` covers. NEXT
+  surfaces the same list once, right after the map validates (before rules or worlds), so the
+  founder reviews every guard the run will need in one sitting. `seed --plan` also reads the test
+  database's CHECK constraints and enum types and refuses a world value outside them, naming the
+  table, column, the value and the allowed values; a constraint it cannot parse (anything beyond a
+  plain `col IN (...)` or `col = ANY (ARRAY[...])` list) is silently skipped, never wrongly
+  enforced. Neither of these loosens or changes what a guard permits.
+
 ## Things a session must do that nothing else will
 
 - **Enter the run's worktree.** `intake` creates the run in its own worktree. A session in any other

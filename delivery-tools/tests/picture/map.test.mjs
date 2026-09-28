@@ -42,6 +42,36 @@ test('every design picture needs a state, and every state a picture or "design":
   assert.ok(q.some((x) => x.includes('state KC-01 has no design picture')));
 });
 
+test('A1: a valid data entry is fine; a bad one is named precisely', () => {
+  const ok = sampleMap();
+  ok.states[0].data = [{ table: 'call_scripts', where: { category: 'renewals' }, min: 3 }];
+  assert.deepEqual(validateMap(ok, { designed }), []);
+
+  const noWorldOrReach = sampleMap();
+  noWorldOrReach.states[3].data = [{ table: 'call_scripts', where: { category: 'renewals' } }]; // KC-01: reach.test, no reach.world
+  const p1 = validateMap(noWorldOrReach, { designed });
+  assert.ok(p1.some((x) => x.includes('has no world, and KC-01 has no reach.world to default to')));
+
+  const bad = sampleMap();
+  bad.states[0].data = [{ world: 'nope', table: 'Bad Table', where: {}, min: 0 }];
+  const p2 = validateMap(bad, { designed });
+  assert.ok(p2.some((x) => x.includes('names world "nope"')));
+  assert.ok(p2.some((x) => x.includes('table must be a lowercase table name')));
+  assert.ok(p2.some((x) => x.includes('where must be an object')));
+  assert.ok(p2.some((x) => x.includes('min must be a whole number of at least 1')));
+
+  const notList = sampleMap();
+  notList.states[0].data = { table: 'x' };
+  assert.ok(validateMap(notList, { designed }).some((x) => x.includes('data must be a list')));
+});
+
+test('A1: the checklist prints a "Needs data" line under a state that declares one', () => {
+  const m = sampleMap();
+  m.states[0].data = [{ table: 'call_scripts', where: { category: 'renewals' }, min: 3 }];
+  const checklist = renderChecklist(m);
+  assert.match(checklist, /Needs data: at least 3 call_scripts row\(s\) where category = "renewals" \(world design\)/);
+});
+
 test('a button that opens a state the map lacks, and an unknown effect, are problems', () => {
   const m = sampleMap();
   m.states[0].buttons.push({ label: 'Go', testid: 'kb-go', opens: 'KC-99', effect: 'teleport' });

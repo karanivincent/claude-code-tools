@@ -5,6 +5,7 @@ import { defineCommand } from '../core/command.mjs';
 import { parseCommandArgs } from '../core/args.mjs';
 import { readArtefact, writeArtefact } from '../core/artefacts.mjs';
 import { ConfigError, EXIT, UsageError } from '../core/exit.mjs';
+import { gateResult, combineGates } from '../core/gate.mjs';
 import { loadState, newRunId } from '../core/state.mjs';
 import { assertFileId } from '../core/paths.mjs';
 import { buildSeedPlan, readWorldFile } from '../seed/plan.mjs';
@@ -13,6 +14,8 @@ import { seedCheck } from '../seed/safety.mjs';
 import { seedScan, refreshWorldReport, teardownSeed } from '../seed/scan.mjs';
 import { applyRows } from '../seed/apply.mjs';
 import { parseDatabaseTypes } from '../plan/verify.mjs';
+import { columnConstraints } from '../seed/db.mjs';
+import { columnConstraintViolations, describeWhere, stateDataGaps, tablesWithoutGuard } from '../seed/data.mjs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -23,16 +26,20 @@ export default defineCommand({
   summary: 'Plan, check, write, scan, refresh and tear down fixture worlds',
   usage: `usage: delivery seed --plan | --check | --apply | --scan | --refresh <world|all>... | --teardown
 
-The only writer of fixture rows. Every mode but --plan reads the test database; only --apply,
---refresh and --teardown write, and only to the profile's test project, never to one the safety
-file lists as production.
+The only writer of fixture rows. Every mode reads the test database (--plan for its CHECK
+constraints and enum types only); only --apply, --refresh and --teardown write, and only to the
+profile's test project, never to one the safety file lists as production.
 
 modes:
   --plan             write seedplan.json from the plan's worlds (picture mode: the map's) and their
-                     world files (docs/delivery/<feature>/worlds/<world>.json), with deterministic ids
-  --check            M13: the four safety layers over seedplan.json. Layer 1 derives the side-effect
-                     map afresh; layers 2 and 3 read the never-dial set, the fake-range probe and
-                     the guard probes from the test database. Writes nothing.
+                     world files (docs/delivery/<feature>/worlds/<world>.json), with deterministic
+                     ids. Also prints every table the worlds write that no safety guard covers (a
+                     "guards to approve" list), and refuses a world value that fails a CHECK
+                     constraint or enum type the database has for its column.
+  --check            M13: the four safety layers over seedplan.json, plus (picture mode) A1: each
+                     state's map-declared data (state.data) against the rows the worlds seed. Layer
+                     1 derives the side-effect map afresh; layers 2 and 3 read the never-dial set,
+                     the fake-range probe and the guard probes from the test database. Writes nothing.
   --apply            refuse production and any project but the test project, run --check, write
                      users and rows, then scan the database as it now is
   --scan             evaluate every row in every fixture world as it is now, and every guard probe
@@ -91,10 +98,59 @@ async function planMode(ctx) {
   });
   await writeArtefact(paths, 'seedplan', seedPlan);
   ctx.out.line(`seed plan: ${seedPlan.worlds.length} world(s), ${seedPlan.rows.length} row(s), ${seedPlan.users.length} fixture user(s) -> ${paths.seedplan}`);
+
+  // A2: every table the worlds write that no guard covers, printed together so the founder
+  // approves them once, at the start, rather than discovering them one seed --apply at a time.
+  const uncovered = tablesWithoutGuard(seedPlan.rows, safety);
+  if (uncovered.length) {
+    ctx.out.line(`guards to approve (${uncovered.length} table(s) no guard in ${profile.safetyFile ?? '.claude/delivery-safety.json'} covers):`);
+    for (const t of uncovered) ctx.out.line(`  - ${t}`);
+  }
+
+  // A2: CHECK constraints and enum types, read from the test database. A check --plan cannot parse
+  // (not a plain IN/ANY(ARRAY[...]) list) is skipped, never enforced (lib/seed/data.mjs). When the
+  // database itself cannot be read, the plan still stands: this is a second line of defence over
+  // M13's own layers, not itself a safety layer, so it never refuses the plan on its own.
+  let violations = [];
+  try {
+    const { createDataAdapter } = await import('../../adapters/data/supabase.mjs');
+    const db = await createDataAdapter(ctx);
+    const allowed = await columnConstraints(db);
+    violations = columnConstraintViolations(seedPlan.rows, allowed, ctx.clock.now());
+  } catch (err) {
+    ctx.out.line(`note: could not read the database's CHECK constraints and enum types (${err.message}); world values are not checked against them`);
+  }
+  for (const v of violations) {
+    ctx.out.fail('seed-plan-constraint', `${v.table}.${v.column} = ${JSON.stringify(v.value)} (world ${v.world}) is not one of ${v.allowed.join(', ')}`);
+  }
+
   ctx.out.line('next: delivery seed --check');
-  ctx.out.set('seedplan', { worlds: seedPlan.worlds, rows: seedPlan.rows.length, users: seedPlan.users.length });
-  await ctx.journal({ command: 'seed --plan', exit: 0, counts: { worlds: seedPlan.worlds.length, rows: seedPlan.rows.length }, outputs: seedPlan });
-  return EXIT.PASS;
+  ctx.out.set('seedplan', { worlds: seedPlan.worlds, rows: seedPlan.rows.length, users: seedPlan.users.length, guardsToApprove: uncovered, constraintViolations: violations.length });
+  const exit = violations.length ? EXIT.RED : EXIT.PASS;
+  await ctx.journal({ command: 'seed --plan', exit, counts: { worlds: seedPlan.worlds.length, rows: seedPlan.rows.length, constraintViolations: violations.length }, outputs: seedPlan });
+  return exit;
+}
+
+/**
+ * A1: fold a run's state-data gaps (stateDataGaps) into a seed gate's failures, so `seed --check`
+ * and `seed --apply` refuse a plan whose worlds do not yet hold what a state's map entry declares
+ * it needs. A run with no map.json (full mode) or no state that declares `data` is unaffected.
+ * @param {import('../core/gate.mjs').GateResult} gate
+ * @param {object|null} seedPlan
+ * @param {import('../core/paths.mjs').FeaturePaths} paths
+ * @param {Date} now
+ */
+function withDataGaps(gate, seedPlan, paths, now) {
+  if (!seedPlan) return gate;
+  const map = readMap(paths);
+  if (!map) return gate;
+  const gaps = stateDataGaps(map.states, seedPlan.rows, now);
+  if (!gaps.length) return gate;
+  const failures = gaps.map((g) => ({
+    code: 'M13-data',
+    message: `state ${g.state}: ${g.table} where ${describeWhere(g.where)} wants at least ${g.wanted}, found ${g.found}`,
+  }));
+  return combineGates([gate, gateResult(failures)]);
 }
 
 /**
@@ -130,7 +186,9 @@ function report(ctx, gate, evaluation, label) {
 
 async function checkMode(ctx) {
   const r = await seedCheck(ctx);
-  const exit = report(ctx, r.gate, r.evaluation, 'seed check');
+  const paths = ctx.requirePaths();
+  const gate = withDataGaps(r.gate, r.seedPlan, paths, ctx.clock.now());
+  const exit = report(ctx, gate, r.evaluation, 'seed check');
   await ctx.journal({ command: 'seed --check', exit, counts: layerCounts(r.evaluation), inputs: r.seedPlan ?? null });
   return exit;
 }
@@ -146,8 +204,9 @@ async function applyMode(ctx) {
     throw new ConfigError(`refusing to seed ${seedPlan.project}: the profile's test project is ${profile.environments.test.projectRef}`, { code: 'project' });
   }
   const check = await seedCheck(ctx, { seedPlan });
-  if (!check.gate.ok) {
-    const exit = report(ctx, check.gate, check.evaluation, 'seed check');
+  const checkGate = withDataGaps(check.gate, seedPlan, paths, ctx.clock.now());
+  if (!checkGate.ok) {
+    const exit = report(ctx, checkGate, check.evaluation, 'seed check');
     ctx.out.line('nothing was written');
     await ctx.journal({ command: 'seed --apply', exit, counts: { written: 0, ...layerCounts(check.evaluation) } });
     return exit;

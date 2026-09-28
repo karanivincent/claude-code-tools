@@ -7,38 +7,45 @@
 import { listRounds, roundInfo } from './rounds.mjs';
 import { mapItems, normaliseItemKey } from './widths.mjs';
 
-const NOTE_KINDS = ['must fix', 'small', 'design'];
+const NOTE_KINDS = ['must fix', 'small', 'design', 'data gap'];
 
 /**
  * One reviewer file to notes per item. An item section is "## <ID>" or "## <ID>@phone" (anything
  * after the key is ignored, and "<ID>@desktop" is read as "<ID>"); each bullet starts with
- * "must fix:", "small:" or "design:" (the live page is right and the design is wrong or missing
- * something the product has). A bullet's wrapped lines are joined.
+ * "must fix:", "small:", "design:" (the live page is right and the design is wrong or missing
+ * something the product has) or "data gap:" (the live page is only wrong because the seeded world
+ * lacks what the state's map entry (state.data) needs — checklist.md prints that need under the
+ * state; A1). A bullet's wrapped lines are joined.
  * @param {string} md
  * @param {string[]|null} [ids] the map's item keys; other headings end a section
- * @returns {Record<string, { must: string[], small: string[], design: string[] }>}
+ * @returns {Record<string, { must: string[], small: string[], design: string[], dataGap: string[] }>}
  */
 export function parseReview(md, ids = null) {
   const out = {};
   const known = ids ? new Set(ids) : null;
   let cur = null;
   let last = null;
-  // must fix/small can lead with or without a colon ("must fix:", "`must fix`"); design cannot —
-  // "design" is an ordinary word that starts plenty of real notes ("Design shows a large button
-  // ...; the live page has none (must fix)"), so only a literal "design:" (colon required) counts
-  // as its lead. An explicit must-fix/small marker, leading or trailing, is checked first and wins.
-  const leadRe = /^`?\*{0,2}(must fix|small)\*{0,2}`?\s*[:\-—]?\s*/i;
+  // must fix/small/data gap can lead with or without a colon ("must fix:", "`must fix`"); design
+  // cannot — "design" is an ordinary word that starts plenty of real notes ("Design shows a large
+  // button ...; the live page has none (must fix)"), so only a literal "design:" (colon required)
+  // counts as its lead. An explicit must-fix/small/data-gap marker, leading or trailing, is checked
+  // first and wins.
+  const leadRe = /^`?\*{0,2}(must fix|small|data gap)\*{0,2}`?\s*[:\-—]?\s*/i;
   const designLeadRe = /^`?\*{0,2}design\*{0,2}`?\s*:\s*/i;
-  // "design" (unlike "must fix"/"small") is an ordinary word that legitimately ends a sentence
-  // ("...doesn't match the design."), so it is never stripped as a trailing marker, only a leading one.
-  const trailRe = /\s*`?\(?(must fix|small)\)?`?\.?$/i;
-  const kindKey = (label) => (label.toLowerCase() === 'must fix' ? 'must' : label.toLowerCase());
+  // "design" (unlike "must fix"/"small"/"data gap") is an ordinary word that legitimately ends a
+  // sentence ("...doesn't match the design."), so it is never stripped as a trailing marker, only
+  // a leading one.
+  const trailRe = /\s*`?\(?(must fix|small|data gap)\)?`?\.?$/i;
+  const kindKey = (label) => {
+    const l = label.toLowerCase();
+    return l === 'must fix' ? 'must' : l === 'data gap' ? 'dataGap' : l;
+  };
   for (const raw of String(md).split('\n')) {
     const line = raw.replace(/\s+$/, '');
     const head = /^##\s+([A-Za-z0-9][A-Za-z0-9._-]*(?:@[A-Za-z]+)?)\b/.exec(line);
     const key = head ? normaliseItemKey(head[1]) : null;
     // An item heading names an item key: one of the map's, or at least an id with a digit in it.
-    if (head && (known ? known.has(key) : /\d/.test(key))) { cur = key; out[cur] ??= { must: [], small: [], design: [] }; last = null; continue; }
+    if (head && (known ? known.has(key) : /\d/.test(key))) { cur = key; out[cur] ??= { must: [], small: [], design: [], dataGap: [] }; last = null; continue; }
     if (/^#{1,2}\s/.test(line)) { cur = null; last = null; continue; }
     if (!cur) continue;
     const bullet = /^\s{0,3}[-*]\s+(.*)$/.exec(line);
@@ -69,16 +76,21 @@ export function parseReview(md, ids = null) {
  * width is a must-fix note on its item, whether or not a reviewer also wrote it. An item whose only
  * bullets are `design:` gets `back-to-design`; an item that also has a must-fix or small note keeps
  * that worse verdict, but its design notes are still recorded (backToDesignItems reads them from
- * every item, not only ones verdicted `back-to-design`).
- * @param {{ map: object, shoot: object|null, notes: Record<string, {must: string[], small: string[], design?: string[]}> }} input
+ * every item, not only ones verdicted `back-to-design`). An item whose notes are `data gap:` only
+ * (the seeded world lacks what state.data needs, A1) gets `data-gap`, not `must`: it is not a code
+ * defect for the builder, so it never spends one of the picture loop's fix rounds (lib/run/ready.mjs
+ * pictureReadiness treats it separately, and always keeps ready red until the world is re-seeded).
+ * A data-gap note alongside a real must-fix note still leaves the verdict `must` (the code defect
+ * is the worse problem), but the data-gap note is kept either way.
+ * @param {{ map: object, shoot: object|null, notes: Record<string, {must: string[], small: string[], design?: string[], dataGap?: string[]}> }} input
  */
 export function summarise({ map, shoot, notes }) {
   const states = {};
   const counts = { match: 0, small: 0, must: 0, notReached: 0, testOnly: 0, backToDesign: 0 };
   for (const { key, state: s } of mapItems(map)) {
-    const given = notes[key] ?? { must: [], small: [], design: [] };
+    const given = notes[key] ?? { must: [], small: [], design: [], dataGap: [] };
     const shot = shoot?.states?.[key];
-    const n = { must: [...given.must], small: [...given.small], design: [...(given.design ?? [])] };
+    const n = { must: [...given.must], small: [...given.small], design: [...(given.design ?? [])], dataGap: [...(given.dataGap ?? [])] };
     if (shot?.reached && shot.overflow > 0 && !n.must.some((t) => /sideways|horizontal(ly)? scroll/i.test(t))) {
       n.must.push(`the page scrolls sideways by ${shot.overflow} px (found by the shoot)`);
     }
@@ -87,11 +99,13 @@ export function summarise({ map, shoot, notes }) {
     else if (!shot) verdict = 'not-shot';
     else if (!shot.reached) verdict = 'not-reached';
     else if (n.must.length) verdict = 'must';
+    else if (n.dataGap.length) verdict = 'data-gap';
     else if (n.small.length) verdict = 'small';
     else if (n.design.length) verdict = 'back-to-design';
     else verdict = 'match';
-    counts[{ 'test-only': 'testOnly', 'not-reached': 'notReached', 'not-shot': 'notReached', 'back-to-design': 'backToDesign' }[verdict] ?? verdict] += 1;
-    states[key] = { verdict, must: n.must, small: n.small, design: n.design };
+    const bucket = { 'test-only': 'testOnly', 'not-reached': 'notReached', 'not-shot': 'notReached', 'back-to-design': 'backToDesign', 'data-gap': 'dataGap' }[verdict] ?? verdict;
+    counts[bucket] = (counts[bucket] ?? 0) + 1;
+    states[key] = { verdict, must: n.must, small: n.small, design: n.design, ...(n.dataGap.length ? { dataGap: n.dataGap } : {}) };
   }
   return { states, counts };
 }
@@ -129,7 +143,7 @@ const inline = (t) => esc(t).replace(/`([^`]+)`/g, '<code>$1</code>');
  */
 export function renderCompare(o) {
   const { counts } = o.summary;
-  const label = { match: 'matches', small: 'small differences', must: 'to fix', 'test-only': 'unit tests only', 'not-reached': 'not reached', 'not-shot': 'not pictured', 'back-to-design': 'back to design' };
+  const label = { match: 'matches', small: 'small differences', must: 'to fix', 'test-only': 'unit tests only', 'not-reached': 'not reached', 'not-shot': 'not pictured', 'back-to-design': 'back to design', 'data-gap': 'data gap' };
   const widthLabel = { desktop: 'Desktop', phone: 'Phone' };
   const screens = [...new Set((o.map.states ?? []).map((s) => s.screen))];
   const items = mapItems(o.map);
@@ -140,17 +154,18 @@ export function renderCompare(o) {
   const pillText = (v) => {
     if (v.verdict === 'must') return `${v.must.length} to fix`;
     if (v.verdict === 'back-to-design') return `${v.design.length} back to design`;
+    if (v.verdict === 'data-gap') return `${v.dataGap.length} data gap`;
     return label[v.verdict];
   };
-  const rank = ['must', 'not-reached', 'not-shot', 'small', 'back-to-design', 'test-only', 'match'];
+  const rank = ['must', 'not-reached', 'not-shot', 'data-gap', 'small', 'back-to-design', 'test-only', 'match'];
   const rows = (o.map.states ?? []).map((s) => {
     const mine = items.filter((i) => i.id === s.id);
     const verdicts = mine.map((i) => o.summary.states[i.key]).filter(Boolean);
     const worst = verdicts.map((v) => v.verdict).sort((a, b) => rank.indexOf(a) - rank.indexOf(b))[0] ?? 'not-shot';
     const widthRow = (it) => {
-      const v = o.summary.states[it.key] ?? { verdict: 'not-shot', must: [], small: [], design: [] };
+      const v = o.summary.states[it.key] ?? { verdict: 'not-shot', must: [], small: [], design: [], dataGap: [] };
       const p = o.pictures(it.key);
-      const notes = [...v.must.map((t) => `<li class="m">${inline(t)}</li>`), ...v.small.map((t) => `<li class="s">${inline(t)}</li>`), ...(v.design ?? []).map((t) => `<li class="d">${inline(t)}</li>`)].join('');
+      const notes = [...v.must.map((t) => `<li class="m">${inline(t)}</li>`), ...(v.dataGap ?? []).map((t) => `<li class="g">${inline(t)}</li>`), ...v.small.map((t) => `<li class="s">${inline(t)}</li>`), ...(v.design ?? []).map((t) => `<li class="d">${inline(t)}</li>`)].join('');
       const trio = `<div class="trio">${fig(p.design, 'Design', it.key)}${o.beforeRound ? fig(p.before, `Round ${o.beforeRound}`, it.key) : ''}${fig(p.now, `Round ${o.round}`, it.key)}</div>`;
       const list = notes ? `<ul class="notes">${notes}</ul>` : '';
       if (!multi) return { pill: `<span class="pill ${v.verdict}">${esc(pillText(v))}</span>`, body: `${trio}\n  ${list}` };
@@ -192,7 +207,7 @@ h1 { font-size:1.6rem; font-weight:600; margin:0; text-wrap:balance; }
 .sid { font:500 .8rem/1 var(--mono); color:var(--muted); }
 .state h2 { font-size:1.05rem; font-weight:600; margin:0; flex:1 1 20rem; }
 .pill { font-size:.78rem; font-weight:600; border-radius:999px; padding:3px 10px; color:var(--muted); background:var(--none-bg); }
-.pill.must, .pill.not-reached { color:var(--must); background:var(--must-bg); } .pill.small { color:var(--small); background:var(--small-bg); } .pill.match { color:var(--ok); background:var(--ok-bg); } .pill.back-to-design { color:var(--accent); background:var(--none-bg); }
+.pill.must, .pill.not-reached { color:var(--must); background:var(--must-bg); } .pill.small { color:var(--small); background:var(--small-bg); } .pill.match { color:var(--ok); background:var(--ok-bg); } .pill.back-to-design, .pill.data-gap { color:var(--accent); background:var(--none-bg); }
 .trio { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap:12px; }
 .shot { margin:0; display:grid; gap:6px; align-content:start; }
 .shot figcaption { font-size:.78rem; font-weight:500; color:var(--muted); letter-spacing:.03em; text-transform:uppercase; }
@@ -203,7 +218,7 @@ h1 { font-size:1.6rem; font-weight:600; margin:0; text-wrap:balance; }
 .width h3 { font-size:.85rem; font-weight:600; margin:0; color:var(--muted); letter-spacing:.03em; text-transform:uppercase; }
 .width.phone .trio { grid-template-columns:repeat(auto-fit, minmax(min(100%, 200px), 390px)); }
 .notes { margin:0; padding-left:1.2rem; display:grid; gap:4px; max-width:110ch; }
-.notes li.m::marker { color:var(--must); } .notes li.s { color:var(--muted); } .notes li.d::marker { color:var(--accent); }
+.notes li.m::marker { color:var(--must); } .notes li.s { color:var(--muted); } .notes li.d::marker { color:var(--accent); } .notes li.g::marker { color:var(--accent); }
 .notes code { font:500 .85em var(--mono); }
 .viewer { position:fixed; inset:0; z-index:10; background:rgba(8,10,14,.9); overflow:auto; padding:calc(56px + env(safe-area-inset-top,0px)) 16px 24px; }
 .viewer img { display:block; margin:0 auto; max-width:min(100%,1200px); background:#fff; border-radius:4px; }
@@ -214,7 +229,7 @@ h1 { font-size:1.6rem; font-weight:600; margin:0; text-wrap:balance; }
   <section>
     <h1>${esc(o.title)}</h1>
     <p class="lede">Each designed state${multi ? ', at each width it is checked at' : ''}: the design, ${o.beforeRound ? `round ${o.beforeRound}, ` : ''}and round ${o.round}, with the reviewers' notes. Only the page's own area is pictured. Click a picture to see it full size.</p>
-    <ul class="tally"><li><b>${counts.match}</b>match</li><li><b>${counts.small}</b>small differences only</li><li><b>${counts.must}</b>to fix</li><li><b>${counts.notReached}</b>not reached</li><li><b>${counts.backToDesign}</b>back to design</li><li><b>${counts.testOnly}</b>unit tests only</li></ul>
+    <ul class="tally"><li><b>${counts.match}</b>match</li><li><b>${counts.small}</b>small differences only</li><li><b>${counts.must}</b>to fix</li>${counts.dataGap ? `<li><b>${counts.dataGap}</b>data gap</li>` : ''}<li><b>${counts.notReached}</b>not reached</li><li><b>${counts.backToDesign}</b>back to design</li><li><b>${counts.testOnly}</b>unit tests only</li></ul>
   </section>
   <nav class="bar" aria-label="Filter states">${chips}<button type="button" class="chip" data-verdict="must" aria-pressed="false">To fix</button></nav>
   <main class="wrap">${rows}</main>
