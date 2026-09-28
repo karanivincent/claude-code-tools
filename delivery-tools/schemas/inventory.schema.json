@@ -48,7 +48,8 @@
               "kind": { "enum": ["click-path", "prop", "shot-only", "unspecified"] },
               "steps": { "type": "array", "items": { "$ref": "#/$defs/DesignStep" } },
               "props": { "type": "object", "additionalProperties": true },
-              "unspecified": { "enum": ["loading", "empty", "error", "permission", "one", "many"] }
+              "unspecified": { "enum": ["loading", "empty", "error", "permission", "one", "many"] },
+              "file": { "$ref": "common.schema.json#/$defs/Text" }
             }
           },
           "shots": { "$ref": "common.schema.json#/$defs/Strings" },

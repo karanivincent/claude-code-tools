@@ -2,7 +2,7 @@
 // its click path or prop values, and save what the page shows: <ID>.png, <ID>.txt (one line per
 // text element, read from the rendered page, never transcribed from source) and <ID>.dom.json.
 
-import { copyFile, writeFile } from 'node:fs/promises';
+import { copyFile, readFile, writeFile } from 'node:fs/promises';
 import { join, extname } from 'node:path';
 import { ensureDir } from '../core/fs.mjs';
 import { writeArtefact } from '../core/artefacts.mjs';
@@ -11,6 +11,7 @@ import { ConfigError } from '../core/exit.mjs';
 import { startStaticServer, contentTypeFor } from './server.mjs';
 import { prepareServeDir, writePropCopy } from './serve.mjs';
 import { vendorResolver } from './vendor.mjs';
+import { declaredProps } from './components.mjs';
 import { pageExtract, linesToText } from '../capture/page-extract.mjs';
 import { itemKey } from '../picture/widths.mjs';
 
@@ -62,8 +63,11 @@ export function planRenders(inventory, opts) {
       continue;
     }
     const props = reach.props && Object.keys(reach.props).length ? reach.props : null;
-    if (reach.kind === 'prop' && !props) { out.push({ id: s.id, action: 'fail', why: 'a prop state names no props' }); continue; }
-    out.push({ id: s.id, action: 'render', steps: reach.steps ?? [], props });
+    // A component with its defaults (no props) is still a valid state when it names its own file.
+    if (reach.kind === 'prop' && !props && !reach.file) { out.push({ id: s.id, action: 'fail', why: 'a prop state names no props' }); continue; }
+    const item = { id: s.id, action: 'render', steps: reach.steps ?? [], props };
+    if (reach.file) item.file = reach.file;
+    out.push(item);
   }
   return out;
 }
@@ -74,6 +78,36 @@ export function planRenders(inventory, opts) {
  */
 export function renderFileName(id, width, ext) {
   return `${itemKey(id, width ?? 'desktop')}.${ext}`;
+}
+
+/**
+ * The design components a rendered state's page actually shows: every `.sc-host[data-sc-name]`
+ * host's name, minus the root host's own name (the state's own component, not one it uses).
+ * @param {{ name: string, root: boolean }[]} hosts
+ * @returns {string[]} sorted, unique
+ */
+export function componentNames(hosts) {
+  const root = hosts.find((h) => h.root);
+  const names = new Set(hosts.map((h) => h.name));
+  if (root) names.delete(root.name);
+  return [...names].sort();
+}
+
+/**
+ * The components a rendered state showed, from the "<ID>[@width].components.json" file written
+ * beside its png. Empty when the file is absent (older renders, or a render that failed).
+ * @param {import('../core/paths.mjs').FeaturePaths} paths
+ * @param {string} stateId
+ * @param {string} [width]
+ * @returns {Promise<string[]>}
+ */
+export async function readStateComponents(paths, stateId, width = 'desktop') {
+  paths.designRender(stateId, 'components.json'); // checks the id
+  const file = join(paths.designRenders, renderFileName(stateId, width, 'components.json'));
+  let raw;
+  try { raw = await readFile(file, 'utf8'); } catch (err) { if (err.code === 'ENOENT') return []; throw err; }
+  const data = JSON.parse(raw);
+  return Array.isArray(data.names) ? data.names : [];
 }
 
 /** A Playwright selector string, or exact visible text. */
@@ -176,9 +210,20 @@ export async function renderDesign(ctx, opts) {
     } catch (err) {
       throw new ConfigError(`Playwright could not start Chromium: ${String(err.message).split('\n')[0]} (install it with the repo's Playwright: "playwright install chromium")`);
     }
+    const previewCache = new Map();
     for (const p of toRender) {
       const errors = [];
-      const context = await browser.newContext({ viewport: opts.viewport ?? DEFAULT_VIEWPORT, deviceScaleFactor: 1, colorScheme: 'light', reducedMotion: 'reduce', locale: 'en-US' });
+      const dcFile = p.file ?? serve.dcFile;
+      let viewport = opts.viewport ?? DEFAULT_VIEWPORT;
+      if (p.file) {
+        if (!previewCache.has(p.file)) {
+          const html = await readFile(join(paths.designServe, p.file), 'utf8');
+          previewCache.set(p.file, declaredProps(html).preview);
+        }
+        const preview = previewCache.get(p.file);
+        if (preview) viewport = { width: preview.width, height: preview.height ?? 600 };
+      }
+      const context = await browser.newContext({ viewport, deviceScaleFactor: 1, colorScheme: 'light', reducedMotion: 'reduce', locale: 'en-US' });
       try {
         await context.addInitScript({ content: SET_STATE_INIT });
         await context.route('**/*', async (route) => {
@@ -192,7 +237,7 @@ export async function renderDesign(ctx, opts) {
         const page = await context.newPage();
         page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
         page.on('pageerror', (e) => errors.push(String(e.message)));
-        const file = p.props ? await writePropCopy(paths.designServe, serve.dcFile, p.id, p.props) : serve.dcFile;
+        const file = p.props ? await writePropCopy(paths.designServe, dcFile, p.id, p.props) : dcFile;
         await page.goto(server.url(file), { waitUntil: 'load' });
         try {
           await page.waitForSelector(BOOT_SELECTOR, { timeout: BOOT_TIMEOUT_MS });
@@ -206,6 +251,9 @@ export async function renderDesign(ctx, opts) {
         const logicError = await page.evaluate(() => { const e = document.querySelector('.sc-logic-error'); return e ? e.textContent : null; });
         if (logicError) throw new Error(`the design's logic failed: ${logicError.trim().slice(0, 200)}`);
         for (let i = 0; i < p.steps.length; i++) await runDesignStep(page, p.steps[i], i + 1);
+        const hosts = await page.evaluate(() => [...document.querySelectorAll('.sc-host[data-sc-name]')]
+          .map((e) => ({ name: e.getAttribute('data-sc-name'), root: e.parentElement?.id === 'dc-root' })));
+        await writeFile(outFile(p.id, 'components.json'), JSON.stringify({ names: componentNames(hosts) }, null, 2) + '\n');
         const { lines, dom } = await page.evaluate(pageExtract, {});
         const png = await page.screenshot({ fullPage: true, animations: 'disabled', caret: 'hide' });
         await writeFile(outFile(p.id, 'png'), png);

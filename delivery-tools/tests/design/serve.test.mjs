@@ -6,9 +6,11 @@ import { prepareServeDir, setPropDefaults, writePropCopy, PROP_COPY_PREFIX } fro
 import { startStaticServer, resolveServedPath, contentTypeFor } from '../../lib/design/server.mjs';
 import { parseCdnUrl, resolveVendored, vendorResolver } from '../../lib/design/vendor.mjs';
 import { splitDcHtml } from '../../lib/design/claude-dc.mjs';
-import { planRenders, isSelector } from '../../lib/design/render.mjs';
+import { planRenders, isSelector, componentNames, readStateComponents } from '../../lib/design/render.mjs';
+import { featurePaths } from '../../lib/core/paths.mjs';
 import { makeTestCtx } from '../helpers/ctx.mjs';
 import { makeProfile } from '../helpers/fixtures.mjs';
+import { makeTempDir } from '../helpers/tmp-repo.mjs';
 import { makeDesignRepo, widgetsInventory, DC_TEXT, TOYLIB } from './helpers.mjs';
 import renderCommand from '../../lib/commands/design-render.mjs';
 
@@ -102,6 +104,45 @@ test('planRenders: impossible states are skipped, pictures copied, unspecified a
   assert.ok(isSelector('text="Scripts"'));
   assert.ok(isSelector('css=.x'));
   assert.ok(!isSelector('Red widget'));
+});
+
+test('planRenders: a component file state passes file and props through, and renders with no props', () => {
+  const inv = widgetsInventory([
+    ...widgetsInventory().states,
+    { id: 'PK-01', screen: 'Picker', name: 'open', reach: { kind: 'prop', file: 'Picker.dc.html', props: { open: true } }, shots: [], render: { status: 'ok' }, controls: [] },
+    { id: 'PK-02', screen: 'Picker', name: 'defaults', reach: { kind: 'prop', file: 'Picker.dc.html' }, shots: [], render: { status: 'ok' }, controls: [] },
+  ]);
+  const plan = planRenders(inv, { states: null, adapter: 'claude-design' });
+  const by = Object.fromEntries(plan.map((p) => [p.id, p]));
+  assert.equal(by['PK-01'].action, 'render');
+  assert.equal(by['PK-01'].file, 'Picker.dc.html');
+  assert.deepEqual(by['PK-01'].props, { open: true });
+  assert.equal(by['PK-02'].action, 'render');
+  assert.equal(by['PK-02'].file, 'Picker.dc.html');
+  assert.equal(by['PK-02'].props, null);
+  assert.equal(by['WL-01'].file, undefined, 'a page state names no file');
+});
+
+test('componentNames: unique, sorted, minus the root host\'s own name', () => {
+  assert.deepEqual(
+    componentNames([{ name: 'Picker', root: true }, { name: 'Table', root: false }, { name: 'Table', root: false }, { name: 'Row', root: false }]),
+    ['Row', 'Table'],
+  );
+  assert.deepEqual(componentNames([{ name: 'Picker', root: true }]), [], 'a component with no children names nothing');
+  assert.deepEqual(componentNames([]), []);
+});
+
+test('readStateComponents: reads the names file written beside a render, empty when absent', async () => {
+  const repo = makeTempDir();
+  try {
+    const paths = featurePaths(repo.dir, 'widgets');
+    mkdirSync(paths.designRenders, { recursive: true });
+    writeFileSync(join(paths.designRenders, 'PK-01.components.json'), JSON.stringify({ names: ['Row', 'Table'] }));
+    writeFileSync(join(paths.designRenders, 'PK-01@phone.components.json'), JSON.stringify({ names: ['Row'] }));
+    assert.deepEqual(await readStateComponents(paths, 'PK-01'), ['Row', 'Table']);
+    assert.deepEqual(await readStateComponents(paths, 'PK-01', 'phone'), ['Row']);
+    assert.deepEqual(await readStateComponents(paths, 'WL-01'), []);
+  } finally { repo.cleanup(); }
 });
 
 test('design render: an image-folder design copies pictures without a browser; unknown states are refused', async () => {
