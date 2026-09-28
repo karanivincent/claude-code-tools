@@ -19,14 +19,18 @@ export default defineCommand({
 Picture mode. Reviewer agents (briefs/reviewer-picture.md) each write review-<group>.md into the
 round's folder: one "## <ITEM>" section per item with a problem (an item is a state at a width:
 "## KC-05" at desktop, "## KC-05@phone" at phone width), one bullet per problem, each starting
-"must fix:", "small:" or "design:" (the live page is right and the design is wrong, or missing
-something the product has). This command reads them with the round's shoot.json and writes:
+"must fix:", "small:", "design:" (the live page is right and the design is wrong, or missing
+something the product has) or "data gap:" (the live page is only wrong because the seeded world
+lacks what the state's map entry needs, checklist.md's "Needs data" line; A1). This command reads
+them with the round's shoot.json and writes:
 
-  review.json    every item's verdict: match, small, must, not-reached, back-to-design or
-                 test-only, with notes; a page the shoot found scrolling sideways at phone width
+  review.json    every item's verdict: match, small, must, data-gap, not-reached, back-to-design
+                 or test-only, with notes; a page the shoot found scrolling sideways at phone width
                  is a must fix. An item with both a must-fix/small note and a design note keeps
-                 its worse verdict; back-to-design is only for an item whose notes are all
-                 design:. "delivery brief new <slug> --from-run" turns them into the next brief.
+                 its worse verdict; back-to-design is only for an item whose notes are all design:,
+                 data-gap only for one whose notes are all data gap: (never a code defect, so it
+                 never spends a fix round; reseed the world instead). "delivery brief new <slug>
+                 --from-run" turns design: notes into the next brief.
   compare.html   each state with a row per width: design, an earlier round and this round side by
                  side, with the notes; the pictures it shows are copied into the round's folder so
                  the folder publishes whole
@@ -60,10 +64,11 @@ common options:
     const notes = {};
     for (const f of info.reviews) {
       for (const [id, n] of Object.entries(parseReview(readFileSync(join(info.dir, f), 'utf8'), mapItems(map).map((i) => i.key)))) {
-        notes[id] ??= { must: [], small: [], design: [] };
+        notes[id] ??= { must: [], small: [], design: [], dataGap: [] };
         notes[id].must.push(...n.must);
         notes[id].small.push(...n.small);
         notes[id].design.push(...n.design);
+        notes[id].dataGap.push(...(n.dataGap ?? []));
       }
     }
     const summary = summarise({ map, shoot: info.shoot, notes });
@@ -89,9 +94,10 @@ common options:
 
     const c = summary.counts;
     const noun = hasPhone(map) ? ' (items: a state at a width)' : '';
-    ctx.out.line(`round ${round}${noun}: ${c.match} match, ${c.small} small differences only, ${c.must} to fix, ${c.notReached} not reached, ${c.backToDesign} back to design, ${c.testOnly} unit tests only`);
+    ctx.out.line(`round ${round}${noun}: ${c.match} match, ${c.small} small differences only, ${c.must} to fix, ${c.dataGap ?? 0} data gap, ${c.notReached} not reached, ${c.backToDesign} back to design, ${c.testOnly} unit tests only`);
     for (const [id, s] of Object.entries(summary.states)) {
       if (s.verdict === 'must') ctx.out.line(`  ${id}: ${s.must.length} to fix`);
+      if (s.verdict === 'data-gap') ctx.out.line(`  ${id}: ${s.dataGap.length} data gap (reseed the world, not a code fix)`);
       if (s.verdict === 'not-reached') ctx.out.line(`  ${id}: not reached`);
       if (s.verdict === 'back-to-design') ctx.out.line(`  ${id}: back to design`);
     }

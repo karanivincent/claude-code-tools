@@ -148,6 +148,20 @@ export function validateMap(map, opts = {}) {
         problems.push(`${where} has no phone design picture (render it with design render --width phone, point "design": { "phone": "<id>" } at a mobile frame, or set "design": { "phone": false })`);
       }
     }
+    // data (A1): what the picture needs to exist, checked by seed --check/--apply against the
+    // rows the worlds seed (not the live database). world defaults to the state's own reach.world.
+    if (s.data !== undefined) {
+      if (!Array.isArray(s.data)) problems.push(`${where} data must be a list`);
+      else s.data.forEach((d, i) => {
+        const dwhere = `${where} data[${i}]`;
+        if (!d || typeof d !== 'object' || Array.isArray(d)) { problems.push(`${dwhere} must be an object`); return; }
+        if (d.world !== undefined && !worlds.has(d.world)) problems.push(`${dwhere} names world "${d.world}", which the map does not list`);
+        if (d.world === undefined && !s.reach?.world) problems.push(`${dwhere} has no world, and ${s.id} has no reach.world to default to`);
+        if (typeof d.table !== 'string' || !/^[a-z_][a-z0-9_]*$/.test(d.table)) problems.push(`${dwhere} table must be a lowercase table name`);
+        if (!d.where || typeof d.where !== 'object' || Array.isArray(d.where) || !Object.keys(d.where).length) problems.push(`${dwhere} where must be an object of column: value`);
+        if (d.min !== undefined && !(Number.isInteger(d.min) && d.min >= 1)) problems.push(`${dwhere} min must be a whole number of at least 1`);
+      });
+    }
     const buttons = s.buttons ?? [];
     for (const b of buttons) {
       if (!b.label && !b.testid) problems.push(`${where} has a button with neither a label nor a test id`);
@@ -249,6 +263,11 @@ export function renderChecklist(map, { rules = null } = {}) {
     if (s.reach?.test) lines.push(`- Reached by: the component test ${s.reach.test} (the capture cannot reach it)`);
     else if (s.reach) lines.push(`- Reached by: ${(s.reach.steps ?? []).map(stepText).join(' then ')} (test data: ${s.reach.world}, ${s.reach.role})`);
     if (s.reach?.phone?.steps?.length) lines.push(`- Reached on a phone by: ${s.reach.phone.steps.map(stepText).join(' then ')}`);
+    for (const d of s.data ?? []) {
+      const world = d.world ?? s.reach?.world ?? '?';
+      const filter = Object.entries(d.where ?? {}).map(([k, v]) => `${k} = ${JSON.stringify(v)}`).join(' and ');
+      lines.push(`- Needs data: at least ${d.min ?? 1} ${d.table} row(s) where ${filter} (world ${world}); a reviewer who sees this missing writes "data gap:", not "must fix:"`);
+    }
     if (multi && stateWidths(s, map).includes('phone')) {
       const d = designFor(s, 'phone');
       if (!d) lines.push('- Phone design: none (the design never drew this state on a phone)');

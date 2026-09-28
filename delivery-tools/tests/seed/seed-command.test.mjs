@@ -249,6 +249,7 @@ test('seed --apply: a production or foreign project is refused before the databa
   const { repo, ctx, db } = await setup();
   try {
     await seedCommand.run(ctx, ['--plan']);
+    db.calls.length = 0; // --plan itself reads CHECK constraints; what follows must touch nothing
     const plan = await readArtefact(ctx.paths, 'seedplan');
     await writeArtefact(ctx.paths, 'seedplan', { ...plan, project: 'prodprojectref' });
     await assert.rejects(seedCommand.run(ctx, ['--apply']), (err) => err.exit === 2 && err.code === 'production');
@@ -418,4 +419,33 @@ test("a world's user carries the name the design gives them, all the way to the 
   const made = [];
   await applyRows({ createUser: async (u) => { made.push(u); return 'created'; }, upsert: async () => undefined }, seed, { now: new Date(NOW) });
   assert.equal(made.find((u) => u.email === admin.email).name, 'Sam');
+});
+
+test('A1: a world missing one row a state needs makes seed --check name that state and exit non-zero', async () => {
+  const { repo, ctx, stdout } = await setup();
+  try {
+    const plan = validExample('plan');
+    const states = [
+      { id: 'KC-05', reach: { world: 'design' }, data: [{ table: 'widgets', where: { state: 'idle' }, min: 2 }] },
+      { id: 'KC-06', reach: { world: 'design' }, data: [{ table: 'widgets', where: { state: 'idle' }, min: 1 }] },
+      { id: 'KC-07', reach: { world: 'design' } },
+    ];
+    writeFileSync(join(repo.dir, 'docs/delivery/widgets/map.json'), JSON.stringify({ worlds: plan.worlds, states }));
+    assert.equal(await seedCommand.run(ctx, ['--plan']), 0);
+    const exit = await seedCommand.run(ctx, ['--check']);
+    assert.equal(exit, 1);
+    assert.match(stdout.text(), /state KC-05: widgets where state = "idle" wants at least 2, found 1/);
+    assert.doesNotMatch(stdout.text(), /state KC-06|state KC-07/);
+  } finally { repo.cleanup(); }
+});
+
+test('A2: seed --plan lists tables no guard covers, and refuses a world value outside a CHECK list', async () => {
+  const db = createStubDb({ checks: [{ table_name: 'widgets', definition: "CHECK ((state IN ('busy', 'done')))" }] });
+  const { repo, ctx, stdout } = await setup({ db });
+  try {
+    const exit = await seedCommand.run(ctx, ['--plan']);
+    assert.equal(exit, 1);
+    assert.match(stdout.text(), /widgets\.state = "idle".*is not one of busy, done/);
+    assert.match(stdout.text(), /guards to approve/);
+  } finally { repo.cleanup(); }
 });

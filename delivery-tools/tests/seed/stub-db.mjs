@@ -46,6 +46,10 @@ export function createStubDb(opts = {}) {
     if (/information_schema\.columns/.test(sql)) {
       return [...tables.keys()].filter((t) => t === 'users' || t === 'profiles').map((t) => ({ table_name: t }));
     }
+    // A2: CHECK constraints and enum labels. No table has either unless a test passes them via
+    // opts.checks/opts.enums or a matching `answers` entry, so seed --plan finds nothing to refuse.
+    if (/from pg_constraint/.test(sql)) return opts.checks ?? [];
+    if (/from pg_enum/.test(sql)) return opts.enums ?? [];
     let m = /from auth\.users where id::text = any\((.*)\)/.exec(sql);
     if (m) return [...users.values()].filter((u) => ids(m[1]).includes(u.id)).map((u) => ({ id: u.id, email: u.email, phone: u.phone ?? null }));
     m = /from public\."([a-z_]+)" where "?([a-z_]+)"?::text = any\((.*)\)/.exec(sql);

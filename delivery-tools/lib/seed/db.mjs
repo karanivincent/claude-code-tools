@@ -4,6 +4,7 @@
 import { sqlTokenize } from '../sidefx/sql.mjs';
 import { ORG_COLUMNS } from './check.mjs';
 import { plannedValues } from './plan.mjs';
+import { columnAllowList } from './data.mjs';
 
 const SAFE_ID = /^[A-Za-z0-9._:-]+$/;
 const TABLE = /^[a-z_][a-z0-9_]*$/;
@@ -320,6 +321,37 @@ export function liveWorldReads(seedPlan, schema) {
     }
   }
   return reads;
+}
+
+/**
+ * A2 (spec: validate CHECK constraints and enum types at intake): every CHECK constraint's
+ * definition text (pg_get_constraintdef) and every enum column's labels, public schema only.
+ * columnAllowList (lib/seed/data.mjs) parses the constraints it can into an allow-list per column.
+ */
+export const CHECK_CONSTRAINTS_SQL = `select rel.relname as table_name, pg_get_constraintdef(con.oid) as definition
+from pg_constraint con
+join pg_class rel on rel.oid = con.conrelid
+join pg_namespace nsp on nsp.oid = rel.relnamespace
+where con.contype = 'c' and nsp.nspname = 'public'`;
+
+export const ENUM_COLUMNS_SQL = `select c.table_name, c.column_name, array_agg(e.enumlabel order by e.enumsortorder) as labels
+from information_schema.columns c
+join pg_type t on t.typname = c.udt_name
+join pg_enum e on e.enumtypid = t.oid
+where c.table_schema = 'public'
+group by c.table_name, c.column_name`;
+
+/** The reads columnConstraints sends, so a caller can put them in a batch with its own. */
+export const CONSTRAINTS_SQL = Object.freeze([CHECK_CONSTRAINTS_SQL, ENUM_COLUMNS_SQL]);
+
+/**
+ * `table.column` -> its allowed values, read from the database and parsed by columnAllowList.
+ * @param {import('../../adapters/data/supabase.mjs').DataAdapter} db
+ * @returns {Promise<Map<string, string[]>>}
+ */
+export async function columnConstraints(db) {
+  const [checks, enums] = await queryAll(db, CONSTRAINTS_SQL);
+  return columnAllowList(checks, enums);
 }
 
 /**
