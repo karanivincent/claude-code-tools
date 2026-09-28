@@ -15,11 +15,13 @@ import { pathToFileURL } from 'node:url';
 import { ConfigError, DeliveryError, EXIT } from '../../lib/core/exit.mjs';
 
 export const WRITE_MODES = Object.freeze({
-  'seed-apply': ['upsert', 'createUser'],
+  // updateById sets the columns a row was first written without: a forward reference to a row
+  // written after it. Teardown uses it to clear those columns, so the rows can then be deleted.
+  'seed-apply': ['upsert', 'updateById', 'createUser'],
   // A refresh may also remove rows a click added to its world, but only through deleteOrgRows,
   // whose every request carries the world's organisation as a filter the database applies.
-  'seed-refresh': ['upsert', 'deleteOrgRows'],
-  'seed-teardown': ['deleteByIds', 'deleteUser'],
+  'seed-refresh': ['upsert', 'updateById', 'deleteOrgRows'],
+  'seed-teardown': ['updateById', 'deleteByIds', 'deleteUser'],
 });
 
 const TABLE = /^[a-z_][a-z0-9_]*$/;
@@ -36,6 +38,7 @@ const ORG_FILTER_COLUMNS = Object.freeze(['organization_id', 'organisation_id', 
  * @property {(sqls: string[]) => Promise<({ rows: object[] } | { error: Error })[]>} queryMany
  *   several read-only queries in one round trip where the backend can, each answered on its own
  * @property {(table: string, rows: object[]) => Promise<void>} upsert      by primary key `id`
+ * @property {(table: string, id: string, values: object) => Promise<void>} updateById   set columns of one row
  * @property {(table: string, ids: string[]) => Promise<number>} deleteByIds
  * @property {(table: string, ids: string[], org: { column: string, orgId: string }) => Promise<number>} deleteOrgRows
  *   delete by id, and only where the organisation column holds that organisation
@@ -128,6 +131,15 @@ function guard(backend, { projectRef, write, fixturePattern = null }) {
       }
       return backend.upsert(table, rows, o);
     } : refuse('upsert'),
+    updateById: allowed.has('updateById') ? async (table, id, values) => {
+      assertTable(table);
+      if (!ID.test(String(id ?? ''))) throw new DeliveryError(EXIT.USAGE, `update ${table}: "${id}" is not an id`, { code: 'seed' });
+      if (!values || typeof values !== 'object' || Array.isArray(values) || !Object.keys(values).length) {
+        throw new DeliveryError(EXIT.USAGE, `update ${table}/${id}: name at least one column`, { code: 'seed' });
+      }
+      if ('id' in values) throw new DeliveryError(EXIT.USAGE, `update ${table}/${id}: a row's id is derived and never updated`, { code: 'seed' });
+      return backend.updateById(table, String(id), values);
+    } : refuse('updateById'),
     deleteByIds: allowed.has('deleteByIds') ? async (table, ids) => {
       assertTable(table);
       for (const id of ids) if (!ID.test(String(id))) throw new DeliveryError(EXIT.USAGE, `delete from ${table}: "${id}" is not an id`, { code: 'seed' });
@@ -286,6 +298,15 @@ function httpBackend(env, projectRef, fetchImpl, sleep = wait) {
           if (!res.ok) await failWith(res, `upsert into ${table}`);
         }
       }
+    },
+    async updateById(table, id, values) {
+      const base = rest();
+      const res = await call(`${base}/rest/v1/${table}?id=eq.${encodeURIComponent(id)}`, {
+        method: 'PATCH',
+        headers: restHeaders({ Prefer: 'return=minimal' }),
+        body: JSON.stringify(values),
+      }, `update ${table}/${id}`);
+      if (!res.ok) await failWith(res, `update ${table}/${id}`);
     },
     async deleteByIds(table, ids) {
       const base = rest();

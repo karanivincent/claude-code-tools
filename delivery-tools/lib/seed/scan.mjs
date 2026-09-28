@@ -261,8 +261,8 @@ export async function teardownRows(ctx, rows) {
 }
 
 /**
- * `seed --teardown`: delete every row of the seed plan by id (dependants first, organisations
- * last), then its fixture users, then scan.
+ * `seed --teardown`: clear every forward reference, delete every row of the seed plan by id
+ * (dependants first, organisations last), then its fixture users, then scan.
  * @param {import('../core/ctx.mjs').Ctx} ctx
  */
 export async function teardownSeed(ctx) {
@@ -277,6 +277,13 @@ export async function teardownSeed(ctx) {
   const ordered = [...seedPlan.rows].reverse().filter((r) => !r.idless);
   const nonOrg = ordered.filter((r) => !orgIds.has(r.id));
   const orgs = ordered.filter((r) => orgIds.has(r.id));
+  // A forward reference points at a row written later, which this deletes first. Two tables that
+  // name each other would refuse either delete, so those columns are cleared before any row goes;
+  // what is left only names earlier rows, and latest-first deletes the row that names them first.
+  for (const r of ordered) {
+    const cols = Object.keys(r.deferred ?? {});
+    if (cols.length) await writer.updateById(r.table, r.id, Object.fromEntries(cols.map((c) => [c, null])));
+  }
   let deleted = 0;
   for (const group of [...consecutiveByTable(nonOrg), ...consecutiveByTable(orgs)]) {
     deleted += await writer.deleteByIds(group.table, group.ids);

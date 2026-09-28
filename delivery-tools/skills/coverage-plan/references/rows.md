@@ -100,6 +100,16 @@ membership lives in — so the world file carries one row per user:
 signs that user in and they belong to no organisation, so every world renders the same page and
 the differences the worlds exist to show are invisible.
 
+**A `$ref` may name a row further down the file.** Rows are written in file order, the organisation
+first, so a row that names a later one cannot be written with that column: the row it names is not
+there yet. Two tables that name each other (a script's `live_version_id`, a version's `script_id`)
+always need one. `seed --plan` writes that column as `null` and keeps the id under the row's
+`deferred` in `seedplan.json`; `seed --apply` writes every row, then sets those columns by id.
+`--refresh` compares a row with the value it ends with, so a world already as planned is not
+written again, and `--teardown` clears those columns before it deletes. So the column must accept
+`null`. A join row (a table with no `id`) has nothing to set a column by later, so it must come after
+every row it names. A `$ref` that names no row is refused, as before.
+
 | Kind | Holds |
 |---|---|
 | `design` | the design's own numbers and names |

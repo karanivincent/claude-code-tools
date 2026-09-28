@@ -155,10 +155,10 @@ async function applyMode(ctx) {
   const { createDataAdapter } = await import('../../adapters/data/supabase.mjs');
   const db = await createDataAdapter(ctx, { projectRef: seedPlan.project, write: 'seed-apply' });
   const written = await applyRows(db, seedPlan, { now: ctx.clock.now() });
-  ctx.out.line(`wrote ${written.rows} row(s) and ${written.users.created} new fixture user(s) (${written.users.existing} already there) to ${seedPlan.project}`);
+  ctx.out.line(`wrote ${written.rows} row(s) and ${written.users.created} new fixture user(s) (${written.users.existing} already there) to ${seedPlan.project}${written.deferred ? `, then set the forward references of ${written.deferred} row(s)` : ''}`);
   const scan = await seedScan(ctx);
   const exit = report(ctx, scan.gate, scan.evaluation, 'scan after write');
-  await ctx.journal({ command: 'seed --apply', exit, counts: { written: written.rows, users: written.users.created, ...layerCounts(scan.evaluation) }, inputs: seedPlan });
+  await ctx.journal({ command: 'seed --apply', exit, counts: { written: written.rows, deferred: written.deferred, users: written.users.created, ...layerCounts(scan.evaluation) }, inputs: seedPlan });
   return exit;
 }
 
