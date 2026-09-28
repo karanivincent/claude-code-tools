@@ -6,8 +6,8 @@
 // recordSent (appends to the sent record on disk).
 
 import { existsSync, readdirSync } from 'node:fs';
-import { readFile, copyFile, rm } from 'node:fs/promises';
-import { basename, join } from 'node:path';
+import { readFile, copyFile, readdir, unlink } from 'node:fs/promises';
+import { basename, isAbsolute, join, relative, resolve } from 'node:path';
 import { writeFileAtomic, readJson, writeJsonAtomic, withLock, ensureDir } from '../core/fs.mjs';
 import { DeliveryError, EXIT } from '../core/exit.mjs';
 import { sha256File } from '../core/hash.mjs';
@@ -209,10 +209,38 @@ export function briefProblems(text, opts = {}) {
   return problems;
 }
 
+/** Whether `filePath` is `dir` itself or somewhere under it. */
+function isInsideDir(filePath, dir) {
+  const rel = relative(resolve(dir), resolve(filePath));
+  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel));
+}
+
+/**
+ * Remove only what a previous packBrief call could have written directly inside `outDir` —
+ * "00-brief.md" and anything matching "NN-..." — never a subfolder, never any other file (fix
+ * round, round 2: a recursive wipe of a directory the caller names is never safe; --out could be
+ * pointed at something that already holds unrelated files). Creates outDir when it does not exist.
+ */
+async function clearPackFolder(outDir) {
+  let entries;
+  try {
+    entries = await readdir(outDir, { withFileTypes: true });
+  } catch (err) {
+    if (err.code === 'ENOENT') { await ensureDir(outDir); return; }
+    throw err;
+  }
+  for (const e of entries) {
+    if (!e.isFile()) continue;
+    if (e.name === '00-brief.md' || /^\d{2}-/.test(e.name)) await unlink(join(outDir, e.name));
+  }
+}
+
 /**
  * Build the pack folder the send step uploads: the checked brief as "00-brief.md", then each
  * image as "NN-<basename>" in the order given (01, 02, ...). Runs briefProblems on the brief's
- * text and the images' file names first and refuses (throws) when it finds anything.
+ * text and the images' file names first and refuses (throws) when it finds anything; also refuses
+ * when the brief or an image already lives inside outDir (fix round, round 2) — clearing the pack
+ * folder's own NN-* files would otherwise delete one of the inputs it is about to copy.
  * @param {string} briefPath
  * @param {string[]} images
  * @param {string} outDir
@@ -227,6 +255,11 @@ export async function packBrief(briefPath, images, outDir, opts = {}) {
     const message = err.code === 'ENOENT' ? `${briefPath} does not exist` : `${briefPath}: ${err.message}`;
     throw new DeliveryError(EXIT.RED, message, { failures: [{ code: 'brief', message }] });
   }
+  const inside = [briefPath, ...images].filter((f) => isInsideDir(f, outDir));
+  if (inside.length) {
+    const message = `${inside.join(', ')} ${inside.length === 1 ? 'is' : 'are'} inside the pack folder ${outDir}; pick an --out outside it`;
+    throw new DeliveryError(EXIT.RED, message, { failures: [{ code: 'brief', message }] });
+  }
   const fileNames = images.map((p) => basename(p));
   const problems = briefProblems(text, { forbiddenNames: opts.forbiddenNames, componentNames: opts.componentNames, fileNames, requireBehaviours: true });
   if (problems.length) {
@@ -235,10 +268,9 @@ export async function packBrief(briefPath, images, outDir, opts = {}) {
     });
   }
 
-  // Clear the pack folder first (fix round, M2): otherwise a stale image from an earlier pack
-  // (one the new call no longer lists) stays behind and still goes out with this brief.
-  await rm(outDir, { recursive: true, force: true });
-  await ensureDir(outDir);
+  // Clear only what a previous pack wrote (fix round, M2 + round 2): a stale image from an
+  // earlier, larger pack must not survive, but nothing else in outDir is ever touched.
+  await clearPackFolder(outDir);
 
   const files = ['00-brief.md'];
   await writeFileAtomic(join(outDir, '00-brief.md'), text);

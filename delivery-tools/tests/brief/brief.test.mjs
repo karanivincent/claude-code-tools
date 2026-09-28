@@ -253,6 +253,43 @@ test('packBrief clears the pack folder first: a stale image from an earlier pack
   } finally { t.cleanup(); }
 });
 
+// Round 2: clearing the pack folder must never be a recursive wipe of a directory the caller
+// names — --out could point at something that already holds files or folders of its own.
+test('packBrief only removes its own 00-brief.md / NN-* files from --out; anything else survives', async () => {
+  const t = makeTempDir();
+  try {
+    write(t.dir, 'briefs/01-widgets.md', okBrief());
+    write(t.dir, 'shots/list.png', 'a');
+    write(t.dir, 'pack/notes.txt', 'do not touch me');
+    write(t.dir, 'pack/keep/nested.txt', 'nor me');
+    await packBrief(join(t.dir, 'briefs/01-widgets.md'), [join(t.dir, 'shots/list.png')], join(t.dir, 'pack'));
+    assert.ok(existsSync(join(t.dir, 'pack/01-list.png')));
+    assert.equal(readFileSync(join(t.dir, 'pack/notes.txt'), 'utf8'), 'do not touch me');
+    assert.equal(readFileSync(join(t.dir, 'pack/keep/nested.txt'), 'utf8'), 'nor me');
+  } finally { t.cleanup(); }
+});
+
+test('packBrief refuses when an image (or the brief itself) already lives inside --out', async () => {
+  const t = makeTempDir();
+  try {
+    write(t.dir, 'briefs/01-widgets.md', okBrief());
+    write(t.dir, 'pack/shot.png', 'a');
+    await assert.rejects(
+      packBrief(join(t.dir, 'briefs/01-widgets.md'), [join(t.dir, 'pack/shot.png')], join(t.dir, 'pack')),
+      (err) => err.exit === 1 && /inside the pack folder/.test(err.message) && /shot\.png/.test(err.message),
+    );
+    // Nothing was cleared or written: shot.png is untouched, and the brief was never copied in.
+    assert.equal(readFileSync(join(t.dir, 'pack/shot.png'), 'utf8'), 'a');
+    assert.equal(existsSync(join(t.dir, 'pack/00-brief.md')), false);
+
+    write(t.dir, 'pack/00-brief-already-here.md', okBrief());
+    await assert.rejects(
+      packBrief(join(t.dir, 'pack/00-brief-already-here.md'), [], join(t.dir, 'pack')),
+      (err) => err.exit === 1 && /inside the pack folder/.test(err.message),
+    );
+  } finally { t.cleanup(); }
+});
+
 test('packBrief: refuses an image named after a forbidden name, and writes nothing', async () => {
   const t = makeTempDir();
   try {
