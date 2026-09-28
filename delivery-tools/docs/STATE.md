@@ -22,8 +22,10 @@ profile, in that project's repository (spec section 18).
 node --test 'tests/**/*.test.mjs' 'skills/**/*.test.mjs'
 ```
 
-929 tests: 915 pass, 0 fail, 14 skipped (the replay tests, which need the private replay set).
-That is the whole suite after 0.9.1, three bugs the first real components run hit: `intake
+930 tests: 916 pass, 0 fail, 14 skipped (the replay tests, which need the private replay set).
+That is the whole suite after 0.9.2, whose one fix is that `ready`'s components rule 3 no longer
+counts a file under the design or delivery folders (the design snapshot's own `DatePicker.dc.html`)
+as a redrawn component. 0.9.1 fixed three bugs the first real components run hit: `intake
 --components` run from inside another run's own worktree no longer adopts that worktree's feature;
 the components world it seeds now carries a fixture email, `kind` and `orgName` (and copies an
 organisation-row template from a sibling run's world file when one exists), and a world with no

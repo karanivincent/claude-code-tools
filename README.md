@@ -78,7 +78,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### delivery-tools `v0.9.1`
+### delivery-tools `v0.9.2`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -103,7 +103,8 @@ hit: `intake --components` run from inside another run's own worktree no longer 
 worktree's feature and overwrites its snapshot; the components world it seeds carries a fixture
 email, `kind` and `orgName` (copying an organisation-row template from a sibling run's world file
 when the repo has one) instead of a world `seed --check` refused and `seed --plan` crashed on; and
-the mapper brief greps file names, not only contents, before filling `replaces`. An export
+the mapper brief greps file names, not only contents, before filling `replaces`. Since 0.9.2, `ready`
+no longer counts the design snapshot's own files as redrawn components. An export
 holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run
