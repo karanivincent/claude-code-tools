@@ -78,7 +78,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### delivery-tools `v0.9.0`
+### delivery-tools `v0.9.1`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -98,7 +98,12 @@ seeded: the seed writes that column empty, then fills it once every row is there
 design component is built once from `docs/delivery/components.json` and every page imports it
 instead of redrawing it, `delivery ready` refuses a screen whose component isn't built or a file
 that bypasses one, and briefs are written, checked, packed, sent and reviewed against a design
-export through the CLI rather than by hand. An export
+export through the CLI rather than by hand. Since 0.9.1, three fixes the first real components run
+hit: `intake --components` run from inside another run's own worktree no longer adopts that
+worktree's feature and overwrites its snapshot; the components world it seeds carries a fixture
+email, `kind` and `orgName` (copying an organisation-row template from a sibling run's world file
+when the repo has one) instead of a world `seed --check` refused and `seed --plan` crashed on; and
+the mapper brief greps file names, not only contents, before filling `replaces`. An export
 holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run

@@ -7,7 +7,7 @@
 // intake: the first run stops with NEXT naming it; the second validates intent.json, fixes its
 // mechanical fields, renders intent.md, updates the epic and commits both.
 
-import { mkdtemp, readFile, rm, stat, copyFile, mkdir } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, stat, copyFile, mkdir, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, dirname, resolve, basename } from 'node:path';
 import { readZip, writeZip } from '../core/zip.mjs';
@@ -225,7 +225,12 @@ export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic 
       defaultComponentsFeature = base;
       for (let n = 2; takenFeatures.has(defaultComponentsFeature); n += 1) defaultComponentsFeature = `${base}-${n}`;
     }
-    const feature = assertFeatureSlug(ctx.flags.feature ?? ctx.feature ?? (components ? defaultComponentsFeature : slugify(project)));
+    // ctx.feature is "the single run in this worktree" (core/discovery.mjs resolveFeature), resolved
+    // before this command ever sees --components. That default belongs to a page run only: a
+    // components run started from inside some other run's own worktree (fix round, 0.9.1 bug 1) must
+    // still get the components slug, never adopt the worktree's own feature and overwrite its
+    // snapshot. Only an explicit --feature (ctx.flags.feature) may override the components default.
+    const feature = assertFeatureSlug(ctx.flags.feature ?? (components ? defaultComponentsFeature : (ctx.feature ?? slugify(project))));
 
     // The run, if this feature already has one in some worktree.
     const existingRun = allRuns.find((r) => r.feature === feature) ?? null;
@@ -323,7 +328,11 @@ export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic 
     let intentState = 'missing';
     let componentsOk = true;
     if (components) {
-      const cr = await runComponentsIntake({ profile, worktree, paths, treeSha256, drift });
+      // Read lazily (getSafety), not up front: the null-target and nothing-to-build returns never
+      // reach the email-building step, so a repo whose safety file is not set up yet still gets
+      // those results instead of an unrelated "no safety file" error.
+      const getSafety = async () => (await ctx.safety()).safety;
+      const cr = await runComponentsIntake({ profile, worktree, paths, treeSha256, drift, getSafety });
       lines.push(...cr.lines);
       for (const f of cr.failures) failures.push(f);
       next = cr.next;
@@ -426,6 +435,92 @@ async function readComponentDrift({ profile, worktree, exportDir }) {
 }
 
 /**
+ * The components run's fixture admin email: derived from the feature slug, never a hardcoded
+ * literal, and checked against this repo's own safety.fixtureUserPattern rather than assumed (fix
+ * round, 0.9.1 bug 2) — a components world seeded with `profile.auth.robotAdminEmail` is not a
+ * fixture address, so `seed --check` refused it. "components" shortens to "comp" so the plain
+ * default reads `delivery+comp-admin@example.invalid`; a dated run keeps its own date
+ * ("components-20260115" -> `delivery+comp-20260115-admin@example.invalid`).
+ * @param {string} feature
+ * @param {object} safety
+ */
+export function componentsWorldEmail(feature, safety) {
+  const short = String(feature).replace(/^components/, 'comp');
+  const email = `delivery+${short}-admin@example.invalid`;
+  const pattern = safety?.fixtureUserPattern;
+  if (pattern && !new RegExp(pattern).test(email)) {
+    throw new UsageError(`the components world's fixture email "${email}" does not match this repo's safety.fixtureUserPattern (${pattern}); adjust componentsWorldEmail in lib/lifecycle/intake.mjs for this repo's own convention`);
+  }
+  return email;
+}
+
+/**
+ * The components world's organisation name: the profile's own test data when it names one
+ * (profile.testData.orgName), else the generic "Acme Store" every other generic fixture and
+ * example in this plugin already uses (briefs/mapper.md, templates/design-brief.md).
+ * @param {object} profile
+ */
+export function componentsWorldOrgName(profile) {
+  return profile?.testData?.orgName || 'Acme Store';
+}
+
+/**
+ * The organisation-row template for a components run's world file: the first
+ * docs/delivery/<feature>/worlds/<world>.json in the repo (features in sorted order, the
+ * components run's own feature skipped) with a row keyed "org" and another row whose values
+ * reference "user:admin" — an existing page run's own world, copied rather than reinvented,
+ * because which tables an organisation and its admin membership live in is this product's
+ * business, never generic plugin code's (fix round, 0.9.1 bug 2).
+ * @param {string} worktree
+ * @param {string} skipFeature
+ * @returns {Promise<object[]|null>} the template's rows, or null when the repo has none yet
+ */
+export async function findComponentsWorldTemplate(worktree, skipFeature) {
+  const deliveryDir = join(worktree, 'docs', 'delivery');
+  let entries;
+  try { entries = await readdir(deliveryDir, { withFileTypes: true }); } catch { return null; }
+  const features = entries.filter((e) => e.isDirectory()).map((e) => e.name).sort();
+  for (const feature of features) {
+    if (feature === skipFeature) continue;
+    const worldsDir = join(deliveryDir, feature, 'worlds');
+    let files;
+    try { files = (await readdir(worldsDir)).filter((n) => n.endsWith('.json')).sort(); } catch { continue; }
+    for (const name of files) {
+      const doc = await readJson(join(worldsDir, name), { optional: true }).catch(() => null);
+      const rows = doc?.rows;
+      if (!Array.isArray(rows)) continue;
+      // Only the organisation row and the admin's own rows that point at nothing but it: a page
+      // run's world also seeds contacts, calls and a member, none of which the gallery needs, and
+      // a row referencing a user this world does not have would fail the seed.
+      const refsOk = (r) => [...JSON.stringify(r.values ?? {}).matchAll(/"\$ref":"([^"]+)"/g)].every((m) => m[1] === 'org' || m[1] === 'user:admin');
+      const org = rows.find((r) => r.key === 'org' && refsOk(r));
+      const admin = rows.filter((r) => r.key !== 'org' && JSON.stringify(r.values ?? {}).includes('"user:admin"') && refsOk(r));
+      if (org && admin.length) return [org, ...admin];
+    }
+  }
+  return null;
+}
+
+/**
+ * A template's rows, generalised for a components run's own world: every literal (non-placeholder)
+ * "slug" value becomes `delivery-comp-<feature>`, so the new world's organisation never collides
+ * with the one the template came from. $ref, $orgName and $rel placeholders resolve generically for
+ * any world and are kept exactly as the template has them.
+ * @param {object[]} templateRows
+ * @param {string} feature
+ */
+export function componentsWorldRows(templateRows, feature) {
+  const slug = `delivery-comp-${feature}`;
+  const isPlaceholder = (v) => v && typeof v === 'object' && ('$ref' in v || '$orgName' in v || '$rel' in v);
+  return templateRows.map((row) => ({
+    ...row,
+    values: Object.fromEntries(Object.entries(row.values ?? {}).map(([col, v]) => [
+      col, (col.toLowerCase() === 'slug' && !isPlaceholder(v)) ? slug : v,
+    ])),
+  }));
+}
+
+/**
  * The components-specific writes of `delivery intake --components` (components-first spec §3):
  * persist the drift `readComponentDrift` already computed into components.json, then write this
  * run's inventory.json, gallery-states.json, map.json (kind "components") and worlds/components.json
@@ -434,7 +529,7 @@ async function readComponentDrift({ profile, worktree, exportDir }) {
  * (briefs/components-mapper.md) has not run.
  * @returns {Promise<{ lines: string[], failures: { code: string, message: string }[], next: string|null }>}
  */
-async function runComponentsIntake({ profile, worktree, paths, treeSha256, drift }) {
+async function runComponentsIntake({ profile, worktree, paths, treeSha256, drift, getSafety }) {
   const lines = [];
   if (drift.errors.length) return { lines, failures: drift.errors.map((e) => ({ code: 'components', message: e })), next: null };
 
@@ -479,10 +574,15 @@ async function runComponentsIntake({ profile, worktree, paths, treeSha256, drift
   lines.push(`gallery-states.json: ${gallery.states.length} state(s)`);
 
   const route = profile.components.galleryRoute;
+  // The world user must be a fixture address seed --check accepts, not the real-looking
+  // profile.auth.robotAdminEmail — and kind/orgName so this world seeds the same way every other
+  // run's worlds already do (fix round, 0.9.1 bug 2).
+  const email = componentsWorldEmail(paths.feature, await getSafety());
+  const orgName = componentsWorldOrgName(profile);
   const mapDoc = {
     schemaVersion: 1, feature: paths.feature, title: 'Components', kind: 'components', route,
     widths: ['desktop', 'phone'],
-    worlds: [{ id: 'components', users: [{ role: 'admin', email: profile.auth.robotAdminEmail }] }],
+    worlds: [{ id: 'components', kind: 'design', orgName, users: [{ role: 'admin', email, name: 'Components Admin' }] }],
     states: inventoryPart.states.map((s) => ({
       id: s.id, screen: s.screen, name: s.name, design: s.id,
       reach: { world: 'components', role: 'admin', steps: [{ goto: route }] },
@@ -492,13 +592,24 @@ async function runComponentsIntake({ profile, worktree, paths, treeSha256, drift
   await writeJsonAtomic(join(paths.deliveryDir, 'map.json'), mapDoc);
   lines.push(`map.json: kind components, ${mapDoc.states.length} state(s) at ${route}`);
 
-  await writeJsonAtomic(worldFilePath(paths, 'components'), {
-    schemaVersion: 1, world: 'components',
-    rows: [{ key: 'org', table: 'organizations', values: { name: { $orgName: true } } }],
-  });
-  lines.push(`${repoRel(worktree, worldFilePath(paths, 'components'))} written`);
+  // The organisation row template: copied from an existing run's own world file rather than
+  // reinvented here, because which tables an organisation and its admin membership live in is this
+  // product's business (fix round, 0.9.1 bug 2). None found yet (a brand-new repo, or this is the
+  // very first run) writes the minimal world as before and says so with a NEXT line.
+  const template = await findComponentsWorldTemplate(worktree, paths.feature);
+  const worldPath = worldFilePath(paths, 'components');
+  let worldNext = null;
+  let worldRows;
+  if (template) {
+    worldRows = componentsWorldRows(template, paths.feature);
+  } else {
+    worldRows = [{ key: 'org', table: 'organizations', values: { name: { $orgName: true } } }];
+    worldNext = `NEXT: fill in ${repoRel(worktree, worldPath)} before seeding (no other run's world file was found in this repo to copy an organisation row template from)`;
+  }
+  await writeJsonAtomic(worldPath, { schemaVersion: 1, world: 'components', rows: worldRows });
+  lines.push(`${repoRel(worktree, worldPath)} written${template ? '' : ' (minimal: no template found)'}`);
 
-  return { lines, failures: [], next: null };
+  return { lines, failures: [], next: worldNext };
 }
 
 /**

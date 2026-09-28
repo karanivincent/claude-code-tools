@@ -22,11 +22,16 @@ profile, in that project's repository (spec section 18).
 node --test 'tests/**/*.test.mjs' 'skills/**/*.test.mjs'
 ```
 
-912 tests: 898 pass, 0 fail, 14 skipped (the replay tests, which need the private replay set).
-That is the whole suite after 0.9.0's final-review fix wave (components first, then pages import
-them, and the design loop); 0.8.0 shipped with 554 tests, 540 passing. One run in five on
-2026-09-23 showed a single failure that did not reproduce and did not name itself in the summary;
-recorded, not explained.
+929 tests: 915 pass, 0 fail, 14 skipped (the replay tests, which need the private replay set).
+That is the whole suite after 0.9.1, three bugs the first real components run hit: `intake
+--components` run from inside another run's own worktree no longer adopts that worktree's feature;
+the components world it seeds now carries a fixture email, `kind` and `orgName` (and copies an
+organisation-row template from a sibling run's world file when one exists), and a world with no
+`orgName` is a clear `seed --plan` error instead of a crash; the mapper brief now greps file names,
+not only contents, before filling `replaces`. 0.9.0's final-review fix wave (components first, then
+pages import them, and the design loop) shipped 912 tests, 898 passing; 0.8.0 shipped with 554
+tests, 540 passing. One run in five on 2026-09-23 showed a single failure that did not reproduce
+and did not name itself in the summary; recorded, not explained.
 
 ## The Trust rule
 

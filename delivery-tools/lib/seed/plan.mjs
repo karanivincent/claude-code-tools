@@ -166,7 +166,12 @@ export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safet
           else if (order.get(target) > writing) forward = true;
           return keys.get(target) ?? null;
         }
-        if (k.length === 1 && k[0] === '$orgName') return w.orgName.startsWith(safety.fixtureOrgPrefix) ? w.orgName : `${safety.fixtureOrgPrefix}${w.orgName}`;
+        if (k.length === 1 && k[0] === '$orgName') {
+          // A world with no orgName used to crash here ("Cannot read properties of undefined
+          // (reading 'startsWith')") rather than naming the problem (fix round, 0.9.1 bug 2).
+          if (typeof w.orgName !== 'string' || !w.orgName) { problems.push(`world ${w.id}: no orgName set (the plan or map must give every world an orgName)`); return null; }
+          return w.orgName.startsWith(safety.fixtureOrgPrefix) ? w.orgName : `${safety.fixtureOrgPrefix}${w.orgName}`;
+        }
         if (typeof v.$rel === 'string') return v; // resolved when written
         // An unrecognised $key is a typo or an invented placeholder, never a value anyone meant.
         // It used to fall through and be written literally, so a world file could put

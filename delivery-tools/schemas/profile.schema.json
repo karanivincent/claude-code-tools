@@ -120,7 +120,8 @@
       "required": ["mode"],
       "properties": {
         "mode": { "enum": ["tenant", "database", "none"] },
-        "robotOrganizationId": { "$ref": "common.schema.json#/$defs/Text" }
+        "robotOrganizationId": { "$ref": "common.schema.json#/$defs/Text" },
+        "orgName": { "description": "The generic organisation name a components run's own world uses (spec components-first §3); default \"Acme Store\" when absent.", "type": "string" }
       }
     },
     "auth": {
