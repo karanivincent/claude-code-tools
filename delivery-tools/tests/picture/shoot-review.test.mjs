@@ -119,6 +119,26 @@ test('"design" ending a plain sentence is never mistaken for a trailing design: 
   assert.deepEqual(r['KC-08'].design, []);
 });
 
+// Fix round: leadRe used to make the colon optional, so a bullet that just happened to start with
+// the ordinary word "design" (no colon) was misparsed as a design note even when it carried an
+// explicit must-fix/small marker.
+test('"design" starting a real note, with no colon, is not the design: lead; an explicit marker wins', () => {
+  const must = parseReview('## KC-08\n- Design shows a large Add button with a + icon and a chevron; the live page has none (must fix)\n');
+  assert.deepEqual(must['KC-08'].design, []);
+  assert.deepEqual(must['KC-08'].must, ['Design shows a large Add button with a + icon and a chevron; the live page has none']);
+
+  const small = parseReview('## KC-08\n- Design underlines the field label; the live page does not (small)\n');
+  assert.deepEqual(small['KC-08'].design, []);
+  assert.deepEqual(small['KC-08'].small, ['Design underlines the field label; the live page does not']);
+});
+
+test('a literal "design:" lead (colon required) still parses as a design note', () => {
+  const r = parseReview('## KC-08\n- design: the design lacks the Archive button\n');
+  assert.deepEqual(r['KC-08'].must, []);
+  assert.deepEqual(r['KC-08'].small, []);
+  assert.deepEqual(r['KC-08'].design, ['the design lacks the Archive button']);
+});
+
 test('an item whose only bullets are design: gets back-to-design, ranked after small and before test-only; a must/small item keeps its worse verdict but still collects its design notes', () => {
   const m = sampleMap();
   const shoot = { states: { 'KC-05': { reached: true }, 'KC-04': { reached: true }, 'KC-08': { reached: true } } };

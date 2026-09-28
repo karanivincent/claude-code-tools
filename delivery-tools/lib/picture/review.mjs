@@ -23,7 +23,12 @@ export function parseReview(md, ids = null) {
   const known = ids ? new Set(ids) : null;
   let cur = null;
   let last = null;
-  const leadRe = new RegExp(`^\`?\\*{0,2}(${NOTE_KINDS.join('|')})\\*{0,2}\`?\\s*[:\\-—]?\\s*`, 'i');
+  // must fix/small can lead with or without a colon ("must fix:", "`must fix`"); design cannot —
+  // "design" is an ordinary word that starts plenty of real notes ("Design shows a large button
+  // ...; the live page has none (must fix)"), so only a literal "design:" (colon required) counts
+  // as its lead. An explicit must-fix/small marker, leading or trailing, is checked first and wins.
+  const leadRe = /^`?\*{0,2}(must fix|small)\*{0,2}`?\s*[:\-—]?\s*/i;
+  const designLeadRe = /^`?\*{0,2}design\*{0,2}`?\s*:\s*/i;
   // "design" (unlike "must fix"/"small") is an ordinary word that legitimately ends a sentence
   // ("...doesn't match the design."), so it is never stripped as a trailing marker, only a leading one.
   const trailRe = /\s*`?\(?(must fix|small)\)?`?\.?$/i;
@@ -40,8 +45,11 @@ export function parseReview(md, ids = null) {
     if (bullet) {
       const text = bullet[1].trim();
       const lead = leadRe.exec(text);
-      const kind = lead ? kindKey(lead[1]) : (/\bmust fix\b/i.test(text) ? 'must' : 'small');
-      const clean = text.replace(leadRe, '').replace(trailRe, '').trim();
+      const trail = !lead ? trailRe.exec(text) : null;
+      const designLead = !lead && !trail ? designLeadRe.exec(text) : null;
+      const kind = lead ? kindKey(lead[1]) : trail ? kindKey(trail[1]) : designLead ? 'design' : (/\bmust fix\b/i.test(text) ? 'must' : 'small');
+      const stripped = lead ? text.replace(leadRe, '') : designLead ? text.replace(designLeadRe, '') : text;
+      const clean = stripped.replace(trailRe, '').trim();
       out[cur][kind].push(clean);
       last = { kind, i: out[cur][kind].length - 1 };
       continue;
