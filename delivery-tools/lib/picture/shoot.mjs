@@ -255,10 +255,25 @@ export async function runShoot(o) {
   return report;
 }
 
+/**
+ * A components map's crop: the state's own wrapper element, grown by 24px of padding on every
+ * side and clamped to the page, rather than the page-area rectangle every other kind uses.
+ */
+const GALLERY_CROP_PADDING = 24;
+async function galleryClip(page, box) {
+  const dims = await page.evaluate(() => ({ w: document.documentElement.scrollWidth, h: document.documentElement.scrollHeight }));
+  const x = Math.max(0, box.x - GALLERY_CROP_PADDING);
+  const y = Math.max(0, box.y - GALLERY_CROP_PADDING);
+  const x2 = Math.min(dims.w, box.x + box.width + GALLERY_CROP_PADDING);
+  const y2 = Math.min(dims.h, box.y + box.height + GALLERY_CROP_PADDING);
+  return { x, y, width: Math.max(1, x2 - x), height: Math.max(1, y2 - y) };
+}
+
 async function shootItem(page, it, o) {
   const s = it.state;
   const size = WIDTHS[it.width];
-  const { left } = cropFor(o.map, it.width);
+  const crop = cropFor(o.map, it.width, it.id);
+  const left = crop.left ?? 0;
   const rec = { user: `${s.reach.world}/${s.reach.role}`, width: it.width, reached: true, problems: [], buttons: [], writes: writesData(s, o.map, it.width) };
   await page.unrouteAll({ behavior: 'ignoreErrors' });
   if (s.reach.intercept) {
@@ -289,6 +304,18 @@ async function shootItem(page, it, o) {
   }
   await page.waitForLoadState('networkidle').catch(() => {});
   await page.waitForTimeout(600);
+
+  if (o.map.kind === 'components') {
+    const box = rec.reached ? await page.locator(crop.selector).first().boundingBox().catch(() => null) : null;
+    if (!box) {
+      rec.reached = false;
+      rec.problems.push(`no element matches ${crop.selector}`);
+      return rec;
+    }
+    await page.screenshot({ path: join(o.outDir, roundFiles(it.key).live), clip: await galleryClip(page, box), animations: 'disabled', caret: 'hide' });
+    return rec;
+  }
+
   for (const b of s.buttons ?? []) {
     if (!b.testid) continue;
     const onPage = await page.locator(testidSelector(b.testid)).first().isVisible().catch(() => false);
@@ -317,7 +344,10 @@ async function cropDesigns(browser, o, items) {
     for (const it of items) {
       const file = designFileCandidates(it.state, it.width).find((f) => existsSync(join(o.designDir, f)));
       if (!file) continue;
-      const { designLeft } = cropFor(o.map, it.width);
+      // A components map's design render is already just the component at its natural size: no
+      // page chrome to crop past, so nothing left of the image is cut.
+      const cropped = cropFor(o.map, it.width, it.id);
+      const designLeft = cropped.designLeft ?? 0;
       const data = readFileSync(join(o.designDir, file)).toString('base64');
       await page.setContent(`<body style="margin:0"><img id="d" src="data:image/png;base64,${data}"></body>`);
       const size = await page.evaluate(() => new Promise((res) => {

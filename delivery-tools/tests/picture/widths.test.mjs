@@ -159,6 +159,12 @@ test('crops: the desktop keeps pageArea, the phone has no sidebar unless pageAre
   assert.deepEqual(cropFor({ pageArea: { phone: { left: 4, designLeft: 8 } } }, 'phone'), { left: 4, designLeft: 8 });
 });
 
+test('cropFor returns an element selector for a components map, at either width', () => {
+  const m = { kind: 'components' };
+  assert.deepEqual(cropFor(m, 'desktop', 'C-Picker-01'), { selector: '[data-delivery-state="C-Picker-01"]' });
+  assert.deepEqual(cropFor(m, 'phone', 'C-Picker-01'), { selector: '[data-delivery-state="C-Picker-01"]' });
+});
+
 test('a phone design render skips picture-only states and renders the rest', () => {
   const inv = { states: [
     { id: 'A-01', reach: { kind: 'click', steps: [] } },

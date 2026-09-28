@@ -63,7 +63,7 @@ export function validateMap(map, opts = {}) {
   const problems = [];
   if (!map || typeof map !== 'object') return ['map.json is not an object'];
   if (map.schemaVersion !== 1) problems.push('schemaVersion must be 1');
-  if (!['redesign', 'new'].includes(map.kind)) problems.push('kind must be "redesign" or "new"');
+  if (!['redesign', 'new', 'components'].includes(map.kind)) problems.push('kind must be "redesign", "new" or "components"');
   if (typeof map.route !== 'string' || !map.route.startsWith('/')) problems.push('route must be a path starting with /');
   const area = map.pageArea ?? {};
   for (const k of ['left', 'designLeft']) {

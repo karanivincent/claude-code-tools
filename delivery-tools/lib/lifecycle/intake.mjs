@@ -26,6 +26,10 @@ import { UsageError, DeliveryError, EXIT } from '../core/exit.mjs';
 import { deps, isNotImplemented } from './deps.mjs';
 import { runMarkers, integrationBranch, integrationWorktreePath, primaryWorktree, repoRel, lastLine } from './run-info.mjs';
 import { syncEpic, findEpic } from '../github/issues.mjs';
+import { readExportComponents, componentOrder } from '../design/components.mjs';
+import { componentsMapPath, readComponentsMap, writeComponentsMap, refreshDesignEntries } from '../components/map.mjs';
+import { componentsInventory, galleryStates } from '../components/states.mjs';
+import { worldFilePath } from '../seed/plan.mjs';
 
 export const README = 'README.md';
 export const RUNTIME_ZIP = 'runtime.zip';
@@ -182,8 +186,13 @@ export async function writeSnapshot({ exportDir, snapshotDir, layout, readme }) 
  * @param {import('../core/ctx.mjs').Ctx} ctx
  * @param {{ source: string, sentence?: string|null, epic?: number|null, briefs?: string[], adapter?: string|null, from?: string|null }} o
  */
-export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic = null, briefs = [], adapter: adapterName = null, from = null }) {
+export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic = null, briefs = [], adapter: adapterName = null, from = null, components = false }) {
   const profile = await ctx.profile();
+  if (components) {
+    if (!profile.components) throw new UsageError('profile.components is not configured; add a components block (map, galleryRoute) before running --components');
+    if (!profile.components.map) throw new UsageError('profile.components.map is not set; add it to profile.components before running --components');
+    if (!profile.components.galleryRoute) throw new UsageError('profile.components.galleryRoute is not set; add it to profile.components before running --components');
+  }
   const d = deps(ctx);
   const lines = [];
   const failures = [];
@@ -202,8 +211,10 @@ export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic 
     const found = await adapter.detect(pack.dir);
     if (!found.ok) throw new UsageError(`not a recognised ${adapter.name} export: ${found.reason ?? 'unknown layout'}${adapter.name === 'claude-design' ? ' (for a folder of images pass --adapter image-folder)' : ''}`);
     const project = found.project || basename(abs).replace(/\.zip$/i, '');
-    // --feature, else the run of the worktree this runs in, else the project's name as a slug.
-    const feature = assertFeatureSlug(ctx.flags.feature ?? ctx.feature ?? slugify(project));
+    // --feature, else the run of the worktree this runs in, else "components" (a components run
+    // shares one feature slug so a later export goes through --from components), else the
+    // project's name as a slug.
+    const feature = assertFeatureSlug(ctx.flags.feature ?? ctx.feature ?? (components ? 'components' : slugify(project)));
 
     // The run, if this feature already has one in some worktree.
     const existingRun = (await discoverRuns(ctx.git, { runRoot: profile.paths.runRoot })).find((r) => r.feature === feature) ?? null;
@@ -214,11 +225,12 @@ export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic 
     const lookupRoot = existingRun ? existingRun.worktree : ctx.repoRoot;
     const lookupPaths = featurePaths(lookupRoot, feature, profile.paths);
 
-    // The sentence: this call's, else the one kept from the first intake.
+    // The sentence: this call's, else the one kept from the first intake. A components run is
+    // mechanical (spec components-first §3): it needs no founder sentence, so it is never required.
     const sentenceFile = join(lookupPaths.intentDir, 'sentence.txt');
     const kept = (await exists(sentenceFile)) ? (await readFile(sentenceFile, 'utf8')).trim() : null;
     const theSentence = sentence ?? kept;
-    if (!theSentence) throw new UsageError('the first intake needs --intent "<one sentence of intent>"');
+    if (!components && !theSentence) throw new UsageError('the first intake needs --intent "<one sentence of intent>"');
 
     // The epic, before the branch (the branch name carries its number).
     const epicRes = await syncEpic(ctx, { paths: lookupPaths, profile, sentence: theSentence, adopt: adoptEpic });
@@ -265,7 +277,7 @@ export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic 
       await mkdir(join(paths.intentDir, 'briefs'), { recursive: true });
       await copyFile(from, join(paths.intentDir, 'briefs', basename(from)));
     }
-    await writeFileAtomic(join(paths.intentDir, 'sentence.txt'), `${theSentence}\n`);
+    if (theSentence) await writeFileAtomic(join(paths.intentDir, 'sentence.txt'), `${theSentence}\n`);
 
     // An update run starts from the earlier run's map, worlds, rules and intent.
     if (from) {
@@ -275,14 +287,31 @@ export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic 
       lines.push(carried.length ? `update run from ${from}: carried over ${carried.join(', ')}` : `update run from ${from}: nothing new to carry over`);
     }
 
-    // The intent, if the extractor has written it.
+    // The intent, if the extractor has written it. A components run is mechanical (spec
+    // components-first §3) and has no intent.json of its own: it writes components.json,
+    // inventory.json, gallery-states.json, map.json and its world file instead.
     const design = {
       adapter: adapter.name, archiveSha256: pack.archiveSha256, treeSha256, project,
       exportedAt: found.exportedAt ?? isoDate(ctx.clock), snapshotDir: repoRel(worktree, paths.designSnapshot),
     };
+    // Every intake, of any kind, checks the export's components against the product-wide
+    // components.json and reports drift; only a components run persists it (below).
+    const drift = await readComponentDrift({ profile, worktree, exportDir: pack.dir });
+    if (drift) {
+      lines.push(...drift.lines);
+      if (!components) for (const e of drift.errors) failures.push({ code: 'components', message: e });
+    }
+
     let next = null;
     let intentState = 'missing';
-    if (await exists(paths.intentJson)) {
+    let componentsOk = true;
+    if (components) {
+      const cr = await runComponentsIntake({ profile, worktree, paths, treeSha256, drift });
+      lines.push(...cr.lines);
+      for (const f of cr.failures) failures.push(f);
+      next = cr.next;
+      componentsOk = cr.failures.length === 0;
+    } else if (await exists(paths.intentJson)) {
       const raw = await readJson(paths.intentJson);
       const fixed = { ...raw, schemaVersion: 1, feature, epic, sentence: raw.sentence || theSentence, design };
       const { errors } = validateAgainst('intent', fixed);
@@ -305,15 +334,18 @@ export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic 
       await createState(paths, { feature, runId: newRunId(ctx.clock), worktree, branch, epic, at: ctx.clock.now().toISOString() });
       lines.push(`run state ${repoRel(worktree, paths.state)} created`);
     }
-    const committed = await commitIntake(git, { paths, worktree, project, feature, reexport });
+    const committed = await commitIntake(git, { paths, worktree, project, feature, reexport, profile });
     if (committed) lines.push(`committed on ${branch}: ${committed}`);
 
-    const exit = intentState === 'invalid' ? EXIT.USAGE : intentState === 'missing' ? EXIT.RED : EXIT.PASS;
-    if (intentState === 'missing') failures.push({ code: 'intent', message: `${repoRel(worktree, paths.intentJson)} is not drafted yet` });
+    const exit = components
+      ? (componentsOk ? EXIT.PASS : EXIT.RED)
+      : (intentState === 'invalid' ? EXIT.USAGE : intentState === 'missing' ? EXIT.RED : EXIT.PASS);
+    if (!components && intentState === 'missing') failures.push({ code: 'intent', message: `${repoRel(worktree, paths.intentJson)} is not drafted yet` });
+    const journalIntent = components ? (componentsOk ? 'components' : 'blocked') : intentState;
     await updateState(paths, (s) => ({ ...s, epic, ...(from ? { from } : {}) }), {
       at: ctx.clock.now().toISOString(),
-      event: formatEvent({ command: 'intake', exit, counts: { archive: pack.archiveSha256.slice(0, 12), reexport: reexport ? 1 : 0, intent: intentState, epic } }),
-      inputs: { archive: pack.archiveSha256, tree: treeSha256 }, outputs: { epic, branch, intent: intentState },
+      event: formatEvent({ command: 'intake', exit, counts: { archive: pack.archiveSha256.slice(0, 12), reexport: reexport ? 1 : 0, intent: journalIntent, epic } }),
+      inputs: { archive: pack.archiveSha256, tree: treeSha256 }, outputs: { epic, branch, intent: journalIntent },
     });
     return { exit, lines, failures, next, feature, epic, worktree, branch };
   } finally {
@@ -332,10 +364,13 @@ async function ensureWorktree(ctx, { profile, branch, worktree }) {
   if (r.code !== 0) throw new DeliveryError(EXIT.RED, `git worktree add failed: ${lastLine(r.stderr, r.stdout)}`, { code: 'git' });
 }
 
-async function commitIntake(git, { paths, worktree, project, feature, reexport }) {
-  // map.json, rules.json and worlds/ exist at intake only when an update run carried them over.
+async function commitIntake(git, { paths, worktree, project, feature, reexport, profile }) {
+  // map.json, rules.json and worlds/ exist at intake only when an update run carried them over, or
+  // (map.json, worlds/, gallery-states.json, inventory.json) a components run just wrote them.
   const rels = [paths.designSnapshot, paths.intentDir, paths.intentJson, paths.intentMd,
-    join(paths.deliveryDir, 'map.json'), join(paths.deliveryDir, 'rules.json'), join(paths.deliveryDir, 'worlds')];
+    join(paths.deliveryDir, 'map.json'), join(paths.deliveryDir, 'rules.json'), join(paths.deliveryDir, 'worlds'),
+    paths.inventory, join(paths.deliveryDir, 'gallery-states.json'),
+    ...(profile?.components?.map ? [componentsMapPath(worktree, profile)] : [])];
   const present = [];
   for (const p of rels) if (await exists(p)) present.push(repoRel(worktree, p));
   if (!present.length) return null;
@@ -347,6 +382,98 @@ async function commitIntake(git, { paths, worktree, project, feature, reexport }
     : `Snapshot the ${project} design export and the intent for ${feature}`;
   await git.ok(['commit', '-q', '-m', message]);
   return message;
+}
+
+/**
+ * Every intake (any kind) checks the export's components against the product-wide
+ * docs/delivery/components.json (components-first spec §2) and reports drift. Pure read: never
+ * writes (a components run persists it separately, in runComponentsIntake). Null when the profile
+ * has no components map configured, so a repo that never turned this on pays nothing for it.
+ * @returns {Promise<{ mapPath: string, exported: object[], errors: string[], existing: object,
+ *   refreshed: object|null, changed: string[], lines: string[] } | null>}
+ */
+async function readComponentDrift({ profile, worktree, exportDir }) {
+  const mapPath = componentsMapPath(worktree, profile);
+  if (!mapPath) return null;
+  const { components: exported, errors } = await readExportComponents(exportDir);
+  const existing = (await readComponentsMap(mapPath)) ?? { version: 1, components: [] };
+  if (errors.length) return { mapPath, exported, errors, existing, refreshed: null, changed: [], lines: [] };
+  const before = new Map(existing.components.filter((c) => c.kind === 'design').map((c) => [c.name, c]));
+  const { map: refreshed, changed } = refreshDesignEntries(existing, exported);
+  const lines = changed.map((name) => {
+    const prev = before.get(name);
+    const now = refreshed.components.find((c) => c.kind === 'design' && c.name === name);
+    return prev ? `${name}: ${prev.status} -> ${now.status} (the design file changed)` : `${name}: new component (found in the export)`;
+  });
+  return { mapPath, exported, errors, existing, refreshed, changed, lines };
+}
+
+/**
+ * The components-specific writes of `delivery intake --components` (components-first spec §3):
+ * persist the drift `readComponentDrift` already computed into components.json, then write this
+ * run's inventory.json, gallery-states.json, map.json (kind "components") and worlds/components.json
+ * for every design entry whose status is new or stale, in build (uses) order. Refuses, with nothing
+ * beyond components.json written, when a design entry has no target yet: the mapper
+ * (briefs/components-mapper.md) has not run.
+ * @returns {Promise<{ lines: string[], failures: { code: string, message: string }[], next: string|null }>}
+ */
+async function runComponentsIntake({ profile, worktree, paths, treeSha256, drift }) {
+  const lines = [];
+  if (drift.errors.length) return { lines, failures: drift.errors.map((e) => ({ code: 'components', message: e })), next: null };
+
+  await writeComponentsMap(drift.mapPath, drift.refreshed);
+  const design = drift.refreshed.components.filter((c) => c.kind === 'design');
+  lines.push(`${repoRel(worktree, drift.mapPath)}: ${design.length} design component(s)`);
+
+  const nullTargets = design.filter((c) => c.target === null);
+  if (nullTargets.length) {
+    return {
+      lines,
+      failures: nullTargets.map((c) => ({ code: 'components', message: `${c.name}: no target yet (the mapper has not run)` })),
+      next: 'NEXT: dispatch the mapper with briefs/components-mapper.md',
+    };
+  }
+
+  let order;
+  try {
+    order = componentOrder(design);
+  } catch (err) {
+    return { lines, failures: [{ code: 'components', message: err.message }], next: null };
+  }
+
+  const byName = new Map(design.map((c) => [c.name, c]));
+  const toBuild = drift.exported.filter((c) => ['new', 'stale'].includes(byName.get(c.name)?.status));
+
+  const inventoryPart = componentsInventory(toBuild, order);
+  const gallery = galleryStates(toBuild, order);
+  const inventory = { schemaVersion: 1, feature: paths.feature, designTreeSha256: treeSha256, candidates: [], ...inventoryPart };
+  await writeJsonAtomic(paths.inventory, inventory);
+  lines.push(`inventory: ${inventory.states.length} state(s) -> ${repoRel(worktree, paths.inventory)}`);
+
+  await writeJsonAtomic(join(paths.deliveryDir, 'gallery-states.json'), gallery);
+  lines.push(`gallery-states.json: ${gallery.states.length} state(s)`);
+
+  const route = profile.components.galleryRoute;
+  const mapDoc = {
+    schemaVersion: 1, feature: paths.feature, title: 'Components', kind: 'components', route,
+    widths: ['desktop', 'phone'],
+    worlds: [{ id: 'components', users: [{ role: 'admin', email: profile.auth.robotAdminEmail }] }],
+    states: inventoryPart.states.map((s) => ({
+      id: s.id, screen: s.screen, name: s.name, design: s.id,
+      reach: { world: 'components', role: 'admin', steps: [{ goto: route }] },
+      buttons: [],
+    })),
+  };
+  await writeJsonAtomic(join(paths.deliveryDir, 'map.json'), mapDoc);
+  lines.push(`map.json: kind components, ${mapDoc.states.length} state(s) at ${route}`);
+
+  await writeJsonAtomic(worldFilePath(paths, 'components'), {
+    schemaVersion: 1, world: 'components',
+    rows: [{ key: 'org', table: 'organizations', values: { name: { $orgName: true } } }],
+  });
+  lines.push(`${repoRel(worktree, worldFilePath(paths, 'components'))} written`);
+
+  return { lines, failures: [], next: null };
 }
 
 /**

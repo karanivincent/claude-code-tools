@@ -95,6 +95,21 @@ test('the checklist lists each state, how it is reached, and where each button g
   assert.match(md, /Export as CSV \(old-page.tsx\): moves to the Sources menu/);
 });
 
+test('kind "components" validates: one gallery page, one state per component state', () => {
+  const m = {
+    schemaVersion: 1, feature: 'components', title: 'Components', kind: 'components',
+    route: '/admin/design/components', widths: ['desktop', 'phone'],
+    worlds: [{ id: 'components', users: [{ role: 'admin', email: 'admin@example.invalid' }] }],
+    states: [
+      { id: 'C-Picker-01', screen: 'Picker', name: 'Picker: defaults', design: 'C-Picker-01',
+        reach: { world: 'components', role: 'admin', steps: [{ goto: '/admin/design/components' }] }, buttons: [] },
+      { id: 'C-Picker-02', screen: 'Picker', name: 'Picker: label=Day', design: 'C-Picker-02',
+        reach: { world: 'components', role: 'admin', steps: [{ goto: '/admin/design/components' }] }, buttons: [] },
+    ],
+  };
+  assert.deepEqual(validateMap(m), []);
+});
+
 test('a coverage plan converts to a valid map of its designed rows', () => {
   const plan = {
     feature: 'knowledge-page',

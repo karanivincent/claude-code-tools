@@ -10,7 +10,7 @@ import { listTree } from '../../lib/core/hash.mjs';
 import { loadState } from '../../lib/core/state.mjs';
 import { featurePaths } from '../../lib/core/paths.mjs';
 import { hasMarker, makeMarker } from '../../lib/core/markers.mjs';
-import { validExample } from '../helpers/fixtures.mjs';
+import { validExample, makeProfile } from '../helpers/fixtures.mjs';
 import { runIntake, verifyIntake, slugify, stripCommonRoot, parseSnapshotReadme, renderIntentMd } from '../../lib/lifecycle/intake.mjs';
 import intakeCommand from '../../lib/commands/intake.mjs';
 import { makeRunRepo, ctxFor } from './support.mjs';
@@ -181,6 +181,101 @@ test('a feature named on the first intake is kept by later runs inside its workt
     assert.equal(again.feature, 'gizmos');
     assert.equal(again.worktree, res.worktree);
     assert.equal(first.gh.db.writes.filter((w) => w.op === 'issueCreate').length, 1);
+  } finally { repo.cleanup(); }
+});
+
+/** A real (not faked) Claude Design export of one page importing one component. */
+function componentsExportZip(path, pickerHtml = '<x-dc><div>{{ label }}</div></x-dc>') {
+  writeFileSync(path, writeZip([
+    { name: 'Components/Main.dc.html', data: '<x-dc>\n<dc-import name="Picker" label="Day"></dc-import>\n</x-dc>' },
+    { name: 'Components/Picker.dc.html', data: pickerHtml },
+    { name: 'Components/support.js', data: 'window.demo = 1;' },
+  ]));
+}
+
+test('--components: refuses while a design entry has no target (NEXT names the mapper); once one is set it writes components.json, the inventory, the map and gallery-states.json', async () => {
+  const repo = await makeRunRepo({ run: false });
+  try {
+    const zip = join(repo.root, 'components-export.zip');
+    componentsExportZip(zip);
+    const profile = makeProfile({ components: { map: 'docs/delivery/components.json', galleryRoute: '/admin/design/components' } });
+    const { ctx } = await ctxFor(repo.primary, { feature: null, profile });
+
+    const first = await runIntake(ctx, { source: zip, components: true });
+    assert.equal(first.exit, 1);
+    assert.equal(first.feature, 'components');
+    assert.match(first.next, /NEXT: dispatch the mapper with briefs\/components-mapper\.md/);
+    assert.ok(first.failures.some((f) => /Picker: no target yet/.test(f.message)), JSON.stringify(first.failures));
+
+    const wt = first.worktree;
+    const mapFile = join(wt, 'docs/delivery/components.json');
+    const written = JSON.parse(readFileSync(mapFile, 'utf8'));
+    const picker = written.components.find((c) => c.name === 'Picker');
+    assert.equal(picker.status, 'new');
+    assert.equal(picker.target, null);
+    assert.equal(existsSync(join(wt, 'docs/delivery/components/inventory.json')), false, 'refused before the inventory was written');
+    assert.equal(repo.git('-C', wt, 'status', '--porcelain'), '', 'the refusal still commits the drift into components.json');
+
+    // The mapper (briefs/components-mapper.md) sets a target; a second components intake builds it.
+    picker.target = 'src/ui/picker.tsx';
+    writeFileSync(mapFile, `${JSON.stringify(written, null, 2)}\n`);
+
+    const second = await runIntake(ctx, { source: zip, components: true });
+    assert.equal(second.exit, 0, JSON.stringify(second.failures));
+    assert.equal(second.next, null);
+
+    const inventory = JSON.parse(readFileSync(join(wt, 'docs/delivery/components/inventory.json'), 'utf8'));
+    assert.deepEqual(inventory.states.map((s) => s.id), ['C-Picker-01', 'C-Picker-02']);
+    assert.equal(inventory.states[0].name, 'Picker: defaults');
+    assert.deepEqual(inventory.states[0].reach, { kind: 'prop', file: 'Picker.dc.html', props: {} });
+    assert.equal(inventory.states[1].name, 'Picker: label=Day');
+    assert.deepEqual(inventory.states[1].reach, { kind: 'prop', file: 'Picker.dc.html', props: { label: 'Day' } });
+
+    const gallery = JSON.parse(readFileSync(join(wt, 'docs/delivery/components/gallery-states.json'), 'utf8'));
+    assert.deepEqual(gallery.states, [
+      { id: 'C-Picker-01', component: 'Picker', props: {} },
+      { id: 'C-Picker-02', component: 'Picker', props: { label: 'Day' } },
+    ]);
+
+    const map = JSON.parse(readFileSync(join(wt, 'docs/delivery/components/map.json'), 'utf8'));
+    assert.equal(map.kind, 'components');
+    assert.equal(map.route, '/admin/design/components');
+    assert.deepEqual(map.widths, ['desktop', 'phone']);
+    assert.deepEqual(map.worlds, [{ id: 'components', users: [{ role: 'admin', email: profile.auth.robotAdminEmail }] }]);
+    assert.deepEqual(map.states.map((s) => s.id), ['C-Picker-01', 'C-Picker-02']);
+    assert.equal(map.states[0].design, 'C-Picker-01');
+    assert.deepEqual(map.states[0].reach, { world: 'components', role: 'admin', steps: [{ goto: '/admin/design/components' }] });
+
+    const world = JSON.parse(readFileSync(join(wt, 'docs/delivery/components/worlds/components.json'), 'utf8'));
+    assert.deepEqual(world, { schemaVersion: 1, world: 'components', rows: [{ key: 'org', table: 'organizations', values: { name: { $orgName: true } } }] });
+
+    const rewritten = JSON.parse(readFileSync(mapFile, 'utf8'));
+    assert.equal(rewritten.components.find((c) => c.name === 'Picker').status, 'new'); // still new: builtHash is only set by land / --mark-built
+    assert.equal(repo.git('-C', wt, 'status', '--porcelain'), '', 'the inventory, map and world file are committed with the run');
+  } finally { repo.cleanup(); }
+});
+
+test('--components refuses when profile.components is not configured', async () => {
+  const repo = await makeRunRepo({ run: false });
+  try {
+    const zip = join(repo.root, 'components-export.zip');
+    componentsExportZip(zip);
+    const { ctx } = await ctxFor(repo.primary, { feature: null });
+    await assert.rejects(runIntake(ctx, { source: zip, components: true }), (e) => e.exit === 2 && /profile\.components is not configured/.test(e.message));
+  } finally { repo.cleanup(); }
+});
+
+test('a page run reports component drift but never writes components.json', async () => {
+  const repo = await makeRunRepo({ run: false });
+  try {
+    // A page export can itself import a component: the page run must report it, not build it.
+    const zip = join(repo.root, 'components-export.zip');
+    componentsExportZip(zip);
+    const profile = makeProfile({ components: { map: 'docs/delivery/components.json', galleryRoute: '/admin/design/components' } });
+    const { ctx } = await ctxFor(repo.primary, { feature: 'main-page', profile });
+    const res = await runIntake(ctx, { source: zip, sentence: 'Redesign the main page.' });
+    assert.ok(res.lines.some((l) => /Picker: new component \(found in the export\)/.test(l)), res.lines.join('\n'));
+    assert.equal(existsSync(join(res.worktree, 'docs/delivery/components.json')), false, 'a page run never writes the product-wide component map');
   } finally { repo.cleanup(); }
 });
 

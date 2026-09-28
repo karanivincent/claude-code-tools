@@ -9,7 +9,7 @@ import { runIntake } from '../lifecycle/intake.mjs';
 export default defineCommand({
   name: "intake",
   summary: "Snapshot a design export, draft the intent, create the epic and the run",
-  usage: `usage: delivery intake <archive.zip|design-dir> [--intent "<sentence>"] [--epic N] [--brief <file>]... [--adapter claude-design|image-folder] [--from <feature>]
+  usage: `usage: delivery intake <archive.zip|design-dir> [--intent "<sentence>"] [--epic N] [--brief <file>]... [--adapter claude-design|image-folder] [--from <feature>] [--components]
 
 Check and hash the export, find or create the epic by marker (or adopt --epic N), create the
 integration branch and worktree from origin/<base>, snapshot the design there under
@@ -29,12 +29,22 @@ it a new --feature slug. It copies the earlier run's map.json, worlds/, rules.js
 into its own folder (never over a file it already has), and its first round pictures the page as it
 already is, before any building, so the reviewers list only what the new design changed.
 
+A components run (--components, components-first spec §3) builds every component the design names
+once, so pages import it instead of drawing their own: feature slug "components" (or --from
+components for a later export), no --intent needed. It writes docs/delivery/components.json (the
+product-wide component map), then this run's inventory.json, gallery-states.json and map.json
+(kind "components", one state per component state, both widths) for every design entry whose
+status is new or stale. Refused (exit 1) when a design entry has no target yet: NEXT names the
+mapper (briefs/components-mapper.md), which must run first. Every intake, of any kind, checks the
+export's components against components.json and reports drift; only a components run persists it.
+
 options:
   --intent "<sentence>"  the founder's one sentence of intent (kept for later runs)
   --epic N               adopt issue N as the epic instead of finding or creating one
   --brief <file>         a design-round brief to keep (repeatable)
   --adapter <name>       claude-design (default) or image-folder for a folder of PNGs
   --from <feature>       an update run: start from that earlier run's map, worlds, rules and intent
+  --components           a components run (see above) instead of a page run
 
 exit: 0 done or already done; 1 intent.json not drafted yet (NEXT names the extractor);
       2 not a recognised export, or intent.json invalid
@@ -45,13 +55,17 @@ common options:
   --help             this text`,
   async run(ctx, argv) {
     const { values, positionals } = parseCommandArgs(argv, {
-      options: { intent: { type: 'string' }, epic: { type: 'string' }, brief: { type: 'string', multiple: true }, adapter: { type: 'string' }, from: { type: 'string' } },
+      options: {
+        intent: { type: 'string' }, epic: { type: 'string' }, brief: { type: 'string', multiple: true },
+        adapter: { type: 'string' }, from: { type: 'string' }, components: { type: 'boolean' },
+      },
       positionals: { min: 1, max: 1, names: ['archive'] },
     });
     if (values.adapter && !['claude-design', 'image-folder'].includes(values.adapter)) throw new UsageError(`--adapter must be claude-design or image-folder, not "${values.adapter}"`);
     const res = await runIntake(ctx, {
       source: positionals[0], sentence: values.intent ?? null, epic: intFlag(values.epic, '--epic'),
       briefs: values.brief ?? [], adapter: values.adapter ?? null, from: values.from ?? null,
+      components: Boolean(values.components),
     });
     for (const l of res.lines) ctx.out.line(l);
     for (const f of res.failures) ctx.out.fail(f.code, f.message);
