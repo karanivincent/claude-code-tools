@@ -2,15 +2,16 @@
 // exactly one NEXT line in every mode, from recomputed sources, writing nothing.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import waive from '../../lib/commands/waive.mjs';
 import status, { selectRun } from '../../lib/commands/status.mjs';
 import { writeArtefact } from '../../lib/core/artefacts.mjs';
 import { loadState, parseEvent, createState } from '../../lib/core/state.mjs';
 import { featurePaths } from '../../lib/core/paths.mjs';
 import { gate as phase1 } from '../../lib/gates/phase-1.mjs';
-import { validExample } from '../helpers/fixtures.mjs';
-import { AT, ctxFor, greenGates, makeRunRepo, nextLines, planWith, redGate, startRun } from './support.mjs';
+import { makeProfile, validExample } from '../helpers/fixtures.mjs';
+import { AT, ctxFor, greenGates, makeRunRepo, nextLines, planWith, redGate, startRun, writeFiles } from './support.mjs';
 
 async function run(mod, ctx, argv) {
   try {
@@ -148,6 +149,39 @@ test('status compares a PR marked ready with the ready records whatever the phas
     const next = nextLines(stdout.text());
     assert.deepEqual(next, ['NEXT: PR #1 is marked ready for review without a green ready.json for its head (no ready.json for PR #1; run delivery ready --pr 1); put it back to draft first: gh pr ready 1 --undo (skill: deliver-from-design)']);
     assert.match(stdout.text().split('\n')[2], /^red PR #1 is marked ready for review without a green ready\.json/);
+  } finally { repo.cleanup(); }
+});
+
+test('a picture-mode run whose used component is not built: status prints the components-first NEXT line', async () => {
+  const H = `sha256:${'4'.repeat(64)}`;
+  const profile = makeProfile({ components: { map: 'docs/delivery/components.json' } });
+  const { repo, dir } = makeRunRepo({ profile });
+  try {
+    const paths = await startRun(dir);
+    writeFiles(dir, {
+      'docs/delivery/widgets/map.json': {
+        schemaVersion: 1, feature: 'widgets', title: 'Widgets', kind: 'redesign', route: '/dashboard/widgets',
+        pageArea: { left: 240, designLeft: 240 },
+        worlds: [{ id: 'design', users: [{ role: 'admin', email: 'delivery+widgets-design-admin@example.invalid' }] }],
+        states: [{ id: 'W-01', screen: 'Main', name: 'Everything', reach: { world: 'design', role: 'admin', steps: [{ goto: '/dashboard/widgets' }] }, buttons: [] }],
+      },
+      'docs/delivery/components.json': {
+        version: 1,
+        components: [{
+          kind: 'design', name: 'Picker', design: { file: 'Picker.dc.html', hash: H },
+          target: 'src/ui/picker.tsx', status: 'new', builtHash: null,
+          props: {}, owns: [], builtOn: [], replaces: [], uses: [], states: ['C-Picker-01'],
+        }],
+      },
+    });
+    mkdirSync(paths.designRenders, { recursive: true });
+    writeFileSync(join(paths.designRenders, 'W-01.png'), 'x');
+    writeFileSync(join(paths.designRenders, 'W-01.components.json'), JSON.stringify({ names: ['Picker'] }));
+    const { ctx, stdout } = await ctxFor(dir, {});
+    assert.equal(await run(status, ctx, []), 0);
+    const next = nextLines(stdout.text());
+    assert.equal(next.length, 1);
+    assert.match(next[0], /^NEXT: run the components run first: .*intake --components.*used component\(s\) not built: Picker/);
   } finally { repo.cleanup(); }
 });
 

@@ -109,6 +109,36 @@ test('rule 3 is not raised for the component\'s own target, or an unrelated adde
   }), []);
 });
 
+/** Table and PeopleTable, both built, for the rule-3 segment-matching cases. */
+function tableMap() {
+  return {
+    version: 1,
+    allowOwns: [],
+    components: [
+      { kind: 'design', name: 'Table', design: { file: 'Table.dc.html', hash: H }, target: 'src/ui/table.tsx', status: 'built', builtHash: H, props: {}, owns: [], builtOn: [], replaces: [], uses: [], states: [] },
+      { kind: 'design', name: 'PeopleTable', design: { file: 'PeopleTable.dc.html', hash: H }, target: 'src/pages/people-table.tsx', status: 'built', builtHash: H, props: {}, owns: [], builtOn: [], replaces: [], uses: [], states: [] },
+    ],
+  };
+}
+
+test('rule 3 matches a whole run of the basename\'s -/_/. segments, never a bare substring', () => {
+  const noArgs = { used: [], changed: [], importsOf: () => [], importGraph: () => new Set() };
+
+  // A prefix or suffix segment around the component's own kebab name: still red.
+  assert.equal(componentProblems({ map: baseMap(), ...noArgs, added: ['src/pages/my-picker.tsx'] }).length, 1);
+  assert.equal(componentProblems({ map: baseMap(), ...noArgs, added: ['src/pages/picker-panel.tsx'] }).length, 1);
+  // Underscore and dot separators split segments the same way as a hyphen.
+  assert.equal(componentProblems({ map: baseMap(), ...noArgs, added: ['src/pages/my_picker.tsx'] }).length, 1);
+  assert.equal(componentProblems({ map: baseMap(), ...noArgs, added: ['src/pages/picker.stories.tsx'] }).length, 1);
+
+  const tm = tableMap();
+  // "timetable" is one word (no separator before "table"): not a segment match for Table.
+  assert.deepEqual(componentProblems({ map: tm, ...noArgs, added: ['src/pages/timetable.tsx'] }), []);
+  // "people-table-row" carries "people-table" as a contiguous run: red for PeopleTable.
+  const hit = componentProblems({ map: tm, ...noArgs, added: ['src/pages/people-table-row.tsx'] });
+  assert.ok(hit.some((p) => p.includes('PeopleTable')), hit.join('; '));
+});
+
 test('rule 4: a used component whose target nothing this PR changes reaches is red', () => {
   const map = baseMap();
   const problems = componentProblems({

@@ -36,6 +36,21 @@ function baseStem(file) {
   return name.endsWith('.test') ? name.slice(0, -5) : name;
 }
 
+/** kebab-cased, then split on `-`, `_` and `.`: "PeopleTable" -> ["people", "table"];
+ * "my-picker" -> ["my", "picker"]; "timetable" (one word, no separator) -> ["timetable"]. */
+function segmentsOf(name) {
+  return kebab(name).split(/[-_.]+/).filter(Boolean);
+}
+
+/** Whether `needle` appears as a contiguous run of `haystack`'s segments (order and adjacency both matter). */
+function containsRun(haystack, needle) {
+  if (!needle.length || needle.length > haystack.length) return false;
+  for (let i = 0; i + needle.length <= haystack.length; i++) {
+    if (needle.every((seg, j) => haystack[i + j] === seg)) return true;
+  }
+  return false;
+}
+
 function ownAllowed(allowOwns, library, file) {
   return (allowOwns ?? []).some((a) => a.library === library && a.file === file);
 }
@@ -81,13 +96,14 @@ export function componentProblems({ map, used = [], changed = [], added = [], im
     }
   }
 
-  // Rule 3: an added file named like a component (a prefix or suffix around its kebab name) that
-  // is not that component's own target.
+  // Rule 3: an added file named like a component (its kebab name as a whole run of segments of the
+  // file's basename, split on -, _ and ., with any prefix or suffix) that is not that component's
+  // own target. A segment must match whole: "Table" does not fire on "timetable.tsx".
   for (const file of added) {
-    const stem = kebab(baseStem(file));
+    const fileSegs = segmentsOf(baseStem(file));
     for (const c of design) {
-      if (!c.name || stem === '') continue;
-      if (stem.includes(kebab(c.name)) && file !== c.target) {
+      const nameSegs = segmentsOf(c.name ?? '');
+      if (containsRun(fileSegs, nameSegs) && file !== c.target) {
         problems.push(`${file}: named like ${c.name}; import ${c.target ?? '(no target yet)'} instead of redrawing it`);
       }
     }

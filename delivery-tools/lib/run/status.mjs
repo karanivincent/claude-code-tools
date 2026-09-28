@@ -61,9 +61,15 @@ export async function statusReport(ctx, run, opts = {}) {
   const here = ctx.repoRoot === run.worktree;
   const empty = { earlier: [], leaving: null, backTo: null };
 
+  // pictureFacts' components-first facts (spec §4-8) need the profile (componentsMapPath reads
+  // profile.components.map); status must never fail over this, so a missing or invalid profile
+  // just leaves those facts empty rather than surfacing here.
+  let profile = null;
+  try { profile = await rctx.profile(); } catch { /* status still works without it */ }
+
   // Picture mode: a run with a map.json follows the picture loop, not the phase gates.
   if (!run.broken && run.state && existsSync(mapPath(paths))) {
-    const facts = pictureFacts(paths);
+    const facts = pictureFacts(paths, profile ? { profile } : {});
     const lastReady = (run.state.readyRecords ?? []).at(-1);
     const pnext = pictureNext(facts, { cli, readyOk: Boolean(lastReady?.ok), epic: run.state.epic ?? null });
     const next = { text: pnext.text, skill: pnext.skill, phase: `picture:${pnext.step}`, line: `NEXT: ${pnext.text}${pnext.skill ? ` (skill: ${pnext.skill})` : ''}` };
@@ -82,8 +88,6 @@ export async function statusReport(ctx, run, opts = {}) {
   }
 
   const state = run.state;
-  let profile = null;
-  try { profile = await rctx.profile(); } catch { profile = null; }
   let inconsistent = null;
   const plan = await readArtefact(paths, 'plan', { optional: true }).catch(() => null);
   const intent = await readArtefact(paths, 'intent', { optional: true }).catch(() => null);
