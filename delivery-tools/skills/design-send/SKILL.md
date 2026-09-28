@@ -44,9 +44,9 @@ reads back is the composer's own text, checked before Send.
 ## After sending
 
 6. Wait for the final edit line before reviewing — the checker can keep editing well after it
-   first says "Out for review". Judge the new export itself once it lands, not canvas screenshots:
-   canvas screenshots lag and show one state at a time, while the export already renders
-   headlessly.
+   first says "Out for review". Review with `delivery design review` on the new export, not with
+   canvas screenshots: canvas screenshots lag and show one state at a time, while the export
+   already renders headlessly.
 7. `delivery brief sent <file> --chat <url>` records the send: the file, the chat link and the
    time, so a later session can tell what was sent, when, and whether the file has changed since.
 

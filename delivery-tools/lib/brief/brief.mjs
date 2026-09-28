@@ -50,6 +50,24 @@ export function fillTemplate(template, { title, components = [] }) {
 }
 
 /**
+ * Insert one bullet per item directly under a "## <heading>" line (plan task 8: `brief new
+ * --from-review` pre-fills "What changes and why" from a design review's findings). No heading
+ * match, or an empty items list, leaves the text unchanged.
+ * @param {string} text
+ * @param {string} heading the heading text after "## "
+ * @param {string[]} items
+ * @returns {string}
+ */
+export function fillSection(text, heading, items) {
+  if (!items?.length) return text;
+  const lines = text.split('\n');
+  const at = lines.findIndex((l) => l.trim() === `## ${heading}`);
+  if (at < 0) return text;
+  const bullets = items.map((i) => `- ${i}`);
+  return [...lines.slice(0, at + 1), ...bullets, ...lines.slice(at + 1)].join('\n');
+}
+
+/**
  * The forbidden names and component names every brief subcommand checks against, read once from
  * the profile and the component map. Shared so `new`, `check` and `pack` agree on what a brief may
  * name (components-first spec §8.2).
@@ -81,6 +99,20 @@ function escapeRegex(s) {
 function phraseRe(words) {
   const body = words.map(escapeRegex).join('[\\s_-]+');
   return new RegExp(`(?<![A-Za-z0-9])${body}(?![A-Za-z0-9])`, 'i');
+}
+
+/**
+ * The forbidden names (case-insensitive, whole word(s), the same matcher briefProblems uses) found
+ * in a piece of text — reused by `delivery design review` to check rendered state text (plan task 8).
+ * @param {string} text
+ * @param {string[]} names
+ * @returns {string[]} the offending names from `names`, in the order given
+ */
+export function forbiddenNamesIn(text, names) {
+  return (names ?? []).filter((name) => {
+    const words = String(name).trim().split(/\s+/).filter(Boolean);
+    return words.length > 0 && phraseRe(words).test(text);
+  });
 }
 
 /** PascalCase split into words: "DatePicker" -> ["Date", "Picker"]; a single word stays one. */

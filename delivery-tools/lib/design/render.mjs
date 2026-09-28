@@ -183,28 +183,35 @@ export async function runDesignStep(page, step, n) {
  * @param {import('../core/ctx.mjs').Ctx} ctx
  * @param {{ paths: import('../core/paths.mjs').FeaturePaths, inventory: object, adapter: string, states?: string[]|null,
  *           port?: number, offline?: boolean, viewport?: { width: number, height: number }, width?: string,
- *           e2eDir?: string|null, playwrightRoot?: string|null }} opts
+ *           e2eDir?: string|null, playwrightRoot?: string|null,
+ *           snapshotDir?: string, serveDir?: string, outDir?: string }} opts
+ *   snapshotDir, serveDir and outDir default to paths.designSnapshot, paths.designServe and
+ *   paths.designRenders; `delivery design review` (plan task 8) renders a different export into its
+ *   own scratch folders instead of the run's own snapshot and renders.
  * @returns {Promise<{ rendered: string[], shots: string[], skipped: { id: string, why: string }[], failed: { id: string, why: string }[], escaped: string[] }>}
  */
 export async function renderDesign(ctx, opts) {
   const { paths, inventory } = opts;
   const width = opts.width ?? 'desktop';
+  const snapshotDir = opts.snapshotDir ?? paths.designSnapshot;
+  const serveDir = opts.serveDir ?? paths.designServe;
+  const outDir = opts.outDir ?? paths.designRenders;
   const plan = planRenders(inventory, { states: opts.states ?? null, adapter: opts.adapter, width });
   const outFile = (id, ext) => {
     paths.designRender(id, ext); // checks the id
-    return join(paths.designRenders, renderFileName(id, width, ext));
+    return join(outDir, renderFileName(id, width, ext));
   };
   const result = { rendered: [], shots: [], skipped: [], failed: [], escaped: [] };
-  await ensureDir(paths.designRenders);
+  await ensureDir(outDir);
 
   for (const p of plan) {
     if (p.action === 'skip') result.skipped.push({ id: p.id, why: p.why });
     if (p.action === 'fail') result.failed.push({ id: p.id, why: p.why });
     if (p.action === 'shot') {
-      const src = join(paths.designSnapshot, p.shot);
+      const src = join(snapshotDir, p.shot);
       if (extname(src).toLowerCase() !== '.png') { result.failed.push({ id: p.id, why: `shot ${p.shot} is not a png` }); continue; }
       try {
-        await copyFile(src, paths.designRender(p.id, 'png'));
+        await copyFile(src, outFile(p.id, 'png'));
         result.shots.push(p.id);
       } catch (err) {
         result.failed.push({ id: p.id, why: `cannot copy shot ${p.shot}: ${err.code ?? err.message}` });
@@ -218,8 +225,8 @@ export async function renderDesign(ctx, opts) {
   const pw = await resolvePlaywright({ repoRoot: root, e2eDir: opts.e2eDir ?? null });
   // The repo's own packages answer the runtime's CDN scripts; a separate Playwright root is a fallback.
   const vendor = vendorResolver([...playwrightSearchDirs(ctx.repoRoot, opts.e2eDir ?? null), ...(opts.playwrightRoot ? [opts.playwrightRoot] : [])]);
-  const serve = await prepareServeDir(paths.designSnapshot, paths.designServe);
-  const server = await startStaticServer(paths.designServe, { port: opts.port ?? 0 });
+  const serve = await prepareServeDir(snapshotDir, serveDir);
+  const server = await startStaticServer(serveDir, { port: opts.port ?? 0 });
   const escaped = new Set();
   let browser;
   try {
@@ -234,7 +241,7 @@ export async function renderDesign(ctx, opts) {
       const dcFile = p.file ?? serve.dcFile;
       let viewport = opts.viewport ?? DEFAULT_VIEWPORT;
       if (p.file) {
-        if (!previewCache.has(p.file)) previewCache.set(p.file, await readComponentPreview(paths.designServe, p.file));
+        if (!previewCache.has(p.file)) previewCache.set(p.file, await readComponentPreview(serveDir, p.file));
         const { preview, why } = previewCache.get(p.file);
         if (why) { result.failed.push({ id: p.id, why }); continue; }
         if (preview) viewport = { width: preview.width, height: preview.height ?? 600 };
@@ -253,7 +260,7 @@ export async function renderDesign(ctx, opts) {
         const page = await context.newPage();
         page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
         page.on('pageerror', (e) => errors.push(String(e.message)));
-        const file = p.props ? await writePropCopy(paths.designServe, dcFile, p.id, p.props) : dcFile;
+        const file = p.props ? await writePropCopy(serveDir, dcFile, p.id, p.props) : dcFile;
         await page.goto(server.url(file), { waitUntil: 'load' });
         try {
           await page.waitForSelector(BOOT_SELECTOR, { timeout: BOOT_TIMEOUT_MS });
