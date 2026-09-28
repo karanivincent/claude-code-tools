@@ -10,6 +10,7 @@ import { DeliveryError, EXIT } from '../core/exit.mjs';
 import { deriveWithReport } from '../sidefx/derive.mjs';
 import { evaluateSeedSafety } from './check.mjs';
 import { derivedNeverDial, fakeRangeProbe, runGuards, prefetch, safetyQueries } from './db.mjs';
+import { seedNow } from './evaluate.mjs';
 
 /**
  * Layer 1's input: the side-effect map, derived afresh, with what could not be modelled as M13-L1
@@ -102,7 +103,7 @@ export async function seedCheck(ctx, opts = {}) {
   }
 
   const evaluation = evaluateSeedSafety({
-    rows, users, worlds, predicates, safety, neverDial, guards, now: ctx.clock.now(),
+    rows, users, worlds, predicates, safety, neverDial, guards, now: await seedNow(ctx),
     structure: {
       project: seedPlan.project,
       testRef: profile.environments.test.projectRef,

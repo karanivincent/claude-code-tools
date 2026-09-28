@@ -57,8 +57,11 @@ itself, not a product page:
 
 ## How to see your work
 
-The dev server is already running; your prompt gives its URL. Never start or stop a server. To
-picture the live page after a change:
+The dev server is already running; your prompt gives its URL. Never start or stop a server.
+Never run the production build, or a check chain that includes one, in this worktree: it replaces
+the build folder the dev server is serving, and every page then fails until the server restarts.
+Typecheck, lint and unit tests are safe; the main session runs the full chain after it stops the
+server. To picture the live page after a change:
 
     node scripts/delivery.mjs shoot --base-url <url> --round work <ID> [<ID> ...]
 

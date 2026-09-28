@@ -272,3 +272,15 @@ test('a stream or a request that never ends does not hold a step past the cap', 
   assert.ok(t >= SETTLE_CAP_MS && t < SETTLE_CAP_MS + 100);
   assert.equal(trackRequests({}).count, 0, 'a page without events (the test fakes) never waits');
 });
+
+test('a dev server whose build output was replaced is named before the shoot, not pictured as 500 pages', async () => {
+  const { probeServer } = await import('../../lib/commands/shoot.mjs');
+  const ctxWith = (fetch) => ({ fetch });
+  const answer = (status, body) => async () => ({ status, text: async () => body });
+  assert.equal(await probeServer(ctxWith(answer(200, '')), 'http://localhost:3000'), null);
+  assert.equal(await probeServer(ctxWith(answer(307, '')), 'http://localhost:3000'), null, 'a redirect to sign-in is a working server');
+  assert.equal(await probeServer(ctxWith(async () => { throw new Error('ECONNREFUSED'); }), 'http://localhost:3000'), null, 'unreachable: left to the per-state report');
+  assert.match(await probeServer(ctxWith(answer(500, "Error: Cannot find module './vendor-chunks/x.js'")), 'http://localhost:3000'), /build output is missing files.*never run the build/);
+  assert.match(await probeServer(ctxWith(answer(404, "Cannot find module './chunks/1.js'")), 'http://localhost:3000'), /build output is missing files/);
+  assert.match(await probeServer(ctxWith(answer(502, 'Bad gateway')), 'http://localhost:3000'), /answers 502/);
+});

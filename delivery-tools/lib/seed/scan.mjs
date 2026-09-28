@@ -14,6 +14,7 @@ import {
 import { seedCheck, deriveForSeed } from './safety.mjs';
 import { applyRows } from './apply.mjs';
 import { worldOrgId, extraReads, extraRows, deleteOrder } from './extras.mjs';
+import { seedNow } from './evaluate.mjs';
 
 async function adapter(ctx, write) {
   const { createDataAdapter } = await import('../../adapters/data/supabase.mjs');
@@ -105,7 +106,7 @@ export async function seedScan(ctx, opts = {}) {
     return { gate: gateResult([...failures, { code: 'M13-db', message: `the fixture worlds could not be read (${err.message}); the scan cannot pass unread` }], EXIT.USAGE), evaluation: null };
   }
   const evaluation = evaluateSeedSafety({
-    rows, users: scanned.users, worlds: scanned.worlds, predicates, safety, neverDial, guards, now: ctx.clock.now(), structure: null,
+    rows, users: scanned.users, worlds: scanned.worlds, predicates, safety, neverDial, guards, now: await seedNow(ctx), structure: null,
   });
   for (const reason of evaluation.reasons) failures.push({ code: `M13-L${reason.layer}`, message: `live: ${reason.message}` });
   return { gate: gateResult(failures), evaluation, rows: rows.length };
@@ -166,7 +167,7 @@ export async function refreshWorldReport(ctx, worldId) {
   const [schema, live, reader] = await before;
   if (!check.gate.ok) return { gate: check.gate };
   const db = await adapter(ctx, 'seed-refresh');
-  const written = await applyRows(db, seedPlan, { worlds: [worldId], now: ctx.clock.now(), users: false, live });
+  const written = await applyRows(db, seedPlan, { worlds: [worldId], now: await seedNow(ctx), users: false, live });
   const removal = await removeExtras(ctx, { writer: db, reader, seedPlan, worldId, orgId: org.orgId, reads: extras.reads });
   const scan = await seedScan(ctx, { seedPlan, worlds: [worldId], derived: check.derived, schema: schema ?? undefined, accessProven: true });
   return { gate: combineGates([removal.gate, scan.gate]), written: written.rows, unchanged: written.unchanged, removed: removal.removed };

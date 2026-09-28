@@ -18,6 +18,7 @@ import { columnConstraints } from '../seed/db.mjs';
 import { columnConstraintViolations, describeWhere, stateDataGaps, tablesWithoutGuard } from '../seed/data.mjs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { seedNow } from '../seed/evaluate.mjs';
 
 const MODES = ['plan', 'check', 'apply', 'scan', 'refresh', 'teardown'];
 
@@ -116,7 +117,7 @@ async function planMode(ctx) {
     const { createDataAdapter } = await import('../../adapters/data/supabase.mjs');
     const db = await createDataAdapter(ctx);
     const allowed = await columnConstraints(db);
-    violations = columnConstraintViolations(seedPlan.rows, allowed, ctx.clock.now());
+    violations = columnConstraintViolations(seedPlan.rows, allowed, await seedNow(ctx));
   } catch (err) {
     ctx.out.line(`note: could not read the database's CHECK constraints and enum types (${err.message}); world values are not checked against them`);
   }
@@ -187,7 +188,7 @@ function report(ctx, gate, evaluation, label) {
 async function checkMode(ctx) {
   const r = await seedCheck(ctx);
   const paths = ctx.requirePaths();
-  const gate = withDataGaps(r.gate, r.seedPlan, paths, ctx.clock.now());
+  const gate = withDataGaps(r.gate, r.seedPlan, paths, await seedNow(ctx));
   const exit = report(ctx, gate, r.evaluation, 'seed check');
   await ctx.journal({ command: 'seed --check', exit, counts: layerCounts(r.evaluation), inputs: r.seedPlan ?? null });
   return exit;
@@ -204,7 +205,7 @@ async function applyMode(ctx) {
     throw new ConfigError(`refusing to seed ${seedPlan.project}: the profile's test project is ${profile.environments.test.projectRef}`, { code: 'project' });
   }
   const check = await seedCheck(ctx, { seedPlan });
-  const checkGate = withDataGaps(check.gate, seedPlan, paths, ctx.clock.now());
+  const checkGate = withDataGaps(check.gate, seedPlan, paths, await seedNow(ctx));
   if (!checkGate.ok) {
     const exit = report(ctx, checkGate, check.evaluation, 'seed check');
     ctx.out.line('nothing was written');
@@ -213,7 +214,7 @@ async function applyMode(ctx) {
   }
   const { createDataAdapter } = await import('../../adapters/data/supabase.mjs');
   const db = await createDataAdapter(ctx, { projectRef: seedPlan.project, write: 'seed-apply' });
-  const written = await applyRows(db, seedPlan, { now: ctx.clock.now() });
+  const written = await applyRows(db, seedPlan, { now: await seedNow(ctx) });
   ctx.out.line(`wrote ${written.rows} row(s) and ${written.users.created} new fixture user(s) (${written.users.existing} already there) to ${seedPlan.project}${written.deferred ? `, then set the forward references of ${written.deferred} row(s)` : ''}`);
   const scan = await seedScan(ctx);
   const exit = report(ctx, scan.gate, scan.evaluation, 'scan after write');

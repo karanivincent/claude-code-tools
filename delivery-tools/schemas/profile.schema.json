@@ -137,7 +137,8 @@
       "properties": {
         "mode": { "enum": ["tenant", "database", "none"] },
         "robotOrganizationId": { "$ref": "common.schema.json#/$defs/Text" },
-        "orgName": { "description": "The generic organisation name a components run's own world uses (spec components-first §3); default \"Acme Store\" when absent.", "type": "string" }
+        "orgName": { "description": "The generic organisation name a components run's own world uses (spec components-first §3); default \"Acme Store\" when absent.", "type": "string" },
+        "timeZone": { "description": "The IANA time zone the test organisations live in (e.g. Europe/Berlin). A world's relative times (today, as: date) resolve their day in it; UTC when absent.", "type": "string", "minLength": 1 }
       }
     },
     "auth": {

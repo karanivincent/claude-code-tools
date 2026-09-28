@@ -76,6 +76,8 @@ common options:
     const db = await createDataAdapter(ctx);
     const { chromium } = await resolvePlaywright({ repoRoot: ctx.repoRoot, e2eDir: profile.paths?.e2eDir ?? null });
 
+    const broken = await probeServer(ctx, baseUrl);
+    if (broken) { ctx.out.fail('server-broken', broken); return EXIT.RED; }
     ctx.out.line(`shooting ${items.length} ${noun}(s) on ${baseUrl} into ${outDir}`);
     const report = await withShootSlot(ctx, () => runShoot({
       map, items, baseUrl, outDir,
@@ -93,6 +95,12 @@ common options:
       },
     }));
     const doc = await writeShootJson(outDir, { baseUrl, at: ctx.clock.now().toISOString(), report });
+    // A build that ran while the shoot did can break the server halfway; its pictures are then of an error page.
+    const brokeDuring = await probeServer(ctx, baseUrl);
+    if (brokeDuring) {
+      ctx.out.fail('server-broken', `${brokeDuring}. It broke during the shoot, so some pictures show an error page: shoot this round again once it serves`);
+      return EXIT.RED;
+    }
 
     const notReached = Object.entries(report).filter(([, r]) => !r.reached).map(([id]) => id);
     const dirty = [...new Set(items.filter((i) => report[i.key]?.writes).map((i) => i.state.reach.world))];
@@ -107,3 +115,30 @@ common options:
     return exit;
   },
 });
+
+/** An error a dev server gives when its build output was replaced under it (Next.js: a missing chunk). */
+const REPLACED_OUTPUT = /Cannot find module|ENOENT[^\n]*(\.next|dist|build)\/|vendor-chunks/i;
+
+/**
+ * Ask the app once. Returns why it is broken, or null when it serves (or cannot be asked at all: the
+ * shoot then reports each state it could not reach, as before). A production build run in the
+ * run's worktree while the dev server served it replaced the server's output, and every page
+ * returned 404 or 500: a builder lost a whole round of pictures to it.
+ * @param {import('../core/ctx.mjs').Ctx} ctx
+ * @param {string} baseUrl
+ */
+export async function probeServer(ctx, baseUrl) {
+  let res;
+  try {
+    res = await ctx.fetch(baseUrl, { redirect: 'manual', signal: AbortSignal.timeout(20000) });
+  } catch {
+    return null;
+  }
+  const body = res.status >= 400 ? await res.text().catch(() => '') : '';
+  if (res.status >= 500 || REPLACED_OUTPUT.test(body)) {
+    const why = REPLACED_OUTPUT.test(body) ? 'its build output is missing files (a production build probably replaced it)' : `it answers ${res.status}`;
+    return `the app at ${baseUrl} is broken: ${why}. Restart the dev server, and never run the build in the run's worktree while it serves`;
+  }
+  return null;
+}
+
