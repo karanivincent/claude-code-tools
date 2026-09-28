@@ -113,6 +113,9 @@ request in its report and works around it locally.
 | `lib/components/**` | C |
 | `tests/components/**` | C |
 | `tests/fixtures/components/**` | C |
+| `lib/commands/brief.mjs` | C |
+| `lib/brief/**` | C |
+| `tests/brief/**` | C |
 | `skills/**` | — |
 | `agents/**` | — |
 | `briefs/**` | — |
@@ -167,7 +170,8 @@ lib/components/               C   map.mjs: componentsMapPath, readComponentsMap,
                                    libraryTargets, missingFromDesignSystem, findDesignSystemManifest
 lib/capture/                  C   run, validate, spot, served-sha, job file
 lib/report/                   C   report (tldr), punch list
-templates/                    C   delivery-capture.spec.ts, delivery-capture-support.ts, component-state.test.tsx, punch-list.html, version-route.ts
+lib/brief/                    C   brief.mjs: nextBriefPath, fillTemplate, briefProblems, packBrief
+templates/                    C   delivery-capture.spec.ts, delivery-capture-support.ts, component-state.test.tsx, punch-list.html, version-route.ts, design-brief.md
 hooks/                        A1  hooks.json, session-start.sh, pre-bash.sh, pre-browser.sh
 ```
 
