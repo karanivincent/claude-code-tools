@@ -52,6 +52,7 @@ request in its report and works around it locally.
 | `lib/commands/init.mjs` | A2 |
 | `lib/commands/intake.mjs` | A2 |
 | `lib/commands/preflight.mjs` | A2 |
+| `lib/commands/prepush.mjs` | A2 |
 | `lib/commands/issues-sync.mjs` | A2 |
 | `lib/commands/scope-*.mjs` | A2 |
 | `lib/commands/claims-*.mjs` | A2 |
@@ -64,6 +65,7 @@ request in its report and works around it locally.
 | `lib/lifecycle/**` | A2 |
 | `lib/github/**` | A2 |
 | `tests/lifecycle/**` | A2 |
+| `tests/prepush/**` | A2 |
 | `tests/github/**` | A2 |
 | `tests/fixtures/lifecycle/**` | A2 |
 | `lib/commands/check.mjs` | B1 |
@@ -155,7 +157,7 @@ lib/core/
 lib/commands/<command>[-<sub>].mjs    one per command of spec 16 (owners in the table above)
 lib/gates/phase-0.mjs ... phase-7.mjs A1  gate(ctx) -> Promise<GateResult>
 lib/run/                      A1  ready.mjs (checkReady), inflight.mjs (recordDispatch, clearDispatch), and A1's own modules
-lib/lifecycle/                A2  intake, preflight (PROBES), preview, wave, land
+lib/lifecycle/                A2  intake, preflight (PROBES), prepush (prepushProblems), preview, wave, land
 lib/github/                   A2  issues, scope, claims, dupes, ci
 lib/plan/                     B1  inventory-check, check (M1), render (spec.md), verify
 lib/checks/                   B1  index (registry, runChecks), severity, one module per check
@@ -391,6 +393,7 @@ signature; if it must change, say so under "Requests for other slices" in your r
 | Function | File | Owner | Signature | Called by |
 |---|---|---|---|---|
 | `checkReady` | `lib/run/ready.mjs` | A1 | `(ctx, { pr }) => Promise<GateResult & { headSha }>` | hook pre-bash, phase-6 (A1); land (A2); report (C) |
+| `componentsCheck` | `lib/run/ready-compute.mjs` | A1 | `(ctx, { paths, profile, runMap, headSha? }) => Promise<{ ok, detail, evidence, problems? }>` | ready (A1); prepush (A2) |
 | `recordDispatch` | `lib/run/inflight.mjs` | A1 | `(ctx, { unit, agent, branch, brief, report }) => Promise<void>` | wave start (A2) |
 | `clearDispatch` | `lib/run/inflight.mjs` | A1 | `(ctx, unit) => Promise<void>` | wave merge (A2) |
 | `verifyIntake` | `lib/lifecycle/intake.mjs` | A2 | `(ctx) => Promise<GateResult>` | phase-0 (A1) |

@@ -22,9 +22,11 @@ profile, in that project's repository (spec section 18).
 node --test 'tests/**/*.test.mjs' 'skills/**/*.test.mjs'
 ```
 
-976 tests: 960 pass, 0 fail, 16 skipped (the replay tests, which need the private replay set, and
+1014 tests: 998 pass, 0 fail, 16 skipped (the replay tests, which need the private replay set, and
 two real-browser render tests, which need `DELIVERY_PLAYWRIGHT_ROOT`). That is the whole suite after
-0.10.0, the first half of the delivery improvements plan (A1 to A4, A7, A8: data needs per state,
+0.11.0 (A5 `delivery prepush` and A6 reviewing only what changed, in batches the CLI writes). A9
+(Jev as a first-pass grader) is not adopted: its offline measurement has not run, so it has not
+met the 95% bar. 0.10.0 was the first half of the delivery improvements plan (A1 to A4, A7, A8: data needs per state,
 guards and CHECK rules at `seed --plan`, the rules pass before building, the `picture-builder` agent,
 render and shoot fixes, and the shared slot file). Before it, 930 tests after 0.9.2, whose one fix is that `ready`'s components rule 3 no longer
 counts a file under the design or delivery folders (the design snapshot's own `DatePicker.dc.html`)

@@ -1,22 +1,35 @@
 // delivery review: compile a round's reviewer notes into review.json and the comparison page.
 
-import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { defineCommand } from '../core/command.mjs';
 import { intFlag, parseCommandArgs } from '../core/args.mjs';
 import { EXIT } from '../core/exit.mjs';
 import { readMap } from '../picture/map.mjs';
 import { listRounds, roundDir, roundInfo } from '../picture/rounds.mjs';
-import { parseReview, renderCompare, summarise } from '../picture/review.mjs';
+import { AUTO_MATCH_MAX_DIFF, MAX_BATCH_ITEMS, MAX_PARALLEL_REVIEWERS, batchPrompt, batchWaves, parseReview, planReview, renderCompare, summarise } from '../picture/review.mjs';
 import { hasPhone, mapItems, roundFiles } from '../picture/widths.mjs';
 
 export default defineCommand({
   name: 'review',
   summary: 'Compile a round\'s reviewer notes into review.json and the comparison page',
-  usage: `usage: delivery review [--round <n>] [--before <n>]
+  usage: `usage: delivery review --plan [--round <n>]
+       delivery review [--round <n>] [--before <n>]
 
-Picture mode. Reviewer agents (briefs/reviewer-picture.md) each write review-<group>.md into the
+Picture mode. First "--plan": it works out what needs a reviewer and writes the batches, so the
+main session only dispatches them. From round 2 on, an item whose live and design pictures are both
+unchanged since the round before (their sha256, recorded by the shoot) keeps that round's label and
+is not sent. An item whose text, test ids and buttons equal the design's, with pixels differing
+in at most ${AUTO_MATCH_MAX_DIFF * 100}% of the picture, is marked a match without a reviewer; anything missing means it goes to
+one. The rest are packed into batches of up to ${MAX_BATCH_ITEMS} items (a state's desktop and phone together, a
+screen kept whole where it fits) and written to the round's folder: review-plan.json (carried and
+auto-matched items), batches.json (each batch, and the waves of at most ${MAX_PARALLEL_REVIEWERS} to dispatch
+together) and batch-<n>.prompt.md, the exact prompt for each reviewer. If docs/delivery/<feature>/steers.md
+exists, its text is added to every prompt. Dispatch each prompt file as it is, then run review
+without --plan.
+
+Without --plan, this command compiles the reviews. Reviewer agents (briefs/reviewer-picture.md) each write review-<group>.md into the
 round's folder: one "## <ITEM>" section per item with a problem (an item is a state at a width:
 "## KC-05" at desktop, "## KC-05@phone" at phone width), one bullet per problem, each starting
 "must fix:", "small:", "design:" (the live page is right and the design is wrong, or missing
@@ -39,6 +52,7 @@ An item with no section in any review matches. Only items the reviewers were giv
 after every group's reviewer has written its file.
 
 options:
+  --plan         write the reviewer batches instead of compiling (see above)
   --round <n>    the round (default: the latest numbered round)
   --before <n>   the earlier round shown next to it (default: round 1, when this is a later round)
 
@@ -50,14 +64,15 @@ common options:
   --json             machine output: one JSON object on stdout
   --help             this text`,
   async run(ctx, argv) {
-    const { values } = parseCommandArgs(argv, { options: { round: { type: 'string' }, before: { type: 'string' } } });
+    const { values } = parseCommandArgs(argv, { options: { round: { type: 'string' }, before: { type: 'string' }, plan: { type: 'boolean' } } });
     const paths = ctx.requirePaths();
     const rounds = listRounds(paths);
     const round = intFlag(values.round, '--round') ?? rounds[rounds.length - 1];
     if (!round) { ctx.out.fail('no-round', 'no numbered round yet; run delivery shoot first'); return EXIT.USAGE; }
     const info = roundInfo(paths, round);
     if (!info.shoot) { ctx.out.fail('no-shoot', `round ${round} has no shoot.json; run delivery shoot --round ${round}`); return EXIT.USAGE; }
-    if (!info.reviews.length) { ctx.out.fail('no-review', `round ${round} has no review-*.md; dispatch the reviewers (briefs/reviewer-picture.md)`); return EXIT.USAGE; }
+    if (values.plan) return planRound(ctx, paths, round, info, rounds);
+    if (!info.reviews.length && info.reviewPlan?.batches !== 0) { ctx.out.fail('no-review', `round ${round} has no review-*.md; run delivery review --plan --round ${round} and dispatch the batches (briefs/reviewer-picture.md)`); return EXIT.USAGE; }
     const map = readMap(paths);
     if (!map) { ctx.out.fail('no-map', 'there is no map.json'); return EXIT.USAGE; }
 
@@ -71,7 +86,7 @@ common options:
         notes[id].dataGap.push(...(n.dataGap ?? []));
       }
     }
-    const summary = summarise({ map, shoot: info.shoot, notes });
+    const summary = summarise({ map, shoot: info.shoot, notes, pre: info.reviewPlan ?? {} });
 
     const before = intFlag(values.before, '--before') ?? (round > 1 && rounds.includes(1) ? 1 : null);
     const beforeDir = before ? roundDir(paths, before) : null;
@@ -93,6 +108,8 @@ common options:
     await writeFile(join(info.dir, 'review.json'), JSON.stringify(doc, null, 1) + '\n');
 
     const c = summary.counts;
+    const nCarried = Object.values(summary.states).filter((v) => v.carried).length;
+    const nAuto = Object.values(summary.states).filter((v) => v.auto).length;
     const noun = hasPhone(map) ? ' (items: a state at a width)' : '';
     ctx.out.line(`round ${round}${noun}: ${c.match} match, ${c.small} small differences only, ${c.must} to fix, ${c.dataGap ?? 0} data gap, ${c.notReached} not reached, ${c.backToDesign} back to design, ${c.testOnly} unit tests only`);
     for (const [id, s] of Object.entries(summary.states)) {
@@ -101,10 +118,46 @@ common options:
       if (s.verdict === 'not-reached') ctx.out.line(`  ${id}: not reached`);
       if (s.verdict === 'back-to-design') ctx.out.line(`  ${id}: back to design`);
     }
+    if (nCarried || nAuto) ctx.out.line(`not sent to a reviewer: ${nCarried} carried from an earlier round, ${nAuto} matched automatically`);
     ctx.out.line(`comparison page: ${join(info.dir, 'compare.html')}`);
-    ctx.out.set('review', { round, before, counts: c, compare: join(info.dir, 'compare.html') });
+    ctx.out.set('review', { round, before, counts: c, carried: nCarried, auto: nAuto, compare: join(info.dir, 'compare.html') });
     const exit = c.must || c.notReached ? EXIT.RED : EXIT.PASS;
     await ctx.journal({ command: `review --round ${round}`, exit, counts: c });
     return exit;
   },
 });
+
+/** review --plan: carried and auto-matched items, then the reviewer batches with their prompts. */
+async function planRound(ctx, paths, round, info, rounds) {
+  const map = readMap(paths);
+  if (!map) { ctx.out.fail('no-map', 'there is no map.json'); return EXIT.USAGE; }
+  const earlier = rounds.filter((n) => n < round).pop();
+  const prevInfo = earlier ? roundInfo(paths, earlier) : null;
+  const prev = prevInfo?.shoot && prevInfo.review ? { round: earlier, shoot: prevInfo.shoot, review: prevInfo.review } : null;
+  const plan = planReview({ map, shoot: info.shoot, prev });
+  for (const f of readdirSync(info.dir)) if (/^batch-\d+\.prompt\.md$/.test(f)) unlinkSync(join(info.dir, f));
+  const steersFile = join(paths.deliveryDir, 'steers.md');
+  const steersRel = relative(ctx.repoRoot, steersFile);
+  const steers = existsSync(steersFile) ? readFileSync(steersFile, 'utf8') : null;
+  const roundRel = relative(ctx.repoRoot, info.dir);
+  const batches = [];
+  for (const b of plan.batches) {
+    const file = `review-batch-${b.id}.md`;
+    const prompt = `batch-${b.id}.prompt.md`;
+    await writeFile(join(info.dir, prompt), batchPrompt({ pluginRoot: ctx.pluginRoot, feature: paths.feature, worktree: ctx.repoRoot, roundRel, items: b.items, file, steers, steersRel }));
+    batches.push({ id: b.id, prompt, write: file, items: b.items, screens: b.screens });
+  }
+  const waves = batchWaves(plan.batches);
+  await writeFile(join(info.dir, 'batches.json'), JSON.stringify({ schemaVersion: 1, round, maxItems: MAX_BATCH_ITEMS, maxParallel: MAX_PARALLEL_REVIEWERS, steers: steers ? steersRel : null, waves, batches }, null, 1) + '\n');
+  await writeFile(join(info.dir, 'review-plan.json'), JSON.stringify({ schemaVersion: 1, round, at: ctx.clock.now().toISOString(), batches: batches.length, carried: plan.carried, auto: plan.auto }, null, 1) + '\n');
+  const nc = Object.keys(plan.carried).length;
+  const na = Object.keys(plan.auto).length;
+  const nItems = batches.reduce((n, b) => n + b.items.length, 0);
+  ctx.out.line(`round ${round}: ${nc} carried from round ${earlier ?? '-'}, ${na} matched automatically, ${nItems} item(s) for a reviewer in ${batches.length} batch(es)`);
+  waves.forEach((w, i) => ctx.out.line(`  dispatch together${waves.length > 1 ? ` (wave ${i + 1} of ${waves.length})` : ''}: ${w.map((id) => `batch-${id}.prompt.md`).join(', ')}`));
+  if (!batches.length) ctx.out.line('  nothing to dispatch: run delivery review to compile');
+  ctx.out.line(`batches: ${join(info.dir, 'batches.json')}${steers ? ` (steers from ${steersRel} added to every prompt)` : ''}`);
+  ctx.out.set('reviewPlan', { round, carried: nc, auto: na, batches: batches.length, dir: info.dir });
+  await ctx.journal({ command: `review --plan --round ${round}`, exit: EXIT.PASS, counts: { carried: nc, auto: na, batches: batches.length } });
+  return EXIT.PASS;
+}

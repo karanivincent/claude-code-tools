@@ -9,6 +9,9 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { reachSteps, writesData } from './map.mjs';
 import { withSlot, slotsFile } from '../capture/slots.mjs';
+import { pageExtract } from '../capture/page-extract.mjs';
+import { sha256 } from '../core/hash.mjs';
+import { PIXEL_TOLERANCE, domFacts, factsAgree } from './review.mjs';
 import { WIDTHS, cropFor, designFileCandidates, mapItems, overflowProblem, roundFiles } from './widths.mjs';
 
 /**
@@ -238,6 +241,7 @@ export async function runShoot(o) {
   const landing = o.map.route;
   const browser = await o.chromium.launch();
   const report = {};
+  const liveFacts = new Map(); // item key -> what the live page showed (text, test ids, buttons)
   let ip = 20;
   try {
     for (const entry of captureOrder(o.items, o.map)) {
@@ -262,7 +266,7 @@ export async function runShoot(o) {
       }
       for (const it of entry.items) {
         try {
-          report[it.key] = await shootItem(page, it, o);
+          report[it.key] = await shootItem(page, it, o, liveFacts);
         } catch (err) {
           report[it.key] = { user: `${entry.world}/${entry.role}`, width: it.width, reached: false, problems: [String(err?.message ?? err).split('\n')[0]], buttons: [] };
         }
@@ -275,13 +279,14 @@ export async function runShoot(o) {
       }
     }
     await cropDesigns(browser, o, o.items);
+    await recordPictureFacts(browser, o, report, liveFacts);
   } finally {
     await browser.close();
   }
   return report;
 }
 
-async function shootItem(page, it, o) {
+async function shootItem(page, it, o, liveFacts = new Map()) {
   const s = it.state;
   const size = WIDTHS[it.width];
   const crop = cropFor(o.map, it.width, it.id);
@@ -357,6 +362,9 @@ async function shootItem(page, it, o) {
   // Every width, not only the phone: a fixed bar (a bottom tab bar, a dev-server overlay) is
   // shared chrome, hidden before the picture rather than graded, at any width it happens to show.
   await page.evaluate(hideBottomBars, BOTTOM_BAR_MAX).catch(() => 0);
+  // What the page says, read the way a design render's is, for the auto-match check (A6).
+  const extracted = await page.evaluate(pageExtract, {}).catch(() => null);
+  liveFacts.set(it.key, extracted ? domFacts(extracted.dom, left) : null);
   await page.screenshot({ path: join(o.outDir, roundFiles(it.key).live), clip: { x: left, y: top, width: size.width - left, height: height - top }, animations: 'disabled', caret: 'hide' });
   return rec;
 }
@@ -384,6 +392,69 @@ async function cropDesigns(browser, o, items) {
     }
   } finally {
     await page.close();
+  }
+}
+
+// Page side of the pixel difference: the share of pixels that differ by more than `tol` in any
+// channel, or null when the two pictures are not the same size (then they cannot be compared).
+function diffImages({ a, b, tol }) {
+  const load = (src) => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = src; });
+  return Promise.all([load(a), load(b)]).then(([x, y]) => {
+    if (x.naturalWidth !== y.naturalWidth || x.naturalHeight !== y.naturalHeight || !x.naturalWidth) return null;
+    const px = (img) => {
+      const c = document.createElement('canvas');
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      const g = c.getContext('2d', { willReadFrequently: true });
+      g.drawImage(img, 0, 0);
+      return g.getImageData(0, 0, c.width, c.height).data;
+    };
+    const p = px(x), q = px(y);
+    let n = 0;
+    for (let i = 0; i < p.length; i += 4) {
+      if (Math.abs(p[i] - q[i]) > tol || Math.abs(p[i + 1] - q[i + 1]) > tol || Math.abs(p[i + 2] - q[i + 2]) > tol || Math.abs(p[i + 3] - q[i + 3]) > tol) n++;
+    }
+    return n / (p.length / 4);
+  }).catch(() => null);
+}
+
+/**
+ * For each reached item: the sha256 of its live and design pictures (`liveHash`, `designHash`, so a
+ * later round can tell nothing changed), whether the live page's text, test ids and buttons equal
+ * the design's (`factsAgree`; null when either side has no facts) and the share of pixels that
+ * differ (`pixelDiff`; only set when measured). `o.diffPictures(livePath, designPath)` replaces the
+ * browser's own measure (a test, or a caller with a decoder); without a measure nothing is set, and
+ * the review sends the item to a reviewer.
+ */
+async function recordPictureFacts(browser, o, report, liveFacts) {
+  const page = o.diffPictures ? null : await browser.newPage();
+  try {
+    for (const it of o.items) {
+      const rec = report[it.key];
+      if (!rec?.reached) continue;
+      const files = roundFiles(it.key);
+      const livePath = join(o.outDir, files.live);
+      const designPath = join(o.outDir, files.design);
+      const live = existsSync(livePath) ? readFileSync(livePath) : null;
+      const design = existsSync(designPath) ? readFileSync(designPath) : null;
+      if (live) rec.liveHash = sha256(live);
+      if (design) rec.designHash = sha256(design);
+      const file = designFileCandidates(it.state, it.width).find((f) => existsSync(join(o.designDir, f)));
+      let designDom = null;
+      if (file) { try { designDom = JSON.parse(readFileSync(join(o.designDir, file.replace(/\.png$/, '.dom.json')), 'utf8')); } catch { designDom = null; } }
+      const dFacts = designDom ? domFacts(designDom, cropFor(o.map, it.width, it.id).designLeft ?? 0) : null;
+      const lFacts = liveFacts.get(it.key) ?? null;
+      rec.factsAgree = dFacts && lFacts ? factsAgree(lFacts, dFacts) : null;
+      if (!live || !design) continue;
+      let diff = null;
+      try {
+        diff = o.diffPictures
+          ? await o.diffPictures(livePath, designPath)
+          : await page.evaluate(diffImages, { a: `data:image/png;base64,${live.toString('base64')}`, b: `data:image/png;base64,${design.toString('base64')}`, tol: PIXEL_TOLERANCE });
+      } catch { diff = null; }
+      if (typeof diff === 'number' && Number.isFinite(diff)) rec.pixelDiff = diff;
+    }
+  } finally {
+    if (page) await page.close().catch(() => {});
   }
 }
 

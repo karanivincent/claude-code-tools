@@ -88,7 +88,23 @@
         "appRouteGlobs": { "$ref": "common.schema.json#/$defs/Strings" },
         "apiRouteGlobs": { "$ref": "common.schema.json#/$defs/Strings" },
         "componentGlobs": { "$ref": "common.schema.json#/$defs/Strings" },
-        "databaseTypes": { "type": "string" }
+        "databaseTypes": { "type": "string" },
+        "migrationsGlob": { "description": "Optional. Where migrations live, e.g. supabase/migrations/*.sql. With orgScopedLists, delivery prepush checks the migrations a branch adds.", "$ref": "common.schema.json#/$defs/Text" },
+        "orgColumn": { "description": "Optional. The organisation column that makes a table org-scoped (default organization_id).", "type": "string" },
+        "orgScopedLists": {
+          "description": "Optional. Every list a new org-scoped table must join. A list passes when some file matching files (and containing alsoContains, when set) names the table as a whole word.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "files"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1 },
+              "files": { "$ref": "common.schema.json#/$defs/Text" },
+              "alsoContains": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
       }
     },
     "environments": {

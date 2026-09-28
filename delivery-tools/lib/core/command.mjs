@@ -17,7 +17,7 @@ export const COMMAND_ORDER = Object.freeze([
   'issues sync', 'scope post', 'scope read', 'claims open', 'claims verify', 'dupes',
   'sidefx', 'seed', 'shoot', 'slot', 'review', 'sign-in',
   'wave start', 'wave merge', 'wave end', 'gate', 'capture', 'check', 'audit compile',
-  'ci', 'ready', 'pr-body', 'handover', 'report', 'land',
+  'ci', 'prepush', 'ready', 'pr-body', 'handover', 'report', 'land',
   'hook session-start', 'hook pre-bash', 'hook pre-browser',
 ]);
 

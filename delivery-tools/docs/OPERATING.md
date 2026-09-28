@@ -50,6 +50,18 @@ area, with the sidebar and top bar cropped away, next to the design cropped the 
 agents compare them, one per screen, and `delivery review` compiles their notes into a comparison
 page. At most two fix rounds follow. `delivery status` names the next step throughout.
 
+Review only what changed. The shoot records a sha256 of every live and design picture, whether the
+live page's text, test ids and buttons equal the design's, and the share of pixels that differ (the
+browser measures it; more than 16 of 255 in a channel counts as different). `delivery review --plan
+--round <n>` then leaves out two kinds of item. An item whose live and design pictures are both
+unchanged since the round before keeps that round's label (marked carried). An item that agrees
+exactly and differs in at most 0.5% of pixels is a match without a reviewer (marked auto); anything
+missing, including an unmeasured difference, sends it to one. The rest go into batches of up to 20
+items, a state's desktop and phone together, and the command writes `batches.json` and a
+`batch-<k>.prompt.md` per batch into the round's folder. Dispatch those files as written, at most
+four at once. Text in `docs/delivery/<feature>/steers.md` is added to every prompt. Then
+`delivery review --round <n>` compiles as before.
+
 Since 0.5.0 a run can check the phone as well as the desktop. When the design has phone screens,
 the map declares `"widths": ["desktop", "phone"]` and every state is checked at 1440 x 900 and at
 390 x 844. The design is rendered narrow with `delivery design render --width phone`, or a state
@@ -237,6 +249,17 @@ Two picture-mode changes that move seed problems earlier, from the middle of a r
 | Reads and sign-ins retry on a dropped connection; writes never do | an upsert whose response was lost may already have landed |
 | A run whose pull request was closed unmerged closes with `advance closed` | otherwise the session-start hook tells every later session to resume it |
 | A run builds the screens its sentence names, and no other screen in the export | an export is the whole project; without this a Calls run would inventory, plan and rebuild Scripts too |
+
+## Before the first push
+
+Run `delivery prepush`. It fails, one line per problem, on: a test id or visible text the base
+branch's design plans (`<deliveryRoot>/replay/**/plan.json`) or e2e specs still name that the branch
+removed (the design gate and E2E read the base, so the PR cannot fix it); a migration the branch adds
+that creates a table with the org column and is missing from a list in `paths.orgScopedLists`; a
+branch behind its base; and the components rule `ready` runs after CI. Set `paths.migrationsGlob`,
+`paths.orgScopedLists` (and `paths.orgColumn`, default `organization_id`) in the profile to turn the
+second check on; without `orgScopedLists` it is skipped. The removed-name search covers
+`componentGlobs`, `appRouteGlobs` and the message files at the merge base and at HEAD.
 
 ## The Trust rule
 
