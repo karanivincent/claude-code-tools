@@ -53,6 +53,9 @@ export async function writeComponentsMap(path, map) {
 export function validateComponentsMap(map, opts = {}) {
   const { errors } = validateAgainst('components', map);
   if (errors.length) {
+    // Deliberate early return: every check below assumes a schema-valid shape (c.kind, c.name,
+    // c.owns and c.target all present with their schema types) and would throw or misreport on
+    // a malformed map instead of adding anything a caller could act on.
     return errors.map((e) => `components.json${e.path === '/' ? '' : e.path}: ${e.message}`);
   }
 

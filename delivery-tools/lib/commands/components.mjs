@@ -9,8 +9,9 @@ import { parseCommandArgs } from '../core/args.mjs';
 import { EXIT, UsageError } from '../core/exit.mjs';
 import {
   componentsMapPath, readComponentsMap, writeComponentsMap, validateComponentsMap,
-  scanBase, missingFromDesignSystem, findDesignSystemManifest,
+  scanBase, missingFromDesignSystem, findDesignSystemManifest, refreshDesignEntries,
 } from '../components/map.mjs';
+import { readExportComponents, componentOrder } from '../design/components.mjs';
 
 export default defineCommand({
   name: 'components',
@@ -29,13 +30,16 @@ entries are left untouched. Creates the map when it does not exist yet.
 built. Refused (exit 2) when the entry has no target yet, or its target is missing on disk. May
 be repeated.
 
---export <dir> is a design export directory to compare the map against (its
-_ds/*/_ds_manifest.json); when a run is resolved in this worktree its own design snapshot is used
-instead. With neither, the design-system comparison is skipped.
+--export <dir> is a design export directory to compare the map against: its .dc.html files (is a
+design component stale, is one missing from the map) and its _ds/*/_ds_manifest.json (has the
+design system been synced). When a run is resolved in this worktree its own design snapshot is
+used instead. With neither, both comparisons are skipped and the map's own recorded status is
+printed as-is. This never writes components.json: a components run's intake (a later slice) is
+what records a fresh hash; this command only reports drift.
 
-exit: 0 configured and every check passes; 1 a design entry is stale, a file in baseDir has no
-      base entry, or validateComponentsMap finds a problem; 2 usage, or no components.json to
-      work with
+exit: 0 configured and every check passes; 1 a design entry is stale, one is in the export but
+      not the map, a file in baseDir has no base entry, or validateComponentsMap finds a problem;
+      2 usage, or no components.json to work with
 
 common options:
   --feature <slug>   only used, if a run is resolved, to find its design snapshot
@@ -86,8 +90,37 @@ common options:
     const problems = validateComponentsMap(map, { repoRoot: ctx.repoRoot });
     for (const p of problems) ctx.out.fail('components', p);
 
-    const stale = map.components.filter((c) => c.kind === 'design' && c.status === 'stale');
-    for (const c of stale) ctx.out.fail('components', `${c.name}: the design changed since it was built (stale)`);
+    // The export, when one is available, is compared in memory only: this command never writes
+    // components.json for the drift it finds (intake, a later slice, is what records it for real).
+    const exportDir = values.export ?? ctx.paths?.designSnapshot ?? null;
+    const exportAvailable = Boolean(exportDir && existsSync(exportDir));
+    let effectiveDesign = map.components.filter((c) => c.kind === 'design'); // "today" (no export): the persisted view
+    const missingFromMap = [];
+    const reported = new Set();
+
+    if (exportAvailable) {
+      const { components: exported, errors } = await readExportComponents(exportDir);
+      for (const e of errors) ctx.out.fail('components', e);
+
+      const before = new Map(map.components.filter((c) => c.kind === 'design').map((c) => [c.name, c]));
+      const refreshed = refreshDesignEntries(map, exported);
+      effectiveDesign = refreshed.map.components.filter((c) => c.kind === 'design');
+      for (const name of refreshed.changed) {
+        const prev = before.get(name);
+        const now = effectiveDesign.find((c) => c.name === name);
+        if (!prev) {
+          missingFromMap.push(name);
+          ctx.out.fail('components', `${name}: not in the map yet`);
+          reported.add(name);
+        } else if (prev.status !== now.status) {
+          ctx.out.fail('components', `${name}: ${prev.status} -> ${now.status} (the design file changed)`);
+          reported.add(name);
+        }
+      }
+    }
+
+    const stale = effectiveDesign.filter((c) => c.status === 'stale');
+    for (const c of stale) if (!reported.has(c.name)) ctx.out.fail('components', `${c.name}: the design changed since it was built (stale)`);
 
     let missingBase = [];
     if (profile.components?.baseDir) {
@@ -98,8 +131,7 @@ common options:
     }
 
     let nextLine = null;
-    const exportDir = values.export ?? ctx.paths?.designSnapshot ?? null;
-    if (exportDir && existsSync(exportDir)) {
+    if (exportAvailable) {
       const manifestPath = findDesignSystemManifest(exportDir);
       if (manifestPath) {
         const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
@@ -108,18 +140,18 @@ common options:
       }
     }
 
-    const sorted = [...map.components].sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
-    for (const c of sorted) {
-      if (c.kind === 'design') ctx.out.line(`design ${c.name}: ${c.status}${c.target ? ` -> ${c.target}` : ' (no target)'}`);
-      else ctx.out.line(`base ${c.name}: ${c.target} (${(c.owns ?? []).join(', ') || 'no library'})`);
-    }
+    const byName = new Map(effectiveDesign.map((c) => [c.name, c]));
+    const designOrder = componentOrder(effectiveDesign).map((name) => byName.get(name)).filter(Boolean);
+    const baseSorted = map.components.filter((c) => c.kind === 'base').sort((a, b) => a.name.localeCompare(b.name));
+    for (const c of designOrder) ctx.out.line(`design ${c.name}: ${c.status}${c.target ? ` -> ${c.target}` : ' (no target)'}`);
+    for (const c of baseSorted) ctx.out.line(`base ${c.name}: ${c.target} (${(c.owns ?? []).join(', ') || 'no library'})`);
     if (nextLine) ctx.out.line(`NEXT: ${nextLine}`);
 
     ctx.out.set('components', {
-      total: map.components.length, stale: stale.length, missingBase: missingBase.length, problems: problems.length,
-      next: nextLine,
+      total: map.components.length, stale: stale.length, missingBase: missingBase.length,
+      missingFromMap: missingFromMap.length, problems: problems.length, next: nextLine,
     });
-    const exit = problems.length || stale.length || missingBase.length ? EXIT.RED : EXIT.PASS;
+    const exit = problems.length || stale.length || missingBase.length || missingFromMap.length ? EXIT.RED : EXIT.PASS;
     await ctx.journal({ command: 'components', exit, counts: { total: map.components.length, problems: problems.length } });
     return exit;
   },

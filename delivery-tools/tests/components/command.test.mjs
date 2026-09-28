@@ -103,3 +103,45 @@ test('plain components: exits 1 on a stale entry, and prints the design-sync NEX
     assert.match(stdout.text(), /NEXT: run \/design-sync on the design-system project: it lacks Picker/);
   } finally { t.cleanup(); }
 });
+
+test('export drift: a Picker file whose live hash differs from the recorded one is stale, exit 1, and components.json is left unchanged on disk', async () => {
+  const t = makeTempDir();
+  const mapRel = 'docs/delivery/components.json';
+  const persisted = {
+    version: 1,
+    components: [{
+      kind: 'design', name: 'Picker',
+      design: { file: 'Picker.dc.html', hash: H1 },
+      target: 'src/ui/picker.tsx', status: 'built', builtHash: H1,
+      props: {}, owns: [], builtOn: [], replaces: [], uses: [], states: [],
+    }],
+  };
+  try {
+    write(t.dir, 'src/ui/picker.tsx', 'export const Picker = () => null;\n');
+    write(t.dir, mapRel, persisted);
+    write(t.dir, 'export/Main.dc.html', '<x-dc><dc-import name="Picker"></dc-import></x-dc>');
+    write(t.dir, 'export/Picker.dc.html', '<x-dc><div>Pick a day</div></x-dc>');
+    const before = readFileSync(join(t.dir, mapRel), 'utf8');
+    const profile = makeProfile({ components: { map: mapRel } });
+    const { ctx, stdout } = await makeTestCtx({ repoRoot: t.dir, profile });
+    const code = await command.run(ctx, ['--export', join(t.dir, 'export')]);
+    assert.equal(code, 1);
+    assert.match(stdout.text(), /Picker: built -> stale \(the design file changed\)/);
+    assert.equal(readFileSync(join(t.dir, mapRel), 'utf8'), before, 'a plain run never writes the map back');
+  } finally { t.cleanup(); }
+});
+
+test('export drift: a component in the export but not in the map is reported, and counts toward exit 1', async () => {
+  const t = makeTempDir();
+  const mapRel = 'docs/delivery/components.json';
+  try {
+    write(t.dir, mapRel, { version: 1, components: [] });
+    write(t.dir, 'export/Main.dc.html', '<x-dc><dc-import name="Table"></dc-import></x-dc>');
+    write(t.dir, 'export/Table.dc.html', '<x-dc><table></table></x-dc>');
+    const profile = makeProfile({ components: { map: mapRel } });
+    const { ctx, stdout } = await makeTestCtx({ repoRoot: t.dir, profile });
+    const code = await command.run(ctx, ['--export', join(t.dir, 'export')]);
+    assert.equal(code, 1);
+    assert.match(stdout.text(), /Table: not in the map yet/);
+  } finally { t.cleanup(); }
+});
