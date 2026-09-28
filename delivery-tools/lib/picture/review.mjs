@@ -82,16 +82,24 @@ export function parseReview(md, ids = null) {
  * pictureReadiness treats it separately, and always keeps ready red until the world is re-seeded).
  * A data-gap note alongside a real must-fix note still leaves the verdict `must` (the code defect
  * is the worse problem), but the data-gap note is kept either way.
- * @param {{ map: object, shoot: object|null, notes: Record<string, {must: string[], small: string[], design?: string[], dataGap?: string[]}> }} input
+ * An item `pre.carried` names (its pictures did not change since an earlier round, A6) takes that
+ * round's label and notes and is marked `carried: { from }`; one in `pre.auto` (text, test ids,
+ * buttons and pixels all agree with the design) is a match marked `auto: true`. Neither went to a
+ * reviewer, and both only apply to an item the shoot reached.
+ * @param {{ map: object, shoot: object|null, notes: Record<string, {must: string[], small: string[], design?: string[], dataGap?: string[]}>, pre?: { carried?: Record<string, {from: number, state: object}>, auto?: Record<string, object> } }} input
  */
-export function summarise({ map, shoot, notes }) {
+export function summarise({ map, shoot, notes, pre = {} }) {
   const states = {};
   const counts = { match: 0, small: 0, must: 0, notReached: 0, testOnly: 0, backToDesign: 0 };
   for (const { key, state: s } of mapItems(map)) {
     const given = notes[key] ?? { must: [], small: [], design: [], dataGap: [] };
     const shot = shoot?.states?.[key];
     const n = { must: [...given.must], small: [...given.small], design: [...(given.design ?? [])], dataGap: [...(given.dataGap ?? [])] };
-    if (shot?.reached && shot.overflow > 0 && !n.must.some((t) => /sideways|horizontal(ly)? scroll/i.test(t))) {
+    const carried = shot?.reached && !s.reach?.test ? pre.carried?.[key] : null;
+    if (carried) {
+      const c = carried.state;
+      n.must = [...(c.must ?? [])]; n.small = [...(c.small ?? [])]; n.design = [...(c.design ?? [])]; n.dataGap = [...(c.dataGap ?? [])];
+    } else if (shot?.reached && shot.overflow > 0 && !n.must.some((t) => /sideways|horizontal(ly)? scroll/i.test(t))) {
       n.must.push(`the page scrolls sideways by ${shot.overflow} px (found by the shoot)`);
     }
     let verdict;
@@ -105,7 +113,11 @@ export function summarise({ map, shoot, notes }) {
     else verdict = 'match';
     const bucket = { 'test-only': 'testOnly', 'not-reached': 'notReached', 'not-shot': 'notReached', 'back-to-design': 'backToDesign', 'data-gap': 'dataGap' }[verdict] ?? verdict;
     counts[bucket] = (counts[bucket] ?? 0) + 1;
-    states[key] = { verdict, must: n.must, small: n.small, design: n.design, ...(n.dataGap.length ? { dataGap: n.dataGap } : {}) };
+    const auto = !carried && verdict === 'match' && pre.auto?.[key];
+    states[key] = {
+      verdict, must: n.must, small: n.small, design: n.design, ...(n.dataGap.length ? { dataGap: n.dataGap } : {}),
+      ...(carried ? { carried: { from: carried.from } } : {}), ...(auto ? { auto: true } : {}),
+    };
   }
   return { states, counts };
 }
@@ -152,9 +164,11 @@ export function renderCompare(o) {
     ? `<figure class="shot"><figcaption>${cap}</figcaption><button type="button" class="zoom" data-src="${esc(src)}" data-cap="${esc(id)} · ${cap}"><img loading="lazy" src="${esc(src)}" alt="${esc(id)} ${cap}"></button></figure>`
     : `<figure class="shot"><figcaption>${cap}</figcaption><div class="empty">No picture</div></figure>`);
   const pillText = (v) => {
+    if (v.carried) return `${label[v.verdict]} (carried)`;
     if (v.verdict === 'must') return `${v.must.length} to fix`;
     if (v.verdict === 'back-to-design') return `${v.design.length} back to design`;
     if (v.verdict === 'data-gap') return `${v.dataGap.length} data gap`;
+    if (v.auto) return 'matches (auto)';
     return label[v.verdict];
   };
   const rank = ['must', 'not-reached', 'not-shot', 'data-gap', 'small', 'back-to-design', 'test-only', 'match'];
@@ -168,11 +182,12 @@ export function renderCompare(o) {
       const notes = [...v.must.map((t) => `<li class="m">${inline(t)}</li>`), ...(v.dataGap ?? []).map((t) => `<li class="g">${inline(t)}</li>`), ...v.small.map((t) => `<li class="s">${inline(t)}</li>`), ...(v.design ?? []).map((t) => `<li class="d">${inline(t)}</li>`)].join('');
       const trio = `<div class="trio">${fig(p.design, 'Design', it.key)}${o.beforeRound ? fig(p.before, `Round ${o.beforeRound}`, it.key) : ''}${fig(p.now, `Round ${o.round}`, it.key)}</div>`;
       const list = notes ? `<ul class="notes">${notes}</ul>` : '';
-      if (!multi) return { pill: `<span class="pill ${v.verdict}">${esc(pillText(v))}</span>`, body: `${trio}\n  ${list}` };
+      const note = v.carried ? `<p class="carried">Carried from round ${esc(v.carried.from)}: neither picture changed, so it was not reviewed again.</p>` : v.auto ? '<p class="carried">Matched without a reviewer: the text, test ids, buttons and pixels agree with the design.</p>' : '';
+      if (!multi) return { pill: `<span class="pill ${v.verdict}">${esc(pillText(v))}</span>`, body: `${note}${trio}\n  ${list}` };
       const name = widthLabel[it.width] ?? it.width;
       return {
         pill: `<span class="pill ${v.verdict}">${esc(name)}: ${esc(pillText(v))}</span>`,
-        body: `<section class="width ${esc(it.width)}" aria-label="${esc(name)}"><h3>${esc(name)}</h3>${trio}${list}</section>`,
+        body: `<section class="width ${esc(it.width)}" aria-label="${esc(name)}"><h3>${esc(name)}</h3>${note}${trio}${list}</section>`,
       };
     };
     const parts = mine.map(widthRow);
@@ -219,6 +234,7 @@ h1 { font-size:1.6rem; font-weight:600; margin:0; text-wrap:balance; }
 .width.phone .trio { grid-template-columns:repeat(auto-fit, minmax(min(100%, 200px), 390px)); }
 .notes { margin:0; padding-left:1.2rem; display:grid; gap:4px; max-width:110ch; }
 .notes li.m::marker { color:var(--must); } .notes li.s { color:var(--muted); } .notes li.d::marker { color:var(--accent); } .notes li.g::marker { color:var(--accent); }
+.carried { margin:0; color:var(--muted); font-size:.85rem; }
 .notes code { font:500 .85em var(--mono); }
 .viewer { position:fixed; inset:0; z-index:10; background:rgba(8,10,14,.9); overflow:auto; padding:calc(56px + env(safe-area-inset-top,0px)) 16px 24px; }
 .viewer img { display:block; margin:0 auto; max-width:min(100%,1200px); background:#fff; border-radius:4px; }
@@ -259,4 +275,148 @@ h1 { font-size:1.6rem; font-weight:600; margin:0; text-wrap:balance; }
 })();
 </script>
 `;
+}
+
+// ---- Review only what changed, and batch it (A6) ----
+
+/** The share of pixels that may differ (by more than PIXEL_TOLERANCE in any channel) for an item to skip its reviewer. */
+export const AUTO_MATCH_MAX_DIFF = 0.005;
+/** How far one colour channel may differ before a pixel counts as different (anti-aliasing noise). */
+export const PIXEL_TOLERANCE = 16;
+export const MAX_BATCH_ITEMS = 20;
+export const MAX_PARALLEL_REVIEWERS = 4;
+
+/**
+ * What a picture's dom.json says, cut to the page area (elements at or right of `left`): the
+ * visible text, the visible test ids and the names of the controls, each sorted and de-duplicated.
+ * Read the same way from a live capture and a design render, so the two can be compared exactly.
+ * @param {{ elements?: object[] }|null} dom
+ * @param {number} [left]
+ * @returns {{ text: string[], testids: string[], buttons: string[] }|null}
+ */
+export function domFacts(dom, left = 0) {
+  if (!dom || !Array.isArray(dom.elements)) return null;
+  const inArea = dom.elements.filter((e) => e.visible !== false && (e.box?.x ?? 0) >= left - 8);
+  const uniq = (xs) => [...new Set(xs.filter(Boolean).map((t) => String(t).replace(/\s+/g, ' ').trim()).filter(Boolean))].sort();
+  return {
+    text: uniq(inArea.filter((e) => e.kind === 'text').map((e) => e.text)),
+    testids: uniq(inArea.map((e) => e.testid)),
+    buttons: uniq(inArea.filter((e) => e.kind === 'control').map((e) => e.name)),
+  };
+}
+
+/**
+ * Whether two facts agree exactly. Missing data on either side, or no text at all, is "no": a
+ * false match is never reviewed again, so every doubt sends the item to a reviewer.
+ */
+export function factsAgree(a, b) {
+  if (!a || !b || !a.text?.length || !b.text?.length) return false;
+  return ['text', 'testids', 'buttons'].every((k) => JSON.stringify(a[k] ?? null) === JSON.stringify(b[k] ?? null));
+}
+
+/**
+ * Whether the shoot's own record for an item lets it skip a reviewer: reached, nothing found
+ * wrong by the shoot (buttons as the map says, no sideways scroll), the extracted text, test ids
+ * and buttons agree with the design's, and the pixel difference is measured and within
+ * `threshold`. A pixel difference that could not be measured (sizes differ, no diff function) is
+ * "no".
+ * @param {object|undefined} rec an item's record in shoot.json
+ * @param {number} [threshold]
+ */
+export function canAutoMatch(rec, threshold = AUTO_MATCH_MAX_DIFF) {
+  if (!rec?.reached || rec.problems?.length || rec.overflow) return false;
+  if ((rec.buttons ?? []).some((b) => b.onPage !== (b.shouldBe === 'shown'))) return false;
+  return rec.factsAgree === true && typeof rec.pixelDiff === 'number' && Number.isFinite(rec.pixelDiff) && rec.pixelDiff >= 0 && rec.pixelDiff <= threshold;
+}
+
+/**
+ * Which items keep an earlier round's label: both pictures hashed and unchanged since that round,
+ * and that round gave the item a label a picture can carry (not "not reached").
+ * @returns {Record<string, { from: number, state: object }>}
+ */
+export function carriedItems({ keys, shoot, prevShoot, prevReview, prevRound }) {
+  const out = {};
+  if (!shoot || !prevShoot || !prevReview) return out;
+  for (const key of keys) {
+    const now = shoot.states?.[key];
+    const was = prevShoot.states?.[key];
+    const label = prevReview.states?.[key];
+    if (!now?.reached || !was?.reached || !label) continue;
+    if (!now.liveHash || !now.designHash || now.liveHash !== was.liveHash || now.designHash !== was.designHash) continue;
+    if (['not-reached', 'not-shot', 'test-only'].includes(label.verdict)) continue;
+    out[key] = { from: label.carried?.from ?? prevRound, state: label };
+  }
+  return out;
+}
+
+/**
+ * Pack units (one state's items at every width, kept together) into batches of at most `cap`
+ * items. Units are taken screen by screen; a screen that fits stays in one batch (a new batch is
+ * started rather than split it), and a screen larger than a batch is split between units.
+ * @param {{ screen: string, items: string[] }[]} units
+ * @returns {{ items: string[], screens: string[] }[]}
+ */
+export function packBatches(units, cap = MAX_BATCH_ITEMS) {
+  const screens = [];
+  for (const u of units) {
+    let g = screens.find((x) => x.screen === u.screen);
+    if (!g) { g = { screen: u.screen, units: [] }; screens.push(g); }
+    g.units.push(u);
+  }
+  const batches = [];
+  let cur = null;
+  const size = (us) => us.reduce((n, u) => n + u.items.length, 0);
+  const push = (u) => {
+    if (!cur || cur.items.length + u.items.length > cap) { cur = { items: [], screens: [] }; batches.push(cur); }
+    cur.items.push(...u.items);
+    if (!cur.screens.includes(u.screen)) cur.screens.push(u.screen);
+  };
+  for (const g of screens) {
+    if (cur && cur.items.length + size(g.units) > cap && size(g.units) <= cap) cur = null;
+    for (const u of g.units) push(u);
+  }
+  return batches;
+}
+
+/**
+ * The plan for a round's review: which items keep an earlier label, which match without a
+ * reviewer, and the batches of the rest.
+ * @param {{ map: object, shoot: object, prev?: { round: number, shoot: object|null, review: object|null }|null, threshold?: number, cap?: number }} o
+ */
+export function planReview({ map, shoot, prev = null, threshold = AUTO_MATCH_MAX_DIFF, cap = MAX_BATCH_ITEMS }) {
+  const items = mapItems(map);
+  const keys = items.filter((i) => !i.state.reach?.test && shoot.states?.[i.key]?.reached).map((i) => i.key);
+  const carried = carriedItems({ keys, shoot, prevShoot: prev?.shoot, prevReview: prev?.review, prevRound: prev?.round });
+  const auto = {};
+  for (const key of keys) {
+    if (!carried[key] && canAutoMatch(shoot.states[key], threshold)) auto[key] = { pixelDiff: shoot.states[key].pixelDiff };
+  }
+  const units = [];
+  for (const s of map.states ?? []) {
+    const mine = items.filter((i) => i.id === s.id && keys.includes(i.key) && !carried[i.key] && !auto[i.key]).map((i) => i.key);
+    if (mine.length) units.push({ screen: s.screen, items: mine });
+  }
+  const batches = packBatches(units, cap).map((b, i) => ({ id: i + 1, ...b }));
+  return { carried, auto, batches };
+}
+
+/** The batches in the order they are dispatched: waves of at most MAX_PARALLEL_REVIEWERS. */
+export function batchWaves(batches, parallel = MAX_PARALLEL_REVIEWERS) {
+  const waves = [];
+  for (let i = 0; i < batches.length; i += parallel) waves.push(batches.slice(i, i + parallel).map((b) => b.id));
+  return waves;
+}
+
+/**
+ * One reviewer's prompt: the fixed dispatch lines, then the run's steers (steers.md), if any.
+ * @param {{ pluginRoot: string, feature: string, worktree: string, roundRel: string, items: string[], file: string, steers?: string|null, steersRel?: string }} o
+ */
+export function batchPrompt(o) {
+  const lines = [
+    `Read ${o.pluginRoot}/briefs/reviewer-picture.md and follow it.`,
+    `Feature: ${o.feature}   Worktree: ${o.worktree}`,
+    `Round: ${o.roundRel}/   States: ${o.items.join(' ')}   Write: ${o.file}`,
+  ];
+  const steers = (o.steers ?? '').trim();
+  return lines.join('\n') + (steers ? `\n\nSteers for this run (from ${o.steersRel ?? 'steers.md'}):\n${steers}` : '') + '\n';
 }

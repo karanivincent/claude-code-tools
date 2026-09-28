@@ -50,6 +50,18 @@ area, with the sidebar and top bar cropped away, next to the design cropped the 
 agents compare them, one per screen, and `delivery review` compiles their notes into a comparison
 page. At most two fix rounds follow. `delivery status` names the next step throughout.
 
+Review only what changed. The shoot records a sha256 of every live and design picture, whether the
+live page's text, test ids and buttons equal the design's, and the share of pixels that differ (the
+browser measures it; more than 16 of 255 in a channel counts as different). `delivery review --plan
+--round <n>` then leaves out two kinds of item. An item whose live and design pictures are both
+unchanged since the round before keeps that round's label (marked carried). An item that agrees
+exactly and differs in at most 0.5% of pixels is a match without a reviewer (marked auto); anything
+missing, including an unmeasured difference, sends it to one. The rest go into batches of up to 20
+items, a state's desktop and phone together, and the command writes `batches.json` and a
+`batch-<k>.prompt.md` per batch into the round's folder. Dispatch those files as written, at most
+four at once. Text in `docs/delivery/<feature>/steers.md` is added to every prompt. Then
+`delivery review --round <n>` compiles as before.
+
 Since 0.5.0 a run can check the phone as well as the desktop. When the design has phone screens,
 the map declares `"widths": ["desktop", "phone"]` and every state is checked at 1440 x 900 and at
 390 x 844. The design is rendered narrow with `delivery design render --width phone`, or a state

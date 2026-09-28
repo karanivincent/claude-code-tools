@@ -15,6 +15,10 @@ a state at a width: `KC-05` is the desktop, `KC-05@phone` the phone. Your list m
 - `docs/delivery/<feature>/checklist.md`: every state, how it is reached, its buttons and the
   state each button opens, and the rules (`Rule R7: ...`) each state shows.
 
+Your prompt may end with "Steers for this run": notes the founder kept in
+`docs/delivery/<feature>/steers.md` (things to ignore, test data that is fake on purpose, what
+counts as a real problem). Follow them; they are added to every reviewer's prompt.
+
 Both pictures show only the page's own area. The sidebar and top bar are out of scope.
 
 ## For each of your items

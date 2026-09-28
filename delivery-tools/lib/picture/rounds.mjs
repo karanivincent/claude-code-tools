@@ -37,6 +37,7 @@ export function roundInfo(paths, n) {
     shoot: read('shoot.json'),
     reviews: files.filter((f) => /^review-.+\.md$/.test(f)),
     review: read('review.json'),
+    reviewPlan: read('review-plan.json'),
     compare: files.includes('compare.html') ? join(dir, 'compare.html') : null,
   };
 }
