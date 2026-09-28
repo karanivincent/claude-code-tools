@@ -109,6 +109,10 @@ request in its report and works around it locally.
 | `lib/commands/rules.mjs` | C |
 | `lib/picture/**` | C |
 | `tests/picture/**` | C |
+| `lib/commands/components.mjs` | C |
+| `lib/components/**` | C |
+| `tests/components/**` | C |
+| `tests/fixtures/components/**` | C |
 | `skills/**` | — |
 | `agents/**` | — |
 | `briefs/**` | — |
@@ -158,6 +162,9 @@ lib/seed/                     B2  safety (M13), scan, plan, apply
 adapters/data/supabase.mjs    B2  createDataAdapter
 adapters/design/              C   index (getDesignAdapter), claude-design, image-folder
 lib/design/                   C   candidates, render, static server
+lib/components/               C   map.mjs: componentsMapPath, readComponentsMap, writeComponentsMap,
+                                   validateComponentsMap, refreshDesignEntries, scanBase,
+                                   libraryTargets, missingFromDesignSystem, findDesignSystemManifest
 lib/capture/                  C   run, validate, spot, served-sha, job file
 lib/report/                   C   report (tldr), punch list
 templates/                    C   delivery-capture.spec.ts, delivery-capture-support.ts, component-state.test.tsx, punch-list.html, version-route.ts

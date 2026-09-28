@@ -7,10 +7,13 @@ import { SCHEMA_DIR, schemaNames, validateAgainst, assertValid, assertKeywords }
 import { FIXTURES_DIR, loadFixture } from '../helpers/fixtures.mjs';
 
 const SECTION_17 = ['profile', 'safety', 'intent', 'inventory', 'baseline', 'plan', 'unit-file', 'unit-report', 'sidefx', 'seedplan', 'capture', 'findings', 'state', 'ready'];
-const SUPPLEMENTARY = ['preflight', 'candidates', 'dom', 'capture-errors', 'capture-controls'];
+const SUPPLEMENTARY = ['preflight', 'candidates', 'dom', 'capture-errors', 'capture-controls', 'components'];
 const ARTEFACTS = [...SECTION_17, ...SUPPLEMENTARY];
 // A bare array has nowhere to carry schemaVersion; the capture manifest that names it does.
 const BARE_ARRAYS = ['capture-controls'];
+// components.json is the one artefact shared by every run instead of belonging to one (spec
+// components-first §2): its own top-level key is "version", not "schemaVersion".
+const NO_SCHEMA_VERSION = [...BARE_ARRAYS, 'components'];
 const raw = (name) => JSON.parse(readFileSync(join(SCHEMA_DIR, `${name}.schema.json`), 'utf8'));
 
 test('the schema set is exactly section 17 plus the documented supplements and common', () => {
@@ -28,7 +31,7 @@ test('every schema is 2020-12, has its $id, and uses only supported keywords', (
 
 test('every artefact requires schemaVersion const 1, except the bare arrays', () => {
   for (const name of BARE_ARRAYS) assert.equal(raw(name).type, 'array', name);
-  for (const name of ARTEFACTS.filter((n) => !BARE_ARRAYS.includes(n))) {
+  for (const name of ARTEFACTS.filter((n) => !NO_SCHEMA_VERSION.includes(n))) {
     const s = raw(name);
     assert.deepEqual(s.properties.schemaVersion, { const: 1 }, name);
     assert.ok(s.required.includes('schemaVersion'), name);

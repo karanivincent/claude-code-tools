@@ -82,5 +82,9 @@
   "capture--controls": {
     "path": "/items/0/files/controls",
     "contains": "must be string"
+  },
+  "components": {
+    "path": "/components/0",
+    "contains": "must match at least one"
   }
 }
