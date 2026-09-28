@@ -185,6 +185,36 @@ test('a picture-mode run whose used component is not built: status prints the co
   } finally { repo.cleanup(); }
 });
 
+// Fix round (I15): a components run whose intake was refused (a design entry has no target) never
+// writes map.json, so it never reaches picture mode. Before this fix, status fell through to the
+// general phase gates and pointed at the intent extractor, which a components run never has.
+test('a components run stuck before map.json: status dispatches the mapper, not the intent extractor', async () => {
+  const profile = makeProfile({ components: { map: 'docs/delivery/components.json' } });
+  const { repo, dir } = makeRunRepo({ profile });
+  try {
+    const paths = featurePaths(dir, 'components');
+    await createState(paths, { feature: 'components', runId: 'r-20260115-2000-cccc', worktree: dir, branch: 'epic/101-components', epic: 101, at: AT });
+    writeFiles(dir, {
+      'docs/delivery/components.json': {
+        version: 1,
+        components: [{
+          kind: 'design', name: 'Picker', design: { file: 'Picker.dc.html', hash: `sha256:${'5'.repeat(64)}` },
+          target: null, status: 'new', builtHash: null,
+          props: {}, owns: [], builtOn: [], replaces: [], uses: [], states: ['C-Picker-01'],
+        }],
+      },
+    });
+    // No docs/delivery/components/map.json: the mapper has not set a target yet, so intake
+    // refused before writing it.
+    const { ctx, stdout } = await ctxFor(dir, {});
+    assert.equal(await run(status, ctx, []), 1);
+    const next = nextLines(stdout.text());
+    assert.equal(next.length, 1);
+    assert.match(next[0], /^NEXT: dispatch the mapper with briefs\/components-mapper\.md, then run .*intake --components again \(skill: picture-build\)$/);
+    assert.doesNotMatch(next[0], /extractor/);
+  } finally { repo.cleanup(); }
+});
+
 test('selectRun prefers the run in this worktree, then the only run anywhere', () => {
   const runs = [{ feature: 'a', worktree: '/w1' }, { feature: 'b', worktree: '/w2' }];
   assert.equal(selectRun(runs, { feature: null, repoRoot: '/w2', cli: 'delivery' }).run.feature, 'b');

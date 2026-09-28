@@ -110,7 +110,10 @@ has (`kind: "base"`). A project enables it with a `components` block in its prof
    too, which gets a dated slug of its own (`components-<YYYYMMDD>`, from the clock) — `--from`
    cannot name the run it is starting.
 3. Dispatch the mapper agent with `briefs/components-mapper.md`. It fills each entry's `target`,
-   `props`, `builtOn`, `owns` and `replaces`; `delivery components` checks the result.
+   `props`, `builtOn`, `owns` and `replaces`; `delivery components` checks the result. `delivery
+   status` on this run says the same before `map.json` exists: dispatch the mapper with
+   `briefs/components-mapper.md`, then run `delivery intake --components` again — never the intent
+   extractor, which a components run never has.
 4. The components run then follows the same picture loop as any other run (`picture-build`): one
    builder builds every component from its design picture, reviewers compare, fix rounds follow.
 5. Before `ready`, mark what the builder finished: `delivery components --mark-built <Name>`
