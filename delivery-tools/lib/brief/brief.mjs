@@ -125,16 +125,30 @@ function pascalWords(name) {
 }
 
 /**
- * Problems with a brief's text (components-first spec §8.2, delivery-tools 0.9 plan task 6):
+ * Blank out every `<!-- ... -->` comment (single- or multi-line), keeping the same number of
+ * lines so headings and sections below stay at the same line numbers. The template's own comments
+ * (fix round, I13) are guidance for whoever fills the brief in, never content to check: left in,
+ * "<!-- Numbered, one behaviour per line. ... -->" under a fresh "## Behaviours" was itself an
+ * unnumbered line and failed its own check.
+ */
+function stripBriefComments(text) {
+  return text.replace(/<!--[\s\S]*?-->/g, (m) => '\n'.repeat((m.match(/\n/g) ?? []).length));
+}
+
+/**
+ * Problems with a brief's text (components-first spec §8.2, delivery-tools 0.9 plan task 6), with
+ * every `<!-- ... -->` template comment ignored first:
  *   - a forbidden name (case-insensitive, whole word(s)) in the text or in any of fileNames;
  *   - a "### Screen:" heading whose section has no "Phone:" line;
  *   - a component name from the map (componentNames: design-kind names only — base entries and
  *     single-word names never trip this) appearing only as the words that describe it (lowercase,
  *     joined by whitespace, "-" or "_" — "date picker" or "date-picker" for "DatePicker") while
  *     the exact name is absent;
- *   - a non-blank line under "## Behaviours" that is not a numbered item ("1.").
+ *   - a non-blank line under "## Behaviours" that is not a numbered item ("1.");
+ *   - with opts.requireBehaviours (pack and sent, never check: a brief not yet filled in is still
+ *     fine to keep checking): nothing under "## Behaviours" beyond the template's own bare "1.".
  * @param {string} text
- * @param {{ forbiddenNames?: string[], componentNames?: string[], fileNames?: string[] }} [opts]
+ * @param {{ forbiddenNames?: string[], componentNames?: string[], fileNames?: string[], requireBehaviours?: boolean }} [opts]
  * @returns {string[]}
  */
 export function briefProblems(text, opts = {}) {
@@ -142,18 +156,19 @@ export function briefProblems(text, opts = {}) {
   const componentNames = opts.componentNames ?? [];
   const fileNames = opts.fileNames ?? [];
   const problems = [];
+  const body = stripBriefComments(text);
 
   for (const name of forbiddenNames) {
     const words = String(name).trim().split(/\s+/).filter(Boolean);
     if (!words.length) continue;
     const re = phraseRe(words);
-    if (re.test(text)) problems.push(`"${name}" is a forbidden name and appears in the brief text`);
+    if (re.test(body)) problems.push(`"${name}" is a forbidden name and appears in the brief text`);
     for (const f of fileNames) {
       if (re.test(f)) problems.push(`"${name}" is a forbidden name and appears in the file name "${f}"`);
     }
   }
 
-  const lines = text.split('\n');
+  const lines = body.split('\n');
   const headingAt = [];
   lines.forEach((l, i) => { if (/^#{1,6}\s/.test(l)) headingAt.push(i); });
   const sectionBody = (startLine) => {
@@ -165,8 +180,8 @@ export function briefProblems(text, opts = {}) {
   for (const i of headingAt) {
     const m = /^###\s+Screen:\s*(.+?)\s*$/.exec(lines[i]);
     if (!m) continue;
-    const body = sectionBody(i).join('\n');
-    if (!/^\s*Phone:/m.test(body)) problems.push(`Screen: ${m[1]} has no Phone: line`);
+    const section = sectionBody(i).join('\n');
+    if (!/^\s*Phone:/m.test(section)) problems.push(`Screen: ${m[1]} has no Phone: line`);
   }
 
   for (const name of componentNames) {
@@ -174,19 +189,22 @@ export function briefProblems(text, opts = {}) {
     if (words.length < 2) continue; // single-word names are ordinary English; never trips
     const described = phraseRe(words.map((w) => w.toLowerCase()));
     const exact = new RegExp(`\\b${escapeRegex(name)}\\b`);
-    if (described.test(text) && !exact.test(text)) {
+    if (described.test(body) && !exact.test(body)) {
       problems.push(`"${words.join(' ').toLowerCase()}" describes ${name} in words instead of naming it`);
     }
   }
 
   const behavioursAt = headingAt.find((i) => /^##\s+Behaviours\s*$/.test(lines[i]));
+  let filled = false;
   if (behavioursAt !== undefined) {
     for (const line of sectionBody(behavioursAt)) {
       const t = line.trim();
       if (!t) continue;
       if (!NUMBERED_RE.test(t)) problems.push(`a line under ## Behaviours is not numbered: "${t}"`);
+      else if (t !== '1.') filled = true;
     }
   }
+  if (opts.requireBehaviours && !filled) problems.push('no behaviours yet: fill in at least one under ## Behaviours');
 
   return problems;
 }
@@ -210,7 +228,7 @@ export async function packBrief(briefPath, images, outDir, opts = {}) {
     throw new DeliveryError(EXIT.RED, message, { failures: [{ code: 'brief', message }] });
   }
   const fileNames = images.map((p) => basename(p));
-  const problems = briefProblems(text, { forbiddenNames: opts.forbiddenNames, componentNames: opts.componentNames, fileNames });
+  const problems = briefProblems(text, { forbiddenNames: opts.forbiddenNames, componentNames: opts.componentNames, fileNames, requireBehaviours: true });
   if (problems.length) {
     throw new DeliveryError(EXIT.RED, `brief check found ${problems.length} problem(s): ${problems.join('; ')}`, {
       failures: problems.map((p) => ({ code: 'brief', message: p })),

@@ -397,6 +397,57 @@ test('brief check: reports a forbidden name from profile.design.forbiddenNames',
   } finally { t.cleanup(); }
 });
 
+// Fix round (I13): the template's own "<!-- Numbered, one behaviour per line. ... -->" comment
+// under a fresh "## Behaviours" was itself an unnumbered line, so a brief nobody had touched yet
+// already failed its own check. A fresh brief must pass, with only its bare "1." allowed to stay
+// unfilled — brief check never requires it to be filled in; pack and sent do.
+test('brief new then brief check: a fresh, untouched brief passes', async () => {
+  const t = makeTempDir();
+  try {
+    const profile = makeProfile();
+    const { ctx: newCtx, stdout: newOut } = await makeTestCtx({ repoRoot: t.dir, feature: 'widgets', profile });
+    assert.equal(await newCommand.run(newCtx, ['first-look']), 0, newOut.text());
+    const file = join(t.dir, 'docs/delivery/widgets/intent/briefs/01-first-look.md');
+    assert.match(readFileSync(file, 'utf8'), /## Behaviours\n<!-- Numbered, one behaviour per line\..*-->\n1\.\n/s);
+
+    const { ctx: checkCtx, stdout: checkOut } = await makeTestCtx({ repoRoot: t.dir, profile });
+    const code = await checkCommand.run(checkCtx, [file]);
+    assert.equal(code, 0, checkOut.text());
+    assert.match(checkOut.text(), /1 brief\(s\) checked, no problems/);
+  } finally { t.cleanup(); }
+});
+
+test('briefProblems ignores template comments everywhere, single- and multi-line', () => {
+  const text = [
+    '# T',
+    '## Screens',
+    '<!-- One "### Screen: <name>" per screen, each with a Phone: line. -->',
+    '### Screen: Main',
+    'Desktop: something',
+    '<!--',
+    'a multi-line comment that would otherwise read as an unnumbered line',
+    'and could even mention a forbidden name -->',
+    '## Behaviours',
+    '<!-- Numbered, one behaviour per line. -->',
+    '1.',
+    '## Data',
+    '<!-- Generic names only. -->',
+  ].join('\n');
+  assert.deepEqual(briefProblems(text, { forbiddenNames: ['Acme'] }), ['Screen: Main has no Phone: line']);
+});
+
+test('briefProblems requireBehaviours: only the template\'s bare "1." is "no behaviours yet"; real content clears it', () => {
+  const bare = ['# T', '## Behaviours', '<!-- Numbered, one behaviour per line. -->', '1.', ''].join('\n');
+  assert.deepEqual(briefProblems(bare, { requireBehaviours: true }), ['no behaviours yet: fill in at least one under ## Behaviours']);
+  assert.deepEqual(briefProblems(bare), [], 'brief check itself never requires it');
+
+  const filled = ['# T', '## Behaviours', '1. Saving closes the dialog', ''].join('\n');
+  assert.deepEqual(briefProblems(filled, { requireBehaviours: true }), []);
+
+  const noSection = ['# T', '## Data', ''].join('\n');
+  assert.deepEqual(briefProblems(noSection, { requireBehaviours: true }), ['no behaviours yet: fill in at least one under ## Behaviours']);
+});
+
 test('brief pack: packs the brief and images under .delivery/<feature>/pack/ by default', async () => {
   const t = makeTempDir();
   try {

@@ -42,7 +42,7 @@ common options:
       await ctx.journal({ command: 'brief sent', exit: EXIT.RED, counts: { problems: 1 } });
       return EXIT.RED;
     }
-    const problems = briefProblems(text, { forbiddenNames, componentNames });
+    const problems = briefProblems(text, { forbiddenNames, componentNames, requireBehaviours: true });
     if (problems.length) {
       for (const p of problems) ctx.out.fail('brief', p);
       ctx.out.set('problems', problems.length);
