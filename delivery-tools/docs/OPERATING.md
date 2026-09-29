@@ -276,8 +276,10 @@ second check on; without `orgScopedLists` it is skipped. The removed-name search
 
 ## The retro and the size rule
 
-`delivery retro` closes a run. `delivery land` runs it as its last step (a retro that fails warns and
-never fails land); once `ready` is green, NEXT names it too. It runs in the delivery session only: no
+`delivery retro` closes a run. Once `ready` is green, NEXT names it: run it and commit
+`docs/delivery/runs.jsonl` in the run's PR. `delivery land` runs it again before the epic closes and
+refuses to finish until the run's line is committed (on the base branch, or on the run's branch); a
+retro that fails is a red land. It runs in the delivery session only: no
 schedule, no cron. It never touches production, never dials, never seeds and never opens a database.
 It writes four things: the runs ledger (`<deliveryRoot>/runs.jsonl`, one line per run, replaced on a
 re-run; commit it with the run), the run's own `steers.md` and `proposals/`, and the plugin checkout
@@ -285,7 +287,23 @@ through pull requests.
 
 One line holds the phase minutes from the journal, the founder's waiting, each round's counts, reviewer
 tokens and minutes where `batches.json` records them, CI failures seen after the PR opened, and the
-entries of the run's `workflow-improvements.md`. A phase 30% over the median of earlier runs in two or
+entries of the run's `workflow-improvements.md`. Since 0.14.0 (record version 2) it also holds, per phase,
+the models its agents used, their tokens and estimated cost (`phaseCost`); every agent with its
+role, model, effort, minutes, tokens and outcome (`agents`); the main session's own tokens (`main`);
+and the time spent waiting for a machine slot (`slotWaits`). The plugin's `SubagentStop` hook
+writes each agent to the journal from its transcript (its role from a `Role:` line in its prompt, or
+its agent type; its outcome from an `Outcome:` line in its last message); `delivery log-agent`
+covers an agent the hook missed, and `delivery log-wait --founder` a wait on the founder in chat.
+Costs are estimates from `models.json`'s prices. `delivery runs` prints the table across runs, and
+`delivery backfill-run` writes an earlier run's line from its journal and Claude Code's transcripts
+of its worktree, marked `"estimate": true`.
+
+`models.json` at the plugin root names each role's model, effort and agent (an agent's effort lives
+in its own definition, so each model-and-effort pair has its own agent file). The retro reads the
+agents' outcomes and cost and may propose a change to it: a Sonnet role with two or more agents
+that did not finish goes up an effort step, and an Opus role that finished every time in two runs
+at $10 or more is proposed for a Sonnet trial. A model change is always large: a proposal and a
+`needs-decision` issue, never applied. A phase 30% over the median of earlier runs in two or
 more runs (this one included), a phase over an hour more than that median in one run, or the same
 improvement written up in two runs becomes a proposal with its evidence, its change and the number
 it should move.

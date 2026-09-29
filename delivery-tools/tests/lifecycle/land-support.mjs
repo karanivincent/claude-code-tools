@@ -1,6 +1,8 @@
 // The land tests' run: merged, with its epic, children, Scope issue, workflow runs, a staging
 // capture on disk, and every other slice's function stubbed through ctx.deps.
 import assert from 'node:assert/strict';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { ok } from '../helpers/runner-stub.mjs';
 import { createGhStub } from '../helpers/gh-stub.mjs';
 import { fakeClock } from '../helpers/clock.mjs';
@@ -12,13 +14,24 @@ import { makeRunRepo, makePlan, ctxFor } from './support.mjs';
 export const MERGE = 'e'.repeat(40);
 export const mk = (kind, id) => makeMarker({ feature: 'widgets', kind, id });
 
-export async function landedRun({ removeRow = false, voice = true } = {}) {
+/**
+ * ledger: commit a line for the run in docs/delivery/runs.jsonl on the run's branch first, as a run
+ * that followed NEXT has (land refuses to close the epic without one); false leaves it out.
+ */
+export async function landedRun({ removeRow = false, voice = true, ledger = true } = {}) {
   const plan = makePlan();
   plan.units[0].issue = 102;
   plan.units[1].issue = 103;
   plan.scopeIssue = 105;
   if (removeRow) plan.rows.push({ ...plan.rows[2], id: 'CAP-003', class: 'remove', reason: { code: 'unused', text: 'nobody uses it' } });
   const repo = await makeRunRepo({ plan });
+  if (ledger) {
+    const dir = join(repo.worktree, 'docs', 'delivery');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'runs.jsonl'), `${JSON.stringify({ ...validExample('run-record'), feature: 'widgets' })}\n`);
+    repo.wtGit('add', 'docs/delivery/runs.jsonl');
+    repo.wtGit('commit', '-q', '-m', 'the run in the runs ledger');
+  }
   const clock = fakeClock('2026-01-16T09:00:00.000Z');
   const gh = createGhStub({ clock, startAt: 101 });
   await gh.issueCreate({ title: 'Widgets', body: `Epic.\n${mk('epic')}`, labels: ['epic'] });

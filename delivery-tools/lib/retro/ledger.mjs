@@ -1,5 +1,6 @@
 // The runs ledger: docs/delivery/runs.jsonl in the product repo, one JSON line per run (C1).
-// Re-running the retro for a feature replaces that feature's line, in place. Owner: slice A2.
+// Re-running the retro for a feature replaces that feature's line, in place. A version 1 line is read
+// as version 2 with no agent data, and written back as version 2. Owner: slice A2.
 
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -19,11 +20,18 @@ export async function readLedger(file) {
   text.split('\n').forEach((line, i) => {
     if (!line.trim()) return;
     let rec;
-    try { rec = JSON.parse(line); } catch { throw new Error(`${file} line ${i + 1} is not JSON`); }
+    try { rec = upgradeRecord(JSON.parse(line)); } catch { throw new Error(`${file} line ${i + 1} is not JSON`); }
     assertValid('run-record', rec, { exit: 5, label: `${file} line ${i + 1}` });
     out.push(rec);
   });
   return out;
+}
+
+/** A version 1 record as version 2: no agent data, not an estimate. Anything else is returned as it is. */
+export function upgradeRecord(rec) {
+  if (rec?.schemaVersion !== 1) return rec;
+  const { schemaVersion, feature, endedAt, pluginVersion, phases, founder, ...rest } = rec;
+  return { schemaVersion: 2, feature, endedAt, pluginVersion, estimate: false, phases, phaseCost: {}, founder, slotWaits: null, main: null, agents: [], ...rest };
 }
 
 /** Replace the feature's line, or append. Returns the new list. */

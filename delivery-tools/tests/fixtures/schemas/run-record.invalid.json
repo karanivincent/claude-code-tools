@@ -1,13 +1,155 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "feature": "widgets",
   "endedAt": "2026-01-20T18:00:00.000Z",
-  "pluginVersion": "0.12.0",
-  "phases": { "intake": 4, "render": 22.5, "map": 31, "seed": 12, "build": 95, "shoot": 18, "review": -3, "ci": 26 },
-  "founder": null,
-  "rounds": [],
-  "reviewers": [],
-  "ciAfterPr": [],
-  "improvements": [],
-  "autoChanges": []
+  "pluginVersion": "0.14.0",
+  "estimate": false,
+  "phases": {
+    "intake": 4,
+    "render": 22.5,
+    "map": 31,
+    "seed": 12,
+    "build": 95,
+    "shoot": 18,
+    "review": -3,
+    "ci": 26
+  },
+  "phaseCost": {
+    "build": {
+      "models": [
+        "opus",
+        "sonnet"
+      ],
+      "agentMinutes": 130,
+      "tokensIn": 900000,
+      "tokensCached": 30000000,
+      "tokensOut": 400000,
+      "costUsd": 31.6
+    },
+    "review": {
+      "models": [
+        "sonnet"
+      ],
+      "agentMinutes": 40,
+      "tokensIn": 300000,
+      "tokensCached": 5000000,
+      "tokensOut": 60000,
+      "costUsd": 2.2
+    }
+  },
+  "founder": {
+    "waitMinutes": 120,
+    "questions": 2
+  },
+  "slotWaits": {
+    "count": 2,
+    "minutes": 6.5
+  },
+  "main": {
+    "model": "opus",
+    "tokensIn": 700000,
+    "tokensCached": 50000000,
+    "tokensOut": 90000,
+    "costUsd": 24.6
+  },
+  "agents": [
+    {
+      "id": "a1",
+      "role": "builder",
+      "phase": "build",
+      "model": "opus",
+      "effort": "high",
+      "minutes": 95,
+      "tokensIn": 600000,
+      "tokensCached": 20000000,
+      "tokensOut": 300000,
+      "costUsd": 16.4,
+      "outcome": "done"
+    },
+    {
+      "id": "a2",
+      "role": "fix-builder",
+      "phase": "build",
+      "model": "sonnet",
+      "effort": "medium",
+      "minutes": 35,
+      "tokensIn": 300000,
+      "tokensCached": 10000000,
+      "tokensOut": 100000,
+      "costUsd": 3.6,
+      "outcome": "done"
+    },
+    {
+      "id": "a3",
+      "role": "reviewer",
+      "phase": "review",
+      "model": "sonnet",
+      "effort": null,
+      "minutes": 40,
+      "tokensIn": 300000,
+      "tokensCached": 5000000,
+      "tokensOut": 60000,
+      "costUsd": 2.2,
+      "outcome": "done"
+    }
+  ],
+  "rounds": [
+    {
+      "round": 1,
+      "match": 10,
+      "small": 4,
+      "toFix": 3,
+      "notReached": 1,
+      "dataGap": 0,
+      "carried": 0
+    },
+    {
+      "round": 2,
+      "match": 16,
+      "small": 2,
+      "toFix": 0,
+      "notReached": 0,
+      "dataGap": 0,
+      "carried": 9
+    }
+  ],
+  "reviewers": [
+    {
+      "round": 1,
+      "batch": 1,
+      "tokens": 84000,
+      "minutes": 11
+    }
+  ],
+  "ciAfterPr": [
+    {
+      "check": "e2e",
+      "cause": "a seeded row was missing"
+    }
+  ],
+  "improvements": [
+    "Shoot the empty state before the filled one"
+  ],
+  "autoChanges": [
+    {
+      "id": "batch-size-25",
+      "at": "2026-01-20T18:05:00.000Z",
+      "kind": "tunable",
+      "change": {
+        "kind": "tunable",
+        "key": "review.maxBatchItems",
+        "from": 20,
+        "to": 25
+      },
+      "size": "small",
+      "status": "applied",
+      "metric": {
+        "name": "phases.review",
+        "baseline": 40,
+        "better": "lower"
+      },
+      "pr": 12,
+      "measured": []
+    }
+  ]
 }

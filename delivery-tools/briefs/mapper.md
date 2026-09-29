@@ -116,6 +116,7 @@ don't write code.
 
 ## Done
 
-Run `node scripts/delivery.mjs map` (or the CLI the repo uses) until it prints no problems, and
+Done means the check passes, not that the file looks right. Run `node scripts/delivery.mjs map`
+(or the CLI the repo uses) until it prints no problems, and
 reply with the number of states, buttons and worlds, the widths, plus any old feature with no
 home.

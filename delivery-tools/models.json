@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "comment": "Which model and effort each role of a delivery run uses, and what a model costs. The skills dispatch each role through the agent named in `agent`; effort can only be set in an agent's own definition, so a role with its own model or effort has its own agent file, and tests/retro/models.test.mjs keeps the two in step. The code reads this file through lib/retro/models.mjs. The retro may propose a change here from the runs ledger, but never makes one: a model swap is always a large change. `edits` marks a role that changes code or data files; a Sonnet role that edits runs a real check (tests, typecheck, build or the named delivery check) before it reports done. `phase` is where the ledger counts the role's time and cost.",
+  "roles": {
+    "main": { "model": "opus", "effort": "high", "agent": null, "phase": null, "edits": true, "about": "the main session: runs the run, decides, triages, opens PRs" },
+    "rules": { "model": "sonnet", "effort": "medium", "agent": "delivery-tools:delivery-worker", "phase": "map", "edits": true, "check": "delivery rules", "agentTypes": [], "about": "rules agent (briefs/rules.md): one rule per stated behaviour" },
+    "extractor": { "model": "sonnet", "effort": "low", "agent": "delivery-tools:delivery-extractor", "phase": "render", "edits": false, "agentTypes": ["delivery-tools:delivery-extractor"], "about": "design inventory, words, intent and scope-reply extraction" },
+    "mapper": { "model": "sonnet", "effort": "medium", "agent": "delivery-tools:delivery-worker", "phase": "map", "edits": true, "check": "delivery map", "agentTypes": [], "about": "writes map.json, checklist.md and the world files (briefs/mapper.md)" },
+    "seed-writer": { "model": "sonnet", "effort": "medium", "agent": "delivery-tools:delivery-worker", "phase": "seed", "edits": true, "check": "delivery seed --plan, then --check", "agentTypes": [], "about": "writes and fixes the fixture world files" },
+    "builder": { "model": "opus", "effort": "high", "agent": "delivery-tools:picture-builder", "phase": "build", "edits": true, "check": "the repo's typecheck and the page's tests", "agentTypes": ["delivery-tools:picture-builder"], "about": "the first build of a page from the pictures; keeps .delivery/<f>/builder-notes.md" },
+    "fix-builder": { "model": "sonnet", "effort": "medium", "agent": "delivery-tools:picture-fixer", "phase": "build", "edits": true, "check": "the repo's typecheck and the page's tests", "agentTypes": ["delivery-tools:picture-fixer"], "about": "one fresh builder per fix round, given the round's review.json and builder-notes.md" },
+    "reviewer": { "model": "sonnet", "effort": "medium", "agent": "delivery-tools:picture-reviewer", "phase": "review", "edits": false, "agentTypes": ["delivery-tools:picture-reviewer"], "about": "compares live and design pictures, with delivery crop for close looks" },
+    "sorter": { "model": "sonnet", "effort": "low", "agent": null, "phase": "review", "edits": false, "agentTypes": [], "about": "sorts findings into bug, data gap or known steer; not dispatched yet (the main session sorts until a sorter agent is measured)" },
+    "ci-fixer": { "model": "sonnet", "effort": "medium", "agent": "delivery-tools:delivery-worker", "phase": "ci", "edits": true, "check": "the failing check, run locally", "agentTypes": [], "about": "fixes a CI failure after the PR opens, given the failing log" },
+    "unit-builder": { "model": "sonnet", "effort": "medium", "agent": "delivery-tools:delivery-builder", "phase": "build", "edits": true, "check": "delivery gate <unit>", "agentTypes": ["delivery-tools:delivery-builder"], "about": "full mode: one unit of the plan" },
+    "contract-builder": { "model": "opus", "effort": "high", "agent": "delivery-tools:delivery-builder-opus", "phase": "build", "edits": true, "check": "delivery gate <unit>", "agentTypes": ["delivery-tools:delivery-builder-opus"], "about": "full mode: the contract unit and high-risk units" },
+    "auditor": { "model": "sonnet", "effort": "high", "agent": "delivery-tools:delivery-auditor", "phase": "review", "edits": false, "agentTypes": ["delivery-tools:delivery-auditor"], "about": "full mode: compares captures with the design, with delivery crop" }
+  },
+  "models": {
+    "opus": { "id": "claude-opus-5-5", "match": "opus", "inPerMTok": 4, "outPerMTok": 20 },
+    "sonnet": { "id": "claude-sonnet-5-5", "match": "sonnet", "inPerMTok": 2, "outPerMTok": 10 },
+    "haiku": { "id": "claude-haiku-4-5", "match": "haiku", "inPerMTok": 1, "outPerMTok": 5 }
+  },
+  "cacheReadFactor": 0.1
+}

@@ -49,6 +49,12 @@ For every item `Items` names, of every state, against the design render:
 Do not repeat a finding already in `findings.json` (the same state, element and problem). Do
 report what the checks cannot see.
 
+## A close look
+
+For a small or dense difference between a capture and its render, cut the same box out of both
+(`node scripts/delivery.mjs crop --file <capture.png> --file <render.png> --box x,y,w,h`) and read
+the two crops it prints. It is the only command you run.
+
 ## Category and severity
 
 Give every finding one category, in `rule`, and the severity that category carries:

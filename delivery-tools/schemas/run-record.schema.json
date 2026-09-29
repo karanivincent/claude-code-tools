@@ -2,58 +2,670 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://delivery-tools.invalid/schemas/run-record.schema.json",
   "title": "One run's record (one line of docs/delivery/runs.jsonl)",
-  "description": "Supplementary schema. Written by delivery retro at the end of a run, one JSON line per feature (a re-run replaces the feature's line). Phase numbers are minutes from the run's journal; a phase the journal never reached is null. autoChanges are the retro's own changes and what happened to them.",
+  "description": "Supplementary schema. Written by delivery retro at the end of a run (delivery land runs it), or by delivery backfill-run for an earlier run, one JSON line per feature (a re-run replaces the feature's line). Phase numbers are minutes of the run's own time from its journal, founder waits taken out; a phase the journal never reached is null. phaseCost, agents and main are the models' share: agents from the journal's agent lines (the SubagentStop hook or delivery log-agent) and Claude Code's transcripts, costs estimated from models.json. estimate marks a line written after the fact. autoChanges are the retro's own changes and what happened to them. Version 1 lines are read as version 2 with no agent data.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schemaVersion", "feature", "endedAt", "pluginVersion", "phases", "founder", "rounds", "reviewers", "ciAfterPr", "improvements", "autoChanges"],
+  "required": [
+    "schemaVersion",
+    "feature",
+    "endedAt",
+    "pluginVersion",
+    "estimate",
+    "phases",
+    "phaseCost",
+    "founder",
+    "slotWaits",
+    "main",
+    "agents",
+    "rounds",
+    "reviewers",
+    "ciAfterPr",
+    "improvements",
+    "autoChanges"
+  ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "feature": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,62}$" },
-    "endedAt": { "$ref": "common.schema.json#/$defs/Timestamp" },
-    "pluginVersion": { "type": "string" },
+    "schemaVersion": {
+      "const": 2
+    },
+    "feature": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$"
+    },
+    "endedAt": {
+      "$ref": "common.schema.json#/$defs/Timestamp"
+    },
+    "pluginVersion": {
+      "type": "string"
+    },
+    "estimate": {
+      "type": "boolean",
+      "description": "true when the line was written after the run from its journal and transcripts (delivery backfill-run), not by the run's own retro"
+    },
     "phases": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["intake", "render", "map", "seed", "build", "shoot", "review", "ci"],
+      "required": [
+        "intake",
+        "render",
+        "map",
+        "seed",
+        "build",
+        "shoot",
+        "review",
+        "ci"
+      ],
       "properties": {
-        "intake": { "type": ["number", "null"], "minimum": 0 },
-        "render": { "type": ["number", "null"], "minimum": 0 },
-        "map": { "type": ["number", "null"], "minimum": 0 },
-        "seed": { "type": ["number", "null"], "minimum": 0 },
-        "build": { "type": ["number", "null"], "minimum": 0 },
-        "shoot": { "type": ["number", "null"], "minimum": 0 },
-        "review": { "type": ["number", "null"], "minimum": 0 },
-        "ci": { "type": ["number", "null"], "minimum": 0 }
+        "intake": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "render": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "map": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "seed": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "build": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "shoot": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "review": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "ci": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "phaseCost": {
+      "description": "Per phase, its agents: the models they used, their minutes, tokens and estimated dollars. A phase no agent worked in is absent.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "intake": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "models",
+            "agentMinutes",
+            "tokensIn",
+            "tokensCached",
+            "tokensOut",
+            "costUsd"
+          ],
+          "properties": {
+            "models": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "agentMinutes": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensIn": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensCached": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensOut": {
+              "type": "number",
+              "minimum": 0
+            },
+            "costUsd": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "render": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "models",
+            "agentMinutes",
+            "tokensIn",
+            "tokensCached",
+            "tokensOut",
+            "costUsd"
+          ],
+          "properties": {
+            "models": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "agentMinutes": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensIn": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensCached": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensOut": {
+              "type": "number",
+              "minimum": 0
+            },
+            "costUsd": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "map": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "models",
+            "agentMinutes",
+            "tokensIn",
+            "tokensCached",
+            "tokensOut",
+            "costUsd"
+          ],
+          "properties": {
+            "models": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "agentMinutes": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensIn": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensCached": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensOut": {
+              "type": "number",
+              "minimum": 0
+            },
+            "costUsd": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "seed": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "models",
+            "agentMinutes",
+            "tokensIn",
+            "tokensCached",
+            "tokensOut",
+            "costUsd"
+          ],
+          "properties": {
+            "models": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "agentMinutes": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensIn": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensCached": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensOut": {
+              "type": "number",
+              "minimum": 0
+            },
+            "costUsd": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "build": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "models",
+            "agentMinutes",
+            "tokensIn",
+            "tokensCached",
+            "tokensOut",
+            "costUsd"
+          ],
+          "properties": {
+            "models": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "agentMinutes": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensIn": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensCached": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensOut": {
+              "type": "number",
+              "minimum": 0
+            },
+            "costUsd": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "shoot": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "models",
+            "agentMinutes",
+            "tokensIn",
+            "tokensCached",
+            "tokensOut",
+            "costUsd"
+          ],
+          "properties": {
+            "models": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "agentMinutes": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensIn": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensCached": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensOut": {
+              "type": "number",
+              "minimum": 0
+            },
+            "costUsd": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "review": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "models",
+            "agentMinutes",
+            "tokensIn",
+            "tokensCached",
+            "tokensOut",
+            "costUsd"
+          ],
+          "properties": {
+            "models": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "agentMinutes": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensIn": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensCached": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensOut": {
+              "type": "number",
+              "minimum": 0
+            },
+            "costUsd": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        },
+        "ci": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "models",
+            "agentMinutes",
+            "tokensIn",
+            "tokensCached",
+            "tokensOut",
+            "costUsd"
+          ],
+          "properties": {
+            "models": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "agentMinutes": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensIn": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensCached": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensOut": {
+              "type": "number",
+              "minimum": 0
+            },
+            "costUsd": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        }
       }
     },
     "founder": {
       "anyOf": [
-        { "type": "null" },
+        {
+          "type": "null"
+        },
         {
           "type": "object",
           "additionalProperties": false,
-          "required": ["waitMinutes", "questions"],
+          "required": [
+            "waitMinutes",
+            "questions"
+          ],
           "properties": {
-            "waitMinutes": { "type": "number", "minimum": 0 },
-            "questions": { "$ref": "common.schema.json#/$defs/Count" }
+            "waitMinutes": {
+              "type": "number",
+              "minimum": 0
+            },
+            "questions": {
+              "$ref": "common.schema.json#/$defs/Count"
+            }
           }
         }
       ]
+    },
+    "slotWaits": {
+      "description": "Waits for a free machine slot (shoots, e2e), from the journal's wait slot lines; null when none.",
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "count",
+            "minutes"
+          ],
+          "properties": {
+            "count": {
+              "$ref": "common.schema.json#/$defs/Count"
+            },
+            "minutes": {
+              "type": "number",
+              "minimum": 0
+            }
+          }
+        }
+      ]
+    },
+    "main": {
+      "description": "The main session's own usage over the run (its subagents excluded), from its transcripts; null when none were found.",
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "model",
+            "tokensIn",
+            "tokensCached",
+            "tokensOut",
+            "costUsd"
+          ],
+          "properties": {
+            "model": {
+              "type": "string"
+            },
+            "tokensIn": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensCached": {
+              "type": "number",
+              "minimum": 0
+            },
+            "tokensOut": {
+              "type": "number",
+              "minimum": 0
+            },
+            "costUsd": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            }
+          }
+        }
+      ]
+    },
+    "agents": {
+      "description": "Every agent the run dispatched. effort is null when nothing recorded it (a backfill); costUsd is null for a model models.json does not price.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "role",
+          "phase",
+          "model",
+          "effort",
+          "minutes",
+          "tokensIn",
+          "tokensCached",
+          "tokensOut",
+          "costUsd",
+          "outcome"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "type": "string",
+            "pattern": "^[a-z][a-z-]*$"
+          },
+          "phase": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "enum": [
+                  "intake",
+                  "render",
+                  "map",
+                  "seed",
+                  "build",
+                  "shoot",
+                  "review",
+                  "ci"
+                ]
+              }
+            ]
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1
+          },
+          "effort": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "enum": [
+                  "low",
+                  "medium",
+                  "high",
+                  "xhigh",
+                  "max"
+                ]
+              }
+            ]
+          },
+          "minutes": {
+            "type": "number",
+            "minimum": 0
+          },
+          "tokensIn": {
+            "type": "number",
+            "minimum": 0
+          },
+          "tokensCached": {
+            "type": "number",
+            "minimum": 0
+          },
+          "tokensOut": {
+            "type": "number",
+            "minimum": 0
+          },
+          "costUsd": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "outcome": {
+            "type": "string",
+            "pattern": "^[a-z][a-z-]*$"
+          }
+        }
+      }
     },
     "rounds": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["round", "match", "small", "toFix", "notReached", "dataGap", "carried"],
+        "required": [
+          "round",
+          "match",
+          "small",
+          "toFix",
+          "notReached",
+          "dataGap",
+          "carried"
+        ],
         "properties": {
-          "round": { "type": "integer", "minimum": 1 },
-          "match": { "$ref": "common.schema.json#/$defs/Count" },
-          "small": { "$ref": "common.schema.json#/$defs/Count" },
-          "toFix": { "$ref": "common.schema.json#/$defs/Count" },
-          "notReached": { "$ref": "common.schema.json#/$defs/Count" },
-          "dataGap": { "$ref": "common.schema.json#/$defs/Count" },
-          "carried": { "$ref": "common.schema.json#/$defs/Count" }
+          "round": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "match": {
+            "$ref": "common.schema.json#/$defs/Count"
+          },
+          "small": {
+            "$ref": "common.schema.json#/$defs/Count"
+          },
+          "toFix": {
+            "$ref": "common.schema.json#/$defs/Count"
+          },
+          "notReached": {
+            "$ref": "common.schema.json#/$defs/Count"
+          },
+          "dataGap": {
+            "$ref": "common.schema.json#/$defs/Count"
+          },
+          "carried": {
+            "$ref": "common.schema.json#/$defs/Count"
+          }
         }
       }
     },
@@ -62,12 +674,35 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["round", "batch", "tokens", "minutes"],
+        "required": [
+          "round",
+          "batch",
+          "tokens",
+          "minutes"
+        ],
         "properties": {
-          "round": { "type": "integer", "minimum": 1 },
-          "batch": { "type": "integer", "minimum": 1 },
-          "tokens": { "type": ["number", "null"], "minimum": 0 },
-          "minutes": { "type": ["number", "null"], "minimum": 0 }
+          "round": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "batch": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "tokens": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "minutes": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          }
         }
       }
     },
@@ -76,10 +711,17 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["check", "cause"],
+        "required": [
+          "check",
+          "cause"
+        ],
         "properties": {
-          "check": { "type": "string" },
-          "cause": { "type": "string" }
+          "check": {
+            "type": "string"
+          },
+          "cause": {
+            "type": "string"
+          }
         }
       }
     },
@@ -87,51 +729,159 @@
       "description": "Optional. The shadow grader's totals over the run's rounds: answers it gave and requests that failed.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["answered", "errors"],
+      "required": [
+        "answered",
+        "errors"
+      ],
       "properties": {
-        "answered": { "$ref": "common.schema.json#/$defs/Count" },
-        "errors": { "$ref": "common.schema.json#/$defs/Count" }
+        "answered": {
+          "$ref": "common.schema.json#/$defs/Count"
+        },
+        "errors": {
+          "$ref": "common.schema.json#/$defs/Count"
+        }
       }
     },
-    "improvements": { "type": "array", "items": { "type": "string" } },
+    "improvements": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
     "autoChanges": {
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "at", "kind", "change", "size", "status", "metric"],
+        "required": [
+          "id",
+          "at",
+          "kind",
+          "change",
+          "size",
+          "status",
+          "metric"
+        ],
         "properties": {
-          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]*$" },
-          "at": { "$ref": "common.schema.json#/$defs/Timestamp" },
-          "kind": { "enum": ["tunable", "steer", "brief-sentence", "warn-check", "other"] },
-          "change": { "type": "object", "additionalProperties": {} },
-          "size": { "enum": ["small", "large"] },
-          "status": { "enum": ["applied", "proposed", "kept", "mixed", "reverted"] },
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "at": {
+            "$ref": "common.schema.json#/$defs/Timestamp"
+          },
+          "kind": {
+            "enum": [
+              "tunable",
+              "steer",
+              "brief-sentence",
+              "warn-check",
+              "other"
+            ]
+          },
+          "change": {
+            "type": "object",
+            "additionalProperties": {}
+          },
+          "size": {
+            "enum": [
+              "small",
+              "large"
+            ]
+          },
+          "status": {
+            "enum": [
+              "applied",
+              "proposed",
+              "kept",
+              "mixed",
+              "reverted"
+            ]
+          },
           "metric": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["name", "baseline", "better"],
+            "required": [
+              "name",
+              "baseline",
+              "better"
+            ],
             "properties": {
-              "name": { "type": "string" },
-              "baseline": { "type": ["number", "null"] },
-              "better": { "enum": ["lower", "higher"] }
+              "name": {
+                "type": "string"
+              },
+              "baseline": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "better": {
+                "enum": [
+                  "lower",
+                  "higher"
+                ]
+              }
             }
           },
-          "pr": { "type": ["integer", "null"], "minimum": 1 },
-          "mergeSha": { "type": ["string", "null"] },
-          "file": { "type": ["string", "null"] },
-          "revertPr": { "type": ["integer", "null"], "minimum": 1 },
-          "issue": { "type": ["integer", "null"], "minimum": 1 },
+          "pr": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "mergeSha": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "file": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "revertPr": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
+          "issue": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1
+          },
           "measured": {
             "type": "array",
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["feature", "value"],
-              "properties": { "feature": { "type": "string" }, "value": { "type": ["number", "null"] } }
+              "required": [
+                "feature",
+                "value"
+              ],
+              "properties": {
+                "feature": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              }
             }
           },
-          "note": { "type": "string" }
+          "note": {
+            "type": "string"
+          }
         }
       }
     }

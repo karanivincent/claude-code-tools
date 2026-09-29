@@ -53,6 +53,7 @@ export function changeKey(change) {
     case 'steer': return `steer:${norm(change.text)}`;
     case 'brief-sentence': return `brief:${change.brief}:${norm(change.text)}`;
     case 'warn-check': return `warn:${norm(change.description)}`;
+    case 'model': return `model:${change.role}>${change.to?.model}:${change.to?.effort}`;
     default: return `${change?.kind ?? 'unknown'}:${norm(change?.description ?? change?.text ?? '')}`;
   }
 }

@@ -18,7 +18,8 @@ export const COMMAND_ORDER = Object.freeze([
   'sidefx', 'seed', 'shoot', 'slot', 'review', 'sign-in',
   'wave start', 'wave merge', 'wave end', 'gate', 'capture', 'check', 'audit compile',
   'ci', 'prepush', 'ready', 'pr-body', 'handover', 'report', 'land', 'retro',
-  'hook session-start', 'hook pre-bash', 'hook pre-browser',
+  'log-agent', 'log-wait', 'runs', 'backfill-run', 'crop',
+  'hook session-start', 'hook pre-bash', 'hook pre-browser', 'hook subagent-stop',
 ]);
 
 /**

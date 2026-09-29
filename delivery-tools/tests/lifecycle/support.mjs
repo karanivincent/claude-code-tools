@@ -101,10 +101,10 @@ export function write(dir, files) {
 }
 
 /** A ctx on a repo root with real git, the gh stub and stubbed everything else. */
-export async function ctxFor(root, { profile = testProfile(), rules = [], gh, clock, deps, feature = FEATURE, safety, json = false } = {}) {
+export async function ctxFor(root, { profile = testProfile(), rules = [], gh, clock, deps, feature = FEATURE, safety, json = false, env } = {}) {
   const c = clock ?? fakeClock('2026-01-15T21:00:00.000Z');
   const theGh = gh ?? createGhStub({ clock: c });
-  const res = await makeTestCtx({ repoRoot: root, feature, json, profile, safety, rules, passthrough: ['git'], gh: theGh, clock: c });
+  const res = await makeTestCtx({ repoRoot: root, feature, json, profile, safety, rules, passthrough: ['git'], gh: theGh, clock: c, env });
   if (deps) res.ctx.deps = deps;
   return res;
 }

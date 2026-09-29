@@ -29,11 +29,14 @@ test('every schema is 2020-12, has its $id, and uses only supported keywords', (
   }
 });
 
-test('every artefact requires schemaVersion const 1, except the bare arrays', () => {
+// A schema that has moved on to a later version, and why: its readers upgrade the earlier lines.
+const LATER_VERSION = { 'run-record': 2 };
+
+test('every artefact requires schemaVersion const 1 (or its documented later version), except the bare arrays', () => {
   for (const name of BARE_ARRAYS) assert.equal(raw(name).type, 'array', name);
   for (const name of ARTEFACTS.filter((n) => !NO_SCHEMA_VERSION.includes(n))) {
     const s = raw(name);
-    assert.deepEqual(s.properties.schemaVersion, { const: 1 }, name);
+    assert.deepEqual(s.properties.schemaVersion, { const: LATER_VERSION[name] ?? 1 }, name);
     assert.ok(s.required.includes('schemaVersion'), name);
   }
 });

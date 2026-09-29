@@ -9,6 +9,9 @@
         "hooks": [{ "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/pre-bash.sh\"" }] },
       { "matcher": "mcp__Claude_Browser__.*|mcp__claude-in-chrome__.*|mcp__computer-use__.*",
         "hooks": [{ "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/pre-browser.sh\"" }] }
+    ],
+    "SubagentStop": [
+      { "hooks": [{ "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/hooks/subagent-stop.sh\"" }] }
     ]
   }
 }
