@@ -449,3 +449,29 @@ test('A2: seed --plan lists tables no guard covers, and refuses a world value ou
     assert.match(stdout.text(), /guards to approve/);
   } finally { repo.cleanup(); }
 });
+
+// Stable picture data, fix 2: every value the data contract labels "data" has a row behind it, and
+// the fixture user carries the design's name, before anything is written.
+test('seed --check: a contract data value no world holds, or an unlabelled text, refuses the plan', async () => {
+  const { repo, ctx, stdout } = await setup();
+  try {
+    const worlds = validExample('plan').worlds;
+    worlds[0].users[0].name = 'Sam Kariuki';
+    writeFileSync(join(repo.dir, 'docs/delivery/widgets/map.json'), JSON.stringify({ worlds, states: [{ id: 'W-01', reach: { world: 'design', role: 'admin', steps: [] } }] }));
+    const contract = (texts) => writeFileSync(join(repo.dir, 'docs/delivery/widgets/contract.json'), JSON.stringify({ schemaVersion: 1, states: { 'W-01': { texts } } }));
+    const held = [
+      { text: 'idle', label: 'data', table: 'widgets', column: 'state' },
+      { text: 'Sam Kariuki', label: 'data', user: 'admin' },
+      { text: '1 widget', label: 'data', kind: 'count', table: 'widgets', value: '1' },
+      { text: 'Widgets', label: 'fixed' },
+    ];
+    contract([...held, { text: 'busy', label: 'data', table: 'widgets', column: 'state' }, { text: 'New', label: null }]);
+    assert.equal(await seedCommand.run(ctx, ['--plan']), 0);
+    assert.equal(await seedCommand.run(ctx, ['--check']), 1);
+    const out = stdout.text();
+    assert.match(out, /FAIL M13-contract state W-01 shows "busy": no widgets row has state = "busy" \(world design\)/);
+    assert.match(out, /FAIL M13-contract 1 text\(s\) of the contract are not labelled yet/);
+    contract(held);
+    assert.equal(await seedCommand.run(ctx, ['--check']), 0, stdout.text());
+  } finally { repo.cleanup(); }
+});

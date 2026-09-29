@@ -28,6 +28,7 @@ import { join } from 'node:path';
 import { UsageError } from '../core/exit.mjs';
 import { readJson } from '../core/fs.mjs';
 import { schemaRegistry } from '../core/schema.mjs';
+import { resolveRelative } from './evaluate.mjs';
 
 const DNS_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 /** The namespace every fixture id is derived in. */
@@ -223,5 +224,41 @@ export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safet
   if (problems.length) {
     throw new UsageError(`the worlds cannot become a seed plan (${problems.length} problem(s))`, { failures: problems.map((m) => ({ code: 'seed-plan', message: m })) });
   }
-  return { schemaVersion: 1, runId, project, worlds, rows, users };
+  const staggered = staggerTies(rows);
+  return { schemaVersion: 1, runId, project, worlds, rows, users, ...(staggered.length ? { staggered } : {}) };
+}
+
+// Any fixed instant: ties between relative times do not depend on which one.
+const TIE_REFERENCE = new Date(Date.UTC(2026, 0, 15, 12));
+
+/**
+ * R9 of stable picture data: rows with equal timestamps sort in any order, so a list reorders
+ * between shoots. Within one world, table and column, relative times that name the same moment are
+ * made distinct: the first row (in file order, which is the order the design shows them) keeps its
+ * time, and each later one is a second earlier than the one before, so a newest-first list shows
+ * them in file order. Dates (`as: "date"`) may share a day and are left alone. Changes `rows` in place.
+ * @param {{ world: string, table: string, values: object }[]} rows
+ * @returns {{ world: string, table: string, column: string, rows: number }[]} the groups it changed
+ */
+export function staggerTies(rows) {
+  const groups = new Map();
+  for (const r of rows) {
+    for (const [col, v] of Object.entries(r.values ?? {})) {
+      if (!v || typeof v !== 'object' || typeof v.$rel !== 'string' || v.as === 'date') continue;
+      let t;
+      try { t = new Date(resolveRelative(v, TIE_REFERENCE)).getTime(); } catch { continue; }
+      const k = `${r.world}\0${r.table}\0${col}\0${t}`;
+      if (!groups.has(k)) groups.set(k, { world: r.world, table: r.table, column: col, list: [] });
+      groups.get(k).list.push(r);
+    }
+  }
+  const out = [];
+  for (const g of groups.values()) {
+    if (g.list.length < 2) continue;
+    g.list.forEach((r, i) => {
+      if (i) r.values[g.column] = { ...r.values[g.column], $rel: `${r.values[g.column].$rel}-${i}s` };
+    });
+    out.push({ world: g.world, table: g.table, column: g.column, rows: g.list.length });
+  }
+  return out;
 }

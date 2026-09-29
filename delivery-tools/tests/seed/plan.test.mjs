@@ -35,3 +35,18 @@ test('a world with orgName resolves $orgName behind the safety prefix as usual',
   const org = seedPlan.rows.find((r) => r.table === 'organizations');
   assert.equal(org.values.name, `${makeSafety().fixtureOrgPrefix}Acme Store`);
 });
+
+// R9 of stable picture data: rows with equal timestamps sort in any order between shoots.
+test('staggerTies gives rows whose relative times tie a second each, in file order; dates and other worlds are left alone', async () => {
+  const { staggerTies } = await import('../../lib/seed/plan.mjs');
+  const rows = [
+    { world: 'design', table: 'calls', values: { created_at: { $rel: 'now-2h' }, day: { $rel: 'today', as: 'date' } } },
+    { world: 'design', table: 'calls', values: { created_at: { $rel: 'now-120m' }, day: { $rel: 'today', as: 'date' } } },
+    { world: 'design', table: 'calls', values: { created_at: { $rel: 'now-2h' } } },
+    { world: 'design', table: 'calls', values: { created_at: { $rel: 'now-3h' } } },
+    { world: 'other', table: 'calls', values: { created_at: { $rel: 'now-2h' } } },
+  ];
+  assert.deepEqual(staggerTies(rows), [{ world: 'design', table: 'calls', column: 'created_at', rows: 3 }]);
+  assert.deepEqual(rows.map((r) => r.values.created_at.$rel), ['now-2h', 'now-120m-1s', 'now-2h-2s', 'now-3h', 'now-2h']);
+  assert.deepEqual(rows[1].values.day, { $rel: 'today', as: 'date' });
+});
