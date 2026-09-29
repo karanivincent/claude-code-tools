@@ -13,6 +13,7 @@ import { waitEvent } from '../retro/log.mjs';
 import { pageExtract } from '../capture/page-extract.mjs';
 import { sha256 } from '../core/hash.mjs';
 import { PIXEL_TOLERANCE, domFacts, factsAgree } from './review.mjs';
+import { sortDataDifferences } from './contract.mjs';
 import { WIDTHS, cropFor, designFileCandidates, mapItems, overflowProblem, roundFiles } from './widths.mjs';
 
 /**
@@ -29,6 +30,19 @@ export function withShootSlot(ctx, fn) {
 
 export const SAFE_TO_CLICK = new Set(['none', 'free']);
 const MAX_HEIGHT = 8000;
+
+/**
+ * The items of a round worth shooting again after a data fix (`shoot --only data-gaps`): each item
+ * the compiled review gave a data-gap verdict, and each the shoot's lookup found a data gap in.
+ * @param {{ review?: object|null, shoot?: object|null }} info roundInfo's result
+ * @returns {string[]}
+ */
+export function dataGapItems(info) {
+  const keys = new Set();
+  for (const [k, v] of Object.entries(info?.review?.states ?? {})) if (v.verdict === 'data-gap' || v.dataGap?.length) keys.add(k);
+  for (const [k, v] of Object.entries(info?.shoot?.states ?? {})) if (v.lookup?.dataGap?.length) keys.add(k);
+  return [...keys];
+}
 
 /**
  * The items a shoot takes: every capture-reachable state at each of its widths, or the ones picked.
@@ -232,10 +246,28 @@ function pageAreaTop(left) {
 
 // ---- The run. ----
 
-/** The browser context options for a width: the phone is a touch device at its own viewport. */
-export function contextOptions(width) {
+/**
+ * The browser context options for a width: the phone is a touch device at its own viewport. With a
+ * time zone (the profile's testData.timeZone), the browser reads dates in the organisation's zone,
+ * as the seed wrote them.
+ */
+export function contextOptions(width, timeZone = null) {
   const viewport = { ...WIDTHS[width] };
-  return width === 'phone' ? { viewport, isMobile: true, hasTouch: true } : { viewport };
+  const zone = timeZone ? { timezoneId: timeZone } : {};
+  return width === 'phone' ? { viewport, isMobile: true, hasTouch: true, ...zone } : { viewport, ...zone };
+}
+
+/**
+ * Freeze the context's clock at the moment its world was seeded (R1): Date.now() and new Date()
+ * return that moment, timers keep running. "2 min ago" is then two minutes before the seed, as the
+ * design shows. Server-rendered dates still use the real time, which is why the world is seeded
+ * right before its shots. A Playwright without a clock API is left as it is.
+ * @returns {Promise<boolean>} whether the clock was frozen
+ */
+export async function freezeClock(context, at) {
+  if (!at || typeof context?.clock?.setFixedTime !== 'function') return false;
+  await context.clock.setFixedTime(at);
+  return true;
 }
 
 /**
@@ -253,6 +285,14 @@ export function contextOptions(width) {
  * @param {((world: string) => Promise<void>)} [o.reseed] re-seeds one world, between a
  *   data-changing state's desktop shot and its phone shot (captureOrder's reseedAfter); optional
  *   so a caller that does not need it (or a test) can omit it
+ * @param {((world: string) => Promise<{ at: Date, rows?: object[]|null, users?: object[] }>)} [o.reset]
+ *   restores one world to its seed right before its first shot, and again before any later shot
+ *   once a data-changing shot touched it (fixes 3 and 4 of stable picture data). Returns the moment
+ *   it seeded at (the browser clock is frozen there) and the world's rows as seeded, which the
+ *   lookup sorts data differences by. Throws when the world cannot be reset safely: its items are
+ *   then not reached, never pictured on a world nobody checked.
+ * @param {string|null} [o.timeZone] the profile's testData.timeZone, for the browser
+ * @param {object|null} [o.contract] the run's contract.json, for the lookup (R3)
  * @returns {Promise<Record<string, object>>} keyed by item key
  */
 export async function runShoot(o) {
@@ -262,6 +302,9 @@ export async function runShoot(o) {
   const browser = await o.chromium.launch();
   const report = {};
   const liveFacts = new Map(); // item key -> what the live page showed (text, test ids, buttons)
+  const seeded = new Map(); // world -> { at, rows, users } from its latest reset
+  const dirty = new Set(); // worlds a data-changing shot touched since their reset
+  const failedReset = new Map(); // world -> why it could not be reset
   let ip = 20;
   try {
     for (const entry of captureOrder(o.items, o.map)) {
@@ -270,13 +313,31 @@ export async function runShoot(o) {
         for (const it of entry.items) report[it.key] = { user: null, width: it.width, reached: false, problems: [`world ${entry.world} has no ${entry.role} user`], buttons: [] };
         continue;
       }
+      if (o.reset && !failedReset.has(entry.world) && (!seeded.has(entry.world) || dirty.has(entry.world))) {
+        try {
+          o.log(`resetting world ${entry.world} to its seed before its shots`);
+          seeded.set(entry.world, await o.reset(entry.world));
+          dirty.delete(entry.world);
+        } catch (err) {
+          failedReset.set(entry.world, String(err?.message ?? err).split('\n')[0]);
+        }
+      }
+      if (failedReset.has(entry.world)) {
+        for (const it of entry.items) {
+          report[it.key] = { user: `${entry.world}/${entry.role}`, width: it.width, reached: false, problems: [`world ${entry.world} could not be reset to its seed: ${failedReset.get(entry.world)}`], buttons: [] };
+          o.log(resultLine(it.key, report[it.key]));
+        }
+        continue;
+      }
       const host = new URL(o.baseUrl).hostname.replace(/[^a-z0-9.-]/gi, '_');
       const sessionFile = join(o.sessionsDir, `shoot-${host}-${entry.world}-${entry.role}.json`);
       const context = await browser.newContext({
-        ...contextOptions(entry.width),
+        ...contextOptions(entry.width, o.timeZone ?? null),
         ...(isLocal(o.baseUrl) ? { extraHTTPHeaders: { 'x-real-ip': `10.77.0.${ip++ % 250}` } } : {}),
         ...(existsSync(sessionFile) ? { storageState: sessionFile } : {}),
       });
+      const frozenAt = seeded.get(entry.world)?.at ?? null;
+      const frozen = await freezeClock(context, frozenAt).catch(() => false);
       const page = await context.newPage();
       await page.goto(new URL(landing, o.baseUrl).toString(), { waitUntil: 'networkidle' }).catch(() => {});
       if (!new URL(page.url()).pathname.startsWith(landing)) {
@@ -290,16 +351,20 @@ export async function runShoot(o) {
         } catch (err) {
           report[it.key] = { user: `${entry.world}/${entry.role}`, width: it.width, reached: false, problems: [String(err?.message ?? err).split('\n')[0]], buttons: [] };
         }
+        if (o.at) report[it.key].at = o.at();
+        if (frozen) report[it.key].clock = new Date(frozenAt).toISOString();
         o.log(resultLine(it.key, report[it.key]));
       }
       await context.close();
+      if (entry.writes.length) dirty.add(entry.world);
       if (entry.reseedAfter && o.reseed) {
         o.log(`re-seeding ${entry.world} before the next width's shot of the same data-changing state(s)`);
         await o.reseed(entry.world);
+        if (seeded.has(entry.world)) { seeded.set(entry.world, { ...seeded.get(entry.world), at: o.now ? o.now() : new Date() }); dirty.delete(entry.world); }
       }
     }
     await cropDesigns(browser, o, o.items);
-    await recordPictureFacts(browser, o, report, liveFacts);
+    await recordPictureFacts(browser, o, report, liveFacts, seeded);
   } finally {
     await browser.close();
   }
@@ -488,7 +553,7 @@ function diffImages({ a, b, tol }) {
  * browser's own measure (a test, or a caller with a decoder); without a measure nothing is set, and
  * the review sends the item to a reviewer.
  */
-async function recordPictureFacts(browser, o, report, liveFacts) {
+async function recordPictureFacts(browser, o, report, liveFacts, seeded = new Map()) {
   const page = o.diffPictures ? null : await browser.newPage();
   try {
     for (const it of o.items) {
@@ -507,6 +572,15 @@ async function recordPictureFacts(browser, o, report, liveFacts) {
       const dFacts = designDom ? domFacts(designDom, cropFor(o.map, it.width, it.id).designLeft ?? 0) : null;
       const lFacts = liveFacts.get(it.key) ?? null;
       rec.factsAgree = dFacts && lFacts ? factsAgree(lFacts, dFacts) : null;
+      // R3: a difference in a contract data value, sorted by looking it up in the world as seeded.
+      const world = seeded.get(it.state.reach?.world);
+      if (dFacts && lFacts && world && o.contract) {
+        const sorted = sortDataDifferences({
+          contractState: o.contract.states?.[it.id], designTexts: dFacts.text, liveTexts: lFacts.text,
+          rows: world.rows ?? null, users: world.users ?? [], now: world.at ?? new Date(),
+        });
+        if (sorted.dataGap.length || sorted.must.length) rec.lookup = sorted;
+      }
       if (!live || !design) continue;
       let diff = null;
       try {
@@ -521,11 +595,15 @@ async function recordPictureFacts(browser, o, report, liveFacts) {
   }
 }
 
-/** Merge a shoot's results into the round's shoot.json (a second pass adds to the first). */
-export async function writeShootJson(outDir, { baseUrl, at, report }) {
+/**
+ * Merge a shoot's results into the round's shoot.json (a second pass adds to the first, and an
+ * item shot again replaces its earlier record). A re-shoot (`shoot --only`) is listed in `reshot`.
+ */
+export async function writeShootJson(outDir, { baseUrl, at, report, reshot = false }) {
   const file = join(outDir, 'shoot.json');
   const prior = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : { states: {} };
-  const doc = { schemaVersion: 1, baseUrl, at, states: { ...prior.states, ...report } };
+  const history = [...(prior.reshot ?? []), ...(reshot ? [{ at, items: Object.keys(report) }] : [])];
+  const doc = { schemaVersion: 1, baseUrl, at: reshot && prior.at ? prior.at : at, states: { ...prior.states, ...report }, ...(history.length ? { reshot: history } : {}) };
   await writeFile(file, JSON.stringify(doc, null, 1) + '\n');
   return doc;
 }

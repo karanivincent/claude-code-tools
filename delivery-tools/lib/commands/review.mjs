@@ -8,7 +8,7 @@ import { intFlag, parseCommandArgs } from '../core/args.mjs';
 import { EXIT } from '../core/exit.mjs';
 import { readMap } from '../picture/map.mjs';
 import { listRounds, roundDir, roundInfo } from '../picture/rounds.mjs';
-import { AUTO_MATCH_MAX_DIFF, MAX_BATCH_ITEMS, MAX_PARALLEL_REVIEWERS, batchPrompt, batchWaves, parseReview, planReview, renderCompare, summarise } from '../picture/review.mjs';
+import { AUTO_MATCH_MAX_DIFF, MAX_BATCH_ITEMS, MAX_PARALLEL_REVIEWERS, batchPrompt, batchWaves, noteOwners, parseReview, planReview, renderCompare, reshotItems, summarise } from '../picture/review.mjs';
 import { exportShadow, runShadow, shadowFindings, shadowSetup, steerLines } from '../picture/shadow.mjs';
 import { hasPhone, mapItems, roundFiles } from '../picture/widths.mjs';
 
@@ -28,8 +28,14 @@ one. The rest are packed into batches of up to ${MAX_BATCH_ITEMS} items (a state
 screen kept whole where it fits) and written to the round's folder: review-plan.json (carried and
 auto-matched items), batches.json (each batch, and the waves of at most ${MAX_PARALLEL_REVIEWERS} to dispatch
 together) and batch-<n>.prompt.md, the exact prompt for each reviewer. If docs/delivery/<feature>/steers.md
-exists, its text is added to every prompt. Dispatch each prompt file as it is, then run review
-without --plan.
+exists, its text is added to every prompt. Each prompt also lists the data differences the
+shoot already sorted by looking them up in the world, so the reviewer does not write them again.
+Dispatch each prompt file as it is, then run review without --plan.
+
+After "shoot --only" re-shot some items into a round that was already planned, "--plan" plans only
+those items: new batches numbered after the round's earlier ones, carried and auto-matched items
+worked out again for them alone. When compiling, an item's notes come only from the latest batch
+that was given it, so the notes on its earlier pictures drop out.
 
 Without --plan, this command compiles the reviews. Reviewer agents (briefs/reviewer-picture.md) each write review-<group>.md into the
 round's folder: one "## <ITEM>" section per item with a problem (an item is a state at a width:
@@ -88,8 +94,11 @@ common options:
     if (!map) { ctx.out.fail('no-map', 'there is no map.json'); return EXIT.USAGE; }
 
     const notes = {};
+    const owners = noteOwners(readJson(join(info.dir, 'batches.json')), info.reviewPlan);
     for (const f of info.reviews) {
       for (const [id, n] of Object.entries(parseReview(readFileSync(join(info.dir, f), 'utf8'), mapItems(map).map((i) => i.key)))) {
+        // A re-shot item's notes come only from the batch that reviewed its newest pictures.
+        if (owners.has(id) && owners.get(id) !== f) continue;
         notes[id] ??= { must: [], small: [], design: [], dataGap: [] };
         notes[id].must.push(...n.must);
         notes[id].small.push(...n.small);
@@ -177,6 +186,10 @@ async function shadowExport(ctx, paths) {
   return EXIT.PASS;
 }
 
+function readJson(file) {
+  try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; }
+}
+
 /** review --plan: carried and auto-matched items, then the reviewer batches with their prompts. */
 async function planRound(ctx, paths, round, info, rounds) {
   const map = readMap(paths);
@@ -184,25 +197,38 @@ async function planRound(ctx, paths, round, info, rounds) {
   const earlier = rounds.filter((n) => n < round).pop();
   const prevInfo = earlier ? roundInfo(paths, earlier) : null;
   const prev = prevInfo?.shoot && prevInfo.review ? { round: earlier, shoot: prevInfo.shoot, review: prevInfo.review } : null;
-  const plan = planReview({ map, shoot: info.shoot, prev });
-  for (const f of readdirSync(info.dir)) if (/^batch-\d+\.prompt\.md$/.test(f)) unlinkSync(join(info.dir, f));
+  // R5: after shoot --only, plan just the re-shot items, next to the round's earlier batches.
+  const oldBatches = readJson(join(info.dir, 'batches.json'));
+  const reshot = oldBatches ? reshotItems(info.shoot, info.reviewPlan) : [];
+  const partial = reshot.length > 0;
+  const shoot = partial ? { ...info.shoot, states: Object.fromEntries(reshot.map((k) => [k, info.shoot.states[k]])) } : info.shoot;
+  const plan = planReview({ map, shoot, prev });
+  const offset = partial ? Math.max(0, ...(oldBatches.batches ?? []).map((b) => b.id)) : 0;
+  if (!partial) for (const f of readdirSync(info.dir)) if (/^batch-\d+\.prompt\.md$/.test(f)) unlinkSync(join(info.dir, f));
   const steersFile = join(paths.deliveryDir, 'steers.md');
   const steersRel = relative(ctx.repoRoot, steersFile);
   const steers = existsSync(steersFile) ? readFileSync(steersFile, 'utf8') : null;
   const roundRel = relative(ctx.repoRoot, info.dir);
   const batches = [];
-  for (const b of plan.batches) {
+  const planned = plan.batches.map((b) => ({ ...b, id: b.id + offset }));
+  for (const b of planned) {
     const file = `review-batch-${b.id}.md`;
     const prompt = `batch-${b.id}.prompt.md`;
-    await writeFile(join(info.dir, prompt), batchPrompt({ pluginRoot: ctx.pluginRoot, feature: paths.feature, worktree: ctx.repoRoot, roundRel, items: b.items, file, steers, steersRel }));
+    const sorted = Object.fromEntries(b.items.map((k) => [k, info.shoot.states?.[k]?.lookup]).filter(([, v]) => v));
+    await writeFile(join(info.dir, prompt), batchPrompt({ pluginRoot: ctx.pluginRoot, feature: paths.feature, worktree: ctx.repoRoot, roundRel, items: b.items, file, steers, steersRel, sorted }));
     batches.push({ id: b.id, prompt, write: file, items: b.items, screens: b.screens });
   }
-  const waves = batchWaves(plan.batches);
-  await writeFile(join(info.dir, 'batches.json'), JSON.stringify({ schemaVersion: 1, round, maxItems: MAX_BATCH_ITEMS, maxParallel: MAX_PARALLEL_REVIEWERS, steers: steers ? steersRel : null, waves, batches }, null, 1) + '\n');
-  await writeFile(join(info.dir, 'review-plan.json'), JSON.stringify({ schemaVersion: 1, round, at: ctx.clock.now().toISOString(), batches: batches.length, carried: plan.carried, auto: plan.auto }, null, 1) + '\n');
+  const waves = batchWaves(planned);
+  const allBatches = partial ? [...(oldBatches.batches ?? []), ...batches] : batches;
+  const drop = (o) => Object.fromEntries(Object.entries(o ?? {}).filter(([k]) => !reshot.includes(k)));
+  const carried = partial ? { ...drop(info.reviewPlan?.carried), ...plan.carried } : plan.carried;
+  const auto = partial ? { ...drop(info.reviewPlan?.auto), ...plan.auto } : plan.auto;
+  await writeFile(join(info.dir, 'batches.json'), JSON.stringify({ schemaVersion: 1, round, maxItems: MAX_BATCH_ITEMS, maxParallel: MAX_PARALLEL_REVIEWERS, steers: steers ? steersRel : null, waves, batches: allBatches, ...(partial ? { reshot } : {}) }, null, 1) + '\n');
+  await writeFile(join(info.dir, 'review-plan.json'), JSON.stringify({ schemaVersion: 1, round, at: ctx.clock.now().toISOString(), batches: allBatches.length, carried, auto }, null, 1) + '\n');
   const nc = Object.keys(plan.carried).length;
   const na = Object.keys(plan.auto).length;
   const nItems = batches.reduce((n, b) => n + b.items.length, 0);
+  if (partial) ctx.out.line(`round ${round}: ${reshot.length} re-shot item(s) to review again (${reshot.join(', ')})`);
   ctx.out.line(`round ${round}: ${nc} carried from round ${earlier ?? '-'}, ${na} matched automatically, ${nItems} item(s) for a reviewer in ${batches.length} batch(es)`);
   waves.forEach((w, i) => ctx.out.line(`  dispatch together${waves.length > 1 ? ` (wave ${i + 1} of ${waves.length})` : ''}: ${w.map((id) => `batch-${id}.prompt.md`).join(', ')}`));
   if (!batches.length) ctx.out.line('  nothing to dispatch: run delivery review to compile');

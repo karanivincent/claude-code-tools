@@ -78,7 +78,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### delivery-tools `v0.15.0`
+### delivery-tools `v0.16.0`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -153,7 +153,14 @@ state shows from the render's DOM into `contract.json`, a Sonnet extractor at lo
 data, fixed words or random, and `seed --check` refuses a data value no world holds, a count the
 rows don't add up to, or a fixture user without the design's name, before anything is built. Rows
 whose times tie get distinct seconds in the design's order, a state whose design contradicts
-itself goes back to Claude Design, and `design render` rebuilds the contract on every new export. An export
+itself goes back to Claude Design, and `design render` rebuilds the contract on every new export.
+Since 0.16.0 `shoot` resets each world to its seed right before its shots (and again after a
+data-changing shot) and freezes the browser clock at that moment in the profile's time zone; a
+world whose reset the safety scan refuses is not pictured. Each difference in a contract data value
+is looked up in the world: missing rows are a data gap for the seed worker, rows present a must fix
+for the fixer, and dates are compared by format. `shoot --only <items|data-gaps>` re-shoots into
+the same round, `review --plan` then reviews just those items, and `delivery runs` prints data gaps
+per round, the plan's measure of success. An export
 holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run
