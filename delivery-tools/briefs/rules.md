@@ -54,7 +54,8 @@ Look at the pictures before you choose. Each rule gets exactly one:
 ```
 
 Number rules R1, R2, ... in the order the briefs state them. Then run
-`node scripts/delivery.mjs rules` and fix every problem it prints. If `map.json` already exists
+`node scripts/delivery.mjs rules` and fix every problem it prints; you are done when it runs clean
+(or names only `owed-design` rules), never before. If `map.json` already exists
 (your second pass, after `delivery map` has run), also run `node scripts/delivery.mjs map` so the
 checklist shows each rule under its states; on the first pass, straight after intake, there is no
 map yet, so skip that and stop once `delivery rules` is clean.

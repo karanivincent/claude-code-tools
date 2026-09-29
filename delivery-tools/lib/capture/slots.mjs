@@ -40,7 +40,7 @@ async function update(file, mutate) {
  * Take a slot, waiting (polling) until one is free or timeoutMs passes.
  * @param {{ file?: string, pid?: number, label?: string, max?: number, timeoutMs?: number, pollMs?: number,
  *           isAlive?: (pid: number) => boolean, now?: () => number, sleep?: (ms: number) => Promise<void>, onWait?: (msg: string) => void }} [o]
- * @returns {Promise<{ id: string, file: string }>}
+ * @returns {Promise<{ id: string, file: string, waitedMs: number }>}
  */
 export async function takeSlot(o = {}) {
   const file = o.file ?? slotsFile();
@@ -63,7 +63,7 @@ export async function takeSlot(o = {}) {
       }
       return { holders: live, result: live };
     });
-    if (!busy) return { id, file };
+    if (!busy) return { id, file, waitedMs: Math.max(0, now() - start) };
     const names = busy.map((h) => `${h.label} (pid ${h.pid}, since ${h.at})`).join('; ');
     if (now() - start >= timeoutMs) {
       throw new DeliveryError(EXIT.WAIT, `no slot free after ${Math.round(timeoutMs / 1000)} s: ${max} of ${max} are held by ${names}; retry when one finishes`, { code: 'slot-timeout' });

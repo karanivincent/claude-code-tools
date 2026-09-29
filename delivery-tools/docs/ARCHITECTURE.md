@@ -69,6 +69,11 @@ request in its report and works around it locally.
 | `tests/github/**` | A2 |
 | `tests/fixtures/lifecycle/**` | A2 |
 | `lib/commands/retro.mjs` | A2 |
+| `lib/commands/log-agent.mjs` | A2 |
+| `lib/commands/log-wait.mjs` | A2 |
+| `lib/commands/runs.mjs` | A2 |
+| `lib/commands/backfill-run.mjs` | A2 |
+| `models.json` | A2 |
 | `lib/retro/**` | A2 |
 | `tests/retro/**` | A2 |
 | `tests/fixtures/retro/**` | A2 |
@@ -111,6 +116,7 @@ request in its report and works around it locally.
 | `tests/fixtures/capture/**` | C |
 | `lib/commands/map.mjs` | C |
 | `lib/commands/shoot.mjs` | C |
+| `lib/commands/crop.mjs` | C |
 | `lib/commands/slot.mjs` | C |
 | `lib/commands/review.mjs` | C |
 | `lib/commands/sign-in.mjs` | C |
@@ -164,7 +170,7 @@ lib/gates/phase-0.mjs ... phase-7.mjs A1  gate(ctx) -> Promise<GateResult>
 lib/run/                      A1  ready.mjs (checkReady), inflight.mjs (recordDispatch, clearDispatch), and A1's own modules
 lib/lifecycle/                A2  intake, preflight (PROBES), prepush (prepushProblems), preview, wave, land
 lib/github/                   A2  issues, scope, claims, dupes, ci
-lib/retro/                    A2  record (runRecord), compare (proposals), size (classify: small or large), apply (applyChange, revertChange), tunables (tunable); tunables.json at the plugin root holds the numbers a small change may move
+lib/retro/                    A2  record (runRecord), compare (proposals, model proposals), size (classify: small or large), apply (applyChange, revertChange), tunables (tunable), models (roles, prices), usage (transcripts), log (agent and wait journal lines), runs (the cross-run table); tunables.json at the plugin root holds the numbers a small change may move, models.json each role's model, effort and agent and the prices
 lib/plan/                     B1  inventory-check, check (M1), render (spec.md), verify
 lib/checks/                   B1  index (registry, runChecks), severity, one module per check
 lib/gate/                     B1  unit (unitGateStatus, the unit gate)
@@ -190,7 +196,7 @@ lib/report/                   C   report (tldr), punch list
 lib/brief/                    C   brief.mjs: nextBriefPath, fillTemplate, briefProblems, packBrief,
                                    recordSent (intent/briefs/sent.json)
 templates/                    C   delivery-capture.spec.ts, delivery-capture-support.ts, component-state.test.tsx, punch-list.html, version-route.ts, design-brief.md
-hooks/                        A1  hooks.json, session-start.sh, pre-bash.sh, pre-browser.sh
+hooks/                        A1  hooks.json, session-start.sh, pre-bash.sh, pre-browser.sh, subagent-stop.sh
 ```
 
 ## How commands register
@@ -293,7 +299,8 @@ sidefx, seedplan, preflight, candidates) that fails its schema is exit 5: tamper
 | ready | `.delivery/<f>/ready.json` | ready | ready (A1) | hook, land, report |
 | state | `.delivery/<f>/state.json` | state | only through `lib/core/state.mjs` | status, gates |
 | punch list | `.delivery/<f>/punch-list.html` | (html) | audit compile (C) | the main session |
-| runs ledger | `docs/delivery/runs.jsonl` (one line per run) | run-record | retro (A2) | retro (compare, check), report |
+| runs ledger | `docs/delivery/runs.jsonl` (one line per run; version 2 adds phaseCost, agents, main, slotWaits, estimate) | run-record | retro (A2), which land runs and requires committed; backfill-run for an earlier run | retro (compare, check), runs, report |
+| models | `models.json` (plugin root) | (no schema; `lib/retro/models.mjs` reads it, `tests/retro/audit.test.mjs` ties it to agents/) | a person only; the retro proposes, never applies | skills (dispatch), retro (prices, roles) |
 | tunables | `tunables.json` (plugin root) | (no schema; `lib/retro/tunables.mjs` reads it) | a person; retro through a PR (A2) | picture review, capture slots, capture run (C) |
 
 File paths inside `capture.json` are relative to that capture run's directory. The `.txt`

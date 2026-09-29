@@ -32,17 +32,18 @@ must land first.
 
 | Step | Who | Command or brief | Output |
 |---|---|---|---|
-| 0 Rules | one rules agent | `<plugin>/briefs/rules.md`, then `delivery rules` | `rules.json`: every behaviour the briefs state, with its proof |
+| 0 Rules | one `delivery-worker`, `Role: rules` | `<plugin>/briefs/rules.md`, then `delivery rules` | `rules.json`: every behaviour the briefs state, with its proof |
 | 0b Design-send | this session, `design-send` skill | only when a rule is `owed-design`: send that brief, or have the founder cut the rule | the design draws it, or `rules.json` records the cut |
 | 1 Pictures | this session | `design-inventory` steps 1 to 4 only (candidates, states, assemble, render); when the map declares the phone, `delivery design render --width phone` too | `.delivery/<f>/design/<ID>.png`, `<ID>@phone.png` |
-| 2 Map | one mapper agent | `<plugin>/briefs/mapper.md`, then `delivery map` | `map.json`, `checklist.md`, world files; also fills in the states of any `picture`-proof rule that needed them (rerun `<plugin>/briefs/rules.md` if one is still missing its states) |
-| 3 Worlds | this session | `delivery seed --plan`, `--check`, `--apply` | fixture worlds on the test project |
-| 4 Build | one `delivery-tools:picture-builder` agent | before dispatch: `delivery rules` must exit 0 (a non-zero exit names an owed rule; go back to step 0b); then `<plugin>/briefs/builder-picture.md` | commits on the run's branch |
+| 2 Map | one `delivery-worker`, `Role: mapper` | `<plugin>/briefs/mapper.md`, then `delivery map` | `map.json`, `checklist.md`, world files; also fills in the states of any `picture`-proof rule that needed them (rerun `<plugin>/briefs/rules.md` if one is still missing its states) |
+| 3 Worlds | one `delivery-worker`, `Role: seed-writer`, for the world files; this session applies | `<plugin>/briefs/seed-writer.md` (`seed --plan`, `--check`); then this session runs `delivery seed --apply` | fixture worlds on the test project |
+| 4 Build | one `delivery-tools:picture-builder` agent (Opus, high) | before dispatch: `delivery rules` must exit 0 (a non-zero exit names an owed rule; go back to step 0b); then `<plugin>/briefs/builder-picture.md` | commits on the run's branch |
 | 5 Shoot | this session | dev server in the background, then `delivery shoot --base-url <url>` (every width the map declares) | `rounds/<n>/<ITEM>.live.png`, `<ITEM>.design.png`, `shoot.json` |
-| 6 Review | one reviewer per screen | `<plugin>/briefs/reviewer-picture.md` | `rounds/<n>/review-<screen>.md` |
+| 6 Review | one `delivery-tools:picture-reviewer` per batch (Sonnet, medium, with `delivery crop`) | `<plugin>/briefs/reviewer-picture.md` | `rounds/<n>/review-batch-<k>.md` |
 | 7 Compile | this session | `delivery review --round <n>` | `review.json`, `compare.html` |
-| 8 Fix | the same builder | the round's `review.json` | commits; then 5 to 7 again |
-| 9 Ship | this session | full CI chain, `delivery prepush`, push, `delivery ci --pr <n>` | the preview, a sign-in link, the comparison page |
+| 8 Fix | a fresh `delivery-tools:picture-fixer` per round (Sonnet, medium) | the round's `review.json` and `builder-notes.md` | commits; then 5 to 7 again |
+| 9 Ship | this session; a `delivery-worker` with `Role: ci-fixer` per failing check | full CI chain, `delivery prepush`, push, `delivery ci --pr <n>`; a red check goes to `<plugin>/briefs/ci-fixer.md` | the preview, a sign-in link, the comparison page |
+| 10 Retro | this session | `delivery retro` once `ready` is green; commit `docs/delivery/runs.jsonl` with the run | the run's line in the ledger |
 
 `delivery status` prints where the run is and one NEXT line. Rules run first, straight after
 intake, so a behaviour the briefs state but the design never drew is sent back before anything is
@@ -60,16 +61,33 @@ it already is, before any building. The reviewers list what the new design chang
 builder fixes only that. Something the code does that the design doesn't show is flagged like any
 difference: it goes back to the design, or becomes a rule.
 
+## Who does what
+
+`<plugin>/models.json` names each role's model, effort and agent; the agent file carries the
+effort, which the Agent tool cannot set, so dispatch the agent it names and never override its
+model. In short: extractors are Sonnet at low; the rules, map, seed-world and CI-fix jobs are one
+`delivery-tools:delivery-worker` each (Sonnet at medium), told their role on the prompt's first
+line; the first build is Opus at high; each fix round is a fresh Sonnet fixer; reviewers are Sonnet
+at medium with a crop tool. This session stays on Opus: it runs the run, decides, sorts findings
+and never does an agent's job itself. Every agent that edits runs a real check before it reports
+done, and ends its reply with `Outcome: done` or `Outcome: blocked`; the SubagentStop hook records
+it for the runs ledger. An agent that reports done without naming the check it ran is sent back
+once to run it.
+
 ## Dispatching
 
 Every agent is dispatched from this session, in the foreground unless noted, with exactly this
 prompt and nothing else:
 
 ```
+<worker: Role: rules | mapper | seed-writer | ci-fixer>
 Read <plugin>/briefs/<brief>.md and follow it.
 Feature: <slug>   Worktree: <absolute path of the run's worktree>
-<mapper and rules agent: nothing more>
-<builder: Dev server: <url>   Round: <n>   Components: run `delivery components --used`   (fix round: Review: .delivery/<f>/rounds/<n-1>/review.json)>
+<rules and mapper: nothing more>
+<seed-writer: Worlds: <world ids, or "the ones the map names without a file">   (a fix: Problem: <the data gap lines or the check's output>)>
+<ci-fixer: Check: <the failing check>   Log: <the log file delivery ci wrote>   Dev server: <running at <url>, or stopped>>
+<builder: Dev server: <url>   Round: 1   Components: run `delivery components --used`>
+<fixer: Dev server: <url>   Round: <n>   Components: run `delivery components --used`   Review: .delivery/<f>/rounds/<n-1>/review.json   Notes: .delivery/<f>/builder-notes.md>
 <reviewer: Round: .delivery/<f>/rounds/<n>/   States: <ITEMS, e.g. KC-05 KC-05@phone>   Write: review-batch-<k>.md>
 ```
 
@@ -81,14 +99,18 @@ item whose text, test ids and buttons equal the design's with almost no pixel di
 a match (auto). Both show on the comparison page. If `docs/delivery/<f>/steers.md` exists, its text
 is added to every prompt; put anything you would otherwise repeat to each reviewer there.
 
-- The builder is one `delivery-tools:picture-builder` agent (model: opus), in the background: a
-  first build takes about an hour. Resume the same builder for each fix round (SendMessage), so it
-  keeps what it learned. Never dispatch it as `delivery-tools:delivery-builder` — that agent works
-  in a fresh worktree of its own, off the integration branch, which this run's dev server cannot
-  see; a builder dispatched that way can work for an hour with nothing to show for it.
-- Reviewers: one per batch from `batches.json` (up to 20 items, a state's desktop and phone
-  together, a screen kept whole where it fits; model: sonnet). `batches.json` lists the waves:
-  dispatch one wave in one message, and the next when it is done.
+- The first build is one `delivery-tools:picture-builder` agent (Opus, high), in the background:
+  it takes about an hour, and it leaves `.delivery/<f>/builder-notes.md` behind. Each fix round is
+  a fresh `delivery-tools:picture-fixer` agent (Sonnet, medium), in the background, given the
+  round's review and those notes; never resume the first builder for a fix round. Neither is ever
+  dispatched as `delivery-tools:delivery-builder`: that agent works in a fresh worktree of its own,
+  off the integration branch, which this run's dev server cannot see; a builder dispatched that
+  way can work for an hour with nothing to show for it.
+- Reviewers: one `delivery-tools:picture-reviewer` per batch from `batches.json` (up to 20 items, a
+  state's desktop and phone together, a screen kept whole where it fits). `batches.json` lists the
+  waves: dispatch one wave in one message, and the next when it is done.
+- A world file problem (a reviewer's `data gap:`, a red `seed --check`) goes to a seed-writer, and
+  a red CI check after the push to a ci-fixer; this session re-seeds and pushes after them.
 - Never more than four agents at once.
 
 ## Rules

@@ -9,6 +9,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { reachSteps, writesData } from './map.mjs';
 import { withSlot, slotsFile } from '../capture/slots.mjs';
+import { waitEvent } from '../retro/log.mjs';
 import { pageExtract } from '../capture/page-extract.mjs';
 import { sha256 } from '../core/hash.mjs';
 import { PIXEL_TOLERANCE, domFacts, factsAgree } from './review.mjs';
@@ -16,10 +17,14 @@ import { WIDTHS, cropFor, designFileCandidates, mapItems, overflowProblem, round
 
 /**
  * Run a shoot inside a slot of the machine-wide slot file (A8): waits for a free one, and
- * releases it whatever the shoot does, an error included.
+ * releases it whatever the shoot does, an error included. A wait of a second or more is written to
+ * the run's journal as a `wait slot` line, for the runs ledger.
  */
 export function withShootSlot(ctx, fn) {
-  return withSlot({ file: slotsFile(ctx.env), label: `shoot ${ctx.feature ?? ''}`.trim(), onWait: (m) => ctx.out.line(m) }, fn);
+  return withSlot({ file: slotsFile(ctx.env), label: `shoot ${ctx.feature ?? ''}`.trim(), onWait: (m) => ctx.out.line(m) }, async (slot) => {
+    if (slot.waitedMs >= 1000) await ctx.journal?.(waitEvent('slot', slot.waitedMs / 60000));
+    return fn(slot);
+  });
 }
 
 export const SAFE_TO_CLICK = new Set(['none', 'free']);

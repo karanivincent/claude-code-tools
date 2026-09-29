@@ -1,7 +1,9 @@
 # Builder brief: build the page from its design pictures
 
 You build (or rebuild) one page so that each of its states looks and behaves like its design
-picture. You are the `delivery-tools:picture-builder` agent, dispatched into this run's own
+picture. Round 1 is the `delivery-tools:picture-builder` agent (Opus); each fix round is a fresh
+`delivery-tools:picture-fixer` agent (Sonnet) that starts from the first builder's notes. Either
+way you are dispatched into this run's own
 worktree, never a fresh one of your own — the run's dev server watches this worktree, so a change
 it can't see is a change nobody can picture. (`delivery-tools:delivery-builder` is a different
 agent, for full mode, that does work in its own worktree; it is never the right one here.) Commit
@@ -24,6 +26,26 @@ Paths are relative to the worktree root.
   code: the page uses the repo's own components, styles and data.
 - In a fix round: the round's `review.json` and `review-*.md` in `.delivery/<feature>/rounds/<n>/`,
   with the live pictures the reviewers judged.
+
+## Builder notes
+
+`.delivery/<feature>/builder-notes.md` is how a fix round starts without rediscovering the page.
+The first builder writes it while building, and each fix round adds to it. Keep it short and
+factual, under these headings:
+
+- **Files**: the page's files and what each holds (route, screen components, data hooks, tests).
+- **Data**: where each screen's data comes from (queries, API routes, tables), and anything odd
+  about it.
+- **Components**: which design-first components it uses, and anything drawn by hand and why.
+- **Test ids**: any the checklist names that live somewhere unexpected.
+- **Checks**: the exact typecheck, lint and unit-test commands for these files, and how long they
+  take.
+- **Traps**: what cost you time (a style that leaks from the frame, a query key shared with
+  another page, a world the page needs seeded first).
+
+In a fix round, read the notes before the review, fix what the round's `review.json` lists (its
+`must fix` items; `small` ones when they are quick), and add a dated line under the headings that
+changed. Do not rebuild what already matches.
 
 In an update run (the run's state names a `from` run) the page already exists and round 1 has
 already pictured it: change only what the round's review lists, and keep everything else as it is.
@@ -115,11 +137,15 @@ Ignore differences that need a ruler to see.
 - Never sign in as a world's fixture user, or picture a state that needs one, before that world is
   seeded. Say so in your report instead.
 - Keep the tests passing, and update a test when the design changed what it asserts. Run the
-  repo's unit tests for the files you touched, its typecheck and its lint before your last commit.
+  repo's unit tests for the files you touched, its typecheck and its lint before your last commit,
+  and read their output: a change you did not check is not done. Name the checks and their results
+  in your report.
 - Never push. Never use a browser tool. Never dispatch another agent.
 
 ## Report
 
 Write `.delivery/<feature>/rounds/builder-report.md`, and in a fix round add a section to it. Say
-what you changed per screen, which states still differ and why, and anything you couldn't do.
-Reply with your commits.
+what you changed per screen, which states still differ and why, the checks you ran, and anything
+you couldn't do. Update `builder-notes.md`. Reply with your commits, and end with one line
+`Outcome: done`, or `Outcome: blocked` when a check still fails or something stopped you (the
+delivery hook records it for the runs ledger).

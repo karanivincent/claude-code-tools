@@ -47,6 +47,18 @@ Look at the two pictures side by side and ask:
 
 An item the capture didn't reach gets one line saying so.
 
+## A close look
+
+When a difference is small (an icon, a border, a number, a badge's colour) or the pictures are
+dense, cut the same box out of both instead of guessing from the whole page:
+
+    node scripts/delivery.mjs crop --round <n> --item <ITEM> --box x,y,w,h
+
+The box is in pixels of the pictures as they are on disk; the command writes the two crops at
+twice the size and prints their paths. Read both. It is the only command you run. Use it before
+you call a difference `must fix` that you cannot see plainly at full size, and never to hunt for
+differences that need a ruler.
+
 ## Phone items
 
 - There is no sidebar or top bar to grade at either width. Both are cropped away.

@@ -292,7 +292,7 @@ test('the profile and run-record schemas accept the new keys and stay strict', (
   assert.equal(bad({ ...GRADER, keyEnv: 'not a name' }), true);
   assert.equal(bad({ ...GRADER, endpoint: 'ftp://x' }), true);
   assert.equal(validateProfile(makeProfile({ review: { other: 1 } })).length > 0, true);
-  const base = { schemaVersion: 1, feature: 'widgets', endedAt: '2026-01-15T20:00:00.000Z', pluginVersion: '1', phases: Object.fromEntries(['intake', 'render', 'map', 'seed', 'build', 'shoot', 'review', 'ci'].map((p) => [p, null])), founder: null, rounds: [], reviewers: [], ciAfterPr: [], improvements: [], autoChanges: [] };
+  const base = { schemaVersion: 2, feature: 'widgets', endedAt: '2026-01-15T20:00:00.000Z', pluginVersion: '1', estimate: false, phaseCost: {}, slotWaits: null, main: null, agents: [], phases: Object.fromEntries(['intake', 'render', 'map', 'seed', 'build', 'shoot', 'review', 'ci'].map((p) => [p, null])), founder: null, rounds: [], reviewers: [], ciAfterPr: [], improvements: [], autoChanges: [] };
   assert.equal(validateAgainst('run-record', base).ok, true);
   assert.equal(validateAgainst('run-record', { ...base, shadow: { answered: 3, errors: 1 } }).ok, true);
   assert.equal(validateAgainst('run-record', { ...base, shadow: { answered: 3 } }).ok, false);

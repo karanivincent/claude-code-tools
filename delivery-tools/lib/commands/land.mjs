@@ -4,7 +4,6 @@
 import { defineCommand } from '../core/command.mjs';
 import { parseCommandArgs, intFlag } from '../core/args.mjs';
 import { landEvidence, landResult, runLand, withRun } from '../lifecycle/land.mjs';
-import { runRetro, reportLines } from '../retro/retro.mjs';
 
 export default defineCommand({
   name: "land",
@@ -18,8 +17,11 @@ naming it, the owed loop test on staging (run once per merge commit), the stagin
 captures re-validated and re-checked (M3, M7, M10; M12 on the founder's organisation), no rows
 left behind (M14), every claimed child closed, a green ready record for the PR's head, and the
 release block on the epic and in the handover (migrations pending production, the tag, the prod:
-title and the merge method). When all of that holds, the epic closes through commands.epicClose
-and the Scope issue closes. The release itself stays with the founder.
+title and the merge method). When all of that holds, land runs delivery retro, which writes the
+run's line to docs/delivery/runs.jsonl, and refuses to finish until that line is committed (on the
+base branch or on this branch): commit the file in the run's handover PR and run land again. Only
+then does the epic close through commands.epicClose, and the Scope issue with it. A retro that
+fails is a red land. The release itself stays with the founder.
 
 The epic may be given without a run in this worktree: the feature is read from its marker.
 
@@ -52,6 +54,7 @@ common options:
       else ctx.out.fail(c.id, c.detail);
     }
     if (!values.check) {
+      for (const l of res.retroLines ?? []) ctx.out.line(l);
       for (const f of res.failures.filter((x) => !ev.checks.some((c) => c.id === x.code))) ctx.out.fail(f.code, f.message);
       if (res.closed) ctx.out.line(`closed #${epic} through the profile's epic-close command; run the general-tools loose-ends audit for the handover's manual steps`);
     }
@@ -64,14 +67,6 @@ common options:
       counts: { ok: ev.checks.filter((c) => c.ok).length, red: ev.checks.filter((c) => !c.ok).length, sha: String(ev.mergeSha ?? 'none').slice(0, 12), closed: res.closed ? 1 : 0 },
       inputs: { epic }, outputs: ev.checks.map((c) => [c.id, c.ok]),
     });
-    // The last step of a run: the retro records it. A retro that fails warns and never fails land.
-    if (!values.check && res.exit === 0 && run.paths) {
-      try {
-        for (const l of reportLines(await runRetro(run, run.paths))) ctx.out.line(l);
-      } catch (err) {
-        ctx.out.warn(`retro failed (land is unaffected): ${err.message}`);
-      }
-    }
     return res.exit;
   },
 });

@@ -11,9 +11,9 @@ Agent tool, from this session only:
 
 | Field | Value |
 |---|---|
-| `subagent_type` | `delivery-tools:delivery-builder` |
+| `subagent_type` | `delivery-tools:delivery-builder` (Sonnet at medium effort) for a unit whose `model` is `sonnet`; `delivery-tools:delivery-builder-opus` (Opus at high) for the contract unit and `risk: "high"` units, whose `model` is `opus`. The agent sets the effort, which the Agent tool cannot; `models.json` names both as the `unit-builder` and `contract-builder` roles |
 | `isolation` | `worktree` |
-| `model` | the unit's `model` (`opus` for the contract unit and `risk: "high"` units) |
+| `model` | the unit's `model` |
 | `run_in_background` | `true`: this is the top-level session, so the builder survives the turn and you are notified when it ends |
 | `description` | `Build <UNIT>` |
 | `prompt` | exactly the text below, nothing added |

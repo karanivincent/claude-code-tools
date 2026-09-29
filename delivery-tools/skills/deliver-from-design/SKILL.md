@@ -20,7 +20,7 @@ This file says which skill owns each step and what may never happen. Load the sk
 | 2 Preflight | this skill, `delivery preflight` | every probe is green or waived |
 | 3 Pictures | `design-inventory`, steps 1 to 4 only | every in-scope design state has a render |
 | 4 Map, worlds, build, rounds, ship | `picture-build` (`delivery prepush` before the first push) | the last round is compiled, CI is green, and the founder has the preview and the comparison page |
-| 5 Retro | `delivery retro` (`delivery land` runs it last; NEXT names it once `ready` is green) | the run's line is in `runs.jsonl`, and the report lists what changed automatically, what it reverted and what needs the founder |
+| 5 Retro | `delivery retro` once `ready` is green (NEXT names it), and commit `docs/delivery/runs.jsonl` in the run's PR; `delivery land` runs it again and refuses to close the epic until the line is committed | the run's line is in the committed `runs.jsonl`, and the report lists what changed automatically, what it reverted and what needs the founder |
 
 `delivery status` prints where the run is and one NEXT line. If memory and NEXT disagree, NEXT wins.
 
@@ -28,7 +28,19 @@ This file says which skill owns each step and what may never happen. Load the sk
 sorts what repeated: a small fix is applied by itself through a plugin PR (or written to the run's
 `steers.md`), a large one becomes a proposal file and a `needs-decision` issue and is never applied.
 Copy its "Needs you" section, and its "Changed automatically" and "Reverted" lists, into the run's final
-report. It never schedules itself, seeds, dials or touches production.
+report. It never schedules itself, seeds, dials or touches production. A model change it proposes
+(to `models.json`) is always a proposal for the founder, never applied.
+
+**Every run is measured.** The plugin's SubagentStop hook writes each agent's role, model, effort,
+minutes, tokens and outcome to the run's journal. After an agent returns with `Outcome: blocked`,
+nothing more is needed; when the hook did not fire, `delivery log-agent --role <role> --id <id>
+--outcome <word>` records it. When the run waits on the founder in chat, `delivery log-wait
+--founder --minutes <n>` once the answer comes. `delivery runs` prints the table across runs: time
+by phase, time and cost by model, rounds to green and match rate per round.
+
+**Who does what** is in `<plugin>/models.json`: each role's model, effort and agent. This session
+(Opus) runs the run, decides and triages; it hands the jobs below to their agents and does not do
+them itself. A model swap is a large change: only the founder makes it, in that file.
 
 **Full mode** is the older path: coverage plan, units in waves, mechanical gates and a graded
 audit (`coverage-plan`, `epic-build`, `design-audit`). Use it only when the founder asks for it by

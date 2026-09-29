@@ -1,10 +1,10 @@
 ---
-name: delivery-builder
-description: Builds one unit of a delivery run's plan in its own git worktree, from the delivery brief and a unit file, and writes one unit report. Dispatched by the main session of a delivery run (the epic-build skill); not for general coding tasks.
+name: delivery-builder-opus
+description: Builds the contract unit, or a high-risk unit, of a delivery run's plan in its own git worktree, from the delivery brief and a unit file, and writes one unit report. Dispatched by the main session of a delivery run (the epic-build skill); not for general coding tasks.
 tools: Read, Edit, Write, Bash, Grep, Glob
 disallowedTools: Agent, Skill, WebFetch, WebSearch, mcp__Claude_Browser__*, mcp__claude-in-chrome__*, mcp__computer-use__*
-model: sonnet
-effort: medium
+model: opus
+effort: high
 isolation: worktree
 maxTurns: 250
 color: green

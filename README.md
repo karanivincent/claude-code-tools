@@ -78,7 +78,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### delivery-tools `v0.13.4`
+### delivery-tools `v0.14.0`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -136,7 +136,18 @@ the profile's `testData.timeZone`, and `shoot` refuses a dev server whose build 
 build replaced, before and after it pictures. Since 0.13.3 a reach step's test id matches exactly
 before it falls back to that id's numbered rows, so `editor-save` no longer clicks
 `editor-save-status`. Since 0.13.4 a `preset` reach changes the design component's props after
-boot rather than its state, so a design's `componentDidUpdate` sees the change. An export
+boot rather than its state, so a design's `componentDidUpdate` sees the change. Since 0.14.0
+every run is measured and each job runs on the model that fits it: `land` runs the retro and
+refuses to close the epic until the run's line in `runs.jsonl` is committed; the line records per
+phase the models used, agent tokens and estimated cost, every agent's role, model, effort, minutes,
+tokens and outcome (a `SubagentStop` hook captures them from the transcripts), and founder and slot
+waits; `delivery runs` prints the cross-run table (time by phase, time and cost by model, rounds to
+green, match rate per round) and `delivery backfill-run` records an earlier run as an estimate.
+`models.json` names each role's model and effort, which the retro may propose changing but never
+changes: extractors Sonnet at low; the rules, map, seed-world and CI-fix jobs a Sonnet worker at
+medium; the first build Opus at high, leaving a notes file for each fix round's fresh Sonnet fixer;
+reviewers Sonnet at medium with `delivery crop` for a close look; the full-mode auditor Sonnet at
+high. Every Sonnet role that edits runs a real check before it reports done. An export
 holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run
@@ -147,13 +158,18 @@ and keep it current is in [`delivery-tools/docs/OPERATING.md`](delivery-tools/do
 | Agent | Description |
 |-------|-------------|
 | `delivery-extractor` | Reads a design export or a Scope reply and writes one part file. Runs nothing, opens no browser, and takes every word from a render rather than from the design's source |
-| `picture-builder` | Picture mode: the one builder, on opus, in the run's own worktree so the dev server serves its changes; commits its own work |
-| `delivery-builder` | Full mode: builds one unit of the coverage plan in its own worktree and reports back |
-| `delivery-auditor` | Full mode: judges captured screens against the design and writes findings |
+| `picture-builder` | Picture mode: the first build, Opus at high, in the run's own worktree so the dev server serves its changes; commits its own work and keeps `builder-notes.md` |
+| `picture-fixer` | Picture mode: one fresh fixer per fix round, Sonnet at medium, from the round's review and the builder's notes; runs a real check before it reports done |
+| `picture-reviewer` | Picture mode: compares one batch of live and design pictures, Sonnet at medium, with `delivery crop` for a close look |
+| `delivery-worker` | The rules, map, seed-world and CI-fix jobs, Sonnet at medium, told its role on the prompt's first line; done means its check passes |
+| `delivery-builder` | Full mode: builds one unit of the coverage plan in its own worktree and reports back (Sonnet at medium) |
+| `delivery-builder-opus` | Full mode: the contract unit and high-risk units (Opus at high) |
+| `delivery-auditor` | Full mode: judges captured screens against the design and writes findings (Sonnet at high, with `delivery crop`) |
 
-Picture mode's mapper and reviewers are general agents given one brief each (the builder is
-`picture-builder`, given `briefs/builder-picture.md`): `briefs/mapper.md` and `briefs/reviewer-picture.md`; a components run's
-mapper uses `briefs/components-mapper.md`.
+Which agent, model and effort each role uses is in `delivery-tools/models.json`. The briefs:
+`briefs/builder-picture.md` (builder and fixer), `briefs/reviewer-picture.md`, `briefs/mapper.md`,
+`briefs/rules.md`, `briefs/seed-writer.md` and `briefs/ci-fixer.md`; a components run's mapper
+uses `briefs/components-mapper.md`.
 
 **Skills:**
 
@@ -167,14 +183,17 @@ mapper uses `briefs/components-mapper.md`.
 | `epic-build` | Full mode: parallel builders, wave by wave, into one integration branch |
 | `design-audit` | Full mode: graded captures with severity floors |
 
-**CLI:** `delivery <command>`, 51 commands. Picture mode uses `map` (check the button map and
+**CLI:** `delivery <command>`, 57 commands. Picture mode uses `map` (check the button map and
 write the checklist; `--from-plan` converts a full-mode run), `seed` (`--refresh all` resets every
 world), `shoot` (full-height pictures of the page area next to the cropped design, at desktop and phone
 widths, a button check, a sideways-scroll check on the phone, data-changing states last), `review` (the reviewers' notes into `review.json` and a comparison
 page) and `sign-in` (a one-time link that signs a person in as a world's test user). `delivery status` prints the one NEXT line the run is steered by. Since 0.9.0: `components`
 (the product-wide component map, checked against the repo and a design export), `design review`
 (compares a new export with the run's snapshot, headlessly) and `brief new|check|pack|sent` (write,
-check, pack and record a design brief from `templates/design-brief.md`).
+check, pack and record a design brief from `templates/design-brief.md`). Since 0.14.0: `runs` (the
+cross-run table), `backfill-run` (an estimated ledger line for an earlier run), `log-agent` and
+`log-wait` (an agent or a wait the hook did not record), `crop` (the same box of two pictures,
+scaled up) and `hook subagent-stop`.
 
 ## Releases
 

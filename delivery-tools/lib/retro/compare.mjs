@@ -10,6 +10,7 @@ import { createHash } from 'node:crypto';
 import { changeKey } from './size.mjs';
 import { PHASES } from './record.mjs';
 import { loadTunables } from './tunables.mjs';
+import { loadModels } from './models.mjs';
 
 export const SLOW_RATIO = 1.3;
 export const SLOW_ALONE_MINUTES = 60;
@@ -39,6 +40,11 @@ export function metricValue(record, name) {
   if (name === 'founder.waitMinutes') return record.founder ? record.founder.waitMinutes : null;
   if (name === 'rounds.toFix') return record.rounds?.length ? record.rounds.reduce((n, r) => n + r.toFix, 0) : null;
   if (name === 'rounds.count') return record.rounds?.length ? record.rounds.length : null;
+  // cost.total, cost.<role>, notDone.<role>: from the record's agents (and main session, for the total).
+  const agents = record.agents ?? [];
+  if (name === 'cost.total') return agents.length || record.main ? round2(agents.reduce((n, a) => n + (a.costUsd ?? 0), 0) + (record.main?.costUsd ?? 0)) : null;
+  if (head === 'cost' && tail) { const mine = agents.filter((a) => a.role === tail); return mine.length ? round2(mine.reduce((n, a) => n + (a.costUsd ?? 0), 0)) : null; }
+  if (head === 'notDone' && tail) { const mine = agents.filter((a) => a.role === tail); return mine.length ? mine.filter((a) => a.outcome !== 'done').length : null; }
   return null;
 }
 
@@ -48,11 +54,52 @@ const slug = (t) => String(t).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(
 export function idFor(change) {
   const key = changeKey(change) + (change.kind === 'tunable' ? `>${change.to}` : '');
   const hash = createHash('sha256').update(key).digest('hex').slice(0, 8);
-  const label = slug(change.key ?? change.brief ?? change.text ?? change.description ?? change.kind) || 'change';
+  const label = slug(change.key ?? change.brief ?? (change.kind === 'model' ? change.role : null) ?? change.text ?? change.description ?? change.kind) || 'change';
   return `${change.kind === 'brief-sentence' ? 'brief' : change.kind === 'warn-check' ? 'warn' : change.kind}-${label}-${hash}`.replace(/^-+/, '');
 }
 
 const round1 = (n) => Math.round(n * 10) / 10;
+const round2 = (n) => Math.round(n * 100) / 100;
+const EFFORT_UP = { low: 'medium', medium: 'high', high: 'xhigh' };
+export const NOT_DONE_LIMIT = 2;
+export const OPUS_COST_FLOOR = 10;
+
+/**
+ * Model and effort changes the ledger's agents argue for, always as proposals (kind "model", never
+ * small): a Sonnet role with two or more agents in this run that did not finish ("blocked",
+ * "failed") goes up one effort step, or to Opus from high; an Opus role (the main session
+ * excepted) whose agents all finished in this run and the one before, at $10 or more in this run,
+ * is proposed for a trial on Sonnet at medium. Estimated lines never count. Pure.
+ */
+export function modelProposals(runs, current, models = loadModels()) {
+  const out = [];
+  if (current.estimate) return out;
+  const prev = [...runs].reverse().find((r) => r.feature !== current.feature && !r.estimate && (r.agents ?? []).length);
+  for (const [role, cfg] of Object.entries(models.roles)) {
+    if (role === 'main') continue;
+    const mine = (current.agents ?? []).filter((a) => a.role === role);
+    if (!mine.length) continue;
+    const notDone = mine.filter((a) => a.outcome !== 'done');
+    if (cfg.model === 'sonnet' && notDone.length >= NOT_DONE_LIMIT) {
+      const to = EFFORT_UP[cfg.effort] && cfg.effort !== 'high' ? { model: 'sonnet', effort: EFFORT_UP[cfg.effort] } : { model: 'opus', effort: 'high' };
+      out.push({
+        evidence: [{ feature: current.feature, phase: cfg.phase ?? 'none', minutesLost: round1(notDone.reduce((n, a) => n + (a.minutes ?? 0), 0)) }],
+        change: { kind: 'model', role, from: { model: cfg.model, effort: cfg.effort }, to, changesModel: true, paths: ['models.json', 'agents/'], description: `models.json: move the ${role} role from ${cfg.model} at ${cfg.effort} to ${to.model} at ${to.effort}; ${notDone.length} of its ${mine.length} agents in ${current.feature} did not finish (${notDone.map((a) => a.outcome).join(', ')})` },
+        metric: { name: `notDone.${role}`, baseline: notDone.length, better: 'lower' },
+      });
+    }
+    const cost = mine.reduce((n, a) => n + (a.costUsd ?? 0), 0);
+    const prevMine = (prev?.agents ?? []).filter((a) => a.role === role);
+    if (cfg.model === 'opus' && cost >= OPUS_COST_FLOOR && !notDone.length && prevMine.length && prevMine.every((a) => a.outcome === 'done')) {
+      out.push({
+        evidence: [{ feature: current.feature, phase: cfg.phase ?? 'none', minutesLost: 0 }, { feature: prev.feature, phase: cfg.phase ?? 'none', minutesLost: 0 }],
+        change: { kind: 'model', role, from: { model: cfg.model, effort: cfg.effort }, to: { model: 'sonnet', effort: 'medium' }, changesModel: true, paths: ['models.json', 'agents/'], description: `models.json: try the ${role} role on sonnet at medium for one run; on opus it finished every time in ${prev.feature} and ${current.feature} and cost $${round2(cost)} in ${current.feature}` },
+        metric: { name: `cost.${role}`, baseline: round2(cost), better: 'lower' },
+      });
+    }
+  }
+  return out;
+}
 
 /**
  * @param {object[]} earlier  the ledger's other runs, oldest first
@@ -105,6 +152,8 @@ export function compare(earlier, current, opts = {}) {
       metric: { name: 'rounds.toFix', baseline: baselineFix, better: 'lower' },
     });
   }
+
+  out.push(...modelProposals(runs, current, opts.models));
 
   const ids = new Set();
   return out.map((p) => ({ id: idFor(p.change), ...p })).filter((p) => !known.has(p.id) && !ids.has(p.id) && ids.add(p.id));

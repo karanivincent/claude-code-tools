@@ -11,7 +11,7 @@ import { HOOKS, bashPayload, browserPayload, hook, startPayload, timed } from '.
 
 const BUDGET_MS = 50;
 
-test('hooks.json is spec 15.2 exactly', () => {
+test('hooks.json is spec 15.2 exactly, plus SubagentStop for the runs ledger', () => {
   const cmd = (name) => [{ type: 'command', command: `"\${CLAUDE_PLUGIN_ROOT}/hooks/${name}.sh"` }];
   assert.deepEqual(JSON.parse(readFileSync(join(HOOKS, 'hooks.json'), 'utf8')), {
     hooks: {
@@ -20,12 +20,13 @@ test('hooks.json is spec 15.2 exactly', () => {
         { matcher: 'Bash', hooks: cmd('pre-bash') },
         { matcher: 'mcp__Claude_Browser__.*|mcp__claude-in-chrome__.*|mcp__computer-use__.*', hooks: cmd('pre-browser') },
       ],
+      SubagentStop: [{ hooks: cmd('subagent-stop') }],
     },
   });
 });
 
-test('the three scripts are executable POSIX sh that source common.sh', () => {
-  for (const name of ['session-start', 'pre-bash', 'pre-browser']) {
+test('the four scripts are executable POSIX sh that source common.sh', () => {
+  for (const name of ['session-start', 'pre-bash', 'pre-browser', 'subagent-stop']) {
     const path = join(HOOKS, `${name}.sh`);
     assert.ok(statSync(path).mode & 0o111, `${name}.sh is not executable`);
     assert.match(readFileSync(path, 'utf8'), /^#!\/bin\/sh\n/);
@@ -45,6 +46,7 @@ test('no run: every hook is silent, exits 0 and takes under 50 ms (median of 7)'
       ['pre-bash', bashPayload(dir, 'node scripts/fixtures/seed-widgets.mjs')],
       ['pre-browser', browserPayload(dir)],
       ['pre-browser', browserPayload(dir, 'agent-7f3a')],
+      ['subagent-stop', { ...browserPayload(dir, 'agent-7f3a'), hook_event_name: 'SubagentStop' }],
     ];
     for (const [name, payload] of cases) {
       const { median, last } = timed(7, () => hook(name, payload, { cwd: dir }));
@@ -67,7 +69,7 @@ test('a closed run counts as no run for the fast path too', async () => {
 test('the fast path never exits non-zero: empty, garbage and odd payloads, a cwd outside git', () => {
   const t = makeTempDir();
   try {
-    for (const name of ['session-start', 'pre-bash', 'pre-browser']) {
+    for (const name of ['session-start', 'pre-bash', 'pre-browser', 'subagent-stop']) {
       for (const payload of ['', 'not json', '{"cwd": 5}', JSON.stringify(bashPayload(t.dir, 'gh pr ready 3')), JSON.stringify(browserPayload('/nonexistent/dir', 'agent-2'))]) {
         const r = hook(name, payload, { cwd: t.dir });
         assert.equal(r.code, 0, `${name} with ${payload.slice(0, 40)}: ${r.stderr}`);

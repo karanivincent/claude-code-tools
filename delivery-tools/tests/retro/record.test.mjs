@@ -114,7 +114,7 @@ test('the ledger replaces a feature\'s line in place and appends a new feature',
     await writeRecord(file, b);
     await writeRecord(file, { ...a, pluginVersion: '9.9.9' });
     const all = await readLedger(file);
-    assert.deepEqual(all.map((r) => [r.feature, r.pluginVersion]), [['alpha', '9.9.9'], ['beta', '0.12.0']]);
+    assert.deepEqual(all.map((r) => [r.feature, r.pluginVersion]), [['alpha', '9.9.9'], ['beta', '0.14.0']]);
     assert.equal(readFileSync(file, 'utf8').trim().split('\n').length, 2, 'one JSON line per run');
     writeFileSync(file, 'not json\n');
     await assert.rejects(readLedger(file), /not JSON/);
@@ -142,26 +142,50 @@ test('delivery retro writes the run\'s line, is idempotent, and --dry-run writes
   } finally { repo.cleanup(); }
 });
 
-test('delivery land ends by running the retro; a retro that fails only warns', async () => {
+test('delivery land ends by running the retro, and closes the epic once the run\'s line is committed', async () => {
   const env = await landedRun();
   try {
     assert.equal(await landCommand.run(env.ctx, ['--epic', '101']), 0);
     const all = await readLedger(ledgerPath(env.repo.paths));
     assert.equal(all.length, 1);
+    assert.equal(all[0].schemaVersion, 2);
     assert.match(env.stdout.text(), /retro widgets: recorded/);
+    assert.match(env.stdout.text(), /ok ledger: .*committed \(HEAD\)/);
+    assert.equal(env.gh.db.issues.get(101).state, 'closed');
   } finally { env.repo.cleanup(); }
+});
 
-  const bad = await landedRun();
+test('land refuses to finish while the run\'s line is written but not committed, and finishes once it is', async () => {
+  const env = await landedRun({ ledger: false });
+  try {
+    assert.equal(await landCommand.run(env.ctx, ['--epic', '101']), 1);
+    const file = ledgerPath(env.repo.paths);
+    assert.ok(existsSync(file), 'the retro wrote the line');
+    assert.equal((await readLedger(file))[0].feature, 'widgets');
+    assert.match(JSON.stringify(env.ctx.out.failures()), /ledger.*written to docs\/delivery\/runs\.jsonl but not committed/);
+    assert.equal(env.gh.db.issues.get(101).state, 'open', 'the epic stays open');
+    env.repo.wtGit('add', 'docs/delivery/runs.jsonl');
+    env.repo.wtGit('commit', '-q', '-m', 'runs ledger');
+    env.repo.wtGit('push', '-q', 'origin', 'HEAD:main');
+    assert.equal(await landCommand.run(env.ctx, ['--epic', '101']), 0);
+    assert.match(env.stdout.text(), /ok ledger: .*committed \(origin\/main\)/);
+    assert.equal(env.gh.db.issues.get(101).state, 'closed');
+  } finally { env.repo.cleanup(); }
+});
+
+test('a retro that fails is a red land: no line, the epic stays open', async () => {
+  const bad = await landedRun({ ledger: false });
   try {
     mkdirSync(join(bad.repo.paths.deliveryDir, '..'), { recursive: true });
     writeFileSync(ledgerPath(bad.repo.paths), 'not json\n');
-    assert.equal(await landCommand.run(bad.ctx, ['--epic', '101']), 0, 'land still lands');
-    assert.match(bad.stderr.text(), /WARN retro failed/);
+    assert.equal(await landCommand.run(bad.ctx, ['--epic', '101']), 1);
+    assert.match(JSON.stringify(bad.ctx.out.failures()), /the retro failed, so the run has no line/);
+    assert.equal(bad.gh.db.issues.get(101).state, 'open');
   } finally { bad.repo.cleanup(); }
 });
 
 test('land --check never runs the retro', async () => {
-  const env = await landedRun();
+  const env = await landedRun({ ledger: false });
   try {
     await landCommand.run(env.ctx, ['--epic', '101', '--check']);
     assert.ok(!existsSync(ledgerPath(env.repo.paths)));

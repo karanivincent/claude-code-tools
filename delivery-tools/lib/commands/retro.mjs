@@ -12,10 +12,12 @@ export default defineCommand({
   summary: 'Record the run in the runs ledger, find what repeats, apply small fixes and ask about large ones',
   usage: `usage: delivery retro [--dry-run] [--propose <file.json>]
 
-Run at the end of a run (delivery land calls it; NEXT names it once ready is green). It writes one
-line for this run to docs/delivery/runs.jsonl (phase minutes, founder waiting, per-round counts,
-reviewer cost, CI failures after the PR, the run's workflow-improvements.md). Commit that file
-with the run. A re-run replaces the run's line.
+Run at the end of a run (NEXT names it once ready is green; delivery land runs it again and
+refuses to close the epic until the line is committed). It writes one line for this run to
+docs/delivery/runs.jsonl: phase minutes, founder and slot waits, per phase the models, agent tokens
+and estimated cost, every agent (role, model, effort, minutes, tokens, outcome), per-round counts,
+reviewer cost, CI failures after the PR, the run's workflow-improvements.md. Commit that file with
+the run. A re-run replaces the run's line. delivery runs prints the ledger across runs.
 
 It runs only in the delivery session: no schedule, no cron. It never touches production, never
 dials, never seeds and never opens a database.

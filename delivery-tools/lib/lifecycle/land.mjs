@@ -12,6 +12,7 @@
 // evidence plus the epic being closed.
 
 import { readdir } from 'node:fs/promises';
+import { relative } from 'node:path';
 import { gateResult } from '../core/gate.mjs';
 import { fillCommand } from '../core/profile.mjs';
 import { parseMarkers, hasMarker } from '../core/markers.mjs';
@@ -28,6 +29,8 @@ import {
 } from './run-info.mjs';
 import { ensureComment } from '../github/write.mjs';
 import { upsertHandoverBlock } from './handover.mjs';
+import { runRetro, reportLines } from '../retro/retro.mjs';
+import { ledgerPath } from '../retro/ledger.mjs';
 
 /** A check's outcome: ok, or red (1), pending (4) or inconsistent (5). */
 const ok = (id, detail) => ({ id, ok: true, exit: 0, detail });
@@ -353,26 +356,68 @@ export function landResult(checks) {
 }
 
 /**
- * land (without --check): the evidence with the acting steps, then, when everything holds, the
- * profile's epic-close command and the Scope issue closed.
+ * The ref whose committed runs ledger holds the feature's line: origin/<base> (the line came in with
+ * the run's PR, or a handover PR after it), else HEAD (committed on the run's branch); null when
+ * neither has it.
  */
-export async function runLand(ctx, { epic }) {
-  const ev = await landEvidence(ctx, { epic, mode: 'land' });
+export async function ledgerCommittedAt(ctx, { paths, base }) {
+  const rel = relative(paths.repoRoot, ledgerPath(paths));
+  for (const ref of [`origin/${base}`, 'HEAD']) {
+    const text = await ctx.git.show(ref, rel).catch(() => null);
+    if (!text) continue;
+    const has = String(text).split('\n').some((l) => { try { return JSON.parse(l).feature === paths.feature; } catch { return false; } });
+    if (has) return ref;
+  }
+  return null;
+}
+
+/**
+ * The run's line in the runs ledger, as land's last step before the epic closes: the retro writes
+ * it, and land refuses to finish until the line is committed. A retro that fails is a red land.
+ * @returns {Promise<{ ok: boolean, lines: string[], failure?: { code: string, message: string } }>}
+ */
+export async function recordRun(ctx, { paths, profile }) {
+  let lines;
+  try {
+    lines = reportLines(await runRetro(ctx, paths));
+  } catch (err) {
+    return { ok: false, lines: [], failure: { code: 'ledger', message: `the retro failed, so the run has no line in the runs ledger: ${err.message}; fix it and run land again` } };
+  }
+  const rel = relative(paths.repoRoot, ledgerPath(paths));
+  const base = profile.repo.base;
+  await ctx.git.raw(['fetch', 'origin', base]).catch(() => null);
+  const at = await ledgerCommittedAt(ctx, { paths, base });
+  if (at) return { ok: true, lines: [...lines, `ok ledger: the run's line in ${rel} is committed (${at})`] };
+  return {
+    ok: false, lines,
+    failure: { code: 'ledger', message: `the run's line is written to ${rel} but not committed: commit that file in the run's handover PR into ${base} (git add ${rel}), merge it, then run land again; the epic stays open until then` },
+  };
+}
+
+/**
+ * land (without --check): the evidence with the acting steps, then the run's line in the runs
+ * ledger, then, when everything holds, the profile's epic-close command and the Scope issue closed.
+ */
+export async function runLand(outer, { epic }) {
+  const ev = await landEvidence(outer, { epic, mode: 'land' });
   const res = landResult(ev.checks);
-  if (!res.ok) return { ...ev, ...res, closed: false };
+  if (!res.ok) return { ...ev, ...res, closed: false, retroLines: [] };
+  const ctx = withRun(outer, ev.paths);
   const profile = await ctx.profile();
+  const rec = await recordRun(ctx, { paths: ev.paths, profile });
+  if (!rec.ok) return { ...ev, ok: false, failures: [rec.failure], exit: EXIT.RED, closed: false, retroLines: rec.lines };
   const cmd = fillCommand(profile.commands.epicClose, { epic });
   const r = await ctx.runner.sh(cmd, { cwd: ctx.repoRoot, timeoutMs: 5 * 60_000 });
   if (r.code !== 0) {
     const failures = [{ code: 'epic-close', message: `${cmd} exited ${r.code}: ${lastLine(r.stderr, r.stdout)}` }];
-    return { ...ev, ok: false, failures, exit: EXIT.RED, closed: false };
+    return { ...ev, ok: false, failures, exit: EXIT.RED, closed: false, retroLines: rec.lines };
   }
   const plan = await readPlan(ev.paths, { optional: true });
   if (plan?.scopeIssue) {
     const s = await ctx.gh.issueGet(plan.scopeIssue);
     if (s && s.state === 'open') await ctx.gh.issueClose(plan.scopeIssue, { comment: `The run landed (#${epic} closed). Lines nobody answered kept their defaults; the release block on #${epic} records the outcome.` });
   }
-  return { ...ev, ok: true, failures: [], exit: 0, closed: true };
+  return { ...ev, ok: true, failures: [], exit: 0, closed: true, retroLines: rec.lines };
 }
 
 /**

@@ -33,8 +33,9 @@ test('its body says to commit its own work and never sign in before a world is s
 
 test('picture-build and the builder brief name the agent, and refuse delivery-builder in picture mode', () => {
   const skill = read('skills/picture-build/SKILL.md');
-  assert.match(skill, /`delivery-tools:picture-builder` agent \(model: opus\)/);
-  assert.match(skill, /Never dispatch it as `delivery-tools:delivery-builder`/);
+  assert.match(skill, /`delivery-tools:picture-builder` agent \(Opus, high\)/);
+  assert.match(skill, /fresh `delivery-tools:picture-fixer` agent \(Sonnet, medium\)/);
+  assert.match(skill, /Neither is ever\s+dispatched as `delivery-tools:delivery-builder`/);
   const brief = read('briefs/builder-picture.md');
   assert.match(brief, /`delivery-tools:picture-builder` agent/);
   assert.match(brief, /never the right one here/);

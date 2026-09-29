@@ -52,7 +52,8 @@ Worlds, widths, roles, locales, themes and checks for each mode: `references/mod
    `delivery seed --refresh <world>`), then run `delivery capture --mode <mode> --states <IDs>`.
    A state is reached only when the capture reaches it.
 2. **Mechanical checks.** `delivery check all`.
-3. **Auditors.** Dispatch one auditor (agent type `delivery-tools:delivery-auditor`) per screen
+3. **Auditors.** Dispatch one auditor (agent type `delivery-tools:delivery-auditor`: Sonnet at high
+   effort, with `delivery crop` for a close look, as `models.json`'s `auditor` role) per screen
    group, all in one message, in the foreground, each with the dispatch prompt below and nothing
    else. In full mode, add one auditor with `briefs/auditor-real-org.md` for the `real-org`
    capture run.

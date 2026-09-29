@@ -16,15 +16,17 @@ profile, in that project's repository (spec section 18).
 | The build record: briefs, slice reports, pressure-test records, the rehearsal log | the same repository, `docs/delivery/plugin-record/build/` |
 | The private replay set (real artefacts of one build that went wrong; never commit it here) | the same repository, `docs/delivery/replay/scripts-build/`, driven by its `scripts/delivery/replay.mjs` |
 
-## Test state, 2026-09-28
+## Test state, 2026-09-29
 
 ```
 node --test 'tests/**/*.test.mjs' 'skills/**/*.test.mjs'
 ```
 
-1132 tests: 1116 pass, 0 fail, 16 skipped (the replay tests, which need the private replay set, and
+1152 tests: 1136 pass, 0 fail, 16 skipped (the replay tests, which need the private replay set, and
 two real-browser render tests, which need `DELIVERY_PLAYWRIGHT_ROOT`). That is the whole suite after
-0.13.3 (a reach step's test id matches exactly first), 0.13.2 (`today` in the organisation's time zone; `shoot` names a dev server a build broke), 0.13.1 (`shoot` waits for each reach step's requests to answer), 0.13.0 (the shadow grader in `review`, which records an outside model's answers and never changes
+0.14.0 (the run audit: land requires the run's committed line in the runs ledger, record version 2
+with per-phase models and cost, agents and waits, the SubagentStop hook, `log-agent`, `log-wait`,
+`runs`, `backfill-run`, `crop`, and `models.json` with an agent per model and effort), 0.13.4, 0.13.3 (a reach step's test id matches exactly first), 0.13.2 (`today` in the organisation's time zone; `shoot` names a dev server a build broke), 0.13.1 (`shoot` waits for each reach step's requests to answer), 0.13.0 (the shadow grader in `review`, which records an outside model's answers and never changes
 a verdict), 0.12.0 (Part C: `delivery retro`, the runs ledger, the size rule in `lib/retro/size.mjs`, and
 `tunables.json`), 0.11.1 (a baseline refresh that adds nothing no longer writes `baseline.json`, so `ready` stops
 dirtying its own head), and 0.11.0 (A5 `delivery prepush` and A6 reviewing only what changed, in batches the CLI writes). A9

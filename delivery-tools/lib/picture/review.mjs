@@ -417,6 +417,7 @@ export function batchPrompt(o) {
     `Read ${o.pluginRoot}/briefs/reviewer-picture.md and follow it.`,
     `Feature: ${o.feature}   Worktree: ${o.worktree}`,
     `Round: ${o.roundRel}/   States: ${o.items.join(' ')}   Write: ${o.file}`,
+    `Close look: node scripts/delivery.mjs crop --round ${String(o.roundRel).split('/').pop()} --item <ITEM> --box x,y,w,h`,
   ];
   const steers = (o.steers ?? '').trim();
   return lines.join('\n') + (steers ? `\n\nSteers for this run (from ${o.steersRel ?? 'steers.md'}):\n${steers}` : '') + '\n';
