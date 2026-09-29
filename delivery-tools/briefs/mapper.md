@@ -105,6 +105,12 @@ don't write code.
   state that shows a table of scripts needs `"data": [ { "table": "call_scripts", "where": {
   "category": "renewals" }, "min": 3 } ]` if the design shows three or more rows. Leave `data` off
   a state whose reach world already has everything it needs by construction (most states).
+- `mask` (optional, per state, rare): a value no seed can pin, such as a generated id or a random
+  avatar colour, painted over on both pictures: `[ { "testid": "row-avatar", "why": "a random
+  colour" } ]`. Every mask is counted in the runs ledger. Never mask a name, a count or a date:
+  those are seeded from the design.
+- The fixture users' `name` (on each `worlds[].users[]` entry): the design's name for the signed-in
+  person, when the design shows one.
 - Test worlds: one world per distinct data situation the states need (the design's own data, empty,
   a messy one, one per special case). Each world needs a world file in
   `docs/delivery/<feature>/worlds/<id>.json`. Write the missing ones in the shape of the existing

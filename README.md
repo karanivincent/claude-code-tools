@@ -78,7 +78,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### delivery-tools `v0.16.0`
+### delivery-tools `v0.17.0`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -160,7 +160,12 @@ world whose reset the safety scan refuses is not pictured. Each difference in a 
 is looked up in the world: missing rows are a data gap for the seed worker, rows present a must fix
 for the fixer, and dates are compared by format. `shoot --only <items|data-gaps>` re-shoots into
 the same round, `review --plan` then reviews just those items, and `delivery runs` prints data gaps
-per round, the plan's measure of success. An export
+per round, the plan's measure of success. Since 0.17.0 the worlds are protected from what changes
+under them: `seed --check` refuses a table the worlds write whose columns changed since `seed
+--plan` and a world named like another run's fixture organisation; a world file lists the shared
+rows it reads as `globals`, hashed at `seed --apply`, and `shoot` warns when one changed; and a
+value no seed can pin is masked by test id on both pictures, listed in the checklist and counted
+per round in the ledger and in `delivery runs`. An export
 holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run

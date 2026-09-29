@@ -29,6 +29,40 @@ export function withShootSlot(ctx, fn) {
 }
 
 export const SAFE_TO_CLICK = new Set(['none', 'free']);
+/** The colour a masked value is painted in, on the live and the design picture alike. */
+export const MASK_COLOR = '#FF00FF';
+
+/** The test ids a state masks (R12). */
+export function maskTestids(state) {
+  return (state?.mask ?? []).map((m) => m.testid).filter(Boolean);
+}
+
+const matchesTestid = (id, t) => id === t || String(id ?? '').startsWith(`${t}-`);
+
+/**
+ * The boxes of the elements a DOM (a design render's or a live capture's dom.json) gives the masked
+ * test ids: exactly, or as "<id>-<n>" rows.
+ * @returns {{ x: number, y: number, w: number, h: number }[]}
+ */
+export function maskBoxes(dom, testids) {
+  if (!dom || !Array.isArray(dom.elements) || !testids?.length) return [];
+  return dom.elements.filter((e) => e.visible !== false && e.box && testids.some((t) => matchesTestid(e.testid, t))).map((e) => e.box);
+}
+
+/**
+ * A DOM without what the masks cover: every element whose centre lies inside a masked box, so the
+ * text comparison never counts a masked value as a difference.
+ */
+export function maskDom(dom, testids) {
+  const boxes = maskBoxes(dom, testids);
+  if (!boxes.length) return dom;
+  const inside = (b) => boxes.some((m) => {
+    const cx = b.x + b.w / 2;
+    const cy = b.y + b.h / 2;
+    return cx >= m.x && cx <= m.x + m.w && cy >= m.y && cy <= m.y + m.h;
+  });
+  return { ...dom, elements: dom.elements.filter((e) => !e.box || !inside(e.box)) };
+}
 const MAX_HEIGHT = 8000;
 
 /**
@@ -467,7 +501,8 @@ async function shootItem(page, it, o, liveFacts = new Map()) {
     // are hidden first so they never paint over a state's own picture.
     await loc.scrollIntoViewIfNeeded().catch(() => {});
     await page.evaluate(hideBottomBars, BOTTOM_BAR_MAX).catch(() => 0);
-    await loc.screenshot({ path: join(o.outDir, roundFiles(it.key).live), animations: 'disabled', caret: 'hide' });
+    const masks = await maskLocators(page, s, rec);
+    await loc.screenshot({ path: join(o.outDir, roundFiles(it.key).live), animations: 'disabled', caret: 'hide', ...masks });
     return rec;
   }
 
@@ -492,9 +527,28 @@ async function shootItem(page, it, o, liveFacts = new Map()) {
   await page.evaluate(hideBottomBars, BOTTOM_BAR_MAX).catch(() => 0);
   // What the page says, read the way a design render's is, for the auto-match check (A6).
   const extracted = await page.evaluate(pageExtract, {}).catch(() => null);
-  liveFacts.set(it.key, extracted ? domFacts(extracted.dom, left) : null);
-  await page.screenshot({ path: join(o.outDir, roundFiles(it.key).live), clip: { x: left, y: top, width: size.width - left, height: height - top }, animations: 'disabled', caret: 'hide' });
+  liveFacts.set(it.key, extracted ? domFacts(maskDom(extracted.dom, maskTestids(s)), left) : null);
+  const masks = await maskLocators(page, s, rec);
+  await page.screenshot({ path: join(o.outDir, roundFiles(it.key).live), clip: { x: left, y: top, width: size.width - left, height: height - top }, animations: 'disabled', caret: 'hide', ...masks });
   return rec;
+}
+
+/**
+ * R12: the screenshot options that paint a state's masked test ids over, and the count of elements
+ * masked in `rec.masked` (for the ledger). A state with no masks gets no options.
+ */
+async function maskLocators(page, state, rec) {
+  const ids = maskTestids(state);
+  if (!ids.length) return {};
+  const mask = [];
+  let n = 0;
+  for (const t of ids) {
+    const loc = await locateTestid(page, t);
+    n += await loc.count?.().catch(() => 0) ?? 0;
+    mask.push(loc);
+  }
+  rec.masked = n;
+  return { mask, maskColor: MASK_COLOR };
 }
 
 /** The design picture of each item, cropped to the page area at its width the same way. */
@@ -509,7 +563,13 @@ async function cropDesigns(browser, o, items) {
       const cropped = cropFor(o.map, it.width, it.id);
       const designLeft = cropped.designLeft ?? 0;
       const data = readFileSync(join(o.designDir, file)).toString('base64');
-      await page.setContent(`<body style="margin:0"><img id="d" src="data:image/png;base64,${data}"></body>`);
+      // R12: the design's masked values are painted over exactly as the live page's are.
+      let boxes = [];
+      if (maskTestids(it.state).length) {
+        try { boxes = maskBoxes(JSON.parse(readFileSync(join(o.designDir, file.replace(/\.png$/, '.dom.json')), 'utf8')), maskTestids(it.state)); } catch { boxes = []; }
+      }
+      const paint = boxes.map((b) => `<div style="position:absolute;left:${b.x}px;top:${b.y}px;width:${b.w}px;height:${b.h}px;background:${MASK_COLOR}"></div>`).join('');
+      await page.setContent(`<body style="margin:0;position:relative"><img id="d" src="data:image/png;base64,${data}">${paint}</body>`);
       const size = await page.evaluate(() => new Promise((res) => {
         const img = document.getElementById('d');
         const done = () => res({ w: img.naturalWidth, h: img.naturalHeight });
@@ -569,7 +629,7 @@ async function recordPictureFacts(browser, o, report, liveFacts, seeded = new Ma
       const file = designFileCandidates(it.state, it.width).find((f) => existsSync(join(o.designDir, f)));
       let designDom = null;
       if (file) { try { designDom = JSON.parse(readFileSync(join(o.designDir, file.replace(/\.png$/, '.dom.json')), 'utf8')); } catch { designDom = null; } }
-      const dFacts = designDom ? domFacts(designDom, cropFor(o.map, it.width, it.id).designLeft ?? 0) : null;
+      const dFacts = designDom ? domFacts(maskDom(designDom, maskTestids(it.state)), cropFor(o.map, it.width, it.id).designLeft ?? 0) : null;
       const lFacts = liveFacts.get(it.key) ?? null;
       rec.factsAgree = dFacts && lFacts ? factsAgree(lFacts, dFacts) : null;
       // R3: a difference in a contract data value, sorted by looking it up in the world as seeded.

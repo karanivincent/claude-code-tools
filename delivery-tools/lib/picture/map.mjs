@@ -162,6 +162,15 @@ export function validateMap(map, opts = {}) {
         if (d.min !== undefined && !(Number.isInteger(d.min) && d.min >= 1)) problems.push(`${dwhere} min must be a whole number of at least 1`);
       });
     }
+    // R12 of stable picture data: a value no seed can pin (a generated id, a random avatar) is
+    // masked by test id on both pictures, listed per state and counted in the ledger.
+    if (s.mask !== undefined) {
+      if (!Array.isArray(s.mask)) problems.push(`${where} mask must be a list of { "testid": ..., "why": ... }`);
+      else s.mask.forEach((m, i) => {
+        if (!m || typeof m.testid !== 'string' || !m.testid) problems.push(`${where} mask[${i}] needs a testid`);
+        if (!m || typeof m.why !== 'string' || !m.why.trim()) problems.push(`${where} mask[${i}] needs a why: masks are only for values no seed can pin`);
+      });
+    }
     const buttons = s.buttons ?? [];
     for (const b of buttons) {
       if (!b.label && !b.testid) problems.push(`${where} has a button with neither a label nor a test id`);
@@ -280,6 +289,7 @@ export function renderChecklist(map, { rules = null } = {}) {
       const fx = b.effect && !SAFE_TO_CLICK.has(b.effect) ? ` [${b.effect}: never clicked by the capture]` : '';
       lines.push(`- Button "${b.label ?? b.testid}"${b.testid ? ` (${b.testid})` : ''} → ${to}${who}${width}${fx}`);
     }
+    for (const m of s.mask ?? []) lines.push(`- Masked on both pictures: ${m.testid} (${m.why}); not a difference`);
     for (const r of rulesForState(rules, s.id)) lines.push(ruleLine(r));
     lines.push('');
   }

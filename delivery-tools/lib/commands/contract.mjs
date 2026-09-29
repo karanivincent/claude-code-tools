@@ -51,6 +51,12 @@ common options:
       const states = [...new Set(s.unlabelled.map((u) => u.state))];
       ctx.out.fail('contract-unlabelled', `${s.unlabelled.length} text(s) in ${states.length} state(s) to label (${states.slice(0, 8).join(', ')}${states.length > 8 ? ', ...' : ''}): dispatch the labeller (Role: contract, briefs/contract-labeller.md, Write: ${rel(labelsPath(paths))}), then run this again`);
     }
+    // R12: a random value is masked by test id in the map, or it differs in every picture.
+    const masked = new Set((map.states ?? []).filter((st) => st.mask?.length).map((st) => st.id));
+    for (const [id, st] of Object.entries(r.contract.states)) {
+      const random = (st.texts ?? []).filter((e) => e.label === 'random').map((e) => `"${e.text}"`);
+      if (random.length && !masked.has(id)) ctx.out.line(`${id} shows random value(s) ${random.join(', ')} and masks nothing: give the map's state a mask ([{ "testid": ..., "why": ... }]) for each`);
+    }
     for (const x of s.inconsistent) ctx.out.line(`inconsistent design: ${x.state}: ${x.why} (send it to Claude Design with design-send; seed --check skips it)`);
     if (!s.unlabelled.length && !s.invalid.length) ctx.out.line('next: delivery seed --plan, then --check (it refuses a data value no world holds)');
     ctx.out.set('contract', { states: s.states, texts: s.texts, data: s.data, fixed: s.fixed, random: s.random, unlabelled: s.unlabelled.length, invalid: s.invalid.length, inconsistent: s.inconsistent, changed: r.changed });

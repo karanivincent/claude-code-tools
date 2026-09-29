@@ -13,6 +13,7 @@ import { designIds, readMap, validateMap } from '../picture/map.mjs';
 import { listRounds, nextRound, roundDir, roundInfo, WORK_ROUND } from '../picture/rounds.mjs';
 import { dataGapItems, runShoot, selectStates, withShootSlot, writeShootJson } from '../picture/shoot.mjs';
 import { readContract } from '../picture/contract.mjs';
+import { changedGlobals, readGlobalHashes, readRecordedGlobals, readTableShapes, schemaChangeMessage, schemaChanges } from '../seed/drift.mjs';
 import { hasPhone } from '../picture/widths.mjs';
 
 export default defineCommand({
@@ -112,6 +113,7 @@ common options:
     const seedPlan = await readArtefact(paths, 'seedplan', { optional: true }).catch(() => null);
     const resetting = !values['no-reset'] && Boolean(seedPlan);
     if (!values['no-reset'] && !seedPlan) ctx.out.warn('no seedplan.json: the worlds are not reset before the shoot, so the pictures may show drifted data (delivery seed --plan)');
+    const drift = seedPlan ? await driftWarnings(ctx, db, paths, seedPlan, [...new Set(items.map((i) => i.state.reach.world))]) : [];
     let contract = null;
     try { contract = readContract(paths); } catch (err) { ctx.out.warn(`contract.json does not parse (${err.message}); data differences are not looked up`); }
     ctx.out.line(`${values.only !== undefined ? 're-' : ''}shooting ${items.length} ${noun}(s) on ${baseUrl} into ${outDir}`);
@@ -156,12 +158,36 @@ common options:
     if (musts.length) ctx.out.line(`must fix found by lookup (the world holds it, the page does not show it): ${musts.join(', ')}`);
     ctx.out.line(`pictures: ${outDir}`);
     if (values.only !== undefined) ctx.out.line(`next: delivery review --plan --round ${round} (it reviews only the ${items.length} re-shot ${noun}(s))`);
-    ctx.out.set('shoot', { round, outDir, reached: Object.keys(report).length - notReached.length, notReached, sideways, dirtyWorlds: dirty, states: Object.keys(doc.states).length, reset: resetting, reshot: values.only !== undefined, lookupDataGaps: gaps, lookupMust: musts });
+    ctx.out.set('shoot', { drift, round, outDir, reached: Object.keys(report).length - notReached.length, notReached, sideways, dirtyWorlds: dirty, states: Object.keys(doc.states).length, reset: resetting, reshot: values.only !== undefined, lookupDataGaps: gaps, lookupMust: musts });
     const exit = notReached.length ? EXIT.RED : EXIT.PASS;
     await ctx.journal({ command: `shoot --round ${round}`, exit, counts: { states: states.length, items: items.length, notReached: notReached.length, lookupDataGaps: gaps.length, lookupMust: musts.length } });
     return exit;
   },
 });
+
+/**
+ * R7 and fix 9 of stable picture data, before anything is pictured: a shared table a world depends
+ * on that changed since seed --apply, and a table the worlds write whose columns changed since
+ * seed --plan. Warnings, not refusals: the pictures still show the page, but a difference may be
+ * data, and the reviewer should know. A database that cannot be read says so in one line.
+ * @returns {Promise<string[]>}
+ */
+export async function driftWarnings(ctx, db, paths, seedPlan, worlds) {
+  const out = [];
+  try {
+    const recorded = await readRecordedGlobals(paths);
+    if (recorded) {
+      for (const c of changedGlobals(recorded, await readGlobalHashes(db, seedPlan, worlds))) {
+        out.push(`world ${c.world} depends on ${c.key}, which changed since the world was seeded (${c.since}): a picture that differs there may be data, not code`);
+      }
+    }
+    if (seedPlan.schema) for (const c of schemaChanges(seedPlan, await readTableShapes(db, seedPlan))) out.push(schemaChangeMessage(c));
+  } catch (err) {
+    out.push(`could not check the worlds' global dependencies and tables (${String(err?.message ?? err).split('\n')[0]})`);
+  }
+  for (const w of out) ctx.out.warn(w);
+  return out;
+}
 
 /**
  * Fixes 3 and 4 of stable picture data: restore one world to its seed right before its shots, and

@@ -20,6 +20,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { seedNow } from '../seed/evaluate.mjs';
 import { contractGaps, readContract } from '../picture/contract.mjs';
+import { readGlobalHashes, readTableShapes, recordGlobals, sameNameOrgs, schemaChangeMessage, schemaChanges } from '../seed/drift.mjs';
 
 const MODES = ['plan', 'check', 'apply', 'scan', 'refresh', 'teardown'];
 
@@ -43,9 +44,13 @@ modes:
                      the data contract (contract.json): every text labelled data must have a row
                      (or a fixture user's name) behind it, and every text must be labelled. Layer
                      1 derives the side-effect map afresh; layers 2 and 3 read the never-dial set,
-                     the fake-range probe and the guard probes from the test database. Writes nothing.
+                     the fake-range probe and the guard probes from the test database. Also refuses
+                     a table the worlds write whose columns changed since --plan recorded them, and
+                     a world whose organisation name another fixture organisation has. Writes nothing.
   --apply            refuse production and any project but the test project, run --check, write
-                     users and rows, then scan the database as it now is
+                     users and rows, record a hash of each world's global dependencies (a world
+                     file's "globals") in .delivery/<feature>/globals.json, then scan the database
+                     as it now is
   --scan             evaluate every row in every fixture world as it is now, and every guard probe
   --refresh <world>  re-apply a world (relative dates moved to now), delete the rows its own
                      organisation holds in the tables its plan seeds that the plan does not have
@@ -100,6 +105,16 @@ async function planMode(ctx) {
     plan, worldFiles, safety,
     tablesWithoutId: await tablesWithoutId(paths, profile),
   });
+  // Fix 9: the columns of every table the worlds write, so a migration mid-run is noticed.
+  let db = null;
+  try {
+    const { createDataAdapter } = await import('../../adapters/data/supabase.mjs');
+    db = await createDataAdapter(ctx);
+    const shapes = await readTableShapes(db, seedPlan);
+    if (Object.keys(shapes).length) seedPlan.schema = shapes;
+  } catch (err) {
+    ctx.out.line(`note: could not read the columns of the tables the worlds write (${err.message}); a schema change mid-run is not noticed`);
+  }
   await writeArtefact(paths, 'seedplan', seedPlan);
   ctx.out.line(`seed plan: ${seedPlan.worlds.length} world(s), ${seedPlan.rows.length} row(s), ${seedPlan.users.length} fixture user(s) -> ${paths.seedplan}`);
   // R9: rows whose times tie are given distinct seconds, in file order (the design's order).
@@ -119,8 +134,7 @@ async function planMode(ctx) {
   // M13's own layers, not itself a safety layer, so it never refuses the plan on its own.
   let violations = [];
   try {
-    const { createDataAdapter } = await import('../../adapters/data/supabase.mjs');
-    const db = await createDataAdapter(ctx);
+    if (!db) throw new Error('no database access');
     const allowed = await columnConstraints(db);
     violations = columnConstraintViolations(seedPlan.rows, allowed, await seedNow(ctx));
   } catch (err) {
@@ -208,10 +222,33 @@ function report(ctx, gate, evaluation, label) {
   return gate.ok ? EXIT.PASS : (gate.exit ?? EXIT.RED);
 }
 
+/**
+ * Fixes 7 and 9 of stable picture data, as seed gate failures: a table the worlds write whose
+ * columns changed since seed --plan, and another fixture organisation named like one of this
+ * run's. When the database cannot be read for them, a note says so and nothing is refused: they are
+ * not safety layers, which refuse on their own when the database is unreadable.
+ */
+async function driftFailures(ctx, gate, seedPlan) {
+  if (!seedPlan) return gate;
+  const failures = [];
+  try {
+    const { safety } = await ctx.safety();
+    const { createDataAdapter } = await import('../../adapters/data/supabase.mjs');
+    const db = await createDataAdapter(ctx);
+    if (seedPlan.schema) for (const c of schemaChanges(seedPlan, await readTableShapes(db, seedPlan))) failures.push({ code: 'M13-schema', message: schemaChangeMessage(c) });
+    for (const o of await sameNameOrgs(db, seedPlan, safety.fixtureOrgPrefix)) {
+      failures.push({ code: 'M13-owner', message: `world ${o.world}'s organisation "${o.name}" has the same name as fixture organisation ${o.other}, which is not this run's: a lane or a test that picks by name could write to either. Give the world its own orgName` });
+    }
+  } catch (err) {
+    ctx.out.line(`note: could not check for schema changes or fixture organisations of the same name (${String(err?.message ?? err).split('\n')[0]})`);
+  }
+  return failures.length ? combineGates([gate, gateResult(failures)]) : gate;
+}
+
 async function checkMode(ctx) {
   const r = await seedCheck(ctx);
   const paths = ctx.requirePaths();
-  const gate = withDataGaps(r.gate, r.seedPlan, paths, await seedNow(ctx));
+  const gate = await driftFailures(ctx, withDataGaps(r.gate, r.seedPlan, paths, await seedNow(ctx)), r.seedPlan);
   const exit = report(ctx, gate, r.evaluation, 'seed check');
   await ctx.journal({ command: 'seed --check', exit, counts: layerCounts(r.evaluation), inputs: r.seedPlan ?? null });
   return exit;
@@ -228,7 +265,7 @@ async function applyMode(ctx) {
     throw new ConfigError(`refusing to seed ${seedPlan.project}: the profile's test project is ${profile.environments.test.projectRef}`, { code: 'project' });
   }
   const check = await seedCheck(ctx, { seedPlan });
-  const checkGate = withDataGaps(check.gate, seedPlan, paths, await seedNow(ctx));
+  const checkGate = await driftFailures(ctx, withDataGaps(check.gate, seedPlan, paths, await seedNow(ctx)), seedPlan);
   if (!checkGate.ok) {
     const exit = report(ctx, checkGate, check.evaluation, 'seed check');
     ctx.out.line('nothing was written');
@@ -239,6 +276,16 @@ async function applyMode(ctx) {
   const db = await createDataAdapter(ctx, { projectRef: seedPlan.project, write: 'seed-apply' });
   const written = await applyRows(db, seedPlan, { now: await seedNow(ctx) });
   ctx.out.line(`wrote ${written.rows} row(s) and ${written.users.created} new fixture user(s) (${written.users.existing} already there) to ${seedPlan.project}${written.deferred ? `, then set the forward references of ${written.deferred} row(s)` : ''}`);
+  // R7: the worlds' global dependencies as they were when seeded; shoot warns when one changed.
+  if (seedPlan.worlds.some((w) => w.globals?.length)) {
+    try {
+      const hashes = await readGlobalHashes(db, seedPlan);
+      await recordGlobals(paths, hashes, ctx.clock.now().toISOString());
+      ctx.out.line(`recorded ${Object.values(hashes).reduce((n, h) => n + Object.keys(h).length, 0)} global dependenc(ies) of the worlds; shoot warns when one changes`);
+    } catch (err) {
+      ctx.out.warn(`could not record the worlds' global dependencies (${String(err?.message ?? err).split('\n')[0]})`);
+    }
+  }
   const scan = await seedScan(ctx);
   const exit = report(ctx, scan.gate, scan.evaluation, 'scan after write');
   await ctx.journal({ command: 'seed --apply', exit, counts: { written: written.rows, deferred: written.deferred, users: written.users.created, ...layerCounts(scan.evaluation) }, inputs: seedPlan });

@@ -59,6 +59,20 @@ export const WORLD_SCHEMA = Object.freeze({
   properties: {
     schemaVersion: { const: 1 },
     world: { $ref: 'common.schema.json#/$defs/FileId' },
+    // R7 of stable picture data: shared tables the world reads but does not own (voices, prompt
+    // layers, plan settings). seed --apply hashes them, and shoot warns when one changed since.
+    globals: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['table'],
+        properties: {
+          table: { type: 'string', pattern: '^[a-z_][a-z0-9_]*$' },
+          ids: { type: 'array', items: { type: 'string', pattern: '^[A-Za-z0-9._:-]+$' } },
+        },
+      },
+    },
     rows: {
       type: 'array',
       items: {
@@ -130,7 +144,7 @@ export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safet
     const file = worldFiles[w.id];
     if (!file) { problems.push(`world ${w.id} has no world file`); continue; }
     const orgId = fixtureId(feature, w.id, 'org');
-    worlds.push({ id: w.id, orgId });
+    worlds.push({ id: w.id, orgId, ...(file.globals?.length ? { globals: file.globals } : {}) });
     const userIds = new Map();
     const usedRoles = new Set();
     for (const u of w.users ?? []) {
