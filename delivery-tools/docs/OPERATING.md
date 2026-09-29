@@ -126,7 +126,7 @@ carries the owner's decisions.
 ### Render and shoot details
 
 - `design render` hashes every picture. Two different states with the same picture fail the render, naming both ids and the hash. If a state really shares a picture, add `"samePictureAs": "<id>"` to its inventory entry.
-- A design that reacts only when a prop changes needs `"kind": "preset"` with `props`. Render boots the design, then applies the props with a `set`, the way a `{"set": ...}` step does. A `prop` reach still bakes its props in as defaults.
+- A design that reacts only when a prop changes needs `"kind": "preset"` with `props`. Render boots the design, then changes those props on the running component (not its state, which is what a `{"set": ...}` step writes), so its `componentDidUpdate` sees the change once. A `prop` reach still bakes its props in as defaults, which never triggers `componentDidUpdate`.
 - `shoot` scrolls a components state into view and pictures it with `locator.screenshot()`, so a page that scrolls inside `<main>` is pictured whole. Fixed bars and dev overlays are hidden at every width.
 - A state that changes data and is shot at both widths is shot at desktop first. The world is then re-seeded (`refreshWorld`) before the phone shot.
 

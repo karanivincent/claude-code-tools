@@ -78,7 +78,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### delivery-tools `v0.13.3`
+### delivery-tools `v0.13.4`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -110,7 +110,7 @@ finds its slow parts before they cost a round: each map state lists the data its
 `seed --plan` lists every seed guard to approve at the start and refuses a value the database's
 CHECK or enum rules would reject; the rules pass runs straight after intake and the builder waits
 while a rule is owed to the design; picture mode names its own `picture-builder` agent; `design
-render` refuses two states with the same picture and applies presets as a `set`; `shoot` crops
+render` refuses two states with the same picture and applies presets as a prop change after boot; `shoot` crops
 components with the element itself, re-seeds between the desktop and phone shot of a state that
 changes data, and takes a machine-wide slot (`delivery slot`), at most two at a time. Since 0.11.0
 `delivery prepush` fails before the first push on a removed test id or text the base branch's plans
@@ -135,7 +135,8 @@ after it finishes, not while its dialog is still pending. Since 0.13.2 a world's
 the profile's `testData.timeZone`, and `shoot` refuses a dev server whose build output a production
 build replaced, before and after it pictures. Since 0.13.3 a reach step's test id matches exactly
 before it falls back to that id's numbered rows, so `editor-save` no longer clicks
-`editor-save-status`. An export
+`editor-save-status`. Since 0.13.4 a `preset` reach changes the design component's props after
+boot rather than its state, so a design's `componentDidUpdate` sees the change. An export
 holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run

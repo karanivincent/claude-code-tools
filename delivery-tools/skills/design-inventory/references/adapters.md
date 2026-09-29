@@ -37,6 +37,14 @@ still states. The extractor writes them as `reach.kind: "prop"` with every value
 `props`; `delivery design render` loads a temporary copy of the prototype with those defaults
 changed.
 
+**Presets: props applied only on a change.** A Claude Design prop that the logic reads only in
+`componentDidUpdate` (it compares `this.props.x` with `prev.x`, then applies a preset) does nothing
+as a baked default: the component mounts with it, and nothing ever changes. Write that state as
+`reach.kind: "preset"` with the values in `props`. Render boots the design with its own defaults,
+then changes those props on the running component, so `componentDidUpdate` fires once; `steps`
+after it run on top and are not reset. Writing them to state with a `{"set": ...}` step does not
+work either: state is not props.
+
 **The served runtime.** The prototype renders only with its runtime scripts beside it.
 `delivery design render` unzips them into `.delivery/<f>/design-serve/` (never committed), serves
 the directory on a local port and drives it with the target repo's Playwright. Opening the

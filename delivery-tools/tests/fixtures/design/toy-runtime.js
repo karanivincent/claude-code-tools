@@ -2,16 +2,34 @@
 // page the way design render observes a real one: a library fetched from a CDN URL with an
 // integrity hash before boot, data-props defaults as props, this.set() to change state, the page
 // under #dc-root .sc-host, click handlers visible as React-style props, and the component reachable
-// through a React-style fiber on the host (which is how a {set} step writes state).
+// through a React-style fiber on the host (which is how a {set} step writes state). Like the real
+// runtime, the fiber's stateNode is a wrapper: __userProps() feeds logic.props on every update, and
+// each update calls logic.componentDidUpdate(prevProps, prevState) (which is how a preset applies).
 (function () {
   var LIB = 'https://cdn.example.invalid/toylib@1.2.3/dist/toylib.js';
   var INTEGRITY = '__TOYLIB_INTEGRITY__';
   var inst = null;
   var host = null;
   var tpl = [];
+  var defaults = {};
+  var wrapper = {
+    __userProps: function () { return Object.assign({}, defaults); },
+    forceUpdate: function () { update(inst.state); }
+  };
 
   function DCLogic(props) { this.props = props; this.state = {}; }
-  DCLogic.prototype.setState = function (patch) { Object.assign(this.state, patch); render(); };
+  DCLogic.prototype.setState = function (patch) {
+    var prevState = Object.assign({}, this.state);
+    Object.assign(this.state, patch);
+    update(prevState);
+  };
+
+  function update(prevState) {
+    var prev = inst.props;
+    inst.props = wrapper.__userProps();
+    render();
+    if (typeof inst.componentDidUpdate === 'function') inst.componentDidUpdate(prev, prevState);
+  }
 
   function lookup(scope, expr) {
     var e = String(expr).replace(/[{}]/g, '').trim();
@@ -80,17 +98,17 @@
     var dc = document.querySelector('x-dc');
     var script = document.querySelector('script[data-dc-script]');
     var meta = JSON.parse(script.getAttribute('data-props') || '{}');
-    var props = {};
-    Object.keys(meta).forEach(function (k) { if (k.charAt(0) !== '$') props[k] = meta[k].default; });
+    Object.keys(meta).forEach(function (k) { if (k.charAt(0) !== '$') defaults[k] = meta[k].default; });
     tpl = Array.prototype.slice.call(dc.childNodes).map(function (n) { return n.cloneNode(true); });
     var Component = new Function('DCLogic', script.textContent + '\n;return Component;')(DCLogic);
-    inst = new Component(props);
+    inst = new Component(wrapper.__userProps());
     var root = document.createElement('div');
     root.id = 'dc-root';
     host = document.createElement('div');
     host.className = 'sc-host';
     host.setAttribute('data-sc-name', 'widgets');
-    host['__reactFiber$toy'] = { stateNode: { logic: inst }, return: null };
+    wrapper.logic = inst;
+    host['__reactFiber$toy'] = { stateNode: wrapper, return: null };
     root.appendChild(host);
     dc.replaceWith(root);
     render();
