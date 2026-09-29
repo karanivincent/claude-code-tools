@@ -38,19 +38,40 @@ export function previewViewport(preview, width) {
 
 const KILL_MOTION_CSS = '*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important;scroll-behavior:auto!important}';
 
-// Installed before any page script: reaches the design component's own state through React's
-// fiber on the root host element, which is what a {set: {...}} step writes to.
-const SET_STATE_INIT = `window.__deliverySet = function (patch) {
+// Installed before any page script: reaches the design component through React's fiber on the
+// root host element. __deliverySet writes its own state, which is what a {set: {...}} step does.
+// __deliveryProps changes its props, which is what a preset does: the runtime's wrapper feeds
+// __userProps() into logic.props and calls logic.componentDidUpdate(prevProps), and a design
+// applies a preset only there, when it sees the prop change. The prop change is reported once;
+// later updates see the patched props as unchanged, so click steps after a preset are not reset.
+const SET_STATE_INIT = `window.__deliveryFind = function (ok) {
   var hosts = document.querySelectorAll('.sc-host[data-sc-name]');
   for (var h = 0; h < hosts.length; h++) {
     var el = hosts[h], keys = Object.keys(el), f = null;
     for (var k = 0; k < keys.length; k++) if (keys[k].indexOf('__reactFiber$') === 0) f = el[keys[k]];
-    for (; f; f = f.return) {
-      var sn = f.stateNode;
-      if (sn && sn.logic && typeof sn.logic.setState === 'function') { sn.logic.setState(patch); return true; }
-    }
+    for (; f; f = f.return) if (f.stateNode && f.stateNode.logic && ok(f.stateNode)) return f.stateNode;
   }
-  return false;
+  return null;
+};
+window.__deliverySet = function (patch) {
+  var sn = window.__deliveryFind(function (s) { return typeof s.logic.setState === 'function'; });
+  if (!sn) return false;
+  sn.logic.setState(patch);
+  return true;
+};
+window.__deliveryProps = function (patch) {
+  var sn = window.__deliveryFind(function (s) { return typeof s.__userProps === 'function' && typeof s.forceUpdate === 'function'; });
+  if (!sn) return false;
+  var own = sn.__userProps.bind(sn), L = sn.logic, cdu = L.componentDidUpdate, first = true;
+  sn.__userProps = function () { return Object.assign({}, own(), patch); };
+  if (typeof cdu === 'function') {
+    L.componentDidUpdate = function (prev, prevState) {
+      if (first) { first = false; return cdu.call(this, prev, prevState); }
+      return cdu.call(this, Object.assign({}, prev, patch), prevState);
+    };
+  }
+  sn.forceUpdate();
+  return true;
 };`;
 
 /**
@@ -83,8 +104,8 @@ export function planRenders(inventory, opts) {
     if (reach.kind === 'prop' && !props && !reach.file) { out.push({ id: s.id, action: 'fail', why: 'a prop state names no props' }); continue; }
     // A preset only ever applies on a prop *change* (a design's componentDidUpdate), never at
     // mount, so a preset's props are never baked into the served file as new defaults: render
-    // boots the design's own defaults, then sets the preset's props at runtime (spec 4.2 step 3),
-    // the same way a click-path reach step can. A prop-only reach still bakes props as defaults.
+    // boots the design's own defaults, then changes the preset's props at runtime (spec 4.2 step 3)
+    // so componentDidUpdate sees the change. A prop-only reach still bakes props as defaults.
     if (reach.kind === 'preset' && !props) { out.push({ id: s.id, action: 'fail', why: 'a preset state names no props to set' }); continue; }
     const item = { id: s.id, action: 'render', steps: reach.steps ?? [], props: reach.kind === 'preset' ? null : props };
     if (reach.kind === 'preset') item.preset = props;
@@ -304,9 +325,9 @@ export async function renderDesign(ctx, opts) {
         const logicError = await page.evaluate(() => { const e = document.querySelector('.sc-logic-error'); return e ? e.textContent : null; });
         if (logicError) throw new Error(`the design's logic failed: ${logicError.trim().slice(0, 200)}`);
         if (p.preset) {
-          // Applied after boot, the same way a {"set": {...}} reach step is: a preset's props are
-          // never baked in as new defaults, because presets only run on a prop *change*.
-          const ok = await page.evaluate((patch) => (typeof window.__deliverySet === 'function' ? window.__deliverySet(patch) : false), p.preset);
+          // Applied after boot as a prop change, never baked in as new defaults and never written
+          // to state: presets only run when componentDidUpdate sees the prop change.
+          const ok = await page.evaluate((patch) => (typeof window.__deliveryProps === 'function' ? window.__deliveryProps(patch) : false), p.preset);
           if (!ok) throw new Error(`preset: found no design component to set ${JSON.stringify(p.preset)} on`);
           await settle(page);
         }
