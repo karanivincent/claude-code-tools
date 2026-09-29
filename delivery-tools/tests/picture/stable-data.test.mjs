@@ -270,7 +270,7 @@ test('delivery runs prints the data gaps per round', () => {
   const rec = { feature: 'scripts', phases: {}, rounds: [{ round: 1, match: 10, small: 0, toFix: 2, notReached: 0, dataGap: 3 }, { round: 2, match: 12, small: 0, toFix: 0, notReached: 0, dataGap: 0 }] };
   assert.deepEqual(runRows([rec])[0].dataGaps, [3, 0]);
   assert.ok(runsReport([rec]).some((l) => /data gaps per round/.test(l)));
-  assert.ok(runsReport([rec]).some((l) => /3 > 0$/.test(l)));
+  assert.ok(runsReport([rec]).some((l) => /3 > 0\s+-$/.test(l)));
 });
 
 test('shoot --only: re-shoots into the latest round, says so when there is nothing to re-shoot, and refuses without a round', async () => {
@@ -289,4 +289,79 @@ test('shoot --only: re-shoots into the latest round, says so when there is nothi
     await assert.rejects(shootCommand.run(ctx, ['--base-url', 'http://localhost:3000', '--only', 'WL-01', 'WL-02']), /not as well as a list/);
     await assert.rejects(shootCommand.run(ctx, ['--base-url', 'http://localhost:3000', '--only', 'WL-99']), /not states \(or widths\) in the map: WL-99/);
   } finally { repo.cleanup(); }
+});
+
+// R12: masks, only for values no seed can pin, listed per state and counted.
+test('masks: the map checks them, the checklist lists them, and a masked element\'s text leaves the comparison', async () => {
+  const { validateMap, renderChecklist } = await import('../../lib/picture/map.mjs');
+  const { maskBoxes, maskDom } = await import('../../lib/picture/shoot.mjs');
+  const m = map();
+  m.states[0].mask = [{ testid: 'row-avatar', why: 'a random avatar colour' }];
+  assert.deepEqual(validateMap(m).filter((p) => /mask/.test(p)), []);
+  m.states[1].mask = [{ testid: 'x' }];
+  assert.ok(validateMap(m).some((p) => /WL-02 mask\[0\] needs a why/.test(p)));
+  assert.match(renderChecklist(map({ states: [{ ...map().states[0], mask: [{ testid: 'row-avatar', why: 'random colour' }] }] })), /- Masked on both pictures: row-avatar \(random colour\); not a difference/);
+  const dom = { elements: [
+    { kind: 'control', testid: 'row-avatar-0', visible: true, box: { x: 0, y: 0, w: 40, h: 40 } },
+    { kind: 'text', text: 'AK', visible: true, box: { x: 10, y: 10, w: 20, h: 20 } },
+    { kind: 'text', text: 'Amina', visible: true, box: { x: 50, y: 10, w: 60, h: 20 } },
+  ] };
+  assert.equal(maskBoxes(dom, ['row-avatar']).length, 1);
+  assert.deepEqual(maskDom(dom, ['row-avatar']).elements.map((e) => e.text ?? e.testid), ['Amina']);
+  assert.equal(maskDom(dom, []), dom);
+});
+
+test('the shoot paints masked test ids over on the live picture and counts them', async () => {
+  const m = map({ states: [{ ...map().states[0], mask: [{ testid: 'row-avatar', why: 'random colour' }] }] });
+  const { items } = selectStates(m);
+  const d = dirs();
+  try {
+    const shots = [];
+    const chromium = fakeChromium({ calls: [] });
+    const launch = chromium.launch;
+    chromium.launch = async () => {
+      const b = await launch();
+      const newContext = b.newContext;
+      b.newContext = async (opts) => {
+        const c = await newContext(opts);
+        const newPage = c.newPage;
+        c.newPage = async () => {
+          const p = await newPage();
+          p.locator = () => ({ count: async () => 3, first: () => ({ async isVisible() { return false; } }) });
+          const shot = p.screenshot;
+          p.screenshot = async (o) => { shots.push(o); return shot(o); };
+          return p;
+        };
+        return c;
+      };
+      return b;
+    };
+    const report = await runShoot(baseOpts({ map: m, items, outDir: d.outDir, designDir: d.designDir, chromium }));
+    assert.equal(report['WL-01'].masked, 3);
+    assert.equal(shots[0].maskColor, '#FF00FF');
+    assert.equal(shots[0].mask.length, 1);
+  } finally { d.cleanup(); }
+});
+
+test('the shoot warns when a world\'s global dependency or a written table changed since the seed', async () => {
+  const { driftWarnings } = await import('../../lib/commands/shoot.mjs');
+  const { hashRows, recordGlobals } = await import('../../lib/seed/drift.mjs');
+  const d = dirs();
+  try {
+    const paths = { runDir: d.root };
+    await recordGlobals(paths, { design: { voices: hashRows([{ id: 'v1', name: 'Amani' }]) } }, '2026-01-15T12:00:00Z');
+    const seedPlan = { worlds: [{ id: 'design', globals: [{ table: 'voices' }] }], rows: [{ world: 'design', table: 'calls' }], schema: { calls: { hash: 'old', columns: ['id'] } } };
+    const db = { async query(sql) {
+      if (/from public\."voices"/.test(sql)) return [{ id: 'v1', name: 'Baraka' }];
+      if (/information_schema/.test(sql)) return [{ table_name: 'calls', column_name: 'id' }, { table_name: 'calls', column_name: 'failure_reason' }];
+      return [];
+    } };
+    const warned = [];
+    const ctx = { out: { warn: (l) => warned.push(l) } };
+    const out = await driftWarnings(ctx, db, paths, seedPlan, ['design']);
+    assert.equal(out.length, 2);
+    assert.match(out[0], /world design depends on voices, which changed since the world was seeded/);
+    assert.match(out[1], /table calls changed since seed --plan \(columns added: failure_reason\)/);
+    assert.deepEqual(warned, out);
+  } finally { d.cleanup(); }
 });

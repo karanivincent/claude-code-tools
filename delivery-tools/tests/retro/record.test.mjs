@@ -82,7 +82,7 @@ test('buildRecord reads the journal, rounds, batches and improvements, and valid
     assert.equal(rec.phases.intake, 10);
     assert.equal(rec.phases.ci, 10);
     assert.equal(rec.phases.seed, null);
-    assert.deepEqual(rec.rounds, [{ round: 1, match: 5, small: 2, toFix: 3, notReached: 1, dataGap: 1, carried: 1 }]);
+    assert.deepEqual(rec.rounds, [{ round: 1, match: 5, small: 2, toFix: 3, notReached: 1, dataGap: 1, carried: 1, masked: 0 }]);
     assert.deepEqual(rec.reviewers, [{ round: 1, batch: 1, tokens: 9000, minutes: 7 }], 'a batch that recorded nothing is left out');
     assert.deepEqual(rec.ciAfterPr, [{ check: 'ci', cause: 'red' }]);
     assert.deepEqual(rec.improvements, ['Shoot the empty state first', 'Seed a second world']);

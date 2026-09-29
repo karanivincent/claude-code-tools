@@ -22,9 +22,10 @@ profile, in that project's repository (spec section 18).
 node --test 'tests/**/*.test.mjs' 'skills/**/*.test.mjs'
 ```
 
-1187 tests: 1171 pass, 0 fail, 16 skipped (the replay tests, which need the private replay set, and
+1198 tests: 1182 pass, 0 fail, 16 skipped (the replay tests, which need the private replay set, and
 two real-browser render tests, which need `DELIVERY_PLAYWRIGHT_ROOT`). That is the whole suite after
-0.16.0 (`shoot` resets each world right before its shots and freezes the browser clock there, sorts
+0.17.0 (`seed --check` refuses a changed table and a same-name fixture organisation, `globals`
+hashed at `seed --apply` and checked by `shoot`, masks per state counted in the ledger), 0.16.0 (`shoot` resets each world right before its shots and freezes the browser clock there, sorts
 each data difference by looking it up in the world, `shoot --only` re-shoots into the same round,
 `review --plan` reviews just the re-shot items, and `runs` prints data gaps per round), 0.15.0 (the data contract: `delivery contract` from the design DOM, its labeller, `seed --check`
 refusing a data value no world holds, distinct times for tied rows, and `design render` rebuilding

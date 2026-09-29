@@ -665,6 +665,10 @@
           },
           "carried": {
             "$ref": "common.schema.json#/$defs/Count"
+          },
+          "masked": {
+            "$ref": "common.schema.json#/$defs/Count",
+            "description": "R12: elements the round's masks painted over (per state, by test id)."
           }
         }
       }

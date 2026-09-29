@@ -30,6 +30,11 @@ worlds the map names but nobody wrote yet, or fix the ones a review or a seed ch
   when the design shows the signed-in person, so "Sam Kariuki" and "SK" come from the seed.
 - A `{ "$ref": "<key>" }` may name a row further down the file; that column must accept null, and
   a join row (no `id` column) comes after the rows it names.
+- A world that reads shared rows it does not own (voices, prompt layers, plan settings) lists
+  them in its world file: `"globals": [ { "table": "voices" } ]`, or with `"ids"`. The seed
+  records them, and the shoot warns when one changed under the pictures.
+- After a migration, `seed --check` names each table whose columns changed and the worlds that
+  write it: add any value the design shows for the new column, then run `--plan` and `--check`.
 - Change only world files. A state that cannot be shown without a code or schema change is not
   yours: say which, and why.
 

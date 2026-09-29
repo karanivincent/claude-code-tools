@@ -136,23 +136,29 @@ is added to every prompt; put anything you would otherwise repeat to each review
    built. A state the labeller marks inconsistent (the design contradicts itself) goes to Claude
    Design with `design-send`, not to seeding. `design render` rebuilds the contract on every new
    export; run `delivery contract` and `seed --check` again after it.
-5. **A behaviour the design implies but doesn't state is a Tier 1 decision.** Read the rule off
+5. **The worlds belong to this run.** `seed --check` refuses a world whose organisation name
+   another fixture organisation already has, and a table the worlds write whose columns changed
+   since `seed --plan` (a migration mid-run: re-plan, and have a seed-writer add any value the
+   design shows). A world lists the shared rows it reads as `globals`; the shoot warns when one
+   changed since `seed --apply`. Masks (`mask` on a map state) are only for values no seed can
+   pin, and every one is counted in the runs ledger.
+6. **A behaviour the design implies but doesn't state is a Tier 1 decision.** Read the rule off
    the design pictures (which states show it, which don't), write the decision file, and give the
    builder the rule.
-6. **The capture never clicks a metered, dialling or destructive control.** `delivery map` refuses
+7. **The capture never clicks a metered, dialling or destructive control.** `delivery map` refuses
    a reach step that does, unless an intercept answers it. Never change an effect to get past it.
-7. **No browser tool, for anyone.** Pictures come only from `delivery design render` and
+8. **No browser tool, for anyone.** Pictures come only from `delivery design render` and
    `delivery shoot`.
-8. **The builder never pushes and never starts a server.** This session runs the dev server
+9. **The builder never pushes and never starts a server.** This session runs the dev server
    (the profile's `commands.devServer`, in the background), the full CI chain, and every push.
-9. **Every behaviour the briefs state has a proof.** The rules agent writes one rule per behaviour
+10. **Every behaviour the briefs state has a proof.** The rules agent writes one rule per behaviour
    into `rules.json`: shown by a design state, proved by a test named `R<n>: ...`, or cut. A rule the
    design never drew is `owed-design`: send it with the `design-send` skill (step 0b), or have the
    founder cut it (proof `cut`, with a Scope line) — never dispatch the builder while `delivery
    rules` still exits non-zero on an owed rule. `delivery rules` prints every gap and names the rule
    ids, and `delivery ready` stays red while one is open. Never soften a rule's text or switch its
    proof to get past it.
-10. **A page that scrolls sideways on a phone is always a must fix.** The shoot measures it and
+11. **A page that scrolls sideways on a phone is always a must fix.** The shoot measures it and
    `delivery review` counts it, so it cannot be argued away as small.
 
 ## Shipping
