@@ -113,6 +113,21 @@ export function testidSelector(t) {
   return `[data-testid="${q}"], [data-testid^="${q}-"]`;
 }
 
+/**
+ * A locator for a test id: the exact id when anything on the page carries it, and only otherwise
+ * the "<id>-<n>" rows. The combined selector plus first() clicked `editor-save-status`, earlier in
+ * the page, instead of `editor-save`, so a save was never pressed.
+ * @param {any} page
+ * @param {string} t
+ */
+export async function locateTestid(page, t) {
+  const q = String(t).replace(/"/g, '\\"');
+  const exact = page.locator(`[data-testid="${q}"]`);
+  if (typeof exact?.count !== 'function') return page.locator(testidSelector(t));
+  if ((await exact.count().catch(() => 0)) > 0) return exact;
+  return page.locator(`[data-testid^="${q}-"]`);
+}
+
 /** The plain summary line for one item's result. */
 export function resultLine(id, rec) {
   const missing = rec.buttons.filter((b) => b.shouldBe === 'shown' && !b.onPage).map((b) => b.label);
@@ -344,13 +359,13 @@ async function shootItem(page, it, o, liveFacts = new Map()) {
     for (const step of reachSteps(s, it.width)) {
       if (step.goto) await page.goto(new URL(step.goto, o.baseUrl).toString(), { waitUntil: 'networkidle' });
       else if (step.click) {
-        let loc = step.click.testid ? page.locator(testidSelector(step.click.testid)) : page.getByRole(step.click.role ?? 'button', { name: step.click.name });
+        let loc = step.click.testid ? await locateTestid(page, step.click.testid) : page.getByRole(step.click.role ?? 'button', { name: step.click.name });
         if (step.click.testid && step.click.name) loc = loc.filter({ hasText: step.click.name });
         await loc.first().click({ timeout: 8000 });
       } else if (step.type) {
-        await page.locator(testidSelector(step.type.testid)).first().fill(step.type.text, { timeout: 8000 });
+        await (await locateTestid(page, step.type.testid)).first().fill(step.type.text, { timeout: 8000 });
       } else if (step.open) {
-        const g = page.locator(testidSelector(step.open.testid)).first();
+        const g = (await locateTestid(page, step.open.testid)).first();
         if ((await g.getAttribute('aria-expanded', { timeout: 8000 })) === 'false') await g.click();
       }
       await page.waitForTimeout(400);
@@ -388,7 +403,7 @@ async function shootItem(page, it, o, liveFacts = new Map()) {
 
   for (const b of s.buttons ?? []) {
     if (!b.testid) continue;
-    const onPage = await page.locator(testidSelector(b.testid)).first().isVisible().catch(() => false);
+    const onPage = await (await locateTestid(page, b.testid)).first().isVisible().catch(() => false);
     rec.buttons.push({ label: b.label ?? b.testid, testid: b.testid, opens: b.opens ?? null, onPage, ...buttonExpectation(b, s.reach.role, it.width) });
   }
   const phone = it.width === 'phone';

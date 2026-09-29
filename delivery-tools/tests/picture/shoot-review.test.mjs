@@ -449,3 +449,18 @@ test('pictureFacts: componentsRunExists reads the first components run\'s own ma
     assert.ok(seenAt.some(([ref, p]) => ref === 'HEAD' && p === 'docs/delivery/components/map.json'));
   } finally { repo.cleanup(); }
 });
+
+test('a reach step presses the exact test id before any "<id>-<n>" row: editor-save, not editor-save-status', async () => {
+  const { locateTestid } = await import('../../lib/picture/shoot.mjs');
+  const pageWith = (ids) => ({
+    locator: (sel) => {
+      const exact = /^\[data-testid="([^"]+)"\]$/.exec(sel);
+      const prefix = /^\[data-testid\^="([^"]+)"\]$/.exec(sel);
+      const hits = ids.filter((id) => (exact ? id === exact[1] : prefix ? id.startsWith(prefix[1]) : false));
+      return { sel, count: async () => hits.length };
+    },
+  });
+  assert.equal((await locateTestid(pageWith(['editor-save-status', 'editor-save']), 'editor-save')).sel, '[data-testid="editor-save"]');
+  assert.equal((await locateTestid(pageWith(['row-open-1', 'row-open-2']), 'row-open')).sel, '[data-testid^="row-open-"]', 'no exact id: the rows');
+  assert.equal((await locateTestid({ locator: (sel) => ({ sel }) }, 'x')).sel, testidSelector('x'), 'a fake without count() keeps the combined selector');
+});
