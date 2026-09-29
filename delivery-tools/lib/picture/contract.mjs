@@ -286,3 +286,48 @@ export async function rebuildContractFile(paths, map, at) {
   await writeJsonAtomic(contractPath(paths), built.contract);
   return { ...built, summary: contractSummary(built.contract) };
 }
+
+const MONTHS = /\b(jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|june?|july?|aug(ust)?|sept?(ember)?|oct(ober)?|nov(ember)?|dec(ember)?)\b/g;
+const DAYS = /\b(mon(day)?|tue(s|sday)?|wed(nesday)?|thu(rs|rsday)?|fri(day)?|sat(urday)?|sun(day)?)\b/g;
+
+/**
+ * A date or time text's format, without its values (R1): "Tue 14 Oct" and "Wed 3 Sep" are both
+ * "D 9 M", "2 min ago" and "15 min ago" both "9 min ago". Pictures compare dates by this, never by
+ * the absolute day the design happened to show.
+ */
+export function dateShape(text) {
+  return normalise(text).replace(MONTHS, 'M').replace(DAYS, 'D').replace(/\d+/g, '9');
+}
+
+/**
+ * R3 of stable picture data: sort each difference in a contract data value by looking it up in the
+ * world, never by guessing. For every text the design shows that the live page does not, labelled
+ * data in the state's contract: the world lacks it (a data gap, for the seed worker), or the world
+ * holds it and the page does not show it (a must fix, for the fixer). A date or time the page shows
+ * in the same format as the design is no difference at all. Fixed words and random values are the
+ * reviewers' and the masks' business, not this one's.
+ * @param {{ contractState: object|null|undefined, designTexts: string[], liveTexts: string[],
+ *           rows: { table: string, values: object }[]|null, users: object[], now: Date }} o
+ *   rows: the world's rows as seeded for this shoot; null when they could not be read (then
+ *   nothing is sorted)
+ * @returns {{ dataGap: string[], must: string[] }}
+ */
+export function sortDataDifferences({ contractState, designTexts: design, liveTexts: live, rows, users, now }) {
+  const out = { dataGap: [], must: [] };
+  if (!contractState || !rows) return out;
+  const liveSet = new Set((live ?? []).map(normalise));
+  const liveShapes = new Set((live ?? []).map(dateShape));
+  const byText = new Map((contractState.texts ?? []).map((e) => [normalise(e.text), e]));
+  for (const text of design ?? []) {
+    if (liveSet.has(normalise(text))) continue;
+    const e = byText.get(normalise(text));
+    if (!e || e.label !== 'data' || entryProblem(e)) continue;
+    const kind = e.kind ?? 'value';
+    if ((kind === 'date' || kind === 'time') && liveShapes.has(dateShape(text))) continue;
+    const r = holds(e, rows, users ?? [], now);
+    const where = e.user !== undefined ? `the ${e.user} fixture user` : kind === 'count' ? `${e.table} rows` : `${e.table}.${e.column}`;
+    if (r.ok) out.must.push(`the design shows "${text}" and the page does not, though the world holds it (${where}; found by lookup)`);
+    else out.dataGap.push(`the design shows "${text}": ${r.why} (found by lookup; fix the world file, not the code)`);
+  }
+  return out;
+}

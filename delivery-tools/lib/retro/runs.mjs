@@ -40,6 +40,8 @@ export function runRows(records) {
       rounds: (rec.rounds ?? []).length,
       roundsToGreen: roundsToGreen(rec.rounds),
       matchRates: matchRates(rec.rounds),
+      // R13 of stable picture data: data gaps per round, the plan's measure of success (near zero from round 1).
+      dataGaps: (rec.rounds ?? []).map((r) => (Number.isFinite(r.dataGap) ? r.dataGap : null)),
       costUsd: priced ? Math.round(cost * 100) / 100 : null,
     };
   });
@@ -109,8 +111,8 @@ export function runsReport(records) {
   ));
   out.push('', 'Rounds', '');
   out.push(...table(
-    ['run', 'rounds', 'to green', 'match rate per round'],
-    runs.map((r) => [r.feature, r.rounds, r.roundsToGreen ?? (r.rounds ? `not after ${r.rounds}` : '-'), r.matchRates.length ? r.matchRates.map((m) => dash(m, '%')).join(' > ') : '-']),
+    ['run', 'rounds', 'to green', 'match rate per round', 'data gaps per round'],
+    runs.map((r) => [r.feature, r.rounds, r.roundsToGreen ?? (r.rounds ? `not after ${r.rounds}` : '-'), r.matchRates.length ? r.matchRates.map((m) => dash(m, '%')).join(' > ') : '-', r.dataGaps.length ? r.dataGaps.map((g) => dash(g)).join(' > ') : '-']),
   ));
   const models = modelRows(records);
   out.push('', 'Time and cost by model (all runs)', '');

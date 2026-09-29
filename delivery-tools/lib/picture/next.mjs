@@ -7,7 +7,7 @@ import { join, relative } from 'node:path';
 import { checklistPath, designIds, mapPath, validateMap } from './map.mjs';
 import { featurePaths } from '../core/paths.mjs';
 import { listRounds, roundInfo } from './rounds.mjs';
-import { backToDesignItems } from './review.mjs';
+import { backToDesignItems, reshotItems } from './review.mjs';
 import { designFor, hasPhone, mapItems } from './widths.mjs';
 import { owedDesignRules, readRules, ruleFacts, rulesPath } from './rules.mjs';
 import { componentsMapPath, effectiveComponentsFor, findDesignSystemManifest, missingFromDesignSystem } from '../components/map.mjs';
@@ -184,9 +184,14 @@ export async function pictureFacts(paths, opts = {}) {
   const rounds = listRounds(paths).map((n) => {
     const info = roundInfo(paths, n);
     const newestReview = Math.max(0, ...info.reviews.map((f) => mtime(join(info.dir, f))));
+    const batchesDoc = readJsonSync(join(info.dir, 'batches.json'));
     return {
       round: n,
       shot: Boolean(info.shoot),
+      // R5: items re-shot (shoot --only) since the round was planned, and planned batches no
+      // reviewer has written yet.
+      reshot: batchesDoc ? reshotItems(info.shoot, info.reviewPlan).length : 0,
+      pending: (batchesDoc?.batches ?? []).filter((b) => b.write && !existsSync(join(info.dir, b.write))).length,
       reviews: info.reviews.length,
       planned: info.reviewPlan ? info.reviewPlan.batches : null,
       compiled: Boolean(info.review) && mtime(join(info.dir, 'review.json')) >= newestReview,
@@ -330,6 +335,8 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   if (!last && f.update) return { step: 'shoot', skill, text: `update run from ${f.update}: picture the page as it is before building. Start the dev server, then ${cli} shoot --base-url <url> (round 1); the reviewers list what the new design changed, and the builder fixes only that` };
   if (!last) return { step: 'build', skill, text: `dispatch delivery-tools:picture-builder (opus, no worktree) with briefs/builder-picture.md; when it reports, start the dev server and run ${cli} shoot --base-url <url> (round 1)` };
   if (!last.shot) return { step: 'shoot', skill, text: `${cli} shoot --base-url <url> --round ${last.round}` };
+  if (last.reshot) return { step: 'review', skill, text: `${cli} review --plan --round ${last.round}: ${last.reshot} item(s) were re-shot since the round was planned, and it plans just those` };
+  if (last.reviews && last.pending) return { step: 'review', skill, text: `dispatch the ${last.pending} batch prompt file(s) in .delivery/<f>/rounds/${last.round}/batches.json whose review is not written yet, as written; then ${cli} review --round ${last.round}` };
   if (last.planned === null && !last.reviews) return { step: 'review', skill, text: `${cli} review --plan --round ${last.round}: it carries unchanged items forward, matches exact ones without a reviewer and writes the batches; then dispatch the batch prompt files it lists, as written, at most four at once (briefs/reviewer-picture.md)` };
   if (!last.reviews && last.planned > 0) return { step: 'review', skill, text: `dispatch the ${last.planned} batch prompt file(s) in .delivery/<f>/rounds/${last.round}/batches.json, as written, at most four at once (briefs/reviewer-picture.md); then ${cli} review --round ${last.round}` };
   if (!last.compiled) return { step: 'review', skill, text: `${cli} review --round ${last.round}` };
@@ -337,7 +344,7 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   const open = (o.must ?? 0) + (o.notReached ?? 0);
   const noun = f.noun ?? 'state';
   if (open && last.round < MAX_ROUNDS) {
-    return { step: 'fix', skill, text: `fix round: send the builder round ${last.round}'s review.json (${open} ${noun}(s) open), re-seed the worlds it names, then ${cli} shoot --base-url <url> (round ${last.round + 1})` };
+    return { step: 'fix', skill, text: `fix round: send the builder round ${last.round}'s review.json (${open} ${noun}(s) open), then ${cli} shoot --base-url <url> (round ${last.round + 1}; it resets the worlds itself)` };
   }
   let tail = open ? `; ${open} ${noun}(s) stay open after ${MAX_ROUNDS} rounds and go to the founder as a list` : '';
   const backToDesign = f.backToDesign ?? 0;

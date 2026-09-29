@@ -100,8 +100,11 @@ export function summarise({ map, shoot, notes, pre = {} }) {
     if (carried) {
       const c = carried.state;
       n.must = [...(c.must ?? [])]; n.small = [...(c.small ?? [])]; n.design = [...(c.design ?? [])]; n.dataGap = [...(c.dataGap ?? [])];
-    } else if (shot?.reached && shot.overflow > 0 && !n.must.some((t) => /sideways|horizontal(ly)? scroll/i.test(t))) {
-      n.must.push(`the page scrolls sideways by ${shot.overflow} px (found by the shoot)`);
+    } else if (shot?.reached) {
+      if (shot.overflow > 0 && !n.must.some((t) => /sideways|horizontal(ly)? scroll/i.test(t))) n.must.push(`the page scrolls sideways by ${shot.overflow} px (found by the shoot)`);
+      // R3: the shoot's lookup sorted each contract data difference by the world's rows.
+      for (const t of shot.lookup?.must ?? []) if (!n.must.includes(t)) n.must.push(t);
+      for (const t of shot.lookup?.dataGap ?? []) if (!n.dataGap.includes(t)) n.dataGap.push(t);
     }
     let verdict;
     if (s.reach?.test) verdict = 'test-only';
@@ -420,5 +423,36 @@ export function batchPrompt(o) {
     `Close look: node scripts/delivery.mjs crop --round ${String(o.roundRel).split('/').pop()} --item <ITEM> --box x,y,w,h`,
   ];
   const steers = (o.steers ?? '').trim();
-  return lines.join('\n') + (steers ? `\n\nSteers for this run (from ${o.steersRel ?? 'steers.md'}):\n${steers}` : '') + '\n';
+  const sorted = Object.entries(o.sorted ?? {}).flatMap(([k, v]) => [...(v.dataGap ?? []).map((t) => `- ${k}: data gap: ${t}`), ...(v.must ?? []).map((t) => `- ${k}: must fix: ${t}`)]);
+  return lines.join('\n')
+    + (sorted.length ? `\n\nAlready sorted by looking the data up in the world (counted already; do not write these again):\n${sorted.join('\n')}` : '')
+    + (steers ? `\n\nSteers for this run (from ${o.steersRel ?? 'steers.md'}):\n${steers}` : '') + '\n';
+}
+
+/**
+ * The items shot again (`shoot --only`) since the round's review was last planned: their record's
+ * `at` is later than review-plan.json's. Their earlier notes no longer describe their pictures.
+ * @param {object|null} shoot shoot.json
+ * @param {object|null} reviewPlan review-plan.json
+ * @returns {string[]}
+ */
+export function reshotItems(shoot, reviewPlan) {
+  if (!shoot || !reviewPlan?.at) return [];
+  return Object.entries(shoot.states ?? {}).filter(([, r]) => r.at && r.at > reviewPlan.at).map(([k]) => k);
+}
+
+/**
+ * Which review file owns each item's notes: the latest batch that was given the item. An item the
+ * latest plan carried or matched automatically has no owner (null): nobody reviews it now, so an
+ * earlier batch's notes about it are stale. Items in no batch at all keep today's behaviour
+ * (every file's notes count), so a round planned before this existed compiles as it did.
+ * @param {{ batches?: { write: string, items: string[] }[] }|null} batchesDoc batches.json
+ * @param {{ carried?: object, auto?: object }|null} reviewPlan
+ * @returns {Map<string, string|null>}
+ */
+export function noteOwners(batchesDoc, reviewPlan) {
+  const owners = new Map();
+  for (const b of batchesDoc?.batches ?? []) for (const k of b.items ?? []) owners.set(k, b.write);
+  for (const k of [...Object.keys(reviewPlan?.carried ?? {}), ...Object.keys(reviewPlan?.auto ?? {})]) owners.set(k, null);
+  return owners;
 }

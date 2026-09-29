@@ -39,7 +39,7 @@ must land first.
 | 2b Contract | this session, then one `delivery-extractor`, `Role: contract` | `delivery contract` (the texts, from the design DOM); the labeller with `<plugin>/briefs/contract-labeller.md` writes `contract-labels.json`; `delivery contract` again until it exits 0 | `contract.json`: every text each state shows, labelled data, fixed or random |
 | 3 Worlds | one `delivery-worker`, `Role: seed-writer`, for the world files; this session applies | `<plugin>/briefs/seed-writer.md` (`seed --plan`, `--check`: it refuses a contract data value no world holds); then this session runs `delivery seed --apply` | fixture worlds on the test project |
 | 4 Build | one `delivery-tools:picture-builder` agent (Opus, high) | before dispatch: `delivery rules` must exit 0 (a non-zero exit names an owed rule; go back to step 0b); then `<plugin>/briefs/builder-picture.md` | commits on the run's branch |
-| 5 Shoot | this session | dev server in the background, then `delivery shoot --base-url <url>` (every width the map declares) | `rounds/<n>/<ITEM>.live.png`, `<ITEM>.design.png`, `shoot.json` |
+| 5 Shoot | this session | dev server in the background, then `delivery shoot --base-url <url>` (every width the map declares; it resets each world to its seed right before its shots and freezes the browser clock at that moment) | `rounds/<n>/<ITEM>.live.png`, `<ITEM>.design.png`, `shoot.json` with each data difference sorted by lookup |
 | 6 Review | one `delivery-tools:picture-reviewer` per batch (Sonnet, medium, with `delivery crop`) | `<plugin>/briefs/reviewer-picture.md` | `rounds/<n>/review-batch-<k>.md` |
 | 7 Compile | this session | `delivery review --round <n>` | `review.json`, `compare.html` |
 | 8 Fix | a fresh `delivery-tools:picture-fixer` per round (Sonnet, medium) | the round's `review.json` and `builder-notes.md` | commits; then 5 to 7 again |
@@ -119,13 +119,17 @@ is added to every prompt; put anything you would otherwise repeat to each review
 
 1. **Scope is the page's own area.** The capture crops the sidebar and top bar away. A difference
    in the shared frame is filed as a loose end once, and never blocks the page.
-2. **Re-seed before every shoot.** A state reached by saving, discarding or adding changes its
-   world, and `delivery shoot` names those worlds at the end. `delivery seed --refresh all` before
-   the next round's shoot, or the round grades drifted data.
-3. **A test-data problem is fixed in the world file, never in code.** When a reviewer's note comes
-   from the data (a stale banner, a missing row), fix `docs/delivery/<f>/worlds/<world>.json`,
-   then `delivery seed --plan`, `--check` and `--refresh <world>`. Say so in the builder's next
-   prompt, so it doesn't chase it.
+2. **The shoot resets the worlds itself.** Right before a world's first shot it is restored to
+   its seed (relative dates moved to that moment, rows a click added removed, then scanned), and
+   again after a data-changing shot touched it; the browser clock is frozen at that moment, in the
+   profile's time zone. A world whose reset the safety scan refuses is not pictured. Never pass
+   `--no-reset` for a numbered round.
+3. **A test-data problem is fixed in the world file, never in code.** The shoot looks every
+   contract data difference up in the world: the world lacks it (`data gap`) or holds it and the
+   page doesn't show it (`must fix`, for the fixer). Send the data gaps to a seed-writer; once
+   `seed --plan` and `--check` pass, `delivery shoot --only data-gaps --base-url <url>` pictures
+   just those items again into the same round, and `delivery review --plan` reviews just them.
+   Say so in the builder's next prompt, so it doesn't chase them.
 4. **The pictures show the design's data.** `contract.json` lists every text each state shows,
    taken from the design render. `seed --check` refuses a data value no world holds, a count the
    rows don't add up to, and a fixture user whose name isn't the design's, before anything is
