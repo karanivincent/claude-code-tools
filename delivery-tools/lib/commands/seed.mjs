@@ -19,6 +19,7 @@ import { columnConstraintViolations, describeWhere, stateDataGaps, tablesWithout
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { seedNow } from '../seed/evaluate.mjs';
+import { contractGaps, readContract } from '../picture/contract.mjs';
 
 const MODES = ['plan', 'check', 'apply', 'scan', 'refresh', 'teardown'];
 
@@ -38,7 +39,9 @@ modes:
                      "guards to approve" list), and refuses a world value that fails a CHECK
                      constraint or enum type the database has for its column.
   --check            M13: the four safety layers over seedplan.json, plus (picture mode) A1: each
-                     state's map-declared data (state.data) against the rows the worlds seed. Layer
+                     state's map-declared data (state.data) against the rows the worlds seed, and
+                     the data contract (contract.json): every text labelled data must have a row
+                     (or a fixture user's name) behind it, and every text must be labelled. Layer
                      1 derives the side-effect map afresh; layers 2 and 3 read the never-dial set,
                      the fake-range probe and the guard probes from the test database. Writes nothing.
   --apply            refuse production and any project but the test project, run --check, write
@@ -99,6 +102,8 @@ async function planMode(ctx) {
   });
   await writeArtefact(paths, 'seedplan', seedPlan);
   ctx.out.line(`seed plan: ${seedPlan.worlds.length} world(s), ${seedPlan.rows.length} row(s), ${seedPlan.users.length} fixture user(s) -> ${paths.seedplan}`);
+  // R9: rows whose times tie are given distinct seconds, in file order (the design's order).
+  for (const t of seedPlan.staggered ?? []) ctx.out.line(`distinct times: ${t.rows} ${t.table}.${t.column} row(s) of world ${t.world} shared one moment; each is now a second earlier than the row above it`);
 
   // A2: every table the worlds write that no guard covers, printed together so the founder
   // approves them once, at the start, rather than discovering them one seed --apply at a time.
@@ -146,12 +151,30 @@ function withDataGaps(gate, seedPlan, paths, now) {
   const map = readMap(paths);
   if (!map) return gate;
   const gaps = stateDataGaps(map.states, seedPlan.rows, now);
-  if (!gaps.length) return gate;
   const failures = gaps.map((g) => ({
     code: 'M13-data',
     message: `state ${g.state}: ${g.table} where ${describeWhere(g.where)} wants at least ${g.wanted}, found ${g.found}`,
   }));
+  failures.push(...contractFailures(paths, map, seedPlan, now));
+  if (!failures.length) return gate;
   return combineGates([gate, gateResult(failures)]);
+}
+
+/**
+ * Fix 2 of stable picture data: each value the data contract labels "data" that the worlds do not
+ * hold, and the texts nobody has labelled yet, as seed gate failures. A run with no contract.json is
+ * unaffected (a full-mode run, or one from before contracts).
+ */
+function contractFailures(paths, map, seedPlan, now) {
+  let contract;
+  try { contract = readContract(paths); } catch (err) {
+    return [{ code: 'M13-contract', message: `contract.json does not parse (${err.message}); run delivery contract` }];
+  }
+  if (!contract) return [];
+  const r = contractGaps(contract, map, seedPlan, now);
+  const out = r.gaps.map((g) => ({ code: 'M13-contract', message: `state ${g.state} shows "${g.text}": ${g.why}` }));
+  if (r.unlabelled) out.push({ code: 'M13-contract', message: `${r.unlabelled} text(s) of the contract are not labelled yet: run delivery contract and dispatch the labeller` });
+  return out;
 }
 
 /**

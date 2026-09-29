@@ -12,7 +12,7 @@ import { plannedValues } from './plan.mjs';
  */
 
 /** Whether every column of `where` reads "yes" against a row's resolved values. */
-function matchesWhere(where, values, now) {
+export function matchesWhere(where, values, now) {
   return Object.entries(where ?? {}).every(([column, value]) => {
     const op = value === null ? 'is' : 'eq';
     return evalFilter({ column, op, value }, values, now) === 'yes';

@@ -78,7 +78,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### delivery-tools `v0.14.0`
+### delivery-tools `v0.15.0`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -147,7 +147,13 @@ green, match rate per round) and `delivery backfill-run` records an earlier run 
 changes: extractors Sonnet at low; the rules, map, seed-world and CI-fix jobs a Sonnet worker at
 medium; the first build Opus at high, leaving a notes file for each fix round's fresh Sonnet fixer;
 reviewers Sonnet at medium with `delivery crop` for a close look; the full-mode auditor Sonnet at
-high. Every Sonnet role that edits runs a real check before it reports done. An export
+high. Every Sonnet role that edits runs a real check before it reports done. Since 0.15.0 the
+live page is seeded with the design's own data: `delivery contract` takes every text each design
+state shows from the render's DOM into `contract.json`, a Sonnet extractor at low labels each one
+data, fixed words or random, and `seed --check` refuses a data value no world holds, a count the
+rows don't add up to, or a fixture user without the design's name, before anything is built. Rows
+whose times tie get distinct seconds in the design's order, a state whose design contradicts
+itself goes back to Claude Design, and `design render` rebuilds the contract on every new export. An export
 holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run
@@ -168,7 +174,7 @@ and keep it current is in [`delivery-tools/docs/OPERATING.md`](delivery-tools/do
 
 Which agent, model and effort each role uses is in `delivery-tools/models.json`. The briefs:
 `briefs/builder-picture.md` (builder and fixer), `briefs/reviewer-picture.md`, `briefs/mapper.md`,
-`briefs/rules.md`, `briefs/seed-writer.md` and `briefs/ci-fixer.md`; a components run's mapper
+`briefs/rules.md`, `briefs/seed-writer.md`, `briefs/contract-labeller.md` and `briefs/ci-fixer.md`; a components run's mapper
 uses `briefs/components-mapper.md`.
 
 **Skills:**
@@ -183,7 +189,7 @@ uses `briefs/components-mapper.md`.
 | `epic-build` | Full mode: parallel builders, wave by wave, into one integration branch |
 | `design-audit` | Full mode: graded captures with severity floors |
 
-**CLI:** `delivery <command>`, 57 commands. Picture mode uses `map` (check the button map and
+**CLI:** `delivery <command>`, 58 commands. Picture mode uses `map` (check the button map and
 write the checklist; `--from-plan` converts a full-mode run), `seed` (`--refresh all` resets every
 world), `shoot` (full-height pictures of the page area next to the cropped design, at desktop and phone
 widths, a button check, a sideways-scroll check on the phone, data-changing states last), `review` (the reviewers' notes into `review.json` and a comparison
@@ -193,7 +199,8 @@ page) and `sign-in` (a one-time link that signs a person in as a world's test us
 check, pack and record a design brief from `templates/design-brief.md`). Since 0.14.0: `runs` (the
 cross-run table), `backfill-run` (an estimated ledger line for an earlier run), `log-agent` and
 `log-wait` (an agent or a wait the hook did not record), `crop` (the same box of two pictures,
-scaled up) and `hook subagent-stop`.
+scaled up) and `hook subagent-stop`. Since 0.15.0: `contract` (every text each design state shows,
+labelled, so `seed --check` can refuse a world that lacks the design's data).
 
 ## Releases
 

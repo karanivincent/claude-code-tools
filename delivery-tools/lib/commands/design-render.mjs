@@ -9,6 +9,8 @@ import { UsageError, EXIT } from '../core/exit.mjs';
 import { getDesignAdapter } from '../../adapters/design/index.mjs';
 import { renderDesign, DEFAULT_VIEWPORT } from '../design/render.mjs';
 import { WIDTHS, WIDTH_NAMES, itemKey } from '../picture/widths.mjs';
+import { readMap } from '../picture/map.mjs';
+import { rebuildContractFile } from '../picture/contract.mjs';
 
 export default defineCommand({
   name: "design render",
@@ -41,6 +43,10 @@ phone is 390 x 844 and adds @phone (<ID>@phone.png, <ID>@phone.txt, <ID>@phone.d
 picture-mode map that declares "widths": ["desktop", "phone"]. At phone width a picture-only state
 is skipped: a fixed picture has one width, so a map points a phone item at it with
 "design": { "phone": "<ID>" }.
+
+Once a picture-mode map exists, the data contract (docs/delivery/<feature>/contract.json) is rebuilt
+from the new renders: labels stay on texts that did not change, new texts wait for the labeller,
+and seed --check must pass again before the next shoot.
 
 This launches a browser: run it through the profile's heavy wrapper.
 
@@ -116,6 +122,25 @@ common options:
       counts: { rendered: r.rendered.length, pictures: r.shots.length, skipped: r.skipped.length, failed: r.failed.length },
       inputs: { inventory: inventory.designTreeSha256, states, ...(width !== 'desktop' ? { width } : {}) }, outputs: r,
     });
+    await contractAfterRender(ctx, paths, r);
     return exit;
   },
 });
+
+/**
+ * R11 of stable picture data: a new export makes every contract stale, so a render rebuilds it.
+ * A contract problem never changes the render's exit; it is printed for the next step.
+ */
+async function contractAfterRender(ctx, paths, r) {
+  if (!r.rendered.length) return;
+  let map;
+  try { map = readMap(paths); } catch { return; }
+  if (!map) return;
+  try {
+    const c = await rebuildContractFile(paths, map, ctx.clock.now().toISOString());
+    const todo = c.summary.unlabelled.length;
+    ctx.out.line(`contract rebuilt: ${c.summary.texts} text(s)${c.changed.length ? `; the design changed ${c.changed.join(', ')}` : ''}${todo ? `; ${todo} to label (delivery contract)` : ''}; run delivery seed --check again before the next shoot`);
+  } catch (err) {
+    ctx.out.warn(`the data contract was not rebuilt: ${String(err?.message ?? err).split('\n')[0]}`);
+  }
+}

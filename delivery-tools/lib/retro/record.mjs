@@ -19,7 +19,7 @@ const PHASE_OF = [
   ['intake', ['init', 'intake', 'preflight']],
   ['render', ['design ', 'inventory check']],
   ['map', ['map', 'rules', 'components', 'baseline', 'brief ', 'plan ', 'issues sync', 'claims ', 'dupes']],
-  ['seed', ['sidefx', 'seed', 'sign-in']],
+  ['seed', ['sidefx', 'seed', 'sign-in', 'contract']],
   ['build', ['wave ', 'gate']],
   ['shoot', ['shoot', 'slot', 'capture', 'audit compile']],
   ['review', ['review']],

@@ -16,6 +16,7 @@ import { readExportComponents } from '../design/components.mjs';
 import { parseEvent } from '../core/state.mjs';
 import { worldFilePath } from '../seed/plan.mjs';
 import { tablesWithoutGuard } from '../seed/data.mjs';
+import { contractPath, contractSummary } from './contract.mjs';
 
 /**
  * A2: every table the map's worlds write (their world files, already on disk once the mapper
@@ -152,6 +153,16 @@ function alreadyLanded(journal) {
   });
 }
 
+/** Whether the run's data contract is written, and how many texts are still to label or fix. */
+function contractFacts(paths, map) {
+  if (!map || map.kind === 'components') return { contractMissing: false, contractTodo: 0 };
+  if (!existsSync(contractPath(paths))) return { contractMissing: true, contractTodo: 0 };
+  const doc = readJsonSync(contractPath(paths));
+  if (!doc) return { contractMissing: true, contractTodo: 0 };
+  const s = contractSummary(doc);
+  return { contractMissing: false, contractTodo: s.unlabelled.length + s.invalid.length };
+}
+
 /**
  * Read what the picture loop needs from a run's files.
  * @param {import('../core/paths.mjs').FeaturePaths} paths
@@ -251,7 +262,10 @@ export async function pictureFacts(paths, opts = {}) {
     // builder dispatch until each is either drawn (proof becomes picture/test) or cut by the
     // founder (proof becomes cut, with a Scope line).
     owedDesignRules: owedDesign.map((r) => r.id),
-    seedStale: Boolean(map) && (!existsSync(paths.seedplan) || mtime(paths.seedplan) < Math.max(mtime(mapPath(paths)), newestWorld)),
+    seedStale: Boolean(map) && (!existsSync(paths.seedplan) || mtime(paths.seedplan) < Math.max(mtime(mapPath(paths)), newestWorld, mtime(contractPath(paths)))),
+    // Stable picture data: the data contract, built from the design renders and labelled by an
+    // extractor, before the worlds are seeded (a components gallery has no contract).
+    ...contractFacts(paths, map),
     rounds,
     backToDesign: backToDesignItems(paths).length,
     pageBlockedComponents,
@@ -309,7 +323,9 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   if (f.phoneRenderOwed) return { step: 'pictures', skill: 'design-inventory', text: `render the design at phone width (the map checks the phone): ${cli} design render --width phone, then ${cli} map` };
   if (f.rulesProblem) return { step: 'rules', skill, text: `fix rules.json (${f.ruleProblemCount} problem(s); first: ${f.rulesProblem}), then ${cli} rules and ${cli} map` };
   if (f.checklistStale) return { step: 'map', skill, text: `${cli} map (the checklist is older than map.json)` };
-  if (f.seedStale) return { step: 'worlds', skill, text: `${cli} seed --plan, then --check, then --apply (the seed plan is older than the map or a world file)` };
+  if (f.contractMissing) return { step: 'contract', skill, text: `${cli} contract: the data contract, every text each design state shows, taken from the design renders` };
+  if (f.contractTodo) return { step: 'contract', skill, text: `dispatch delivery-tools:delivery-extractor with Role: contract and briefs/contract-labeller.md (${f.contractTodo} text(s) to label or fix), then ${cli} contract` };
+  if (f.seedStale) return { step: 'worlds', skill, text: `${cli} seed --plan, then --check, then --apply (the seed plan is older than the map, a world file or the data contract)` };
   const last = f.rounds[f.rounds.length - 1];
   if (!last && f.update) return { step: 'shoot', skill, text: `update run from ${f.update}: picture the page as it is before building. Start the dev server, then ${cli} shoot --base-url <url> (round 1); the reviewers list what the new design changed, and the builder fixes only that` };
   if (!last) return { step: 'build', skill, text: `dispatch delivery-tools:picture-builder (opus, no worktree) with briefs/builder-picture.md; when it reports, start the dev server and run ${cli} shoot --base-url <url> (round 1)` };

@@ -108,6 +108,35 @@
           }
         }
       }
+    },
+    "staggered": {
+      "description": "R9: groups of rows whose relative times named the same moment, made distinct by a second each in file order.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "world",
+          "table",
+          "column",
+          "rows"
+        ],
+        "properties": {
+          "world": {
+            "type": "string"
+          },
+          "table": {
+            "type": "string"
+          },
+          "column": {
+            "type": "string"
+          },
+          "rows": {
+            "type": "integer",
+            "minimum": 2
+          }
+        }
+      }
     }
   }
 }
