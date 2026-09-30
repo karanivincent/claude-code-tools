@@ -2,7 +2,7 @@
 // database: plan, check, apply (refused, then accepted), scan catching a raw insert, refresh,
 // teardown, and the refusals that come before any database call.
 import { test } from 'node:test';
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import assert from 'node:assert/strict';
 import { makeTempRepo } from '../helpers/tmp-repo.mjs';
@@ -16,7 +16,7 @@ import { teardownRows, refreshWorld } from '../../lib/seed/scan.mjs';
 import { buildSeedPlan, uuidv5, fixtureId } from '../../lib/seed/plan.mjs';
 import { applyRows } from '../../lib/seed/apply.mjs';
 import { derivedNeverDial } from '../../lib/seed/db.mjs';
-import { createStubDb } from './stub-db.mjs';
+import { createStubDb, guardsWithFixtureTables } from './stub-db.mjs';
 import { WORKER_FILES } from '../sidefx/fixtures.mjs';
 
 const NOW = '2026-01-15T12:00:00.000Z';
@@ -61,7 +61,7 @@ async function setup({ world = SAFE_WORLD, db = stubDb(), safety = {} } = {}) {
   });
   repo.git('update-ref', 'refs/remotes/origin/main', 'HEAD');
   const t = await makeTestCtx({
-    repoRoot: repo.dir, feature: 'widgets', profile: makeProfile(), safety: makeSafety({ workers: WORKERS, ...safety }),
+    repoRoot: repo.dir, feature: 'widgets', profile: makeProfile(), safety: makeSafety({ workers: WORKERS, ...safety, guards: guardsWithFixtureTables(makeSafety(), safety.guards) }),
     passthrough: ['git'], clock: fakeClock(NOW),
   });
   t.ctx.dataBackend = db;
@@ -80,7 +80,7 @@ test('seed --plan: world files become seedplan.json with derived ids, resolved r
     assert.equal(await seedCommand.run(ctx, ['--plan']), 0);
     const plan = await readArtefact(ctx.paths, 'seedplan');
     const org = fixtureId('widgets', 'design', 'org');
-    assert.deepEqual(plan.worlds, [{ id: 'design', orgId: org }]);
+    assert.deepEqual(plan.worlds, [{ id: 'design', orgId: org, seededTables: ['organization_members', 'organizations', 'outbound_batches', 'outbound_calls', 'widgets'] }]);
     assert.equal(plan.project, 'testprojectref');
     const member = plan.rows.find((r) => r.table === 'organization_members');
     assert.equal(member.values.organization_id, org);
@@ -473,5 +473,46 @@ test('seed --check: a contract data value no world holds, or an unlabelled text,
     assert.match(out, /FAIL M13-contract 1 text\(s\) of the contract are not labelled yet/);
     contract(held);
     assert.equal(await seedCommand.run(ctx, ['--check']), 0, stdout.text());
+  } finally { repo.cleanup(); }
+});
+
+// W3 item 4: seed --plan checks every world value against the generated database types, then the
+// Json values against the profile's commands.validateSeedJson, and refuses on either.
+const TYPES_FILE = 'packages/types/src/database.ts';
+const putTypes = (repo, text) => { mkdirSync(join(repo.dir, 'packages/types/src'), { recursive: true }); writeFileSync(join(repo.dir, TYPES_FILE), text); };
+const typesFor = (widgetColumns) => `export type Database = { public: { Tables: {
+  organizations: { Row: { id: string; name: string } }
+  organization_members: { Row: { id: string; organization_id: string; user_id: string; role: string } }
+  widgets: { Row: { id: string; organization_id: string; ${widgetColumns} } }
+  outbound_batches: { Row: { id: string; organization_id: string; status: string } }
+  outbound_calls: { Row: { id: string; organization_id: string; batch_id: string; status: string; release_at: string; phone_number: string } }
+} } }`;
+const WIDGET_COLUMNS = 'state: string; created_at: string; contact_phone: string | null; settings: Json | null';
+
+test('W3: seed --plan refuses a column the types lack and a value of the wrong kind, and passes once they fit', async () => {
+  const { repo, ctx, stdout } = await setup();
+  try {
+    putTypes(repo, typesFor('state: number; created_at: string'));
+    assert.equal(await seedCommand.run(ctx, ['--plan']), 1);
+    assert.match(stdout.text(), /FAIL seed-plan-type world design: widgets\.contact_phone does not exist in database\.types\.ts/);
+    assert.match(stdout.text(), /FAIL seed-plan-type world design: widgets\.state is number, and a string does not fit it/);
+    putTypes(repo, typesFor(WIDGET_COLUMNS));
+    assert.equal(await seedCommand.run(ctx, ['--plan']), 0, stdout.text());
+  } finally { repo.cleanup(); }
+});
+
+test('W3: seed --plan gives a Json column to commands.validateSeedJson and refuses what it reports; a broken one only notes', async () => {
+  const world = structuredClone(SAFE_WORLD);
+  world.rows.find((r) => r.key === 'w1').values.settings = { theme: 'dark' };
+  const { repo, ctx, stdout } = await setup({ world });
+  try {
+    putTypes(repo, typesFor(WIDGET_COLUMNS));
+    const profile = await ctx.profile();
+    profile.commands = { ...profile.commands, validateSeedJson: `node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const e=JSON.parse(s).entries[0];console.log(JSON.stringify({problems:[{world:e.world,table:e.table,row:e.row,column:e.column,message:'no headline'}]}));process.exit(1)})"` };
+    assert.equal(await seedCommand.run(ctx, ['--plan']), 1);
+    assert.match(stdout.text(), /FAIL seed-plan-json widgets\.settings \(world design, row .+\): no headline/);
+    profile.commands.validateSeedJson = 'echo not json';
+    assert.equal(await seedCommand.run(ctx, ['--plan']), 0, stdout.text());
+    assert.match(stdout.text(), /note: commands\.validateSeedJson did not print JSON/);
   } finally { repo.cleanup(); }
 });

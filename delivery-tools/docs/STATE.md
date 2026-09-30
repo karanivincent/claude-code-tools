@@ -22,9 +22,14 @@ profile, in that project's repository (spec section 18).
 node --test 'tests/**/*.test.mjs' 'skills/**/*.test.mjs'
 ```
 
-1213 tests: 1195 pass, 0 fail, 18 skipped (the replay tests, which need the private replay set; the
+1321 tests: 1303 pass, 0 fail, 18 skipped (the replay tests, which need the private replay set; the
 real-browser render and smoke tests, which need `DELIVERY_PLAYWRIGHT_ROOT`; and the Settings export
-check, which needs `DELIVERY_SETTINGS_EXPORT`). That is the whole suite after 0.18.0 (preset tables
+check, which needs `DELIVERY_SETTINGS_EXPORT`). That is the whole suite after 0.19.0 (the contract's
+`row`, `generated` and `none` with the founder's decisions and `contract --questions`, `seed
+--from-trace` with `swaps.json`, `seed --need`, column types and `validateSeedJson` at `seed --plan`,
+the guard refusal at `seed --check`, refresh of every table a world ever seeded, a reset before every
+saving state, `<ITEM>.live.txt` and datacheck with the `data-fault` verdict, `delivery datacheck`,
+the source check, `clock: true` states, and the hook judging a seed script by what it does), 0.18.0 (preset tables
 become `preset` candidates, `_bundle_src.dc.html` ignored, render warnings for an iframe-heavy page
 and a prop named like a state key, `delivery smoke`, run by `shoot` before and after, and a round
 the server broke in deleted so its number is reused), 0.17.0 (`seed --check` refuses a changed table and a same-name fixture organisation, `globals`

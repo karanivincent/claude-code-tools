@@ -168,7 +168,7 @@ test('delivery contract writes contract.json from the design DOM, exits 1 while 
     { text: 'Amina Otieno', label: 'data', table: 'contacts', column: 'name' },
   ] }, inconsistent: {} }));
   assert.equal(await contractCommand.run(ctx, []), 0);
-  assert.match(stdout.text(), /next: delivery seed --plan/);
+  assert.match(stdout.text(), /next: delivery seed --from-trace, then --plan/);
   assert.ok(existsSync(join(deliveryDir, 'contract.json')));
 });
 

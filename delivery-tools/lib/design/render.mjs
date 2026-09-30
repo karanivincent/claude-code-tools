@@ -279,8 +279,10 @@ export async function runDesignStep(page, step, n) {
  * @param {import('../core/ctx.mjs').Ctx} ctx
  * @param {{ paths: import('../core/paths.mjs').FeaturePaths, inventory: object, adapter: string, states?: string[]|null,
  *           port?: number, offline?: boolean, viewport?: { width: number, height: number }, width?: string,
- *           e2eDir?: string|null, playwrightRoot?: string|null,
+ *           e2eDir?: string|null, playwrightRoot?: string|null, timeZone?: string|null,
  *           snapshotDir?: string, serveDir?: string, outDir?: string }} opts
+ *   timeZone: the profile's testData.timeZone, so the design's own dates read in the zone the
+ *   shoot's browser uses
  *   snapshotDir, serveDir and outDir default to paths.designSnapshot, paths.designServe and
  *   paths.designRenders; `delivery design review` (plan task 8) renders a different export into its
  *   own scratch folders instead of the run's own snapshot and renders.
@@ -353,7 +355,8 @@ export async function renderDesign(ctx, opts) {
           viewport = previewViewport(preview, width);
         }
       }
-      const context = await browser.newContext({ viewport, deviceScaleFactor: 1, colorScheme: 'light', reducedMotion: 'reduce', locale: 'en-US' });
+      // W3 (D4): the design reads dates in the organisation's zone, as the shoot's browser does.
+      const context = await browser.newContext({ viewport, deviceScaleFactor: 1, colorScheme: 'light', reducedMotion: 'reduce', locale: 'en-US', ...(opts.timeZone ? { timezoneId: opts.timeZone } : {}) });
       try {
         await context.addInitScript({ content: SET_STATE_INIT });
         await context.route('**/*', async (route) => {

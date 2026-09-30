@@ -18,8 +18,9 @@ would (quotes, heredocs, $(...), sh -c and eval are looked into):
     input hash changed), red, or not written by delivery ready;
   - a gh api call with ready_for_review or markPullRequestReadyForReview is checked against
     every active run's PR;
-  - a raw seed command (a seed script, a seed package script, a seed subcommand) is refused
-    while a run is active: only delivery seed writes fixture rows.
+  - a raw seed command (a seed package script, a seed subcommand, or a seed-named script whose
+    text writes to a database or cannot be read) is refused while a run is active: only delivery
+    seed writes fixture rows.
 Anything else, and everything when no run is active, is allowed.
 
 exit: 0 allow; 2 refuse, with the reason on stderr

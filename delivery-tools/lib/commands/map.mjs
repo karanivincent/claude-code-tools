@@ -6,7 +6,8 @@ import { join } from 'node:path';
 import { defineCommand } from '../core/command.mjs';
 import { parseCommandArgs } from '../core/args.mjs';
 import { EXIT } from '../core/exit.mjs';
-import { checklistPath, designIds, mapFromPlan, mapPath, readMap, renderChecklist, validateMap } from '../picture/map.mjs';
+import { checklistPath, clockProblems, designIds, mapFromPlan, mapPath, readMap, renderChecklist, validateMap } from '../picture/map.mjs';
+import { worldFilePath } from '../seed/plan.mjs';
 import { hasPhone, mapItems, mapWidths } from '../picture/widths.mjs';
 import { readRules } from '../picture/rules.mjs';
 
@@ -21,7 +22,9 @@ renders it), its buttons, the state each button opens, which buttons a member mu
 each button's effect. The mapper agent writes it from the design renders (briefs/mapper.md).
 
 This command checks the map against the design renders and the safety rules (no reach step clicks
-a metered, dialling or destructive control without an intercept), then writes checklist.md next
+a metered, dialling or destructive control without an intercept), and refuses a fixed date or time
+in the world of a state marked "clock": true (one that looks as designed only at some times of
+day: its times are written relative to the shoot, {"$rel": ...}), then writes checklist.md next
 to it, which builders and reviewers read. When rules.json exists, each rule is written under the
 states that show it, so builders and reviewers see it next to the picture. A valid map switches the run to picture mode: status
 then follows the picture loop.
@@ -62,7 +65,11 @@ common options:
       ctx.out.fail('no-map', `${mapPath(paths)} does not exist; the mapper agent writes it (briefs/mapper.md), or run delivery map --from-plan`);
       return EXIT.USAGE;
     }
-    const problems = validateMap(map, { designed });
+    const worldFiles = {};
+    for (const w of map.worlds ?? []) {
+      try { worldFiles[w.id] = JSON.parse(readFileSync(worldFilePath(paths, w.id), 'utf8')); } catch { worldFiles[w.id] = null; }
+    }
+    const problems = [...validateMap(map, { designed }), ...clockProblems(map, worldFiles)];
     for (const p of problems) ctx.out.fail('map', p);
     if (problems.length) {
       await ctx.journal({ command: 'map', exit: EXIT.RED, counts: { problems: problems.length } });

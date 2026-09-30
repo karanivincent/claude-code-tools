@@ -13,7 +13,7 @@ import { waitEvent } from '../retro/log.mjs';
 import { pageExtract } from '../capture/page-extract.mjs';
 import { sha256 } from '../core/hash.mjs';
 import { PIXEL_TOLERANCE, domFacts, factsAgree } from './review.mjs';
-import { sortDataDifferences } from './contract.mjs';
+import { checkItem, liveTextFile, lookupOf, SEEDED_FILE } from './datacheck.mjs';
 import { WIDTHS, cropFor, designFileCandidates, mapItems, overflowProblem, roundFiles } from './widths.mjs';
 
 /**
@@ -66,15 +66,16 @@ export function maskDom(dom, testids) {
 const MAX_HEIGHT = 8000;
 
 /**
- * The items of a round worth shooting again after a data fix (`shoot --only data-gaps`): each item
- * the compiled review gave a data-gap verdict, and each the shoot's lookup found a data gap in.
+ * The items of a round worth shooting again after a data fix (`shoot --only data-faults`, or its
+ * older name data-gaps): each item the shoot's datacheck found a data fault in, and each the
+ * compiled review gave a data-fault or data-gap verdict.
  * @param {{ review?: object|null, shoot?: object|null }} info roundInfo's result
  * @returns {string[]}
  */
 export function dataGapItems(info) {
   const keys = new Set();
-  for (const [k, v] of Object.entries(info?.review?.states ?? {})) if (v.verdict === 'data-gap' || v.dataGap?.length) keys.add(k);
-  for (const [k, v] of Object.entries(info?.shoot?.states ?? {})) if (v.lookup?.dataGap?.length) keys.add(k);
+  for (const [k, v] of Object.entries(info?.review?.states ?? {})) if (['data-gap', 'data-fault'].includes(v.verdict) || v.dataGap?.length || v.dataFault?.length) keys.add(k);
+  for (const [k, v] of Object.entries(info?.shoot?.states ?? {})) if (v.lookup?.dataGap?.length || v.lookup?.dataFault?.length) keys.add(k);
   return [...keys];
 }
 
@@ -103,12 +104,13 @@ export function selectStates(map, picks = []) {
  * Capture order. One group per fixture user, in first-seen order; groups that change data (a save,
  * a discard, an add) come after groups that do not. Inside a group, every width's reading items
  * come before any width's writing items, so a save at one width cannot change what another width
- * reads; among the writing items, desktop is shot before phone (widths.WIDTHS' own order), so a
- * state that writes and is checked at both widths uses a freshly seeded world for each: every
- * writing entry but the group's last carries `reseedAfter: true`, which runShoot reads to re-seed
- * the world before the next entry (the desktop write "uses up" the data a phone write also needs).
- * Each entry is one browser context at one width: consecutive entries at the same width are
- * joined, so a desktop-only group is one entry with its writing items last.
+ * reads; among the writing items, desktop is shot before phone (widths.WIDTHS' own order).
+ * Each writing item is its own entry (W3, D3): a save leaks into whatever is shot after it in the
+ * same world, so the world is reset before every state that saves, not once per width. Only the
+ * first writing item at a width may share the entry of the reading items before it, whose world
+ * is still as seeded. Every writing entry but the group's last carries `reseedAfter: true`, which
+ * runShoot reads to re-seed the world before the next entry when it has no reset of its own.
+ * Each entry is one browser context at one width.
  * @returns {{ width: string, world: string, role: string, items: object[], writes: string[], reseedAfter?: boolean }[]}
  */
 export function captureOrder(items, map) {
@@ -126,13 +128,12 @@ export function captureOrder(items, map) {
     const entries = [];
     for (const w of widths) entries.push({ width: w, world, role, items: list.filter((i) => i.width === w && !writes(i)), writes: [] });
     for (const w of widths) {
-      const ws = list.filter((i) => i.width === w && writes(i));
-      entries.push({ width: w, world, role, items: ws, writes: ws.map((i) => i.key) });
+      for (const it of list.filter((i) => i.width === w && writes(i))) entries.push({ width: w, world, role, items: [it], writes: [it.key] });
     }
     const joined = [];
     for (const e of entries.filter((x) => x.items.length)) {
       const prev = joined[joined.length - 1];
-      if (prev && prev.width === e.width) { prev.items.push(...e.items); prev.writes.push(...e.writes); } else joined.push(e);
+      if (prev && prev.width === e.width && !prev.writes.length) { prev.items.push(...e.items); prev.writes.push(...e.writes); } else joined.push(e);
     }
     const writing = joined.filter((e) => e.writes.length);
     for (let i = 0; i < writing.length - 1; i++) writing[i].reseedAfter = true;
@@ -363,7 +364,8 @@ export async function openSignedIn(browser, o, entry, user, ip, prepare) {
  *   lookup sorts data differences by. Throws when the world cannot be reset safely: its items are
  *   then not reached, never pictured on a world nobody checked.
  * @param {string|null} [o.timeZone] the profile's testData.timeZone, for the browser
- * @param {object|null} [o.contract] the run's contract.json, for the lookup (R3)
+ * @param {object|null} [o.contract] the run's contract.json, for the datacheck (W3)
+ * @param {Record<string, Record<string, string>>|null} [o.swaps] swaps.json's worlds (seed --from-trace)
  * @returns {Promise<Record<string, object>>} keyed by item key
  */
 export async function runShoot(o) {
@@ -424,6 +426,7 @@ export async function runShoot(o) {
     }
     await cropDesigns(browser, o, o.items);
     await recordPictureFacts(browser, o, report, liveFacts, seeded);
+    await writeSeeded(o.outDir, seeded);
   } finally {
     await browser.close();
   }
@@ -552,7 +555,10 @@ async function shootItem(page, it, o, liveFacts = new Map()) {
   await page.evaluate(hideBottomBars, BOTTOM_BAR_MAX).catch(() => 0);
   // What the page says, read the way a design render's is, for the auto-match check (A6).
   const extracted = await page.evaluate(pageExtract, {}).catch(() => null);
-  liveFacts.set(it.key, extracted ? domFacts(maskDom(extracted.dom, maskTestids(s)), left) : null);
+  const facts = extracted ? domFacts(maskDom(extracted.dom, maskTestids(s)), left) : null;
+  liveFacts.set(it.key, facts);
+  // W3: the page's own text, kept for datacheck (it can be run again without a browser).
+  if (facts) await writeFile(join(o.outDir, liveTextFile(it.key)), `${facts.text.join('\n')}\n`);
   const masks = await maskLocators(page, s, rec);
   await page.screenshot({ path: join(o.outDir, roundFiles(it.key).live), clip: { x: left, y: top, width: size.width - left, height: height - top }, animations: 'disabled', caret: 'hide', ...masks });
   return rec;
@@ -657,14 +663,17 @@ async function recordPictureFacts(browser, o, report, liveFacts, seeded = new Ma
       const dFacts = designDom ? domFacts(maskDom(designDom, maskTestids(it.state)), cropFor(o.map, it.width, it.id).designLeft ?? 0) : null;
       const lFacts = liveFacts.get(it.key) ?? null;
       rec.factsAgree = dFacts && lFacts ? factsAgree(lFacts, dFacts) : null;
-      // R3: a difference in a contract data value, sorted by looking it up in the world as seeded.
+      // W3 datacheck (after R3): every contract data value looked for in the live text; a miss is
+      // sorted by the world's rows as seeded, into a data fault or a must fix.
       const world = seeded.get(it.state.reach?.world);
-      if (dFacts && lFacts && world && o.contract) {
-        const sorted = sortDataDifferences({
-          contractState: o.contract.states?.[it.id], designTexts: dFacts.text, liveTexts: lFacts.text,
-          rows: world.rows ?? null, users: world.users ?? [], now: world.at ?? new Date(),
+      if (lFacts && o.contract) {
+        const r = checkItem({
+          contractState: o.contract.states?.[it.id], liveLines: lFacts.text,
+          rows: world?.rows ?? null, users: world?.users ?? [], now: world?.at ?? new Date(), swaps: o.swaps?.[it.state.reach?.world] ?? null,
         });
-        if (sorted.dataGap.length || sorted.must.length) rec.lookup = sorted;
+        const lookup = lookupOf(r);
+        if (lookup) rec.lookup = lookup;
+        rec.datacheck = { checked: r.checked, faults: r.faults.length, page: r.page.length };
       }
       if (!live || !design) continue;
       let diff = null;
@@ -681,13 +690,27 @@ async function recordPictureFacts(browser, o, report, liveFacts, seeded = new Ma
 }
 
 /**
- * Merge a shoot's results into the round's shoot.json (a second pass adds to the first, and an
- * item shot again replaces its earlier record). A re-shoot (`shoot --only`) is listed in `reshot`.
+ * What each world held when it was shot (its rows as the reset read them back, its users and the
+ * moment), merged into the round's seeded.json, so datacheck can be run again without a database.
  */
-export async function writeShootJson(outDir, { baseUrl, at, report, reshot = false }) {
+async function writeSeeded(outDir, seeded) {
+  if (!seeded.size) return;
+  const file = join(outDir, SEEDED_FILE);
+  let prior = {};
+  try { prior = JSON.parse(readFileSync(file, 'utf8')); } catch { prior = {}; }
+  for (const [world, w] of seeded) prior[world] = { at: new Date(w.at ?? Date.now()).toISOString(), rows: w.rows ?? null, users: w.users ?? [] };
+  await writeFile(file, `${JSON.stringify(prior)}\n`);
+}
+
+/**
+ * Merge a shoot's results into the round's shoot.json (a second pass adds to the first, and an
+ * item shot again replaces its earlier record). A re-shoot (`shoot --only`) is listed in `reshot`,
+ * with `why: "data-faults"` when it re-shot the round's data faults (NEXT counts those passes).
+ */
+export async function writeShootJson(outDir, { baseUrl, at, report, reshot = false, why = null }) {
   const file = join(outDir, 'shoot.json');
   const prior = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : { states: {} };
-  const history = [...(prior.reshot ?? []), ...(reshot ? [{ at, items: Object.keys(report) }] : [])];
+  const history = [...(prior.reshot ?? []), ...(reshot ? [{ at, items: Object.keys(report), ...(why ? { why } : {}) }] : [])];
   const doc = { schemaVersion: 1, baseUrl, at: reshot && prior.at ? prior.at : at, states: { ...prior.states, ...report }, ...(history.length ? { reshot: history } : {}) };
   await writeFile(file, JSON.stringify(doc, null, 1) + '\n');
   return doc;

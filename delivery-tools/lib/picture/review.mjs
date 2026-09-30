@@ -82,7 +82,10 @@ export function parseReview(md, ids = null) {
  * defect for the builder, so it never spends one of the picture loop's fix rounds (lib/run/ready.mjs
  * pictureReadiness treats it separately, and always keeps ready red until the world is re-seeded).
  * A data-gap note alongside a real must-fix note still leaves the verdict `must` (the code defect
- * is the worse problem), but the data-gap note is kept either way.
+ * is the worse problem), but the data-gap note is kept either way. A data fault (W3) is the same
+ * kind of problem found by the machine: datacheck's miss of a traced value the world lacks. It gets
+ * its own verdict, `data-fault`, so the runs ledger can count what was caught before review apart
+ * from what reviewers found (`data-gap`, now only for a value the trace missed).
  * An item `pre.carried` names (its pictures did not change since an earlier round, A6) takes that
  * round's label and notes and is marked `carried: { from }`; one in `pre.auto` (text, test ids,
  * buttons and pixels all agree with the design) is a match marked `auto: true`. Neither went to a
@@ -95,31 +98,33 @@ export function summarise({ map, shoot, notes, pre = {} }) {
   for (const { key, state: s } of mapItems(map)) {
     const given = notes[key] ?? { must: [], small: [], design: [], dataGap: [] };
     const shot = shoot?.states?.[key];
-    const n = { must: [...given.must], small: [...given.small], design: [...(given.design ?? [])], dataGap: [...(given.dataGap ?? [])] };
+    const n = { must: [...given.must], small: [...given.small], design: [...(given.design ?? [])], dataGap: [...(given.dataGap ?? [])], dataFault: [] };
     const carried = shot?.reached && !s.reach?.test ? pre.carried?.[key] : null;
     if (carried) {
       const c = carried.state;
-      n.must = [...(c.must ?? [])]; n.small = [...(c.small ?? [])]; n.design = [...(c.design ?? [])]; n.dataGap = [...(c.dataGap ?? [])];
+      n.must = [...(c.must ?? [])]; n.small = [...(c.small ?? [])]; n.design = [...(c.design ?? [])]; n.dataGap = [...(c.dataGap ?? [])]; n.dataFault = [...(c.dataFault ?? [])];
     } else if (shot?.reached) {
       if (shot.overflow > 0 && !n.must.some((t) => /sideways|horizontal(ly)? scroll/i.test(t))) n.must.push(`the page scrolls sideways by ${shot.overflow} px (found by the shoot)`);
       // R3: the shoot's lookup sorted each contract data difference by the world's rows.
       for (const t of shot.lookup?.must ?? []) if (!n.must.includes(t)) n.must.push(t);
       for (const t of shot.lookup?.dataGap ?? []) if (!n.dataGap.includes(t)) n.dataGap.push(t);
+      for (const t of shot.lookup?.dataFault ?? []) if (!n.dataFault.includes(t)) n.dataFault.push(t);
     }
     let verdict;
     if (s.reach?.test) verdict = 'test-only';
     else if (!shot) verdict = 'not-shot';
     else if (!shot.reached) verdict = 'not-reached';
     else if (n.must.length) verdict = 'must';
+    else if (n.dataFault.length) verdict = 'data-fault';
     else if (n.dataGap.length) verdict = 'data-gap';
     else if (n.small.length) verdict = 'small';
     else if (n.design.length) verdict = 'back-to-design';
     else verdict = 'match';
-    const bucket = { 'test-only': 'testOnly', 'not-reached': 'notReached', 'not-shot': 'notReached', 'back-to-design': 'backToDesign', 'data-gap': 'dataGap' }[verdict] ?? verdict;
+    const bucket = { 'test-only': 'testOnly', 'not-reached': 'notReached', 'not-shot': 'notReached', 'back-to-design': 'backToDesign', 'data-gap': 'dataGap', 'data-fault': 'dataFault' }[verdict] ?? verdict;
     counts[bucket] = (counts[bucket] ?? 0) + 1;
     const auto = !carried && verdict === 'match' && pre.auto?.[key];
     states[key] = {
-      verdict, must: n.must, small: n.small, design: n.design, ...(n.dataGap.length ? { dataGap: n.dataGap } : {}),
+      verdict, must: n.must, small: n.small, design: n.design, ...(n.dataGap.length ? { dataGap: n.dataGap } : {}), ...(n.dataFault.length ? { dataFault: n.dataFault } : {}),
       ...(carried ? { carried: { from: carried.from } } : {}), ...(auto ? { auto: true } : {}),
     };
   }
@@ -159,7 +164,7 @@ const inline = (t) => esc(t).replace(/`([^`]+)`/g, '<code>$1</code>');
  */
 export function renderCompare(o) {
   const { counts } = o.summary;
-  const label = { match: 'matches', small: 'small differences', must: 'to fix', 'test-only': 'unit tests only', 'not-reached': 'not reached', 'not-shot': 'not pictured', 'back-to-design': 'back to design', 'data-gap': 'data gap' };
+  const label = { match: 'matches', small: 'small differences', must: 'to fix', 'test-only': 'unit tests only', 'not-reached': 'not reached', 'not-shot': 'not pictured', 'back-to-design': 'back to design', 'data-gap': 'data gap', 'data-fault': 'data fault' };
   const widthLabel = { desktop: 'Desktop', phone: 'Phone' };
   const screens = [...new Set((o.map.states ?? []).map((s) => s.screen))];
   const items = mapItems(o.map);
@@ -172,10 +177,11 @@ export function renderCompare(o) {
     if (v.verdict === 'must') return `${v.must.length} to fix`;
     if (v.verdict === 'back-to-design') return `${v.design.length} back to design`;
     if (v.verdict === 'data-gap') return `${v.dataGap.length} data gap`;
+    if (v.verdict === 'data-fault') return `${v.dataFault.length} data fault`;
     if (v.auto) return 'matches (auto)';
     return label[v.verdict];
   };
-  const rank = ['must', 'not-reached', 'not-shot', 'data-gap', 'small', 'back-to-design', 'test-only', 'match'];
+  const rank = ['must', 'not-reached', 'not-shot', 'data-fault', 'data-gap', 'small', 'back-to-design', 'test-only', 'match'];
   const rows = (o.map.states ?? []).map((s) => {
     const mine = items.filter((i) => i.id === s.id);
     const verdicts = mine.map((i) => o.summary.states[i.key]).filter(Boolean);
@@ -183,7 +189,7 @@ export function renderCompare(o) {
     const widthRow = (it) => {
       const v = o.summary.states[it.key] ?? { verdict: 'not-shot', must: [], small: [], design: [], dataGap: [] };
       const p = o.pictures(it.key);
-      const notes = [...v.must.map((t) => `<li class="m">${inline(t)}</li>`), ...(v.dataGap ?? []).map((t) => `<li class="g">${inline(t)}</li>`), ...v.small.map((t) => `<li class="s">${inline(t)}</li>`), ...(v.design ?? []).map((t) => `<li class="d">${inline(t)}</li>`)].join('');
+      const notes = [...v.must.map((t) => `<li class="m">${inline(t)}</li>`), ...(v.dataFault ?? []).map((t) => `<li class="g">${inline(t)}</li>`), ...(v.dataGap ?? []).map((t) => `<li class="g">${inline(t)}</li>`), ...v.small.map((t) => `<li class="s">${inline(t)}</li>`), ...(v.design ?? []).map((t) => `<li class="d">${inline(t)}</li>`)].join('');
       const trio = `<div class="trio">${fig(p.design, 'Design', it.key)}${o.beforeRound ? fig(p.before, `Round ${o.beforeRound}`, it.key) : ''}${fig(p.now, `Round ${o.round}`, it.key)}</div>`;
       const list = notes ? `<ul class="notes">${notes}</ul>` : '';
       const note = v.carried ? `<p class="carried">Carried from round ${esc(v.carried.from)}: neither picture changed, so it was not reviewed again.</p>` : v.auto ? '<p class="carried">Matched without a reviewer: the text, test ids, buttons and pixels agree with the design.</p>' : '';
@@ -226,7 +232,7 @@ h1 { font-size:1.6rem; font-weight:600; margin:0; text-wrap:balance; }
 .sid { font:500 .8rem/1 var(--mono); color:var(--muted); }
 .state h2 { font-size:1.05rem; font-weight:600; margin:0; flex:1 1 20rem; }
 .pill { font-size:.78rem; font-weight:600; border-radius:999px; padding:3px 10px; color:var(--muted); background:var(--none-bg); }
-.pill.must, .pill.not-reached { color:var(--must); background:var(--must-bg); } .pill.small { color:var(--small); background:var(--small-bg); } .pill.match { color:var(--ok); background:var(--ok-bg); } .pill.back-to-design, .pill.data-gap { color:var(--accent); background:var(--none-bg); }
+.pill.must, .pill.not-reached { color:var(--must); background:var(--must-bg); } .pill.small { color:var(--small); background:var(--small-bg); } .pill.match { color:var(--ok); background:var(--ok-bg); } .pill.back-to-design, .pill.data-gap, .pill.data-fault { color:var(--accent); background:var(--none-bg); }
 .trio { display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap:12px; }
 .shot { margin:0; display:grid; gap:6px; align-content:start; }
 .shot figcaption { font-size:.78rem; font-weight:500; color:var(--muted); letter-spacing:.03em; text-transform:uppercase; }
@@ -249,7 +255,7 @@ h1 { font-size:1.6rem; font-weight:600; margin:0; text-wrap:balance; }
   <section>
     <h1>${esc(o.title)}</h1>
     <p class="lede">Each designed state${multi ? ', at each width it is checked at' : ''}: the design, ${o.beforeRound ? `round ${o.beforeRound}, ` : ''}and round ${o.round}, with the reviewers' notes. Only the page's own area is pictured. Click a picture to see it full size.</p>
-    <ul class="tally"><li><b>${counts.match}</b>match</li><li><b>${counts.small}</b>small differences only</li><li><b>${counts.must}</b>to fix</li>${counts.dataGap ? `<li><b>${counts.dataGap}</b>data gap</li>` : ''}<li><b>${counts.notReached}</b>not reached</li><li><b>${counts.backToDesign}</b>back to design</li><li><b>${counts.testOnly}</b>unit tests only</li></ul>
+    <ul class="tally"><li><b>${counts.match}</b>match</li><li><b>${counts.small}</b>small differences only</li><li><b>${counts.must}</b>to fix</li>${counts.dataFault ? `<li><b>${counts.dataFault}</b>data fault</li>` : ''}${counts.dataGap ? `<li><b>${counts.dataGap}</b>data gap</li>` : ''}<li><b>${counts.notReached}</b>not reached</li><li><b>${counts.backToDesign}</b>back to design</li><li><b>${counts.testOnly}</b>unit tests only</li></ul>
   </section>
   <nav class="bar" aria-label="Filter states">${chips}<button type="button" class="chip" data-verdict="must" aria-pressed="false">To fix</button></nav>
   <main class="wrap">${rows}</main>
@@ -423,9 +429,11 @@ export function batchPrompt(o) {
     `Close look: node scripts/delivery.mjs crop --round ${String(o.roundRel).split('/').pop()} --item <ITEM> --box x,y,w,h`,
   ];
   const steers = (o.steers ?? '').trim();
-  const sorted = Object.entries(o.sorted ?? {}).flatMap(([k, v]) => [...(v.dataGap ?? []).map((t) => `- ${k}: data gap: ${t}`), ...(v.must ?? []).map((t) => `- ${k}: must fix: ${t}`)]);
+  const sorted = Object.entries(o.sorted ?? {}).flatMap(([k, v]) => [...(v.dataFault ?? []).map((t) => `- ${k}: data fault: ${t}`), ...(v.dataGap ?? []).map((t) => `- ${k}: data gap: ${t}`), ...(v.must ?? []).map((t) => `- ${k}: must fix: ${t}`)]);
+  const decided = (o.decided ?? []).map((d) => `- ${d.state}: "${d.text}" (decided: ${d.decision})`);
   return lines.join('\n')
-    + (sorted.length ? `\n\nAlready sorted by looking the data up in the world (counted already; do not write these again):\n${sorted.join('\n')}` : '')
+    + (sorted.length ? `\n\nAlready sorted by datacheck, which looked each traced value up in the world (counted already; do not write these again):\n${sorted.join('\n')}` : '')
+    + (decided.length ? `\n\nValues the product does not store, which the founder has decided (not a difference; do not write them):\n${decided.join('\n')}` : '')
     + (steers ? `\n\nSteers for this run (from ${o.steersRel ?? 'steers.md'}):\n${steers}` : '') + '\n';
 }
 

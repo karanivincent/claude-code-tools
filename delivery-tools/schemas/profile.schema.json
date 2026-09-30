@@ -52,6 +52,7 @@
             "stagingCommand": { "type": "string" }
           }
         },
+        "validateSeedJson": { "type": "string" },
         "flight": { "type": "string" },
         "tried": { "type": "string" },
         "planner": { "type": "string" },

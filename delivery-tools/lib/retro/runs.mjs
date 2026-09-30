@@ -42,6 +42,8 @@ export function runRows(records) {
       matchRates: matchRates(rec.rounds),
       // R13 of stable picture data: data gaps per round, the plan's measure of success (near zero from round 1).
       dataGaps: (rec.rounds ?? []).map((r) => (Number.isFinite(r.dataGap) ? r.dataGap : null)),
+      // W3: data faults datacheck caught before review, per round (none recorded before 0.19).
+      dataFaults: (rec.rounds ?? []).map((r) => (Number.isFinite(r.dataFault) ? r.dataFault : null)),
       // R12: masks are counted so they cannot spread unseen.
       masked: (rec.rounds ?? []).map((r) => (Number.isFinite(r.masked) ? r.masked : null)),
       costUsd: priced ? Math.round(cost * 100) / 100 : null,
@@ -113,8 +115,8 @@ export function runsReport(records) {
   ));
   out.push('', 'Rounds', '');
   out.push(...table(
-    ['run', 'rounds', 'to green', 'match rate per round', 'data gaps per round', 'masked'],
-    runs.map((r) => [r.feature, r.rounds, r.roundsToGreen ?? (r.rounds ? `not after ${r.rounds}` : '-'), r.matchRates.length ? r.matchRates.map((m) => dash(m, '%')).join(' > ') : '-', r.dataGaps.length ? r.dataGaps.map((g) => dash(g)).join(' > ') : '-', r.masked.some((m) => m !== null) ? r.masked.map((m) => dash(m)).join(' > ') : '-']),
+    ['run', 'rounds', 'to green', 'match rate per round', 'data gaps per round', 'data faults per round', 'masked'],
+    runs.map((r) => [r.feature, r.rounds, r.roundsToGreen ?? (r.rounds ? `not after ${r.rounds}` : '-'), r.matchRates.length ? r.matchRates.map((m) => dash(m, '%')).join(' > ') : '-', r.dataGaps.length ? r.dataGaps.map((g) => dash(g)).join(' > ') : '-', r.dataFaults.some((m) => m !== null) ? r.dataFaults.map((g) => dash(g)).join(' > ') : '-', r.masked.some((m) => m !== null) ? r.masked.map((m) => dash(m)).join(' > ') : '-']),
   ));
   const models = modelRows(records);
   out.push('', 'Time and cost by model (all runs)', '');

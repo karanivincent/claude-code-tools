@@ -7,7 +7,8 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { contextOptions, dataGapItems, freezeClock, runShoot, selectStates, writeShootJson } from '../../lib/picture/shoot.mjs';
-import { dateShape, sortDataDifferences } from '../../lib/picture/contract.mjs';
+import { dateShape } from '../../lib/picture/contract.mjs';
+import { checkItem } from '../../lib/picture/datacheck.mjs';
 import { batchPrompt, noteOwners, reshotItems, summarise } from '../../lib/picture/review.mjs';
 import { pictureNext } from '../../lib/picture/next.mjs';
 import { runRows, runsReport } from '../../lib/retro/runs.mjs';
@@ -164,25 +165,26 @@ test('the shoot records each contract data difference sorted by lookup: rows mis
     const l = report['WL-01'].lookup;
     assert.equal(l.must.length, 1);
     assert.match(l.must[0], /"Amina Otieno" and the page does not, though the world holds it/);
-    assert.equal(l.dataGap.length, 1);
-    assert.match(l.dataGap[0], /"Brian Mwangi": no contacts row has name = "Brian Mwangi"/);
+    assert.equal(l.dataFault.length, 1);
+    assert.match(l.dataFault[0], /"Brian Mwangi": no contacts row has name = "Brian Mwangi"/);
   } finally { d.cleanup(); }
 });
 
-test('sortDataDifferences: a date in the design\'s format is no difference; fixed and random texts are not sorted; no rows sorts nothing', () => {
+test('datacheck: a date in the design\'s format is no difference; fixed and random texts are not checked; no rows sorts by the traced row', () => {
   const contractState = { texts: [
     { text: 'Tue 14 Oct', label: 'data', kind: 'date', table: 'calls', column: 'at' },
     { text: 'Save', label: 'fixed' },
     { text: '#A81F', label: 'random' },
     { text: '8 calls', label: 'data', kind: 'count', table: 'calls', value: '8' },
   ] };
-  const design = ['Tue 14 Oct', 'Save', '#A81F', '8 calls'];
   const rows = Array.from({ length: 8 }, () => ({ table: 'calls', values: { at: '2026-01-15' } }));
-  const r = sortDataDifferences({ contractState, designTexts: design, liveTexts: ['Wed 3 Sep', '6 calls'], rows, users: [], now: SEEDED });
-  assert.deepEqual(r.dataGap, []);
-  assert.equal(r.must.length, 1, 'eight rows and the page shows another count: the count query is wrong, not the data');
-  assert.match(r.must[0], /"8 calls".*calls rows/);
-  assert.deepEqual(sortDataDifferences({ contractState, designTexts: design, liveTexts: [], rows: null, users: [], now: SEEDED }), { dataGap: [], must: [] });
+  const r = checkItem({ contractState, liveLines: ['Wed 3 Sep', '6 calls'], rows, users: [], now: SEEDED });
+  assert.deepEqual(r.faults, []);
+  assert.equal(r.page.length, 1, 'eight rows and the page shows another count: the count query is wrong, not the data');
+  assert.match(r.page[0].why, /"8 calls".*calls rows/);
+  const none = checkItem({ contractState, liveLines: [], rows: null, users: [], now: SEEDED });
+  assert.deepEqual(none.faults, []);
+  assert.equal(none.page.length, 2, 'no rows and no row keys: every miss goes to the reviewers');
   assert.equal(dateShape('Tue 14 Oct'), dateShape('wed 3 sep'));
   assert.notEqual(dateShape('Tue 14 Oct'), dateShape('14/10/2026'));
 });
@@ -219,7 +221,7 @@ test('re-shoot helpers: items shot after the plan, the batch that owns an item\'
   assert.equal(owners.get('B'), null);
   assert.deepEqual(dataGapItems({ review: { states: { A: { verdict: 'data-gap' }, B: { verdict: 'match' } } }, shoot: { states: { C: { lookup: { dataGap: ['x'] } } } } }), ['A', 'C']);
   const p = batchPrompt({ pluginRoot: '/p', feature: 'f', worktree: '/w', roundRel: 'r/1', items: ['A'], file: 'x.md', sorted: { A: { dataGap: ['no row'], must: ['held'] } } });
-  assert.match(p, /Already sorted by looking the data up in the world[^\n]*\n- A: data gap: no row\n- A: must fix: held/);
+  assert.match(p, /Already sorted by datacheck[^\n]*\n- A: data gap: no row\n- A: must fix: held/);
   const d = dirs();
   try {
     mkdirSync(d.outDir, { recursive: true });
@@ -270,7 +272,7 @@ test('delivery runs prints the data gaps per round', () => {
   const rec = { feature: 'scripts', phases: {}, rounds: [{ round: 1, match: 10, small: 0, toFix: 2, notReached: 0, dataGap: 3 }, { round: 2, match: 12, small: 0, toFix: 0, notReached: 0, dataGap: 0 }] };
   assert.deepEqual(runRows([rec])[0].dataGaps, [3, 0]);
   assert.ok(runsReport([rec]).some((l) => /data gaps per round/.test(l)));
-  assert.ok(runsReport([rec]).some((l) => /3 > 0\s+-$/.test(l)));
+  assert.ok(runsReport([rec]).some((l) => /3 > 0\s+-\s+-$/.test(l)), 'data gaps, then data faults (none recorded) and masks');
 });
 
 test('shoot --only: re-shoots into the latest round, says so when there is nothing to re-shoot, and refuses without a round', async () => {
@@ -285,7 +287,7 @@ test('shoot --only: re-shoots into the latest round, says so when there is nothi
     await assert.rejects(shootCommand.run(ctx, ['--base-url', 'http://localhost:3000', '--only', 'WL-01']), /--only re-shoots into a numbered round, and there is none yet/);
     repo.write({ '.delivery/widgets/rounds/1/review.json': { states: { 'WL-01': { verdict: 'match' } } }, '.delivery/widgets/rounds/1/shoot.json': { states: {} } });
     assert.equal(await shootCommand.run(ctx, ['--base-url', 'http://localhost:3000', '--only', 'data-gaps']), 0);
-    assert.match(stdout.text(), /nothing to re-shoot: round 1 has no data gap/);
+    assert.match(stdout.text(), /nothing to re-shoot: round 1 has no data fault/);
     await assert.rejects(shootCommand.run(ctx, ['--base-url', 'http://localhost:3000', '--only', 'WL-01', 'WL-02']), /not as well as a list/);
     await assert.rejects(shootCommand.run(ctx, ['--base-url', 'http://localhost:3000', '--only', 'WL-99']), /not states \(or widths\) in the map: WL-99/);
   } finally { repo.cleanup(); }

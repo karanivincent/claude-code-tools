@@ -125,3 +125,22 @@ export function createStubDb(opts = {}) {
   }
   return backend;
 }
+
+/**
+ * A guard for the tables the seed tests' worlds write that side-effect rules watch (widgets,
+ * outbound_batches). Since D5, seed --check refuses a watched table no guard covers at all, so a
+ * test that means its world to pass adds this next to the guards it is about. Its row rule selects
+ * no row of any test world, so it always holds and accepts nothing.
+ */
+export const FIXTURE_TABLES_GUARD = Object.freeze({
+  id: 'fixture-tables',
+  covers: ['widgets:*', 'outbound_batches:*'],
+  why: 'the test worlds seed these tables and mean them to be seeded',
+  probes: [],
+  rowRules: [{ table: 'widgets', column: 'contact_phone', pattern: '^999\\d{9}$', where: { state: 'never-seeded' } }],
+});
+
+/** The safety file's guards with FIXTURE_TABLES_GUARD added (or those given, plus it). */
+export function guardsWithFixtureTables(safety, guards) {
+  return [...(guards ?? safety.guards ?? []), FIXTURE_TABLES_GUARD];
+}

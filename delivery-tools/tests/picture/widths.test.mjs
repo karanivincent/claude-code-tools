@@ -357,14 +357,14 @@ test('A1: a data-gap verdict blocks ready apart from a code defect, and never sp
     r.round(1, { 'KC-05': 'data-gap', 'KC-04': 'match' });
     const gap = await pictureReadiness(r.paths);
     assert.equal(gap.ok, false);
-    assert.match(gap.detail, /1 state\(s\) have a data gap, not a code defect.*KC-05 \(round 1\)/);
+    assert.match(gap.detail, /1 state\(s\) have a data fault or gap, not a code defect.*KC-05 \(round 1\)/);
     // A data gap keeps ready red even once the fix-round allowance a real must-fix gets is spent:
     // there is no allowance for it at all, because reseeding costs nothing like a build round does.
     r.round(2, { 'KC-05': 'data-gap' });
     r.round(3, { 'KC-05': 'data-gap' });
     const stillRed = await pictureReadiness(r.paths);
     assert.equal(stillRed.ok, false);
-    assert.match(stillRed.detail, /data gap/);
+    assert.match(stillRed.detail, /data fault or gap/);
   } finally { r.cleanup(); }
 });
 

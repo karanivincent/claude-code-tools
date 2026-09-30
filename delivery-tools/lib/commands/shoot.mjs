@@ -14,6 +14,9 @@ import { designIds, readMap, validateMap } from '../picture/map.mjs';
 import { discardRound, listRounds, nextRound, roundDir, roundInfo, WORK_ROUND } from '../picture/rounds.mjs';
 import { dataGapItems, runShoot, selectStates, withShootSlot, writeShootJson } from '../picture/shoot.mjs';
 import { readContract } from '../picture/contract.mjs';
+import { readSwaps } from '../seed/trace.mjs';
+import { readQuerySources, selectedColumns, sourceProblems } from '../picture/sources.mjs';
+import { writeDatacheck } from '../picture/datacheck.mjs';
 import { changedGlobals, readGlobalHashes, readRecordedGlobals, readTableShapes, schemaChangeMessage, schemaChanges } from '../seed/drift.mjs';
 import { hasPhone } from '../picture/widths.mjs';
 import { probeServer } from '../picture/smoke.mjs';
@@ -25,7 +28,7 @@ export default defineCommand({
   name: 'shoot',
   summary: 'Picture each state\'s page area on a running app, with the design cropped the same way',
   usage: `usage: delivery shoot --base-url <url> [--round <n|work>] [--no-reset] [<ITEM>|!<ITEM>]...
-       delivery shoot --base-url <url> --only <ITEM,...|data-gaps> [--round <n>]
+       delivery shoot --base-url <url> --only <ITEM,...|data-faults> [--round <n>]
 
 Picture mode's capture. For each state in map.json that the capture can reach, at each width the
 map declares (desktop 1440 x 900, phone 390 x 844): sign in as the state's fixture user (a one-time
@@ -46,13 +49,16 @@ Each browser is frozen at the moment its world was seeded, in the profile's time
 (testData.timeZone), so "2 min ago" reads as the design does. A world that cannot be reset safely
 is not pictured: its items are not reached. --no-reset skips the reset (a builder's own look).
 
-States reached by saving, discarding or adding are taken last. Between the desktop and phone shot
-of a data-changing state, the world is re-seeded too.
+States reached by saving, discarding or adding are taken last, each in its own browser context,
+and the world is reset before every one of them: a save never leaks into the next state.
 
-After the shoot, a text the design shows that the page does not, which the data contract labels
-data, is looked up in the world as seeded: the world lacks it (a data gap, for the seed worker) or
-holds it and the page does not show it (a must fix). Both go into shoot.json as the item's lookup,
-and review counts them.
+After the shoot, datacheck looks for every value the data contract labels data in the page's own
+text (saved as <ITEM>.live.txt): exactly for a row value or a count, by format for a date or time,
+by shape for a value the product generates. A value the page lacks is looked up in the world as
+seeded (saved in seeded.json): the world lacks it (a data fault, for the seed-writer, fixed and
+re-shot before any reviewer looks) or holds it and the page does not show it (a must fix). Both go
+into shoot.json as the item's lookup and into datacheck.json; review counts them. delivery
+datacheck runs the same check again from those files.
 
 The app must already be running: start the profile's dev server in the background first, or pass
 a preview URL. Never click anything by hand to reach a state; fix the map instead.
@@ -70,8 +76,9 @@ options:
   <ITEM>             take only these: <ID> is the state at every width, <ID>@phone or
                      <ID>@desktop one width; !<ITEM> leaves it out
   --only <items>     re-shoot these items into the latest round (not a new one), replacing their
-                     pictures and records there: a comma list of items, or "data-gaps" for every
-                     item the round found a data gap in. Then review --plan reviews just those.
+                     pictures and records there: a comma list of items, or "data-faults" (also
+                     "data-gaps") for every item the round found a data fault or gap in. Then
+                     review --plan reviews just those.
   --no-reset         do not reset the worlds first (the pictures may show drifted data)
 
 exit: 0 every item was reached; 1 a state was not reached, a page is broken, or the map has
@@ -105,8 +112,9 @@ common options:
       const target = values.round ?? (rounds.length ? String(rounds[rounds.length - 1]) : null);
       if (!target || !/^\d+$/.test(target)) throw new UsageError('--only re-shoots into a numbered round, and there is none yet');
       defaultRound = target;
-      picks = values.only.trim() === 'data-gaps' ? dataGapItems(roundInfo(paths, Number(target))) : values.only.split(',').map((x) => x.trim()).filter(Boolean);
-      if (!picks.length) { ctx.out.line(`nothing to re-shoot: round ${target} has no ${values.only.trim() === 'data-gaps' ? 'data gap' : 'item named'}`); return EXIT.PASS; }
+      const dataOnly = ['data-gaps', 'data-faults'].includes(values.only.trim());
+      picks = dataOnly ? dataGapItems(roundInfo(paths, Number(target))) : values.only.split(',').map((x) => x.trim()).filter(Boolean);
+      if (!picks.length) { ctx.out.line(`nothing to re-shoot: round ${target} has no ${dataOnly ? 'data fault' : 'item named'}`); return EXIT.PASS; }
     }
     const { items, states, unknown } = selectStates(map, picks);
     if (unknown.length) throw new UsageError(`not states (or widths) in the map: ${unknown.join(', ')}`);
@@ -129,6 +137,7 @@ common options:
     const drift = seedPlan ? await driftWarnings(ctx, db, paths, seedPlan, [...new Set(items.map((i) => i.state.reach.world))]) : [];
     let contract = null;
     try { contract = readContract(paths); } catch (err) { ctx.out.warn(`contract.json does not parse (${err.message}); data differences are not looked up`); }
+    const swaps = readSwaps(paths);
     // W2: every page the items reach loads before anything is pictured.
     let smoke = null;
     const report = await withShootSlot(ctx, async () => {
@@ -139,6 +148,7 @@ common options:
         map, items, baseUrl, outDir,
         timeZone: profile.testData?.timeZone ?? null,
         contract,
+        swaps,
         at: () => ctx.clock.now().toISOString(),
         now: () => ctx.clock.now(),
         reset: resetting ? (worldId) => resetWorld(ctx, db, seedPlan, worldId) : undefined,
@@ -162,7 +172,8 @@ common options:
       await ctx.journal({ command: `shoot --round ${round}`, exit: EXIT.RED, counts: { items: items.length, smokeFailed: 1 } });
       return EXIT.RED;
     }
-    const doc = await writeShootJson(outDir, { baseUrl, at: ctx.clock.now().toISOString(), report, reshot: values.only !== undefined });
+    const why = values.only === undefined ? null : ['data-gaps', 'data-faults'].includes(values.only.trim()) ? 'data-faults' : 'items';
+    const doc = await writeShootJson(outDir, { baseUrl, at: ctx.clock.now().toISOString(), report, reshot: values.only !== undefined, why });
     // A build that ran while the shoot did can break the server halfway; its pictures are then of an
     // error page. Such a round never counts: its folder goes, and the next shoot takes its number.
     const brokeDuring = (await probeServer(ctx, baseUrl)) ?? (await smokeGate(ctx, { map, items, baseUrl, profile, paths, db, chromium, quiet: true })).failure;
@@ -182,10 +193,17 @@ common options:
     if (sideways.length) ctx.out.line(`scrolls sideways at phone width: ${sideways.join(', ')}`);
     if (dirty.length) ctx.out.line(resetting ? `these worlds changed: ${dirty.join(', ')} (the next shoot resets them itself)` : `these worlds changed; re-seed them before the next shoot: delivery seed ${dirty.map((w) => `--refresh ${w}`).join(' ')}`);
     const looked = Object.entries(report).filter(([, r]) => r.lookup);
-    const gaps = looked.filter(([, r]) => r.lookup.dataGap.length).map(([k]) => k);
-    const musts = looked.filter(([, r]) => r.lookup.must.length).map(([k]) => k);
-    if (gaps.length) ctx.out.line(`data gaps found by lookup (the world lacks what the design shows; a seed-writer fixes the world file): ${gaps.join(', ')}`);
-    if (musts.length) ctx.out.line(`must fix found by lookup (the world holds it, the page does not show it): ${musts.join(', ')}`);
+    const gaps = looked.filter(([, r]) => r.lookup.dataFault?.length).map(([k]) => k);
+    const musts = looked.filter(([, r]) => r.lookup.must?.length).map(([k]) => k);
+    const checked = Object.values(report).reduce((n, r) => n + (r.datacheck?.checked ?? 0), 0);
+    if (contract) ctx.out.line(`datacheck: ${checked} traced value(s) looked for; ${gaps.length} item(s) with a data fault, ${musts.length} with a value the world holds and the page does not show`);
+    if (gaps.length) ctx.out.line(`data faults (the world lacks what the design shows; a seed-writer fixes the world file, then shoot --only data-faults, before any reviewer): ${gaps.join(', ')}`);
+    if (musts.length) ctx.out.line(`must fix found by datacheck (the world holds it, the page does not show it): ${musts.join(', ')}`);
+    if (contract && round !== WORK_ROUND) {
+      const sources = sourceProblems(contract, selectedColumns(await readQuerySources(ctx.repoRoot)));
+      await writeDatacheck(outDir, doc, ctx.clock.now().toISOString(), sources);
+      if (sources.length) ctx.out.line(`${sources.length} traced column(s) no query in the code selects (a "no source" question for the founder, in delivery contract --questions): ${sources.slice(0, 5).map((x) => `${x.table}.${x.column}`).join(', ')}`);
+    }
     ctx.out.line(`pictures: ${outDir}`);
     if (values.only !== undefined) ctx.out.line(`next: delivery review --plan --round ${round} (it reviews only the ${items.length} re-shot ${noun}(s))`);
     ctx.out.set('shoot', { drift, round, outDir, reached: Object.keys(report).length - notReached.length, notReached, sideways, dirtyWorlds: dirty, states: Object.keys(doc.states).length, reset: resetting, reshot: values.only !== undefined, lookupDataGaps: gaps, lookupMust: musts });

@@ -218,6 +218,8 @@ export function roundRecords(paths) {
       round: n,
       match: c.match ?? 0, small: c.small ?? 0, toFix: c.must ?? 0, notReached: c.notReached ?? 0,
       dataGap: c.dataGap ?? 0,
+      // W3: values datacheck caught before any reviewer, apart from the gaps reviewers found.
+      dataFault: c.dataFault ?? 0,
       carried: states.filter((s) => s.carried).length,
       // R12: how many elements the round's masks painted over.
       masked: Object.values(info.shoot?.states ?? {}).reduce((n, r) => n + (Number.isFinite(r.masked) ? r.masked : 0), 0),

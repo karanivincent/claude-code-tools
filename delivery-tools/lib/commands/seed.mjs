@@ -8,8 +8,8 @@ import { ConfigError, EXIT, UsageError } from '../core/exit.mjs';
 import { gateResult, combineGates } from '../core/gate.mjs';
 import { loadState, newRunId } from '../core/state.mjs';
 import { assertFileId } from '../core/paths.mjs';
-import { buildSeedPlan, readWorldFile } from '../seed/plan.mjs';
-import { readMap } from '../picture/map.mjs';
+import { buildSeedPlan, readWorldFile, worldFilePath } from '../seed/plan.mjs';
+import { mapPath, readMap } from '../picture/map.mjs';
 import { seedCheck } from '../seed/safety.mjs';
 import { seedScan, refreshWorldReport, teardownSeed } from '../seed/scan.mjs';
 import { applyRows } from '../seed/apply.mjs';
@@ -20,14 +20,17 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { seedNow } from '../seed/evaluate.mjs';
 import { contractGaps, readContract } from '../picture/contract.mjs';
+import { addNeed, answerNeed, closeNeeds, readSwaps, traceWorld, writeSwaps } from '../seed/trace.mjs';
+import { writeJsonAtomic } from '../core/fs.mjs';
 import { readGlobalHashes, readTableShapes, recordGlobals, sameNameOrgs, schemaChangeMessage, schemaChanges } from '../seed/drift.mjs';
 
-const MODES = ['plan', 'check', 'apply', 'scan', 'refresh', 'teardown'];
+const MODES = ['plan', 'check', 'apply', 'scan', 'refresh', 'teardown', 'from-trace', 'need', 'need-done'];
 
 export default defineCommand({
   name: 'seed',
   summary: 'Plan, check, write, scan, refresh and tear down fixture worlds',
   usage: `usage: delivery seed --plan | --check | --apply | --scan | --refresh <world|all>... | --teardown
+       delivery seed --from-trace [<world>...] | --need "<STATE>: <what>" | --need-done <n|all>
 
 The only writer of fixture rows. Every mode reads the test database (--plan for its CHECK
 constraints and enum types only); only --apply, --refresh and --teardown write, and only to the
@@ -38,7 +41,11 @@ modes:
                      world files (docs/delivery/<feature>/worlds/<world>.json), with deterministic
                      ids. Also prints every table the worlds write that no safety guard covers (a
                      "guards to approve" list), and refuses a world value that fails a CHECK
-                     constraint or enum type the database has for its column.
+                     constraint or enum type the database has for its column. It also refuses a
+                     value the generated database types (paths.databaseTypes) cannot take: a column
+                     the table lacks, a value of the wrong kind, a null or an enum value not allowed.
+                     When the profile has commands.validateSeedJson, it is given every Json column
+                     the worlds fill and may refuse those values too.
   --check            M13: the four safety layers over seedplan.json, plus (picture mode) A1: each
                      state's map-declared data (state.data) against the rows the worlds seed, and
                      the data contract (contract.json): every text labelled data must have a row
@@ -57,6 +64,21 @@ modes:
                      (a row a capture's click added), then scan. Repeat it for several worlds;
                      "all" refreshes every world in the seed plan
   --teardown         delete the run's rows and fixture users by id, then scan
+  --from-trace       (picture mode) build world rows from the data contract: every data value with
+                     a row key becomes a column of that row (key "t-<row>"), with the world's
+                     organisation, relative times ("2 min ago" is now-2m), enum literals and numbers
+                     read from the database types. A row describing a fixture user is that user; a
+                     row the world file already holds is left alone; hand-written rows are never
+                     touched. Emails become fixture addresses and the organisation's name the
+                     world's, and each swap is written to docs/delivery/<feature>/swaps.json so
+                     seed --check and datacheck look for the seeded value. A fixture user with no
+                     name gets the design's (map.json). Prints what it could not infer, for the
+                     seed-writer. Writes files only, never the database. Default: every world.
+  --need "<STATE>: <what>"
+                     answer whether the state's world holds a value, in one line: "held" when a
+                     contract value of the state matches and the seed plan holds it, otherwise
+                     queued in docs/delivery/<feature>/needs.json for the seed-writer (NEXT sends it)
+  --need-done <n|all>  close needs the seed-writer has met
 
 exit: 0 safe; 1 refused by a safety layer; 2 wrong project, no database access or no seed plan;
       3 no safety file
@@ -66,15 +88,18 @@ common options:
   --json             machine output: one JSON object on stdout
   --help             this text`,
   async run(ctx, argv) {
-    const { values } = parseCommandArgs(argv, {
+    const { values, positionals } = parseCommandArgs(argv, {
       options: {
         plan: { type: 'boolean' }, check: { type: 'boolean' }, apply: { type: 'boolean' },
         scan: { type: 'boolean' }, refresh: { type: 'string', multiple: true }, teardown: { type: 'boolean' },
+        'from-trace': { type: 'boolean' }, need: { type: 'string' }, 'need-done': { type: 'string' },
       },
+      positionals: { max: -1 },
     });
     const chosen = MODES.filter((m) => values[m] !== undefined && values[m] !== false);
     if (chosen.length !== 1) throw new UsageError(`choose exactly one mode: ${MODES.map((m) => `--${m}`).join(', ')}`);
     const mode = chosen[0];
+    if (positionals.length && mode !== 'from-trace') throw new UsageError(`unexpected argument(s): ${positionals.join(' ')}`);
     ctx.requirePaths();
     switch (mode) {
       case 'plan': return planMode(ctx);
@@ -82,6 +107,9 @@ common options:
       case 'apply': return applyMode(ctx);
       case 'scan': return scanMode(ctx);
       case 'refresh': return refreshWorlds(ctx, values.refresh);
+      case 'from-trace': return fromTraceMode(ctx, positionals);
+      case 'need': return needMode(ctx, values.need);
+      case 'need-done': return needDoneMode(ctx, values['need-done']);
       default: return teardownMode(ctx);
     }
   },
@@ -98,12 +126,16 @@ async function planMode(ctx) {
   const worldFiles = {};
   for (const w of plan.worlds) worldFiles[w.id] = await readWorldFile(paths, w.id);
   const state = await loadState(paths.state, { optional: true });
+  // The plan this one replaces: each world carries forward the tables it has ever seeded, so a
+  // refresh can clean a table the world no longer seeds. An unreadable old plan is just no history.
+  const previous = await readArtefact(paths, 'seedplan', { optional: true }).catch(() => null);
   const seedPlan = buildSeedPlan({
     feature: paths.feature,
     runId: state?.runId ?? newRunId(ctx.clock),
     project: profile.environments.test.projectRef,
     plan, worldFiles, safety,
     tablesWithoutId: await tablesWithoutId(paths, profile),
+    previous,
   });
   // Fix 9: the columns of every table the worlds write, so a migration mid-run is noticed.
   let db = null;
@@ -144,10 +176,37 @@ async function planMode(ctx) {
     ctx.out.fail('seed-plan-constraint', `${v.table}.${v.column} = ${JSON.stringify(v.value)} (world ${v.world}) is not one of ${v.allowed.join(', ')}`);
   }
 
+  // W3: every world value against the generated database types (a column that is not there, a value
+  // of the wrong kind, a null where none is allowed, an enum value the enum lacks), then the Json
+  // values against the repo's own validator when the profile has one. Types that cannot be read
+  // give a note and skip both; a validator that is broken gives a note and never refuses.
+  const { columnTypeProblems, jsonColumns, parseColumnTypes, runValidateSeedJson } = await import('../seed/validate.mjs');
+  let typeProblems = [];
+  let jsonProblems = [];
+  let columnTypes = null;
+  const typesPath = profile.paths?.databaseTypes;
+  try {
+    if (!typesPath) throw new Error('the profile has no paths.databaseTypes');
+    columnTypes = parseColumnTypes(await readFile(join(paths.repoRoot, typesPath), 'utf8'));
+  } catch (err) {
+    ctx.out.line(`note: could not read the database types (${String(err?.message ?? err).split('\n')[0]}); world values are not checked against column types`);
+  }
+  if (columnTypes) {
+    typeProblems = columnTypeProblems(seedPlan.rows, columnTypes);
+    for (const p of typeProblems) ctx.out.fail('seed-plan-type', `world ${p.world}: ${p.why}`);
+    const command = profile.commands?.validateSeedJson;
+    if (command) {
+      const r = await runValidateSeedJson(command, jsonColumns(seedPlan.rows, columnTypes), { cwd: paths.repoRoot });
+      if (r.note) ctx.out.line(`note: ${r.note}`);
+      jsonProblems = r.problems;
+      for (const p of jsonProblems) ctx.out.fail('seed-plan-json', `${p.table}.${p.column} (world ${p.world}${p.row ? `, row ${p.row}` : ''}): ${p.message}`);
+    }
+  }
+
   ctx.out.line('next: delivery seed --check');
-  ctx.out.set('seedplan', { worlds: seedPlan.worlds, rows: seedPlan.rows.length, users: seedPlan.users.length, guardsToApprove: uncovered, constraintViolations: violations.length });
-  const exit = violations.length ? EXIT.RED : EXIT.PASS;
-  await ctx.journal({ command: 'seed --plan', exit, counts: { worlds: seedPlan.worlds.length, rows: seedPlan.rows.length, constraintViolations: violations.length }, outputs: seedPlan });
+  ctx.out.set('seedplan', { worlds: seedPlan.worlds, rows: seedPlan.rows.length, users: seedPlan.users.length, guardsToApprove: uncovered, constraintViolations: violations.length, typeProblems: typeProblems.length, jsonProblems: jsonProblems.length });
+  const exit = violations.length || typeProblems.length || jsonProblems.length ? EXIT.RED : EXIT.PASS;
+  await ctx.journal({ command: 'seed --plan', exit, counts: { worlds: seedPlan.worlds.length, rows: seedPlan.rows.length, constraintViolations: violations.length, typeProblems: typeProblems.length, jsonProblems: jsonProblems.length }, outputs: seedPlan });
   return exit;
 }
 
@@ -185,7 +244,7 @@ function contractFailures(paths, map, seedPlan, now) {
     return [{ code: 'M13-contract', message: `contract.json does not parse (${err.message}); run delivery contract` }];
   }
   if (!contract) return [];
-  const r = contractGaps(contract, map, seedPlan, now);
+  const r = contractGaps(contract, map, seedPlan, now, readSwaps(paths));
   const out = r.gaps.map((g) => ({ code: 'M13-contract', message: `state ${g.state} shows "${g.text}": ${g.why}` }));
   if (r.unlabelled) out.push({ code: 'M13-contract', message: `${r.unlabelled} text(s) of the contract are not labelled yet: run delivery contract and dispatch the labeller` });
   return out;
@@ -342,4 +401,87 @@ function layerCounts(evaluation) {
   if (!evaluation) return {};
   const n = (l) => evaluation.reasons.filter((r) => r.layer === l).length;
   return { layer1: n(1), layer2: n(2), layer4: n(4) };
+}
+
+/**
+ * W3 and D13: world rows from the data contract. Writes the world files, swaps.json and any fixture
+ * user name the map lacks; never the database. The seed-writer handles only what it lists.
+ */
+async function fromTraceMode(ctx, worlds) {
+  const paths = ctx.requirePaths();
+  const profile = await ctx.profile();
+  const { safety } = await ctx.safety();
+  const map = readMap(paths);
+  if (!map) throw new UsageError('no map.json: seed --from-trace builds the map\'s worlds');
+  const contract = readContract(paths);
+  if (!contract) throw new UsageError('no contract.json: run delivery contract and the labeller first');
+  const ids = worlds.length ? worlds : (map.worlds ?? []).map((w) => w.id);
+  let types = null;
+  if (profile?.paths?.databaseTypes) {
+    try {
+      const { parseColumnTypes } = await import('../seed/validate.mjs');
+      types = parseColumnTypes(await readFile(join(paths.repoRoot, profile.paths.databaseTypes), 'utf8'));
+    } catch (err) {
+      ctx.out.line(`note: the database types could not be read (${err.message}); numbers, enum literals and organisation columns are guessed`);
+    }
+  }
+  const now = await seedNow(ctx);
+  let mapChanged = false;
+  const summary = [];
+  for (const id of ids) {
+    assertFileId(id, 'world id');
+    let file = null;
+    try { file = await readWorldFile(paths, id); } catch { file = null; }
+    const r = traceWorld({ contract, map, worldId: id, worldFile: file, safety, types, now });
+    await writeJsonAtomic(worldFilePath(paths, id), { schemaVersion: 1, world: id, ...(file?.globals ? { globals: file.globals } : {}), rows: r.rows });
+    await writeSwaps(paths, id, r.swaps);
+    const w = map.worlds.find((x) => x.id === id);
+    for (const [role, name] of Object.entries(r.userNames)) {
+      const u = w.users.find((x) => x.role === role);
+      if (u && !u.name) { u.name = name; mapChanged = true; ctx.out.line(`world ${id}: the ${role} fixture user is now named "${name}", as the design shows`); }
+    }
+    ctx.out.line(`world ${id}: ${r.added} row(s) added, ${r.replaced} rebuilt, ${r.kept} kept; ${Object.keys(r.swaps).length} value(s) swapped for safe ones`);
+    for (const x of r.skipped) ctx.out.line(`  skipped ${x}`);
+    for (const n of r.needs) ctx.out.line(`  for the seed-writer: ${n}`);
+    summary.push({ world: id, added: r.added, replaced: r.replaced, kept: r.kept, swaps: Object.keys(r.swaps).length, needs: r.needs });
+  }
+  if (mapChanged) await writeJsonAtomic(mapPath(paths), map);
+  const needs = summary.reduce((n, x) => n + x.needs.length, 0);
+  ctx.out.line(needs ? `next: dispatch the seed-writer with the ${needs} line(s) above, then delivery seed --plan and --check` : 'next: delivery seed --plan, then --check');
+  ctx.out.set('fromTrace', summary);
+  await ctx.journal({ command: 'seed --from-trace', exit: EXIT.PASS, counts: { worlds: ids.length, added: summary.reduce((n, x) => n + x.added, 0), needs } });
+  return EXIT.PASS;
+}
+
+/** D13: one line for an agent asking for data. */
+async function needMode(ctx, text) {
+  const paths = ctx.requirePaths();
+  const m = /^\s*([^:]+?)\s*:\s*(.+)$/.exec(String(text ?? ''));
+  if (!m) throw new UsageError('--need takes "<STATE>: <what>", e.g. "KC-05: 3 failed calls"');
+  const [, state, need] = m;
+  const map = readMap(paths);
+  if (!map) throw new UsageError('no map.json');
+  const seedPlan = await readArtefact(paths, 'seedplan', { optional: true }).catch(() => null);
+  const a = answerNeed({ contract: readContract(paths), map, seedPlan, state, need, now: await seedNow(ctx), swaps: readSwaps(paths) });
+  if (a.held) {
+    ctx.out.line(`held: world ${a.world} has it for ${state} (${a.matched.map((x) => `"${x.text}"`).join(', ')})`);
+    ctx.out.set('need', { state, world: a.world, held: true });
+    await ctx.journal({ command: 'seed --need', exit: EXIT.PASS, counts: { held: 1 } });
+    return EXIT.PASS;
+  }
+  const n = await addNeed(paths, { state, world: a.world, need, at: ctx.clock.now().toISOString(), ...(a.matched.length ? { why: a.matched.filter((x) => !x.ok).map((x) => x.why) } : {}) });
+  ctx.out.line(`queued: need #${n} for world ${a.world} (${state}: ${need}) is in needs.json; the seed-writer adds it, and the shoot re-seeds the world itself`);
+  ctx.out.set('need', { state, world: a.world, held: false, n });
+  await ctx.journal({ command: 'seed --need', exit: EXIT.PASS, counts: { queued: 1 } });
+  return EXIT.PASS;
+}
+
+async function needDoneMode(ctx, which) {
+  const paths = ctx.requirePaths();
+  const list = which === 'all' ? 'all' : String(which).split(',').map((x) => Number(x.trim())).filter(Number.isInteger);
+  if (list !== 'all' && !list.length) throw new UsageError('--need-done takes need numbers (1,3) or all');
+  const n = await closeNeeds(paths, list);
+  ctx.out.line(`closed ${n} need(s)`);
+  await ctx.journal({ command: 'seed --need-done', exit: EXIT.PASS, counts: { closed: n } });
+  return EXIT.PASS;
 }

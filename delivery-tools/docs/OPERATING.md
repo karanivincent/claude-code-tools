@@ -131,7 +131,16 @@ carries the owner's decisions.
 - `design render` warns (never fails) when a state's page is mostly an iframe, whose words it cannot read (a phone view drawn in a phone frame: render it with `--width phone` instead), and when a reach sets a prop named like one of the design's state keys.
 - `delivery smoke --base-url <url>` opens every route the map reaches, signed in, at every width, and fails at the first page that answers 500 or more, shows the Next.js error overlay, serves a replaced build output, or still shows a loading placeholder 10 s after loading (the profile's `smoke.skeleton` selectors, `[aria-busy=true]` and `[data-skeleton]` by default). `shoot` runs it before it pictures anything, and again after: when the server broke during the shoot, the new round's folder is deleted, so the next shoot takes the same number. The builder and the fixer run it before they report done.
 - `shoot` scrolls a components state into view and pictures it with `locator.screenshot()`, so a page that scrolls inside `<main>` is pictured whole. Fixed bars and dev overlays are hidden at every width.
-- A state that changes data and is shot at both widths is shot at desktop first. The world is then re-seeded (`refreshWorld`) before the phone shot.
+- Every state that changes data is shot in its own browser context, and its world is reset right before it (desktop before phone), so a save never leaks into the next state.
+- After each shoot, datacheck looks for every contract data value in the page's text (`<ITEM>.live.txt`), and looks each miss up in the world as seeded (`seeded.json`): a data fault (the world lacks it) goes to the seed-writer and is re-shot with `shoot --only data-faults` before any reviewer; a must fix (the world holds it) goes to the fixer. `delivery datacheck` does it again from the saved files. The round's `datacheck.json` also lists traced columns no query in the code selects, which `delivery contract --questions` asks the founder about.
+
+### Test data
+
+- `delivery seed --from-trace` writes world rows from the contract: one row per `row` key, named `t-<row>`, with the design's values, relative times, enum literals, numbers and the organisation column (from `paths.databaseTypes`). Emails become fixture addresses and the organisation's name the world's; each swap is in `docs/delivery/<f>/swaps.json`. It prints what it could not infer, for a seed-writer.
+- `delivery seed --need "<STATE>: <what>"` answers in one line: held, or queued in `needs.json` for the seed-writer; `--need-done` closes needs.
+- `seed --plan` refuses a column a table lacks, a value of the wrong type or an enum value the database does not list. A profile may add `commands.validateSeedJson`, a script that checks Json column values with the app's own rules (stdin `{ "entries": [...] }`, stdout `{ "problems": [...] }`).
+- `seed --check` refuses a seeded table that a side-effect rule watches and no guard covers. `seed --refresh` cleans every table the world has ever seeded (the seed plan's `seededTables`), not only the ones it seeds now.
+- A contract text labelled `none` is a value the product does not store. `delivery contract --questions` writes the one list for the founder; `delivery contract --decide build|drop|design --state <ID> [--text ...]` records each answer.
 
 ### Shared slots
 

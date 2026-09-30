@@ -3,7 +3,8 @@
 //   layer 2  a phone-shaped value that is not an approved fake number, a value in the never-dial
 //            set, or an email address off the fake domain;
 //   layer 3  guards: a guard only covers predicates while every probe holds (the caller runs the
-//            probes; this module only applies the result);
+//            probes; this module only applies the result); and a seeded table that a side-effect
+//            predicate watches must have some guard covering it, or the seed is refused (D5);
 //   layer 4  structure: production and project, rows inside their own world, organisation
 //            naming, fixture users, global rows listed in the plan.
 // The caller supplies everything that needs the database; nothing here does I/O.
@@ -25,7 +26,7 @@ export const ORG_COLUMNS = Object.freeze(['organization_id', 'organisation_id', 
  *   rows: SeedRow[], users?: { world: string, role: string, email: string, id: string }[],
  *   worlds?: { id: string, orgId: string }[], predicates: object[], safety: object,
  *   neverDial: string[], guards?: { id: string, covers: string[], holds: boolean, why?: string }[],
- *   now: Date, structure?: { project: string, testRef: string, globalTables: string[], robotEmails: string[] } | null,
+ *   requireGuards?: boolean, now: Date, structure?: { project: string, testRef: string, globalTables: string[], robotEmails: string[] } | null,
  * }} input
  * @returns {{ ok: boolean, reasons: Reason[], accepted: { guard: string, predicate: string, rows: number }[], counts: object }}
  */
@@ -80,6 +81,13 @@ export function evaluateSeedSafety(input) {
     });
   }
 
+  // Layer 3: a seeded table that side-effect rules watch needs a guard that covers it at all
+  // (`table:*` or `table:<predicate id>`; whether the guard's probes hold is judged above). Rows
+  // that match no rule today are still not safe to leave unguarded: the next edit to them can.
+  // A table no rule watches (an organisations or members table) needs none. A live scan does not
+  // ask for this, since it judges rows the plan never wrote.
+  if (input.requireGuards !== false) reasons.push(...unguardedTables(rows, predicates, safety, guards));
+
   // Layer 2
   const fakeRe = new RegExp(safety.fakeNumbers.pattern);
   const userRe = new RegExp(safety.fixtureUserPattern);
@@ -130,8 +138,32 @@ export function evaluateSeedSafety(input) {
     ok: reasons.length === 0,
     reasons,
     accepted: [...accepted.values()],
-    counts: { rows: rows.length, users: users.length, predicates: predicates.length, layer1: layerCount(1), layer2: layerCount(2), layer4: layerCount(4) },
+    counts: { rows: rows.length, users: users.length, predicates: predicates.length, layer1: layerCount(1), layer2: layerCount(2), layer3: layerCount(3), layer4: layerCount(4) },
   };
+}
+
+/**
+ * The seeded tables a predicate watches that no guard covers, one reason per table.
+ * A guard counts from the safety file's list as well as from the guards the caller probed.
+ */
+function unguardedTables(rows, predicates, safety, guards) {
+  const entries = [...(safety.guards ?? []), ...guards].flatMap((g) => g.covers ?? []);
+  const guarded = new Set(entries.map((c) => String(c).split(':')[0]));
+  const out = [];
+  for (const table of [...new Set(rows.map((r) => r.table))].sort()) {
+    if (guarded.has(table)) continue;
+    const watching = predicates.filter((p) => p.table === table);
+    if (!watching.length) continue;
+    out.push({
+      layer: 3,
+      code: 'guard',
+      failureCode: 'M13-guard',
+      message: `${table} is seeded and ${watching.length} side-effect rule(s) watch it (${watching[0].id}), but no guard covers it: the mapper drafts a guard (a probe plus a row rule) for the founder to approve in the safety file, or the state answers the call with an intercept instead`,
+      table,
+      rows: rows.filter((r) => r.table === table).map(ref),
+    });
+  }
+  return out;
 }
 
 function ref(row) { return { world: row.world, table: row.table, id: row.id }; }

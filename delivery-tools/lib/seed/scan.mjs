@@ -106,7 +106,7 @@ export async function seedScan(ctx, opts = {}) {
     return { gate: gateResult([...failures, { code: 'M13-db', message: `the fixture worlds could not be read (${err.message}); the scan cannot pass unread` }], EXIT.USAGE), evaluation: null };
   }
   const evaluation = evaluateSeedSafety({
-    rows, users: scanned.users, worlds: scanned.worlds, predicates, safety, neverDial, guards, now: await seedNow(ctx), structure: null,
+    rows, users: scanned.users, worlds: scanned.worlds, predicates, safety, neverDial, guards, now: await seedNow(ctx), structure: null, requireGuards: false,
   });
   for (const reason of evaluation.reasons) failures.push({ code: `M13-L${reason.layer}`, message: `live: ${reason.message}` });
   return { gate: gateResult(failures), evaluation, rows: rows.length };
@@ -119,7 +119,7 @@ export async function seedScan(ctx, opts = {}) {
  * writes only the planned rows the database does not already hold exactly as planned. Every
  * planned row still ends as the plan says; a row a click changed, deleted or never saw is written,
  * one the click left alone is not written again. A row a click added is then deleted: one in the
- * world's own organisation, in a table the world's plan seeds, whose id is no row of the plan
+ * world's own organisation, in a table the world seeds or ever has seeded, whose id is no row of the plan
  * (extras.mjs), so the world ends exactly as its plan says. The scan after the write reads the
  * whole of this world as it now is, with every never-dial query and guard probe; other worlds are
  * not the refresh's to change, and the capture scans them all before each world.
@@ -147,26 +147,51 @@ export async function refreshWorldReport(ctx, worldId) {
   // refresh cannot tell a row a click added from anybody else's, so it does nothing at all.
   const org = worldOrgId(seedPlan, worldId);
   if (org.error) return { gate: gateResult([{ code: 'M13-refresh', message: `${org.error}; nothing was written` }], EXIT.USAGE) };
-  const extras = extraReads(seedPlan, worldId, org.orgId);
+  const firstReads = extraReads(seedPlan, worldId, org.orgId);
   // Read while the check runs: what this world's planned rows hold now (only this world's rows are
   // a refresh's to write), what its organisation holds in the tables it seeds, and the schema the
   // scan after the write reads by. A read that fails here costs speed, never safety: every row is
   // written, the organisation's rows are read again, and the scan reads the schema itself.
+  // A table the world seeded before and no longer seeds is scoped by the schema's organisation
+  // column, so only a world that has one reads the schema first, in a request of its own.
   const soft = (p) => p.then((r) => r, (err) => {
     if (!(err instanceof DeliveryError)) throw err;
     return null;
   });
   const worldRows = seedPlan.rows.filter((r) => r.world === worldId);
-  const before = soft(adapter(ctx, null))
-    .then((db) => db && soft(prefetch(db, [
-      ...WORLD_SCHEMA_SQL, ...plannedRowReads(worldRows).map((r) => r.sql), ...extras.reads.map((r) => r.sql),
-    ])))
-    .then((reader) => (reader ? Promise.all([soft(worldSchema(reader)), soft(plannedRowsNow(reader, worldRows)), reader]) : [null, null, null]));
+  const before = soft(adapter(ctx, null)).then(async (db) => {
+    if (!db) return { schema: null, live: null, reader: null, extras: firstReads };
+    let schema = null;
+    let extras = firstReads;
+    if (firstReads.stale.length) {
+      const early = await soft(prefetch(db, [...WORLD_SCHEMA_SQL]));
+      schema = early && await soft(worldSchema(early));
+      if (schema) extras = extraReads(seedPlan, worldId, org.orgId, schema);
+    }
+    const reader = await soft(prefetch(db, [
+      ...(schema ? [] : WORLD_SCHEMA_SQL), ...plannedRowReads(worldRows).map((r) => r.sql), ...extras.reads.map((r) => r.sql),
+    ]));
+    if (!reader) return { schema, live: null, reader: null, extras };
+    const [full, live] = await Promise.all([schema ?? soft(worldSchema(reader)), soft(plannedRowsNow(reader, worldRows))]);
+    return { schema: full, live, reader, extras };
+  });
   before.catch(() => undefined); // awaited below; the check running first does not make it unhandled
   const check = await seedCheck(ctx, { seedPlan, worlds: [worldId] });
-  const [schema, live, reader] = await before;
+  let { schema, live, reader, extras } = await before;
   if (!check.gate.ok) return { gate: check.gate };
   const db = await adapter(ctx, 'seed-refresh');
+  // Without the schema the tables the world stopped seeding cannot be scoped: read it again
+  // rather than leave their rows behind unsaid.
+  if (firstReads.stale.length && !schema) {
+    try {
+      schema = await worldSchema(await adapter(ctx, null));
+    } catch (err) {
+      if (!(err instanceof DeliveryError)) throw err;
+      return { gate: gateResult([{ code: 'M13-refresh', message: `the database's columns could not be read (${err.message}), so the tables world ${worldId} no longer seeds could not be cleaned; nothing was written` }], EXIT.USAGE) };
+    }
+    extras = extraReads(seedPlan, worldId, org.orgId, schema);
+    reader = null; // the reads changed: removeExtras reads them itself
+  }
   const written = await applyRows(db, seedPlan, { worlds: [worldId], now: await seedNow(ctx), users: false, live });
   const removal = await removeExtras(ctx, { writer: db, reader, seedPlan, worldId, orgId: org.orgId, reads: extras.reads });
   const scan = await seedScan(ctx, { seedPlan, worlds: [worldId], derived: check.derived, schema: schema ?? undefined, accessProven: true });
@@ -174,7 +199,7 @@ export async function refreshWorldReport(ctx, worldId) {
 }
 
 /**
- * Delete the rows the world's organisation holds, in the tables its plan seeds, that are no rows
+ * Delete the rows the world's organisation holds, in the tables it seeds or ever seeded, that are no rows
  * of the plan: children before parents. Every delete names the organisation as well as the ids, so
  * the database itself refuses a row outside it. A read or a delete that fails is a refresh failure,
  * never skipped in silence, because the next capture would open on a world that is not as planned.

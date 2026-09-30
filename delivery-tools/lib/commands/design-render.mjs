@@ -113,6 +113,7 @@ common options:
       paths, inventory, adapter: adapter.name, states, port, offline: values.offline, viewport, width,
       e2eDir: profile?.paths?.e2eDir ?? null,
       playwrightRoot: ctx.env.DELIVERY_PLAYWRIGHT_ROOT || null,
+      timeZone: profile?.testData?.timeZone ?? null,
     });
     for (const id of r.rendered) ctx.out.line(`rendered ${shown(id)}`);
     for (const id of r.shots) ctx.out.line(`picture only ${id}: shot copied, no text or dom`);

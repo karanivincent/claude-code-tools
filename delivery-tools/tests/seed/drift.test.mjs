@@ -13,7 +13,7 @@ import { makeTestCtx } from '../helpers/ctx.mjs';
 import { makeProfile, makeSafety, validExample } from '../helpers/fixtures.mjs';
 import { fakeClock } from '../helpers/clock.mjs';
 import seedCommand from '../../lib/commands/seed.mjs';
-import { createStubDb } from './stub-db.mjs';
+import { createStubDb, guardsWithFixtureTables } from './stub-db.mjs';
 import { WORKER_FILES } from '../sidefx/fixtures.mjs';
 
 test('hashRows ignores row and key order; textArraySql quotes any text', () => {
@@ -84,7 +84,7 @@ async function setup(answers) {
   repo.git('update-ref', 'refs/remotes/origin/main', 'HEAD');
   const t = await makeTestCtx({
     repoRoot: repo.dir, feature: 'widgets', profile: makeProfile(),
-    safety: makeSafety({ workers: { tsGlobs: ['apps/server/src/jobs/**/*.ts'], sqlGlobs: ['db/migrations/*.sql'] } }),
+    safety: makeSafety({ workers: { tsGlobs: ['apps/server/src/jobs/**/*.ts'], sqlGlobs: ['db/migrations/*.sql'] }, guards: guardsWithFixtureTables(makeSafety()) }),
     passthrough: ['git'], clock: fakeClock('2026-01-15T12:00:00.000Z'),
   });
   const state = { answers };

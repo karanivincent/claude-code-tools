@@ -78,7 +78,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### delivery-tools `v0.18.0`
+### delivery-tools `v0.19.0`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -174,7 +174,23 @@ reach sets a prop named like a state key. The new `delivery smoke` opens every r
 reaches, signed in, at every width, and fails at the first status of 500 or more, error overlay,
 replaced build output, or loading placeholder still there after 10 s. `shoot` runs it first and
 pictures nothing when it fails, and a server that breaks during a shoot deletes that round's
-folder so its number is reused. The builder and fixer report done only once smoke passes. An export
+folder so its number is reused. The builder and fixer report done only once smoke passes. Since
+0.19.0 the pictures show the right data every time: the contract gains a `row` key per value, a
+`generated` kind checked by shape, and a `none` label for a value the product doesn't store, which
+the founder decides once, before the build, from one list (`delivery contract --questions`, then
+`--decide build|drop|design`). `delivery seed --from-trace` writes the world rows from the contract
+(safe emails and organisation names, recorded in `swaps.json`), and `seed --need "<STATE>: <what>"`
+answers any agent in one line. `seed --plan` refuses a column the table lacks, a wrong type or an
+enum value the database doesn't list, and runs the profile's optional `commands.validateSeedJson`
+on Json columns; `seed --check` refuses a seeded table a side-effect rule watches with no guard;
+`seed --refresh` cleans every table the world ever seeded. The shoot resets the world before every
+state that saves, saves each item's live text, and runs datacheck: every traced value is looked for
+in the page's text, and a miss the world lacks is a `data-fault`, fixed by the seed-writer and
+re-shot (`shoot --only data-faults`) before any reviewer looks. `delivery datacheck` re-sorts a
+round without shooting. A round with only data faults left never ships, a traced column no query
+selects becomes a founder question, a `clock: true` state's world must use relative times, and the
+design render uses the profile's time zone. The pre-bash hook judges a seed-named script by
+whether it writes to a database, not by its name. An export
 holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run

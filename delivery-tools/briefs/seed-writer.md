@@ -2,8 +2,16 @@
 
 You write or fix the fixture worlds a picture-mode run is pictured in:
 `docs/delivery/<feature>/worlds/<world>.json`. You are the `delivery-tools:delivery-worker` agent
-with `Role: seed-writer`. Your prompt names the feature, the worktree and what to do: write the
-worlds the map names but nobody wrote yet, or fix the ones a review or a seed check found wrong.
+with `Role: seed-writer`. Your prompt names the feature, the worktree and what to do: finish what
+`delivery seed --from-trace` could not infer, fix a world a datacheck or a seed check found wrong,
+or add data an agent asked for with `delivery seed --need`.
+
+Most of a world is written by a command, not by you. `delivery seed --from-trace` builds a row for
+every group of data values the contract gives a `row` key (keys starting `t-`), with the design's
+own names, counts, statuses and relative times, and lists what it could not infer: a value with no
+row key, a column the design does not show that the table may require, a person who is no fixture
+user, a day the design shows as a fixed date. You handle only those lines. Never edit a `t-` row by
+hand: fix the contract label and run `--from-trace` again, or add a row of your own beside it.
 
 ## What you have
 
@@ -16,7 +24,12 @@ worlds the map names but nobody wrote yet, or fix the ones a review or a seed ch
 - `docs/delivery/<feature>/contract.json`: every text each state shows, labelled. Each `data`
   text names the table and column (or count, date, time, or fixture user) its value comes from.
   Your worlds must hold every one: the same name, the same count, a row with the date column set.
-- In a fix: the review's `data gap:` lines, or the problems `seed --plan` or `--check` printed.
+- `docs/delivery/<feature>/swaps.json`: the design values `--from-trace` replaced with safe ones
+  (an email on the fake domain, the organisation's prefixed name). Checks look for the swapped
+  value, so never put the design's own email back.
+- In a fix: the round's `datacheck.json` (each data fault names the value the world lacks), the
+  review's `data gap:` lines, the open needs in `docs/delivery/<feature>/needs.json`, or the
+  problems `seed --plan` or `--check` printed.
 
 ## Rules
 
@@ -37,6 +50,12 @@ worlds the map names but nobody wrote yet, or fix the ones a review or a seed ch
   write it: add any value the design shows for the new column, then run `--plan` and `--check`.
 - Change only world files. A state that cannot be shown without a code or schema change is not
   yours: say which, and why.
+- `seed --plan` refuses a column the table does not have, a value of the wrong kind or an enum
+  value the database does not list, read from the generated database types; and a Json value the
+  repo's own rules reject, when the profile names `commands.validateSeedJson`. Fix the value.
+- `seed --check` refuses a table a side-effect rule watches that no guard covers. You cannot add
+  a guard (the founder approves them); say which table, and whether an intercept would do instead.
+- After meeting needs from `needs.json`, close them: `node scripts/delivery.mjs seed --need-done <n,...>`.
 
 ## Done
 

@@ -36,10 +36,12 @@ must land first.
 | 0b Design-send | this session, `design-send` skill | only when a rule is `owed-design`: send that brief, or have the founder cut the rule | the design draws it, or `rules.json` records the cut |
 | 1 Pictures | this session | `design-inventory` steps 1 to 4 only (candidates, states, assemble, render); when the map declares the phone, `delivery design render --width phone` too | `.delivery/<f>/design/<ID>.png`, `<ID>@phone.png` |
 | 2 Map | one `delivery-worker`, `Role: mapper` | `<plugin>/briefs/mapper.md`, then `delivery map` | `map.json`, `checklist.md`, world files; also fills in the states of any `picture`-proof rule that needed them (rerun `<plugin>/briefs/rules.md` if one is still missing its states) |
-| 2b Contract | this session, then one `delivery-extractor`, `Role: contract` | `delivery contract` (the texts, from the design DOM); the labeller with `<plugin>/briefs/contract-labeller.md` writes `contract-labels.json`; `delivery contract` again until it exits 0 | `contract.json`: every text each state shows, labelled data, fixed or random |
-| 3 Worlds | one `delivery-worker`, `Role: seed-writer`, for the world files; this session applies | `<plugin>/briefs/seed-writer.md` (`seed --plan`, `--check`: it refuses a contract data value no world holds); then this session runs `delivery seed --apply` | fixture worlds on the test project |
+| 2b Contract | this session, then one `delivery-extractor`, `Role: contract` | `delivery contract` (the texts, from the design DOM); the labeller with `<plugin>/briefs/contract-labeller.md` writes `contract-labels.json`; `delivery contract` again until it exits 0 | `contract.json`: every text each state shows, labelled data (with its table, column and row), fixed, random, or none (the product does not store it) |
+| 2c Questions | this session | `delivery contract --questions`, sent to the founder in one message; each answer recorded with `delivery contract --decide`. Carry on while they answer | `questions.md`: values the product does not store, guards to approve, and after a shoot the traced columns no query selects |
+| 3 Worlds | this session, then one `delivery-worker`, `Role: seed-writer`, only for what the command lists | `delivery seed --from-trace` (world rows from the contract, safe emails and names, `swaps.json`); the seed-writer with `<plugin>/briefs/seed-writer.md` handles the lines it could not infer; `seed --plan` (column types, `validateSeedJson`), `--check` (every contract data value held, every watched table guarded); then this session runs `delivery seed --apply` | fixture worlds on the test project |
 | 4 Build | one `delivery-tools:picture-builder` agent (Opus, high) | before dispatch: `delivery rules` must exit 0 (a non-zero exit names an owed rule; go back to step 0b); then `<plugin>/briefs/builder-picture.md`; it reports done only once `delivery smoke` passes | commits on the run's branch |
-| 5 Shoot | this session | dev server in the background, then `delivery shoot --base-url <url>` (it runs `delivery smoke` first and pictures nothing when a page does not load, and deletes the round's folder when the server breaks during it, so the number is reused; every width the map declares; it resets each world to its seed right before its shots and freezes the browser clock at that moment) | `rounds/<n>/<ITEM>.live.png`, `<ITEM>.design.png`, `shoot.json` with each data difference sorted by lookup |
+| 5 Shoot | this session | dev server in the background, then `delivery shoot --base-url <url>` (it runs `delivery smoke` first and pictures nothing when a page does not load, and deletes the round's folder when the server breaks during it, so the number is reused; every width the map declares; it resets each world to its seed right before its shots and before every state that saves, and freezes the browser clock at that moment; then datacheck looks for every traced value in the page's text) | `rounds/<n>/<ITEM>.live.png`, `<ITEM>.design.png`, `<ITEM>.live.txt`, `shoot.json`, `datacheck.json` |
+| 5b Data faults | a seed-writer, then this session | only when datacheck found a data fault: the seed-writer with `Problem: rounds/<n>/datacheck.json`, then `seed --plan`, `--check`, and `delivery shoot --only data-faults`; at most two passes, before any reviewer | the round's data faults fixed in the world, not in code |
 | 6 Review | one `delivery-tools:picture-reviewer` per batch (Sonnet, medium, with `delivery crop`) | `<plugin>/briefs/reviewer-picture.md` | `rounds/<n>/review-batch-<k>.md` |
 | 7 Compile | this session | `delivery review --round <n>` | `review.json`, `compare.html` |
 | 8 Fix | a fresh `delivery-tools:picture-fixer` per round (Sonnet, medium) | the round's `review.json` and `builder-notes.md` | commits; then 5 to 7 again |
@@ -85,7 +87,7 @@ prompt and nothing else:
 Read <plugin>/briefs/<brief>.md and follow it.
 Feature: <slug>   Worktree: <absolute path of the run's worktree>
 <rules and mapper: nothing more>
-<seed-writer: Worlds: <world ids, or "the ones the map names without a file">   (a fix: Problem: <the data gap lines or the check's output>)>
+<seed-writer: Worlds: <world ids, or "the ones the map names without a file">   (a fix: Problem: <the lines seed --from-trace could not infer, rounds/<n>/datacheck.json, needs.json, or the check's output>)>
 <contract (delivery-extractor): Role: contract, then Read <plugin>/briefs/contract-labeller.md and follow it.   Write: docs/delivery/<f>/contract-labels.json>
 <ci-fixer: Check: <the failing check>   Log: <the log file delivery ci wrote>   Dev server: <running at <url>, or stopped>>
 <builder: Dev server: <url>   Round: 1   Components: run `delivery components --used`>
@@ -124,17 +126,24 @@ is added to every prompt; put anything you would otherwise repeat to each review
    again after a data-changing shot touched it; the browser clock is frozen at that moment, in the
    profile's time zone. A world whose reset the safety scan refuses is not pictured. Never pass
    `--no-reset` for a numbered round.
-3. **A test-data problem is fixed in the world file, never in code.** The shoot looks every
-   contract data difference up in the world: the world lacks it (`data gap`) or holds it and the
-   page doesn't show it (`must fix`, for the fixer). Send the data gaps to a seed-writer; once
-   `seed --plan` and `--check` pass, `delivery shoot --only data-gaps --base-url <url>` pictures
-   just those items again into the same round, and `delivery review --plan` reviews just them.
-   Say so in the builder's next prompt, so it doesn't chase them.
+3. **A test-data problem is fixed in the world file, never in code.** After every shoot,
+   datacheck looks for every contract data value in the page's text, and looks each miss up in
+   the world as seeded: the world lacks it (`data fault`) or holds it and the page doesn't show it
+   (`must fix`, for the fixer). Data faults go to a seed-writer before any reviewer sees the round;
+   once `seed --plan` and `--check` pass, `delivery shoot --only data-faults --base-url <url>`
+   pictures just those items again into the same round. A round whose only open items are data
+   faults or gaps never ships. `delivery datacheck` sorts a round again without shooting, after a
+   contract fix. Say so in the builder's next prompt, so it doesn't chase them.
+   Any agent that needs data asks `delivery seed --need "<STATE>: <what>"` and gets one line back:
+   held, or queued for the seed-writer.
 4. **The pictures show the design's data.** `contract.json` lists every text each state shows,
    taken from the design render. `seed --check` refuses a data value no world holds, a count the
    rows don't add up to, and a fixture user whose name isn't the design's, before anything is
    built. A state the labeller marks inconsistent (the design contradicts itself) goes to Claude
-   Design with `design-send`, not to seeding. `design render` rebuilds the contract on every new
+   Design with `design-send`, not to seeding. A value the product does not store is labelled
+   `none` and asked once, before the build (step 2c); a decided one is closed, an undecided one
+   keeps `ready` red. A state whose look depends on the clock is marked `clock: true`, and its
+   world's times must be relative. `design render` rebuilds the contract on every new
    export; run `delivery contract` and `seed --check` again after it.
 5. **The worlds belong to this run.** `seed --check` refuses a world whose organisation name
    another fixture organisation already has, and a table the worlds write whose columns changed

@@ -85,8 +85,13 @@ don't write code.
     only gets a button entry for that component when the component has its own controls on that
     state (a date field's own calendar icon, say) — not for the component's whole surface.
 - `reach.writes: true` marks a state reached by saving, adding, discarding or any other click
-  that changes the test data. Those states are captured last, and their world is re-seeded before
-  the next capture.
+  that changes the test data. Those states are captured last, each in its own browser, and their
+  world is reset before every one of them.
+- `clock: true` marks a state whose look depends on the time of day or the date: "calling hours
+  open", "overdue", "due today". Its world's times must be relative to the shoot
+  (`{ "$rel": "today@09:00" }`, `{ "$rel": "now-2h" }`); `delivery map` refuses a fixed date or
+  time in that world's file. The shoot resets the world right before it pictures it, so "open now"
+  is true at that moment.
 - `member: "hidden"` marks a button a member must not see. Add a member state for each screen a
   member can open.
 - `phone: "hidden"` marks a button the phone layout does not show (it moved into a menu), and
@@ -114,7 +119,9 @@ don't write code.
 - Test worlds: one world per distinct data situation the states need (the design's own data, empty,
   a messy one, one per special case). Each world needs a world file in
   `docs/delivery/<feature>/worlds/<id>.json`. Write the missing ones in the shape of the existing
-  ones. Fixture emails match the repo's safety file. Phone numbers use its fake range, and web
+  ones; keep them small (the organisation row and the users' memberships), because
+  `delivery seed --from-trace` later adds the rows the design's own values need, from the data
+  contract. Fixture emails match the repo's safety file. Phone numbers use its fake range, and web
   addresses its reserved domain. Use relative dates (`{ "$rel": "now-2h" }`) for anything the page
   compares with today. A `{ "$ref": "<key>" }` may name a row further down the file, which is how two
   tables that point at each other are seeded; that column must accept null, and a join row (no `id`
