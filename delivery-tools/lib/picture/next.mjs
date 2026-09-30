@@ -272,6 +272,8 @@ export async function pictureFacts(paths, opts = {}) {
     open: latest.length ? { must: count('must'), notReached: count('not-reached'), data: count('data-fault') + count('data-gap') } : null,
     // W4: the stop rule over the compiled rounds' real-bug counts, shared with ready.
     decision: runDecision(paths),
+    // W7: steers.md, written before round 1 (a components gallery needs none).
+    steersMissing: Boolean(map) && map.kind !== 'components' && !existsSync(join(paths.deliveryDir, 'steers.md')),
     // W6: shoot a production build when the profile can make one.
     shootArgs: opts.profile?.commands?.prodServer ? '--prod' : '--base-url <url>',
     // D13: data an agent asked for (seed --need) that no seed-writer has added yet.
@@ -358,6 +360,8 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   if (f.seedStale) return { step: 'worlds', skill, text: `${cli} seed --from-trace (world rows from the contract), then --plan, --check and --apply; a seed-writer handles only what --from-trace lists (the seed plan is older than the map, a world file or the data contract)` };
   if (f.needs) return { step: 'worlds', skill, text: `dispatch the seed-writer (Problem: the ${f.needs} open need(s) in docs/delivery/<f>/needs.json), then ${cli} seed --plan and --check, and ${cli} seed --need-done` };
   const last = f.rounds[f.rounds.length - 1];
+  // W7: how to read the design, written once before round 1, so reviewers agree between rounds.
+  if (!last && f.steersMissing) return { step: 'steers', skill, text: `dispatch delivery-tools:delivery-extractor with Role: steers and briefs/steers.md (Write: docs/delivery/<f>/steers.md): phone patterns, test data and rules over the picture, for every reviewer prompt` };
   if (!last && f.update) return { step: 'shoot', skill, text: `update run from ${f.update}: picture the page as it is before building. Start the dev server, then ${cli} shoot ${f.shootArgs ?? '--base-url <url>'} (round 1); the reviewers list what the new design changed, and the builder fixes only that` };
   if (!last) return { step: 'build', skill, text: `dispatch delivery-tools:picture-builder (opus, no worktree) with briefs/builder-picture.md; when it reports, start the dev server and run ${cli} shoot ${f.shootArgs ?? '--base-url <url>'} (round 1)` };
   if (!last.shot) return { step: 'shoot', skill, text: `${cli} shoot ${f.shootArgs ?? '--base-url <url>'} --round ${last.round}` };

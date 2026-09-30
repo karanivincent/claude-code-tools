@@ -591,3 +591,24 @@ Decisions:
   (step 400 → 250 ms, settle 600 → 300 ms, resize 300 → 200 ms) because `waitForQuiet` and
   `networkidle` already do the real waiting and screenshots disable animations. The next run's
   ledger says whether that moved not-reached counts; the retro can move them back.
+
+Built: PR https://github.com/karanivincent/claude-code-tools/pull/70 (tests 1381, 1363 pass, 0 fail).
+
+## W7 reviews (0.22.0)
+
+Already there: `steers.md` is added to every reviewer prompt (0.11); `retro` proposes steers after
+a run; the crop hid any full-width fixed bottom bar up to 160 px and cut the live picture only at
+the page title; reviewers read `shoot.json`; the 0.16 prompts list the lookup's sorted notes.
+
+Decisions:
+
+- The steers writer is a `delivery-extractor` (Role: steers, Sonnet, `briefs/steers.md`): it only
+  writes one file. NEXT asks for it before round 1 (and before an update run's first shoot);
+  `carryOver` copies `steers.md`, and `swaps.json` with it, since carried worlds hold swapped
+  values.
+- The tab bar is the profile's optional `picture.tabBar`. Without it the old rule stays, minus any
+  element in or holding a sheet or dialog, so the plugin still works without a Telitask change.
+- The design's top edge uses the design's own page title (its dom.json `h1`) less the same 24 px,
+  raised to the live picture's open-panel top, since the design's dom.json does not record panels.
+  `picture.keepPhoneHeader` sets both to 0 at phone width.
+- The facts file is markdown, one per item sent to a reviewer, cut to 2 KB with "and N more".

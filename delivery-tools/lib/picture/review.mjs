@@ -482,6 +482,7 @@ export function batchPrompt(o) {
     `Feature: ${o.feature}   Worktree: ${o.worktree}`,
     `Round: ${o.roundRel}/   States: ${o.items.join(' ')}   Write: ${o.file}`,
     `Close look: node scripts/delivery.mjs crop --round ${String(o.roundRel).split('/').pop()} --item <ITEM> --box x,y,w,h`,
+    `Facts: ${o.roundRel}/facts/<ITEM>.md (read these, not shoot.json)`,
   ];
   const steers = (o.steers ?? '').trim();
   const sorted = Object.entries(o.sorted ?? {}).flatMap(([k, v]) => [...(v.dataFault ?? []).map((t) => `- ${k}: data fault: ${t}`), ...(v.dataGap ?? []).map((t) => `- ${k}: data gap: ${t}`), ...(v.must ?? []).map((t) => `- ${k}: must fix: ${t}`)]);

@@ -9,17 +9,20 @@ a state at a width: `KC-05` is the desktop, `KC-05@phone` the phone. Your list m
 
 - `<ITEM>.design.png`: the design of each item (`KC-05.design.png`, `KC-05@phone.design.png`).
 - `<ITEM>.live.png`: the live page in the same state, at the same width.
-- `shoot.json`: for each item, whether the capture reached it, and for each of its buttons
-  whether it is on the page (`onPage`) and whether it should be (`shouldBe`). At phone width,
-  `overflow` is how far the page scrolls sideways.
+- `facts/<ITEM>.md`: a short file per item (read it, not `shoot.json`, which is far too big):
+  whether the capture reached it, the buttons missing or shown where they should be hidden, how far
+  the page scrolls sideways at phone width, the texts one picture shows and the other does not, and
+  what datacheck already sorted.
 - `docs/delivery/<feature>/checklist.md`: every state, how it is reached, its buttons and the
   state each button opens, and the rules (`Rule R7: ...`) each state shows.
 
-Your prompt may end with "Steers for this run": notes the founder kept in
-`docs/delivery/<feature>/steers.md` (things to ignore, test data that is fake on purpose, what
-counts as a real problem). Follow them; they are added to every reviewer's prompt.
+Your prompt may end with "Steers for this run": `docs/delivery/<feature>/steers.md`, written from
+the design before round 1 (which phone pattern each overlay is, test data that is fake on purpose,
+rules that override the picture, what is out of scope). Follow them over your own reading of the
+pictures: they keep every round's reviewers reading the design the same way.
 
-Both pictures show only the page's own area. The sidebar and top bar are out of scope.
+Both pictures show only the page's own area, cut at the same top edge. The sidebar, top bar and
+phone tab bar are out of scope; a bottom sheet or dialog is the page's own content, and stays.
 
 ## For each of your items
 
@@ -27,7 +30,7 @@ Look at the two pictures side by side and ask:
 
 1. Is anything in the design missing from the live page? A section, button, badge, count, progress
    bar, empty state, side panel or toast.
-2. Is a checklist button missing, or shown to a member when it should be hidden? Use shoot.json.
+2. Is a checklist button missing, or shown to a member when it should be hidden? Use the facts file.
 3. Does the live page show something the design doesn't that looks wrong? An error, a duplicate,
    a broken layout, or text that makes no sense.
 4. Would a person notice the difference at a glance? Layout, arrangement, sizes, colours, borders,
@@ -71,7 +74,7 @@ differences that need a ruler.
 - Judge a phone layout against the phone design, never against the desktop one. Stacked cards,
   a menu in place of tabs, a full-width button: all fine when the phone design shows them.
 - A page that scrolls sideways on a phone is always `must fix`. `delivery review` adds the shoot's
-  own finding (`overflow` in shoot.json) for you; write it yourself only when you see it and the
+  own finding (in the facts file) for you; write it yourself only when you see it and the
   shoot did not.
 
 ## Output

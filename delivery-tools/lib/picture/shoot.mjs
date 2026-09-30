@@ -241,31 +241,45 @@ export function isBottomBar(box, viewportWidth, viewportHeight) {
 }
 const BOTTOM_BAR_MAX = 160;
 
-/** Hide every fixed bottom bar (isBottomBar's rule, in the page). Returns how many. */
-function hideBottomBars(max) {
+/**
+ * Hide the shared chrome fixed at the bottom of the window (the phone's tab bar) and dev-server
+ * overlays. Returns how many. W7: with the profile's tab-bar selectors (picture.tabBar), only
+ * those are hidden. Without them, isBottomBar's rule applies, but never to a sheet or dialog: a
+ * short bottom sheet is the page's own content, and hiding it hid real findings.
+ * @param {{ max: number, selectors?: string[]|null }} o
+ */
+function hideBottomBars({ max, selectors }) {
   let n = 0;
+  const hide = (d) => { d.style.setProperty('visibility', 'hidden', 'important'); n += 1; };
   // Dev-server overlays (TanStack Query devtools, the Next.js indicator) exist only locally; a
   // preview never shows them, so neither may a picture.
-  for (const d of document.querySelectorAll('.tsqd-parent-container, .tsqd-open-btn-container, nextjs-portal, [data-nextjs-dev-tools-button]')) {
-    d.style.setProperty('visibility', 'hidden', 'important');
-    n += 1;
+  for (const d of document.querySelectorAll('.tsqd-parent-container, .tsqd-open-btn-container, nextjs-portal, [data-nextjs-dev-tools-button]')) hide(d);
+  if (selectors && selectors.length) {
+    for (const d of document.querySelectorAll(selectors.join(', '))) hide(d);
+    return n;
   }
+  const SHEET = '[role="dialog"], [role="alertdialog"], [aria-modal="true"], [data-vaul-drawer], [data-radix-dialog-content]';
   for (const d of document.querySelectorAll('body *')) {
     const st = getComputedStyle(d);
     if (st.position !== 'fixed' || st.display === 'none' || st.visibility === 'hidden') continue;
+    if (d.closest(SHEET) || d.querySelector(SHEET)) continue;
     const b = d.getBoundingClientRect();
-    if (b.height > 0 && b.height <= max && b.width >= window.innerWidth * 0.9 && Math.abs(b.bottom - window.innerHeight) <= 2) {
-      d.style.setProperty('visibility', 'hidden', 'important');
-      n += 1;
-    }
+    if (b.height > 0 && b.height <= max && b.width >= window.innerWidth * 0.9 && Math.abs(b.bottom - window.innerHeight) <= 2) hide(d);
   }
   return n;
 }
 
-/** Top of the page area: the page title less a margin, raised to any open panel or dialog. */
-function pageAreaTop(left) {
+/**
+ * Top of the page area: the page title less a margin, raised to any open panel or dialog. W7: 0
+ * when keepHeader (the profile keeps the phone header in both pictures). Returns the top and, apart,
+ * the highest open panel's top, which the design's crop reuses.
+ * @param {{ left: number, keepHeader?: boolean }} o
+ */
+function pageAreaTop({ left, keepHeader }) {
+  if (keepHeader) return { top: 0, dialogTop: null };
   const h = [...document.querySelectorAll('h1')].find((e) => e.getBoundingClientRect().left >= left - 8);
   let t = h ? Math.floor(h.getBoundingClientRect().top) - 24 : 0;
+  let dialogTop = null;
   // A side panel or dialog: a dialog role, or any large fixed box inside the page area (a sidebar
   // starts left of it, a top bar is too short to count).
   for (const d of document.querySelectorAll('body *')) {
@@ -275,8 +289,24 @@ function pageAreaTop(left) {
     if (st.visibility === 'hidden' || st.display === 'none' || Number(st.opacity) === 0) continue;
     const b = d.getBoundingClientRect();
     if (b.width < 200 || b.height < 200 || b.left < left - 8) continue;
+    dialogTop = Math.min(dialogTop ?? Infinity, Math.floor(b.top));
     t = Math.min(t, Math.floor(b.top));
   }
+  return { top: Math.max(0, t), dialogTop: dialogTop === null ? null : Math.max(0, dialogTop) };
+}
+
+/**
+ * W7: the design picture's top edge, by the live picture's rule, so both are cut the same way:
+ * the design's own page title less the same margin, raised to the open panel the live page showed.
+ * With no title in the design, the live top is used. Pure over the design's dom.json.
+ * @param {{ elements?: object[] }|null} dom
+ * @param {{ left?: number, keepHeader?: boolean, liveTop?: number|null, dialogTop?: number|null }} o
+ */
+export function designAreaTop(dom, { left = 0, keepHeader = false, liveTop = null, dialogTop = null } = {}) {
+  if (keepHeader) return 0;
+  const h1 = (dom?.elements ?? []).filter((e) => e.tag === 'h1' && e.visible !== false && e.box && e.box.x >= left - 8).sort((a, b) => a.box.y - b.box.y)[0];
+  let t = h1 ? Math.floor(h1.box.y) - 24 : (liveTop ?? 0);
+  if (dialogTop !== null && dialogTop !== undefined) t = Math.min(t, dialogTop);
   return Math.max(0, t);
 }
 
@@ -366,6 +396,8 @@ export async function openSignedIn(browser, o, entry, user, ip, prepare) {
  *   then not reached, never pictured on a world nobody checked.
  * @param {string|null} [o.timeZone] the profile's testData.timeZone, for the browser
  * @param {number} [o.parallel] worlds shot at once (default shoot.parallelWorlds)
+ * @param {string[]|null} [o.tabBar] the profile's picture.tabBar selectors: the only bottom bars hidden (W7)
+ * @param {boolean} [o.keepPhoneHeader] the profile's picture.keepPhoneHeader: no top crop at phone width (W7)
  * @param {object|null} [o.contract] the run's contract.json, for the datacheck (W3)
  * @param {Record<string, Record<string, string>>|null} [o.swaps] swaps.json's worlds (seed --from-trace)
  * @returns {Promise<Record<string, object>>} keyed by item key
@@ -445,7 +477,7 @@ export async function runShoot(o) {
     const parallel = Math.max(1, Math.min(o.parallel ?? PARALLEL_WORLDS, queues.length));
     if (parallel > 1) o.log(`shooting ${queues.length} world(s), ${parallel} at a time`);
     await Promise.all(Array.from({ length: parallel }, worker));
-    await cropDesigns(browser, o, o.items);
+    await cropDesigns(browser, o, o.items, report);
     await recordPictureFacts(browser, o, report, liveFacts, seeded);
     await writeSeeded(o.outDir, seeded);
   } finally {
@@ -556,7 +588,7 @@ async function shootItem(page, it, o, liveFacts = new Map()) {
     // (found on the first components run). Fixed layers (a phone tab bar, a dev-server overlay)
     // are hidden first so they never paint over a state's own picture.
     await loc.scrollIntoViewIfNeeded().catch(() => {});
-    await page.evaluate(hideBottomBars, BOTTOM_BAR_MAX).catch(() => 0);
+    await page.evaluate(hideBottomBars, { max: BOTTOM_BAR_MAX, selectors: o.tabBar ?? null }).catch(() => 0);
     const masks = await maskLocators(page, s, rec);
     await loc.screenshot({ path: join(o.outDir, roundFiles(it.key).live), animations: 'disabled', caret: 'hide', ...masks });
     return rec;
@@ -577,10 +609,13 @@ async function shootItem(page, it, o, liveFacts = new Map()) {
   const height = Math.min(size.height + extra, MAX_HEIGHT);
   await page.setViewportSize({ width: size.width, height });
   await page.waitForTimeout(RESIZE_PAUSE_MS);
-  const top = await page.evaluate(pageAreaTop, left);
+  const area = await page.evaluate(pageAreaTop, { left, keepHeader: phone && Boolean(o.keepPhoneHeader) });
+  const top = typeof area === 'number' ? area : (area?.top ?? 0);
+  rec.top = top;
+  if (area?.dialogTop !== null && area?.dialogTop !== undefined) rec.dialogTop = area.dialogTop;
   // Every width, not only the phone: a fixed bar (a bottom tab bar, a dev-server overlay) is
   // shared chrome, hidden before the picture rather than graded, at any width it happens to show.
-  await page.evaluate(hideBottomBars, BOTTOM_BAR_MAX).catch(() => 0);
+  await page.evaluate(hideBottomBars, { max: BOTTOM_BAR_MAX, selectors: o.tabBar ?? null }).catch(() => 0);
   // What the page says, read the way a design render's is, for the auto-match check (A6).
   const extracted = await page.evaluate(pageExtract, {}).catch(() => null);
   const facts = extracted ? domFacts(maskDom(extracted.dom, maskTestids(s)), left) : null;
@@ -611,7 +646,7 @@ async function maskLocators(page, state, rec) {
 }
 
 /** The design picture of each item, cropped to the page area at its width the same way. */
-async function cropDesigns(browser, o, items) {
+async function cropDesigns(browser, o, items, report = {}) {
   const page = await browser.newPage();
   try {
     for (const it of items) {
@@ -622,11 +657,14 @@ async function cropDesigns(browser, o, items) {
       const cropped = cropFor(o.map, it.width, it.id);
       const designLeft = cropped.designLeft ?? 0;
       const data = readFileSync(join(o.designDir, file)).toString('base64');
+      let dom = null;
+      try { dom = JSON.parse(readFileSync(join(o.designDir, file.replace(/\.png$/, '.dom.json')), 'utf8')); } catch { dom = null; }
       // R12: the design's masked values are painted over exactly as the live page's are.
-      let boxes = [];
-      if (maskTestids(it.state).length) {
-        try { boxes = maskBoxes(JSON.parse(readFileSync(join(o.designDir, file.replace(/\.png$/, '.dom.json')), 'utf8')), maskTestids(it.state)); } catch { boxes = []; }
-      }
+      const boxes = maskTestids(it.state).length ? maskBoxes(dom, maskTestids(it.state)) : [];
+      // W7: the same top edge as the live picture (a components map's render is the component alone).
+      const rec = report[it.key];
+      const top = o.map.kind === 'components' || !rec?.reached ? 0
+        : designAreaTop(dom, { left: designLeft, keepHeader: it.width === 'phone' && Boolean(o.keepPhoneHeader), liveTop: rec.top ?? null, dialogTop: rec.dialogTop ?? null });
       const paint = boxes.map((b) => `<div style="position:absolute;left:${b.x}px;top:${b.y}px;width:${b.w}px;height:${b.h}px;background:${MASK_COLOR}"></div>`).join('');
       await page.setContent(`<body style="margin:0;position:relative"><img id="d" src="data:image/png;base64,${data}">${paint}</body>`);
       const size = await page.evaluate(() => new Promise((res) => {
@@ -635,7 +673,8 @@ async function cropDesigns(browser, o, items) {
         if (img.complete) done(); else img.onload = done;
       }));
       await page.setViewportSize({ width: Math.max(1, size.w), height: Math.max(1, Math.min(size.h, MAX_HEIGHT)) });
-      await page.screenshot({ path: join(o.outDir, roundFiles(it.key).design), clip: { x: designLeft, y: 0, width: Math.max(1, size.w - designLeft), height: Math.min(size.h, MAX_HEIGHT) } });
+      const y = Math.min(top, Math.max(0, size.h - 1));
+      await page.screenshot({ path: join(o.outDir, roundFiles(it.key).design), clip: { x: designLeft, y, width: Math.max(1, size.w - designLeft), height: Math.max(1, Math.min(size.h, MAX_HEIGHT) - y) } });
     }
   } finally {
     await page.close();

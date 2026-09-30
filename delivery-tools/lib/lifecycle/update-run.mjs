@@ -39,6 +39,14 @@ export async function carryOver({ fromDir, toDir, feature, sentence, carryMap = 
   await json('rules.json', (r) => r);
   // intake fills the epic and the design fields; the screens in scope stay the earlier run's.
   await json('intent.json', (i) => ({ ...i, feature, sentence }));
+  // W7: the earlier run's steers (how to read the design) and its swap list (the safe values its
+  // worlds hold) belong with its map and worlds.
+  for (const name of ['steers.md', 'swaps.json']) {
+    if (existsSync(join(fromDir, name)) && !existsSync(join(toDir, name))) {
+      await copyFile(join(fromDir, name), join(toDir, name));
+      copied.push(name);
+    }
+  }
   const worlds = join(fromDir, 'worlds');
   if (existsSync(worlds)) {
     await mkdir(join(toDir, 'worlds'), { recursive: true });

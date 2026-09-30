@@ -8,9 +8,11 @@ import { intFlag, parseCommandArgs } from '../core/args.mjs';
 import { EXIT, UsageError } from '../core/exit.mjs';
 import { readMap } from '../picture/map.mjs';
 import { listRounds, roundDir, roundInfo } from '../picture/rounds.mjs';
-import { AUTO_MATCH_MAX_DIFF, MAX_BATCH_ITEMS, MAX_PARALLEL_REVIEWERS, SAMPLE_PER_SCREEN, batchPrompt, batchWaves, heldToReview, noteOwners, parseReview, planReview, renderCompare, reshotItems, summarise } from '../picture/review.mjs';
+import { AUTO_MATCH_MAX_DIFF, MAX_BATCH_ITEMS, MAX_PARALLEL_REVIEWERS, SAMPLE_PER_SCREEN, batchPrompt, domFacts, batchWaves, heldToReview, noteOwners, parseReview, planReview, renderCompare, reshotItems, summarise } from '../picture/review.mjs';
 import { exportShadow, runShadow, shadowFindings, shadowSetup, steerLines } from '../picture/shadow.mjs';
-import { hasPhone, mapItems, roundFiles } from '../picture/widths.mjs';
+import { cropFor, designFileCandidates, hasPhone, mapItems, roundFiles } from '../picture/widths.mjs';
+import { FACTS_DIR, factsFile, renderFacts } from '../picture/facts.mjs';
+import { maskDom, maskTestids } from '../picture/shoot.mjs';
 import { contractSummary, readContract } from '../picture/contract.mjs';
 import { renderStuck, runDecision, stuckItems } from '../picture/stop.mjs';
 
@@ -241,6 +243,21 @@ async function planRound(ctx, paths, round, info, rounds, opts = {}) {
   let decidedNone = [];
   try { decidedNone = contractSummary(readContract(paths)).decided; } catch { decidedNone = []; }
   const planned = plan.batches.map((b) => ({ ...b, id: b.id + offset }));
+  // W7: a short facts file per item the reviewers get, instead of reading shoot.json.
+  mkdirSync(join(info.dir, FACTS_DIR), { recursive: true });
+  for (const key of planned.flatMap((b) => b.items)) {
+    const it = mapItems(map).find((i) => i.key === key);
+    const rec = info.shoot.states?.[key];
+    let designTexts = null;
+    const file = it ? designFileCandidates(it.state, it.width).find((f) => existsSync(join(paths.designRenders, f))) : null;
+    if (file) {
+      const dom = readJson(join(paths.designRenders, file.replace(/\.png$/, '.dom.json')));
+      designTexts = domFacts(maskDom(dom, maskTestids(it.state)), cropFor(map, it.width, it.id).designLeft ?? 0)?.text ?? null;
+    }
+    const liveFile = join(info.dir, `${key}.live.txt`);
+    const liveTexts = existsSync(liveFile) ? readFileSync(liveFile, 'utf8').split('\n').filter(Boolean) : null;
+    await writeFile(join(info.dir, factsFile(key)), renderFacts({ key, rec, designTexts, liveTexts }));
+  }
   for (const b of planned) {
     const file = `review-batch-${b.id}.md`;
     const prompt = `batch-${b.id}.prompt.md`;
