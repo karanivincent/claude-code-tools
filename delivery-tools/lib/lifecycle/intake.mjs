@@ -211,6 +211,7 @@ export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic 
     const found = await adapter.detect(pack.dir);
     if (!found.ok) throw new UsageError(`not a recognised ${adapter.name} export: ${found.reason ?? 'unknown layout'}${adapter.name === 'claude-design' ? ' (for a folder of images pass --adapter image-folder)' : ''}`);
     const project = found.project || basename(abs).replace(/\.zip$/i, '');
+    for (const note of found.notes ?? []) ctx.out.line(note);
     const allRuns = await discoverRuns(ctx.git, { runRoot: profile.paths.runRoot });
     const takenFeatures = new Set(allRuns.map((r) => r.feature));
     // --feature, else the run of the worktree this runs in, else "components" (a components run

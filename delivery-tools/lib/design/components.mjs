@@ -103,7 +103,9 @@ export function componentOrder(components) {
 }
 
 export async function readExportComponents(dir) {
-  const names = (await readdir(dir)).filter((n) => n.endsWith('.dc.html') && !n.startsWith(PROP_COPY_PREFIX)).sort();
+  let names = (await readdir(dir)).filter((n) => n.endsWith('.dc.html') && !n.startsWith(PROP_COPY_PREFIX)).sort();
+  // A second copy of a page's source that some exports carry (adapters/design/claude-design.mjs findDcFile).
+  if (names.length > 1) names = names.filter((n) => n !== '_bundle_src.dc.html');
   const files = await Promise.all(names.map(async (file) => ({ file, html: await readFile(join(dir, file), 'utf8') })));
   return readDesignComponents(files);
 }

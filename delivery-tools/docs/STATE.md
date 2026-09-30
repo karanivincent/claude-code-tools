@@ -16,15 +16,18 @@ profile, in that project's repository (spec section 18).
 | The build record: briefs, slice reports, pressure-test records, the rehearsal log | the same repository, `docs/delivery/plugin-record/build/` |
 | The private replay set (real artefacts of one build that went wrong; never commit it here) | the same repository, `docs/delivery/replay/scripts-build/`, driven by its `scripts/delivery/replay.mjs` |
 
-## Test state, 2026-09-29
+## Test state, 2026-09-30
 
 ```
 node --test 'tests/**/*.test.mjs' 'skills/**/*.test.mjs'
 ```
 
-1198 tests: 1182 pass, 0 fail, 16 skipped (the replay tests, which need the private replay set, and
-two real-browser render tests, which need `DELIVERY_PLAYWRIGHT_ROOT`). That is the whole suite after
-0.17.0 (`seed --check` refuses a changed table and a same-name fixture organisation, `globals`
+1213 tests: 1195 pass, 0 fail, 18 skipped (the replay tests, which need the private replay set; the
+real-browser render and smoke tests, which need `DELIVERY_PLAYWRIGHT_ROOT`; and the Settings export
+check, which needs `DELIVERY_SETTINGS_EXPORT`). That is the whole suite after 0.18.0 (preset tables
+become `preset` candidates, `_bundle_src.dc.html` ignored, render warnings for an iframe-heavy page
+and a prop named like a state key, `delivery smoke`, run by `shoot` before and after, and a round
+the server broke in deleted so its number is reused), 0.17.0 (`seed --check` refuses a changed table and a same-name fixture organisation, `globals`
 hashed at `seed --apply` and checked by `shoot`, masks per state counted in the ledger), 0.16.0 (`shoot` resets each world right before its shots and freezes the browser clock there, sorts
 each data difference by looking it up in the world, `shoot --only` re-shoots into the same round,
 `review --plan` reviews just the re-shot items, and `runs` prints data gaps per round), 0.15.0 (the data contract: `delivery contract` from the design DOM, its labeller, `seed --check`

@@ -2,7 +2,7 @@
 // page live in .delivery/<feature>/rounds/<n>/. A builder's own looking goes in rounds/work/,
 // which never counts as a round.
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 export const WORK_ROUND = 'work';
@@ -24,6 +24,20 @@ export function listRounds(paths) {
 export function nextRound(paths) {
   const all = listRounds(paths);
   return all.length ? all[all.length - 1] + 1 : 1;
+}
+
+/**
+ * Throw a numbered round away: its folder goes, so the next shoot takes its number again. For a
+ * round whose pictures show a broken server (W2), which must never count as a round. "work" is
+ * never discarded.
+ * @returns {boolean} whether a folder was removed
+ */
+export function discardRound(paths, n) {
+  if (!/^\d+$/.test(String(n))) return false;
+  const dir = roundDir(paths, n);
+  if (!existsSync(dir)) return false;
+  rmSync(dir, { recursive: true, force: true });
+  return true;
 }
 
 /** What a round holds so far. */

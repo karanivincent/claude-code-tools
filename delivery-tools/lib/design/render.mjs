@@ -13,6 +13,8 @@ import { startStaticServer, contentTypeFor } from './server.mjs';
 import { prepareServeDir, writePropCopy } from './serve.mjs';
 import { vendorResolver } from './vendor.mjs';
 import { declaredProps } from './components.mjs';
+import { splitDcHtml, stateWrites } from './claude-dc.mjs';
+import { tokenize } from './js-tokens.mjs';
 import { pageExtract, linesToText } from '../capture/page-extract.mjs';
 import { itemKey, WIDTHS } from '../picture/widths.mjs';
 
@@ -114,6 +116,56 @@ export function planRenders(inventory, opts) {
     out.push(item);
   }
   return out;
+}
+
+/**
+ * Every state key of a design page: the keys of its initial `state = {...}` and of every
+ * this.set({...}). Empty when the file has no logic script.
+ * @param {string} html the .dc.html
+ * @returns {Set<string>}
+ */
+export function designStateKeys(html) {
+  const parts = splitDcHtml(html);
+  if (!parts.script) return new Set();
+  const writes = stateWrites(tokenize(parts.script.text, { line: parts.script.line }), parts.script.text);
+  return new Set(writes.flatMap((w) => w.entries.map((e) => e.key)));
+}
+
+/**
+ * The props a state's reach sets whose names are also state keys of the design (the Rounds run's
+ * `screen` mix-up): setting the prop never sets the state of that name.
+ * @param {Record<string, unknown>|null} props
+ * @param {Set<string>} stateKeys
+ * @returns {string|null} the warning, or null
+ */
+export function propStateClash(props, stateKeys) {
+  const clash = Object.keys(props ?? {}).filter((k) => stateKeys.has(k));
+  if (!clash.length) return null;
+  const k = clash[0];
+  return `the reach sets prop${clash.length > 1 ? 's' : ''} ${clash.map((c) => `"${c}"`).join(', ')}, which ${clash.length > 1 ? 'are' : 'is'} also a state key of the design; a prop never sets the state of the same name. If the state was meant, reach it with a {"set": {"${k}": ...}} step`;
+}
+
+/** Above this share of the page, an iframe is where the state's content is. */
+export const IFRAME_SHARE_WARN = 0.5;
+
+/**
+ * The share of the page (its full scroll area) the largest visible iframe covers, 0 to 1.
+ * @param {{ w: number, h: number }[]} frames each iframe's visible box
+ * @param {{ w: number, h: number }} pageSize
+ */
+export function iframeShare(frames, pageSize) {
+  const area = Math.max(1, pageSize.w * pageSize.h);
+  return frames.reduce((m, f) => Math.max(m, Math.max(0, f.w) * Math.max(0, f.h) / area), 0);
+}
+
+/**
+ * The warning for a state whose page is mostly an iframe, or null. Its words come from the top
+ * document only, so they miss what the frame draws: usually a phone view drawn inside a phone
+ * frame, which is rendered with --width phone instead.
+ */
+export function iframeWarning(share) {
+  if (share <= IFRAME_SHARE_WARN) return null;
+  return `an iframe covers ${Math.round(share * 100)}% of the page, and its words are not read (only the top document is). A phone view is rendered with --width phone, never through a phone-frame prop`;
 }
 
 /**
@@ -245,7 +297,7 @@ export async function renderDesign(ctx, opts) {
     paths.designRender(id, ext); // checks the id
     return join(outDir, renderFileName(id, width, ext));
   };
-  const result = { rendered: [], shots: [], skipped: [], failed: [], escaped: [] };
+  const result = { rendered: [], shots: [], skipped: [], failed: [], escaped: [], warnings: [] };
   await ensureDir(outDir);
 
   for (const p of plan) {
@@ -272,6 +324,8 @@ export async function renderDesign(ctx, opts) {
   const serve = await prepareServeDir(snapshotDir, serveDir);
   const server = await startStaticServer(serveDir, { port: opts.port ?? 0 });
   const escaped = new Set();
+  let pageStateKeys = new Set();
+  try { pageStateKeys = designStateKeys(await readFile(join(serveDir, serve.dcFile), 'utf8')); } catch { /* the render names a missing page itself */ }
   let browser;
   try {
     try {
@@ -288,6 +342,8 @@ export async function renderDesign(ctx, opts) {
     for (const p of toRender) {
       const errors = [];
       const dcFile = p.file ?? serve.dcFile;
+      const clash = p.file ? null : propStateClash(p.preset ?? p.props, pageStateKeys);
+      if (clash) result.warnings.push({ id: p.id, why: clash });
       let viewport = opts.viewport ?? DEFAULT_VIEWPORT;
       if (p.file) {
         if (!previewCache.has(p.file)) previewCache.set(p.file, await readComponentPreview(serveDir, p.file));
@@ -335,6 +391,13 @@ export async function renderDesign(ctx, opts) {
         const hosts = await page.evaluate(() => [...document.querySelectorAll('.sc-host[data-sc-name]')]
           .map((e) => ({ name: e.getAttribute('data-sc-name'), root: e.parentElement?.id === 'dc-root' })));
         await writeFile(outFile(p.id, 'components.json'), JSON.stringify({ names: componentNames(hosts) }, null, 2) + '\n');
+        const frames = await page.evaluate(() => ({
+          page: { w: document.documentElement.scrollWidth, h: document.documentElement.scrollHeight },
+          frames: [...document.querySelectorAll('iframe')].map((f) => f.getBoundingClientRect())
+            .filter((r) => r.width > 0 && r.height > 0).map((r) => ({ w: r.width, h: r.height })),
+        }));
+        const framed = iframeWarning(iframeShare(frames.frames, frames.page));
+        if (framed) result.warnings.push({ id: p.id, why: framed });
         const { lines, dom } = await page.evaluate(pageExtract, {});
         const png = await page.screenshot({ fullPage: true, animations: 'disabled', caret: 'hide' });
         const hash = sha256(png);

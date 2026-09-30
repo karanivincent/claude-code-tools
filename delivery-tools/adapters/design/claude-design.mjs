@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { listTree } from '../../lib/core/hash.mjs';
 import { readZip } from '../../lib/core/zip.mjs';
 import { tokenize } from '../../lib/design/js-tokens.mjs';
-import { splitDcHtml, propValues, stateWrites, textTernaries, templateLists, idPart } from '../../lib/design/claude-dc.mjs';
+import { splitDcHtml, propValues, presetTables, stateWrites, textTernaries, templateLists, idPart } from '../../lib/design/claude-dc.mjs';
 import { screenKey, screenMap } from '../../lib/design/screens.mjs';
 
 export const RUNTIME_ENTRY = 'support.js';
@@ -21,18 +21,26 @@ async function isDir(p) { try { return (await stat(p)).isDirectory(); } catch { 
 async function isFile(p) { try { return (await stat(p)).isFile(); } catch { return false; } }
 
 const DC_IMPORT = /<dc-import\b[^>]*\bname\s*=\s*["']([^"']+)["']/g;
+/** A copy of the page's source some Claude Design exports carry beside the page itself. */
+export const BUNDLE_SRC = '_bundle_src.dc.html';
 
 /**
  * The page *.dc.html at the top of dir, or an error message. An export can also carry components
  * (DatePicker.dc.html beside Dashboard.dc.html) that the page pulls in with
- * <dc-import name="DatePicker">; the page is the one file no other file imports.
+ * <dc-import name="DatePicker">; the page is the one file no other file imports. A
+ * _bundle_src.dc.html beside another page file is a second copy of the source, not a page: it is
+ * left out and named in `ignored`.
+ * @returns {Promise<{ file?: string, components?: string[], ignored?: string[], error?: string }>}
  */
 export async function findDcFile(dir) {
   let names;
   try { names = await readdir(dir); } catch { return { error: `${dir} is not a readable directory` }; }
-  const dc = names.filter((n) => n.endsWith('.dc.html') && !n.startsWith('__delivery__'));
+  let dc = names.filter((n) => n.endsWith('.dc.html') && !n.startsWith('__delivery__'));
   if (dc.length === 0) return { error: 'no *.dc.html at the top of the export' };
-  if (dc.length === 1) return { file: dc[0] };
+  const ignored = dc.length > 1 && dc.includes(BUNDLE_SRC) ? [BUNDLE_SRC] : [];
+  if (ignored.length) dc = dc.filter((n) => n !== BUNDLE_SRC);
+  const note = ignored.length ? { ignored } : {};
+  if (dc.length === 1) return { file: dc[0], ...note };
   const imported = new Set();
   for (const n of dc) {
     const text = await readFile(join(dir, n), 'utf8');
@@ -40,7 +48,7 @@ export async function findDcFile(dir) {
   }
   const pages = dc.filter((n) => !imported.has(n));
   if (pages.length !== 1) return { error: `more than one *.dc.html (${dc.join(', ')}), and ${pages.length} of them imported by no other` };
-  return { file: pages[0], components: dc.filter((n) => n !== pages[0]) };
+  return { file: pages[0], components: dc.filter((n) => n !== pages[0]), ...note };
 }
 
 /** Whether dir carries the runtime: support.js loose, or inside runtime.zip. */
@@ -60,7 +68,8 @@ const adapter = {
     const dc = await findDcFile(dir);
     if (dc.error) return { ok: false, reason: dc.error };
     if (!(await hasRuntime(dir))) return { ok: false, reason: `no ${RUNTIME_ENTRY} (or ${RUNTIME_ZIP} holding it) beside ${dc.file}` };
-    return { ok: true, project: dc.file.replace(/\.dc\.html$/, ''), exportedAt: null };
+    const notes = (dc.ignored ?? []).map((n) => `ignored ${n}: a second copy of the page's source, not a page (the page is ${dc.file})`);
+    return { ok: true, project: dc.file.replace(/\.dc\.html$/, ''), exportedAt: null, ...(notes.length ? { notes } : {}) };
   },
 
   // Runtime scripts are zipped: a repo's security gate may refuse eval in a committed .js, and
@@ -146,9 +155,21 @@ export function claudeDesignCandidates({ file, text, shots = [] }) {
     return map.scriptOffsets([w.at]);
   };
 
-  // 1. Every value of every data-props switch: the only way to reach a prop-only state.
+  // 1. Every value of every data-props switch: the only way to reach a prop-only state. A switch
+  //    that picks a preset table's entry gives one preset candidate per key instead.
   if (parts.props?.value) {
-    for (const p of propValues(parts.props.value)) {
+    const presets = presetTables(toks);
+    for (const p of propValues(parts.props.value, { presets })) {
+      if (p.preset) {
+        add({
+          id: `preset:${idPart(p.key)}:${idPart(show(p.value))}`,
+          kind: 'preset',
+          source: `${file}:${presets.find((t) => t.prop === p.key)?.line ?? parts.props.line}`,
+          detail: `${p.preset.table}.${p.value} through ${p.preset.method}(this.props.${p.key})${p.preset.option ? ` · "${p.preset.option}"` : ''}${p.isDefault ? ' (the default)' : ''}: reach.kind "preset" with props {"${p.key}": ${JSON.stringify(p.value)}}`,
+          values: [show(p.value)],
+        });
+        continue;
+      }
       add({
         id: `prop:${idPart(p.key)}:${idPart(show(p.value))}`,
         kind: 'prop-value',

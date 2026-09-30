@@ -1,0 +1,1174 @@
+{
+ "SM-01": [
+  {
+   "text": "23",
+   "kind": "computed",
+   "how": "Badge count on a sidebar item (Home or Calls: ambiguous from text order); a count of open items for the org, no single column",
+   "note": "unsure which nav item owns it"
+  },
+  {
+   "text": "3",
+   "kind": "computed",
+   "how": "Badge on Knowledge: count of knowledge suggestions awaiting approval (org_knowledge / knowledge_sources rows for the org)",
+   "note": "unsure of exact status filter"
+  },
+  {
+   "text": "RW",
+   "kind": "computed",
+   "how": "Initials of the signed-in user: first letters of users.full_name"
+  },
+  {
+   "text": "Ruth Wairimu",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the signed-in user (users.id = auth user)"
+  },
+  {
+   "text": "Owner",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the signed-in user in the current org (not users.role, which is a platform role)"
+  },
+  {
+   "text": "RW",
+   "kind": "computed",
+   "how": "Initials from users.full_name"
+  },
+  {
+   "text": "Ruth Wairimu",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the member user (organization_members.user_id = users.id)"
+  },
+  {
+   "text": "You",
+   "kind": "computed",
+   "how": "shown when organization_members.user_id equals the signed-in user id"
+  },
+  {
+   "text": "ruth@example.com",
+   "kind": "column",
+   "table": "users",
+   "column": "email",
+   "where": "the member user"
+  },
+  {
+   "text": "Owner",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the member row"
+  },
+  {
+   "text": "JN",
+   "kind": "computed",
+   "how": "Initials from users.full_name"
+  },
+  {
+   "text": "James Ndirangu",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the member user (organization_members.user_id = users.id)"
+  },
+  {
+   "text": "james@example.com",
+   "kind": "column",
+   "table": "users",
+   "column": "email",
+   "where": "the member user"
+  },
+  {
+   "text": "Admin",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the member row"
+  },
+  {
+   "text": "MA",
+   "kind": "computed",
+   "how": "Initials from users.full_name"
+  },
+  {
+   "text": "Mercy Akinyi",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the member user (organization_members.user_id = users.id)"
+  },
+  {
+   "text": "mercy@example.com",
+   "kind": "column",
+   "table": "users",
+   "column": "email",
+   "where": "the member user"
+  },
+  {
+   "text": "Member",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the member row"
+  },
+  {
+   "text": "PK",
+   "kind": "computed",
+   "how": "Initials from users.full_name"
+  },
+  {
+   "text": "Peter Kariuki",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the member user (organization_members.user_id = users.id)"
+  },
+  {
+   "text": "peter@example.com",
+   "kind": "column",
+   "table": "users",
+   "column": "email",
+   "where": "the member user"
+  },
+  {
+   "text": "Member",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the member row"
+  },
+  {
+   "text": "B",
+   "kind": "computed",
+   "how": "Initial of organization_invitations.email (no name exists for an invitee)"
+  },
+  {
+   "text": "brian@example.com",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "email",
+   "where": "pending invitation row (accepted_at and revoked_at null)"
+  },
+  {
+   "text": "Invited · expires Wed 24 Sep",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "expires_at",
+   "where": "pending row with expires_at in the future; formatted date",
+   "time": true
+  },
+  {
+   "text": "Member",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "role",
+   "where": "the pending invitation row"
+  },
+  {
+   "text": "S",
+   "kind": "computed",
+   "how": "Initial of organization_invitations.email"
+  },
+  {
+   "text": "susan@example.com",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "email",
+   "where": "invitation row whose expires_at is past"
+  },
+  {
+   "text": "Expired",
+   "kind": "computed",
+   "how": "derived: organization_invitations.expires_at < now() and not accepted or revoked",
+   "time": true
+  },
+  {
+   "text": "Member",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "role",
+   "where": "the expired invitation row"
+  }
+ ],
+ "SM-05": [
+  {
+   "text": "23",
+   "kind": "computed",
+   "how": "Badge count on a sidebar item (Home or Calls: ambiguous from text order); a count of open items for the org, no single column",
+   "note": "unsure which nav item owns it"
+  },
+  {
+   "text": "3",
+   "kind": "computed",
+   "how": "Badge on Knowledge: count of knowledge suggestions awaiting approval (org_knowledge / knowledge_sources rows for the org)",
+   "note": "unsure of exact status filter"
+  },
+  {
+   "text": "RW",
+   "kind": "computed",
+   "how": "Initials of the signed-in user: first letters of users.full_name"
+  },
+  {
+   "text": "Ruth Wairimu",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the signed-in user (users.id = auth user)"
+  },
+  {
+   "text": "Admin",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the signed-in user in the current org (not users.role, which is a platform role)"
+  },
+  {
+   "text": "RW",
+   "kind": "computed",
+   "how": "Initials from users.full_name"
+  },
+  {
+   "text": "Ruth Wairimu",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the member user (organization_members.user_id = users.id)"
+  },
+  {
+   "text": "You",
+   "kind": "computed",
+   "how": "shown when organization_members.user_id equals the signed-in user id"
+  },
+  {
+   "text": "ruth@example.com",
+   "kind": "column",
+   "table": "users",
+   "column": "email",
+   "where": "the member user"
+  },
+  {
+   "text": "Admin",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the member row"
+  },
+  {
+   "text": "JN",
+   "kind": "computed",
+   "how": "Initials from users.full_name"
+  },
+  {
+   "text": "James Ndirangu",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the member user (organization_members.user_id = users.id)"
+  },
+  {
+   "text": "james@example.com",
+   "kind": "column",
+   "table": "users",
+   "column": "email",
+   "where": "the member user"
+  },
+  {
+   "text": "Owner",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the member row"
+  },
+  {
+   "text": "MA",
+   "kind": "computed",
+   "how": "Initials from users.full_name"
+  },
+  {
+   "text": "Mercy Akinyi",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the member user (organization_members.user_id = users.id)"
+  },
+  {
+   "text": "mercy@example.com",
+   "kind": "column",
+   "table": "users",
+   "column": "email",
+   "where": "the member user"
+  },
+  {
+   "text": "Member",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the member row"
+  },
+  {
+   "text": "PK",
+   "kind": "computed",
+   "how": "Initials from users.full_name"
+  },
+  {
+   "text": "Peter Kariuki",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the member user (organization_members.user_id = users.id)"
+  },
+  {
+   "text": "peter@example.com",
+   "kind": "column",
+   "table": "users",
+   "column": "email",
+   "where": "the member user"
+  },
+  {
+   "text": "Member",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the member row"
+  },
+  {
+   "text": "B",
+   "kind": "computed",
+   "how": "Initial of organization_invitations.email (no name exists for an invitee)"
+  },
+  {
+   "text": "brian@example.com",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "email",
+   "where": "pending invitation row (accepted_at and revoked_at null)"
+  },
+  {
+   "text": "Invited · expires Wed 24 Sep",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "expires_at",
+   "where": "pending row with expires_at in the future; formatted date",
+   "time": true
+  },
+  {
+   "text": "Member",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "role",
+   "where": "the pending invitation row"
+  },
+  {
+   "text": "S",
+   "kind": "computed",
+   "how": "Initial of organization_invitations.email"
+  },
+  {
+   "text": "susan@example.com",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "email",
+   "where": "invitation row whose expires_at is past"
+  },
+  {
+   "text": "Expired",
+   "kind": "computed",
+   "how": "derived: organization_invitations.expires_at < now() and not accepted or revoked",
+   "time": true
+  },
+  {
+   "text": "Member",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "role",
+   "where": "the expired invitation row"
+  }
+ ],
+ "SM-08": [
+  {
+   "text": "23",
+   "kind": "computed",
+   "how": "Badge count on a sidebar item (Home or Calls: ambiguous from text order); a count of open items for the org, no single column",
+   "note": "unsure which nav item owns it"
+  },
+  {
+   "text": "3",
+   "kind": "computed",
+   "how": "Badge on Knowledge: count of knowledge suggestions awaiting approval (org_knowledge / knowledge_sources rows for the org)",
+   "note": "unsure of exact status filter"
+  },
+  {
+   "text": "RW",
+   "kind": "computed",
+   "how": "Initials of the signed-in user: first letters of users.full_name"
+  },
+  {
+   "text": "Ruth Wairimu",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the signed-in user (users.id = auth user)"
+  },
+  {
+   "text": "Owner",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the signed-in user in the current org (not users.role, which is a platform role)"
+  },
+  {
+   "text": "Mercy is now an admin",
+   "kind": "computed",
+   "how": "Toast text: first name from the changed member users.full_name + the new organization_members.role; transient UI message, not stored"
+  },
+  {
+   "text": "RW",
+   "kind": "computed",
+   "how": "Initials from users.full_name"
+  },
+  {
+   "text": "Ruth Wairimu",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the member user (organization_members.user_id = users.id)"
+  },
+  {
+   "text": "You",
+   "kind": "computed",
+   "how": "shown when organization_members.user_id equals the signed-in user id"
+  },
+  {
+   "text": "ruth@example.com",
+   "kind": "column",
+   "table": "users",
+   "column": "email",
+   "where": "the member user"
+  },
+  {
+   "text": "Owner",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the member row"
+  },
+  {
+   "text": "JN",
+   "kind": "computed",
+   "how": "Initials from users.full_name"
+  },
+  {
+   "text": "James Ndirangu",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the member user (organization_members.user_id = users.id)"
+  },
+  {
+   "text": "james@example.com",
+   "kind": "column",
+   "table": "users",
+   "column": "email",
+   "where": "the member user"
+  },
+  {
+   "text": "Admin",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the member row"
+  },
+  {
+   "text": "MA",
+   "kind": "computed",
+   "how": "Initials from users.full_name"
+  },
+  {
+   "text": "Mercy Akinyi",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the member user (organization_members.user_id = users.id)"
+  },
+  {
+   "text": "mercy@example.com",
+   "kind": "column",
+   "table": "users",
+   "column": "email",
+   "where": "the member user"
+  },
+  {
+   "text": "Admin",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the member row"
+  },
+  {
+   "text": "PK",
+   "kind": "computed",
+   "how": "Initials from users.full_name"
+  },
+  {
+   "text": "Peter Kariuki",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the member user (organization_members.user_id = users.id)"
+  },
+  {
+   "text": "peter@example.com",
+   "kind": "column",
+   "table": "users",
+   "column": "email",
+   "where": "the member user"
+  },
+  {
+   "text": "Member",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the member row"
+  },
+  {
+   "text": "B",
+   "kind": "computed",
+   "how": "Initial of organization_invitations.email (no name exists for an invitee)"
+  },
+  {
+   "text": "brian@example.com",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "email",
+   "where": "pending invitation row (accepted_at and revoked_at null)"
+  },
+  {
+   "text": "Invited · expires Wed 24 Sep",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "expires_at",
+   "where": "pending row with expires_at in the future; formatted date",
+   "time": true
+  },
+  {
+   "text": "Member",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "role",
+   "where": "the pending invitation row"
+  },
+  {
+   "text": "S",
+   "kind": "computed",
+   "how": "Initial of organization_invitations.email"
+  },
+  {
+   "text": "susan@example.com",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "email",
+   "where": "invitation row whose expires_at is past"
+  },
+  {
+   "text": "Expired",
+   "kind": "computed",
+   "how": "derived: organization_invitations.expires_at < now() and not accepted or revoked",
+   "time": true
+  },
+  {
+   "text": "Member",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "role",
+   "where": "the expired invitation row"
+  }
+ ],
+ "SM-09": [
+  {
+   "text": "23",
+   "kind": "computed",
+   "how": "Badge count on a sidebar item (Home or Calls: ambiguous from text order); a count of open items for the org, no single column",
+   "note": "unsure which nav item owns it"
+  },
+  {
+   "text": "3",
+   "kind": "computed",
+   "how": "Badge on Knowledge: count of knowledge suggestions awaiting approval (org_knowledge / knowledge_sources rows for the org)",
+   "note": "unsure of exact status filter"
+  },
+  {
+   "text": "RW",
+   "kind": "computed",
+   "how": "Initials of the signed-in user: first letters of users.full_name"
+  },
+  {
+   "text": "Ruth Wairimu",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the signed-in user (users.id = auth user)"
+  },
+  {
+   "text": "Owner",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the signed-in user in the current org (not users.role, which is a platform role)"
+  },
+  {
+   "text": "You are now an admin",
+   "kind": "computed",
+   "how": "Toast text built from the new organization_members.role of the signed-in user after the ownership transfer; transient, not stored"
+  },
+  {
+   "text": "RW",
+   "kind": "computed",
+   "how": "Initials from users.full_name"
+  },
+  {
+   "text": "Ruth Wairimu",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the member user (organization_members.user_id = users.id)"
+  },
+  {
+   "text": "You",
+   "kind": "computed",
+   "how": "shown when organization_members.user_id equals the signed-in user id"
+  },
+  {
+   "text": "ruth@example.com",
+   "kind": "column",
+   "table": "users",
+   "column": "email",
+   "where": "the member user"
+  },
+  {
+   "text": "Admin",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the member row"
+  },
+  {
+   "text": "JN",
+   "kind": "computed",
+   "how": "Initials from users.full_name"
+  },
+  {
+   "text": "James Ndirangu",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the member user (organization_members.user_id = users.id)"
+  },
+  {
+   "text": "james@example.com",
+   "kind": "column",
+   "table": "users",
+   "column": "email",
+   "where": "the member user"
+  },
+  {
+   "text": "Owner",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the member row"
+  },
+  {
+   "text": "MA",
+   "kind": "computed",
+   "how": "Initials from users.full_name"
+  },
+  {
+   "text": "Mercy Akinyi",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the member user (organization_members.user_id = users.id)"
+  },
+  {
+   "text": "mercy@example.com",
+   "kind": "column",
+   "table": "users",
+   "column": "email",
+   "where": "the member user"
+  },
+  {
+   "text": "Member",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the member row"
+  },
+  {
+   "text": "PK",
+   "kind": "computed",
+   "how": "Initials from users.full_name"
+  },
+  {
+   "text": "Peter Kariuki",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the member user (organization_members.user_id = users.id)"
+  },
+  {
+   "text": "peter@example.com",
+   "kind": "column",
+   "table": "users",
+   "column": "email",
+   "where": "the member user"
+  },
+  {
+   "text": "Member",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the member row"
+  },
+  {
+   "text": "B",
+   "kind": "computed",
+   "how": "Initial of organization_invitations.email (no name exists for an invitee)"
+  },
+  {
+   "text": "brian@example.com",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "email",
+   "where": "pending invitation row (accepted_at and revoked_at null)"
+  },
+  {
+   "text": "Invited · expires Wed 24 Sep",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "expires_at",
+   "where": "pending row with expires_at in the future; formatted date",
+   "time": true
+  },
+  {
+   "text": "Member",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "role",
+   "where": "the pending invitation row"
+  },
+  {
+   "text": "S",
+   "kind": "computed",
+   "how": "Initial of organization_invitations.email"
+  },
+  {
+   "text": "susan@example.com",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "email",
+   "where": "invitation row whose expires_at is past"
+  },
+  {
+   "text": "Expired",
+   "kind": "computed",
+   "how": "derived: organization_invitations.expires_at < now() and not accepted or revoked",
+   "time": true
+  },
+  {
+   "text": "Member",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "role",
+   "where": "the expired invitation row"
+  }
+ ],
+ "SM-17": [
+  {
+   "text": "23",
+   "kind": "computed",
+   "how": "Badge count on a sidebar item (Home or Calls: ambiguous from text order); a count of open items for the org, no single column",
+   "note": "unsure which nav item owns it"
+  },
+  {
+   "text": "3",
+   "kind": "computed",
+   "how": "Badge on Knowledge: count of knowledge suggestions awaiting approval (org_knowledge / knowledge_sources rows for the org)",
+   "note": "unsure of exact status filter"
+  },
+  {
+   "text": "RW",
+   "kind": "computed",
+   "how": "Initials of the signed-in user: first letters of users.full_name"
+  },
+  {
+   "text": "Ruth Wairimu",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the signed-in user (users.id = auth user)"
+  },
+  {
+   "text": "Member",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the signed-in user in the current org (not users.role, which is a platform role)"
+  },
+  {
+   "text": "RW",
+   "kind": "computed",
+   "how": "Initials from users.full_name"
+  },
+  {
+   "text": "Ruth Wairimu",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the member user (organization_members.user_id = users.id)"
+  },
+  {
+   "text": "You",
+   "kind": "computed",
+   "how": "shown when organization_members.user_id equals the signed-in user id"
+  },
+  {
+   "text": "ruth@example.com",
+   "kind": "column",
+   "table": "users",
+   "column": "email",
+   "where": "the member user"
+  },
+  {
+   "text": "Member",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the member row"
+  },
+  {
+   "text": "JN",
+   "kind": "computed",
+   "how": "Initials from users.full_name"
+  },
+  {
+   "text": "James Ndirangu",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the member user (organization_members.user_id = users.id)"
+  },
+  {
+   "text": "james@example.com",
+   "kind": "column",
+   "table": "users",
+   "column": "email",
+   "where": "the member user"
+  },
+  {
+   "text": "Owner",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the member row"
+  },
+  {
+   "text": "MA",
+   "kind": "computed",
+   "how": "Initials from users.full_name"
+  },
+  {
+   "text": "Mercy Akinyi",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the member user (organization_members.user_id = users.id)"
+  },
+  {
+   "text": "mercy@example.com",
+   "kind": "column",
+   "table": "users",
+   "column": "email",
+   "where": "the member user"
+  },
+  {
+   "text": "Member",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the member row"
+  },
+  {
+   "text": "PK",
+   "kind": "computed",
+   "how": "Initials from users.full_name"
+  },
+  {
+   "text": "Peter Kariuki",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the member user (organization_members.user_id = users.id)"
+  },
+  {
+   "text": "peter@example.com",
+   "kind": "column",
+   "table": "users",
+   "column": "email",
+   "where": "the member user"
+  },
+  {
+   "text": "Member",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the member row"
+  },
+  {
+   "text": "B",
+   "kind": "computed",
+   "how": "Initial of organization_invitations.email (no name exists for an invitee)"
+  },
+  {
+   "text": "brian@example.com",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "email",
+   "where": "pending invitation row (accepted_at and revoked_at null)"
+  },
+  {
+   "text": "Invited · expires Wed 24 Sep",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "expires_at",
+   "where": "pending row with expires_at in the future; formatted date",
+   "time": true
+  },
+  {
+   "text": "Member",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "role",
+   "where": "the pending invitation row"
+  },
+  {
+   "text": "S",
+   "kind": "computed",
+   "how": "Initial of organization_invitations.email"
+  },
+  {
+   "text": "susan@example.com",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "email",
+   "where": "invitation row whose expires_at is past"
+  },
+  {
+   "text": "Expired",
+   "kind": "computed",
+   "how": "derived: organization_invitations.expires_at < now() and not accepted or revoked",
+   "time": true
+  },
+  {
+   "text": "Member",
+   "kind": "column",
+   "table": "organization_invitations",
+   "column": "role",
+   "where": "the expired invitation row"
+  }
+ ],
+ "SM-21": [
+  {
+   "text": "23",
+   "kind": "computed",
+   "how": "Badge count on a sidebar item (Home or Calls: ambiguous from text order); a count of open items for the org, no single column",
+   "note": "unsure which nav item owns it"
+  },
+  {
+   "text": "3",
+   "kind": "computed",
+   "how": "Badge on Knowledge: count of knowledge suggestions awaiting approval (org_knowledge / knowledge_sources rows for the org)",
+   "note": "unsure of exact status filter"
+  },
+  {
+   "text": "RW",
+   "kind": "computed",
+   "how": "Initials of the signed-in user: first letters of users.full_name"
+  },
+  {
+   "text": "Ruth Wairimu",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the signed-in user (users.id = auth user)"
+  },
+  {
+   "text": "Owner",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the signed-in user in the current org (not users.role, which is a platform role)"
+  },
+  {
+   "text": "Ruth Wairimu",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the signed-in user; editable field value"
+  },
+  {
+   "text": "ruth@example.com",
+   "kind": "column",
+   "table": "users",
+   "column": "email",
+   "where": "the signed-in user (sign-in address; auth.users.email is the login source of truth)"
+  }
+ ],
+ "SM-23": [
+  {
+   "text": "23",
+   "kind": "computed",
+   "how": "Badge count on a sidebar item (Home or Calls: ambiguous from text order); a count of open items for the org, no single column",
+   "note": "unsure which nav item owns it"
+  },
+  {
+   "text": "3",
+   "kind": "computed",
+   "how": "Badge on Knowledge: count of knowledge suggestions awaiting approval (org_knowledge / knowledge_sources rows for the org)",
+   "note": "unsure of exact status filter"
+  },
+  {
+   "text": "RW",
+   "kind": "computed",
+   "how": "Initials of the signed-in user: first letters of users.full_name"
+  },
+  {
+   "text": "Ruth W. Wairimu",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the signed-in user (users.id = auth user)"
+  },
+  {
+   "text": "Owner",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the signed-in user in the current org (not users.role, which is a platform role)"
+  },
+  {
+   "text": "Name saved",
+   "kind": "word",
+   "why": "Fixed toast text after saving"
+  },
+  {
+   "text": "Ruth W. Wairimu",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the signed-in user; editable field value"
+  },
+  {
+   "text": "ruth@example.com",
+   "kind": "column",
+   "table": "users",
+   "column": "email",
+   "where": "the signed-in user (sign-in address; auth.users.email is the login source of truth)"
+  }
+ ],
+ "SP-20": [
+  {
+   "text": "23",
+   "kind": "computed",
+   "how": "Badge count on a sidebar item (Home or Calls: ambiguous from text order); a count of open items for the org, no single column",
+   "note": "unsure which nav item owns it"
+  },
+  {
+   "text": "3",
+   "kind": "computed",
+   "how": "Badge on Knowledge: count of knowledge suggestions awaiting approval (org_knowledge / knowledge_sources rows for the org)",
+   "note": "unsure of exact status filter"
+  },
+  {
+   "text": "RW",
+   "kind": "computed",
+   "how": "Initials of the signed-in user: first letters of users.full_name"
+  },
+  {
+   "text": "Ruth Wairimu",
+   "kind": "column",
+   "table": "users",
+   "column": "full_name",
+   "where": "the signed-in user (users.id = auth user)"
+  },
+  {
+   "text": "Owner",
+   "kind": "column",
+   "table": "organization_members",
+   "column": "role",
+   "where": "the signed-in user in the current org (not users.role, which is a platform role)"
+  },
+  {
+   "text": "Mon",
+   "kind": "word",
+   "why": "Fixed label; whether the day is switched on comes from org_calling_hours.days (number[] of weekday numbers), which the text does not show"
+  },
+  {
+   "text": "Tue",
+   "kind": "word",
+   "why": "Fixed label; whether the day is switched on comes from org_calling_hours.days (number[] of weekday numbers), which the text does not show"
+  },
+  {
+   "text": "Wed",
+   "kind": "word",
+   "why": "Fixed label; whether the day is switched on comes from org_calling_hours.days (number[] of weekday numbers), which the text does not show"
+  },
+  {
+   "text": "Thu",
+   "kind": "word",
+   "why": "Fixed label; whether the day is switched on comes from org_calling_hours.days (number[] of weekday numbers), which the text does not show"
+  },
+  {
+   "text": "Fri",
+   "kind": "word",
+   "why": "Fixed label; whether the day is switched on comes from org_calling_hours.days (number[] of weekday numbers), which the text does not show"
+  },
+  {
+   "text": "Sat",
+   "kind": "word",
+   "why": "Fixed label; whether the day is switched on comes from org_calling_hours.days (number[] of weekday numbers), which the text does not show"
+  },
+  {
+   "text": "Sun",
+   "kind": "word",
+   "why": "Fixed label; whether the day is switched on comes from org_calling_hours.days (number[] of weekday numbers), which the text does not show"
+  },
+  {
+   "text": "8:00 am",
+   "kind": "column",
+   "table": "org_calling_hours",
+   "column": "start_minute",
+   "where": "the org row; minutes since midnight (480) formatted as a clock time"
+  },
+  {
+   "text": "6:00 pm",
+   "kind": "column",
+   "table": "org_calling_hours",
+   "column": "end_minute",
+   "where": "the org row; minutes since midnight (1080) formatted as a clock time"
+  },
+  {
+   "text": "Your phone system takes 12 calls at once. Your agents use up to 4, so 8 stay free for your staff.",
+   "kind": "computed",
+   "how": "Sentence template with three numbers: 12 = org_telephony.max_channels; 4 = agents limit (kind none: no column stores it, a constant or plan setting in code); 8 = max_channels minus that limit",
+   "note": "the number 4 has no source in the schema"
+  },
+  {
+   "text": "Calls are not recorded. You get a written transcript of every call.",
+   "kind": "computed",
+   "how": "Variant chosen by organizations.recording_enabled (false shows this text; true would show a recording sentence, plus recording_retention_days)"
+  }
+ ]
+}

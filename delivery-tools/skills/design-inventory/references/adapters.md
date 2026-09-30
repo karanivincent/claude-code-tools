@@ -16,6 +16,7 @@ Where candidates come from:
 |---|---|
 | `set-target` | every `this.set({...})` call: each key it sets (`screen`, `tab`, `mode`, `dlg`, `menuOpen`, ...) and each value |
 | `prop-value` | every key and enum value in the `data-props` blob, the prototype's switchable defaults |
+| `preset` | every key of a preset table: a top-level `const T = {...}` that a method `m(arg)` indexes, called as `this.m(this.props.P)`; one candidate per key, reached by `preset` with `{ P: key }` (replaces that prop's `prop-value` candidates) |
 | `dialog` | every dialog key the markup opens |
 | `shot` | every picture in `shots/` |
 | `ternary` | every conditional expression whose branches produce different visible text |
@@ -44,6 +45,20 @@ as a baked default: the component mounts with it, and nothing ever changes. Writ
 then changes those props on the running component, so `componentDidUpdate` fires once; `steps`
 after it run on top and are not reset. Writing them to state with a `{"set": ...}` step does not
 work either: state is not props.
+
+**Preset tables.** Many exports keep their demo states in one table (`const CS = { A1: {...}, A2:
+{...} }`) and pick an entry with a string prop through a method (`csApply(this.props.callsState)`).
+`design candidates` finds the table and lists one `preset` candidate per key, whose `detail` names
+the props to set. Set exactly those; never copy the entry's values into `set` steps by hand.
+
+**Phone frames.** A prop that draws the page inside a phone-sized iframe is not a way to reach a
+phone state: the render reads words from the top document only. Phone states render with `delivery
+design render --width phone`, and the render warns when a state's page is mostly an iframe. It
+also warns when a reach sets a prop named like a state key (`screen` as a prop and as state): the
+prop never sets that state.
+
+**`_bundle_src.dc.html`.** Some exports carry this second copy of the page's source beside the
+page. Intake ignores it when another page file exists, and says so.
 
 **The served runtime.** The prototype renders only with its runtime scripts beside it.
 `delivery design render` unzips them into `.delivery/<f>/design-serve/` (never committed), serves

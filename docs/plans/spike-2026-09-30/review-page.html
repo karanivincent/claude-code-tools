@@ -1,0 +1,322 @@
+<title>Delivery Tools Improvement Plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column; decisions table first, workstreams as expandable sections below */
+:root {
+  --bg: #f6f7f6; --surface: #ffffff; --fg: #1d2421; --muted: #5d6963; --line: #d9dfdb;
+  --accent: #1f6f5c; --accent-soft: #e2f0eb; --warn: #9a5b12; --warn-soft: #f8ecd9;
+  --display: "Newsreader", Georgia, "Times New Roman", serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #131816; --surface: #1a201e; --fg: #e3e9e6; --muted: #9aa8a1; --line: #2c3632;
+  --accent: #6cc3a8; --accent-soft: #1e332c; --warn: #e3ae67; --warn-soft: #33281a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #131816; --surface: #1a201e; --fg: #e3e9e6; --muted: #9aa8a1; --line: #2c3632;
+  --accent: #6cc3a8; --accent-soft: #1e332c; --warn: #e3ae67; --warn-soft: #33281a; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--fg); font: 16px/1.6 var(--body); margin: 0 }
+.wrap { max-width: 860px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 80px; display: grid; gap: 28px }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; text-wrap: balance; line-height: 1.2; margin: 0 }
+h1 { font-size: clamp(30px, 5vw, 42px) }
+h2 { font-size: 26px; padding-top: 12px; border-top: 1px solid var(--line) }
+h3 { font-size: 19px }
+p, ul, ol { margin: 0; max-width: 68ch }
+ul, ol { padding-left: 1.2em; display: grid; gap: 6px }
+.lede { color: var(--muted) }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent) }
+code { font: 0.86em var(--mono); background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere }
+.table { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--surface) }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; font-variant-numeric: tabular-nums }
+th, td { text-align: left; vertical-align: top; padding: 10px 12px; border-bottom: 1px solid var(--line) }
+th { font: 600 12px/1.3 var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--muted) }
+tr:last-child td { border-bottom: 0 }
+td.id { font: 500 13px var(--mono); color: var(--accent); white-space: nowrap }
+td.rec { font-weight: 500 }
+.note { background: var(--warn-soft); border-left: 3px solid var(--warn); padding: 12px 14px; border-radius: 0 6px 6px 0; max-width: 68ch }
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 8px }
+summary { cursor: pointer; padding: 14px 16px; display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; list-style: none }
+summary::-webkit-details-marker { display: none }
+summary::before { content: "+"; font: 500 16px var(--mono); color: var(--accent); width: 1ch }
+details[open] summary::before { content: "−" }
+summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px }
+summary .w { font: 500 13px var(--mono); color: var(--accent) }
+summary .t { font-family: var(--display); font-size: 19px; font-weight: 600 }
+summary .s { margin-left: auto; font-size: 13px; color: var(--muted) }
+.body { padding: 0 16px 18px 40px; display: grid; gap: 12px; min-width: 0 }
+.body h4 { font: 600 12px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin: 6px 0 0 }
+.stack { display: grid; gap: 10px }
+@media (max-width: 560px) { .body { padding-left: 16px } summary .s { margin-left: 0; width: 100% } }
+</style>
+
+<div class="wrap">
+<header class="stack">
+  <div class="eyebrow">delivery-tools 0.14.0 → 0.20.0 · plan for review · 30 Sep 2026</div>
+  <h1>Delivery tools improvement plan</h1>
+  <p class="lede">Based on the Settings run (#2120), the Rounds run, and a line-by-line check of the plugin. Review Part 1 only: 13 decisions, one line each. Parts 2 and 3 are the detail for whoever builds it.</p>
+</header>
+
+<section class="stack">
+  <h2>The goal</h2>
+  <div class="table"><table>
+    <tr><th></th><th>Settings (actual)</th><th>Rounds (so far)</th><th>Target</th></tr>
+    <tr><td>Wall time</td><td>12 h</td><td>15.5 h at round 3</td><td>6.5 to 8 h</td></tr>
+    <tr><td>Time lost to the process</td><td>5 h (42%)</td><td>4.5 h (29%)</td><td>under 1 h</td></tr>
+    <tr><td>Agent cost</td><td>about $200, plus round 4 and the PR review</td><td>not totalled</td><td>$120 to $150</td></tr>
+    <tr><td>Rounds thrown away</td><td>2</td><td>1</td><td>0</td></tr>
+    <tr><td>Data problems found in rounds</td><td>39 in round 2</td><td>most of the to-fix count</td><td>close to 0; found before round 1</td></tr>
+    <tr><td>Open items at the end</td><td>13, after the round cap</td><td>172 to fix at round 2</td><td>0 real bugs</td></tr>
+  </table></div>
+  <p class="lede">These are estimates. Part 3 says how the next two runs prove or disprove them.</p>
+</section>
+
+<section class="stack" id="spike">
+  <h2>Spike first · two hours, one small page</h2>
+  <p>Before building anything, test the ideas we are least sure of on one small page that already exists: the Settings <b>Members</b> section (live on staging, design already rendered). It has names, roles and emails to get right, and states that save. We add one calling-hours state to test the clock. Nothing gets built; we only test the pipeline around the page.</p>
+  <div class="table"><table>
+    <tr><th>#</th><th>Question</th><th>How we test it</th><th>Passes if</th><th>Time</th></tr>
+    <tr><td class="id">S1</td><td>Can the renderer find a design's preset-table states by itself? (W1)</td><td>Run a draft detector on the Settings export</td><td>It finds at least 36 of the 40 states we fixed by hand</td><td>20 min</td></tr>
+    <tr><td class="id">S2</td><td>Can an agent trace each piece of design data to its source? (W3)</td><td>One Sonnet agent labels the data in about 8 Members states</td><td>At least 90% correct against my check, in under 10 min</td><td>25 min</td></tr>
+    <tr><td class="id">S3</td><td>Can a command turn the trace into test data? (D13)</td><td>Draft <code>seed --from-trace</code> and <code>seed --need</code>; seed a fresh spike organisation</td><td>Seed checks pass with at most one hand fix, and the values equal the design's</td><td>25 min</td></tr>
+    <tr><td class="id">S4</td><td>Does comparing page text with design text catch data problems without false alarms? (W3)</td><td>Shoot the states, then plant 3 faults (remove a member, change a role, shift a date)</td><td>Catches all 3, at most 1 false alarm on correct data</td><td>20 min</td></tr>
+    <tr><td class="id">S5</td><td>Is re-seeding before each saving state fast enough? (D3)</td><td>Time a refresh before the role-change and name-save states</td><td>Under 5 s each, and no leak into the next state</td><td>10 min</td></tr>
+    <tr><td class="id">S6</td><td>How much faster is a production-build shoot with two browsers? (D9)</td><td>Shoot the same items on the dev server, then on a production build</td><td>At least twice as fast</td><td>20 min</td></tr>
+  </table></div>
+  <h3>Results · run 30 Sep, about 1 h 55 min</h3>
+  <div class="table"><table>
+    <tr><th>#</th><th>Result</th><th>What we learned</th><th>Plan change</th></tr>
+    <tr><td class="id">S1</td><td class="rec">Pass</td><td>Found the design's table by itself: 275 states, including all 34 we fixed by hand. 6 of 6 sample states drew identically to the hand-fixed ones.</td><td>W1 is smaller than planned. The table can also list states directly, which saves extractor time.</td></tr>
+    <tr><td class="id">S2</td><td class="rec">Pass, one miss</td><td>Traced about 180 values in 90 seconds; about 98% right. The one miss matters: "12 calls at once" has no source (the product stores only the agents' 4), and the tracer mapped it to a column.</td><td>Add a check after the build: every traced column must be one the page's API actually reads. A mismatch becomes a "no source" question.</td></tr>
+    <tr><td class="id">S3</td><td class="rec">Pass</td><td>A plain script rebuilt 10 of 11 rows exactly like the hand-written test data. The miss was which weekdays are on: drawn as coloured toggles, not text, but readable from the design's styles.</td><td>The trace records which row each value belongs to, and reads toggle states from the design's page structure. Emails must be swapped for safe test addresses; the command keeps that swap list for the check.</td></tr>
+    <tr><td class="id">S4</td><td class="rec">Pass</td><td>Caught all 3 planted faults: a missing member, a wrong role, shifted hours. It also flagged the user's role in the header, which the design shows and the live page doesn't. That's a real page difference, not bad data.</td><td>A miss goes to the seed step only when the rest of that row is on the page; otherwise it goes to the reviewers as a page issue.</td></tr>
+    <tr><td class="id">S5</td><td class="rec">Pass</td><td>A re-seed takes 5.1 s, including its safety check. A saved role change was rolled back by it. The world had also drifted since the last run (3 rows).</td><td>None. Re-seeding before each saving state is fine.</td></tr>
+    <tr><td class="id">S6</td><td class="rec">Partial</td><td>The production build took 69 s. The shoot was 1.8× faster on this sample, mostly from skipping first-visit compiling; per state it was only 1.3× faster. Most of the time is waiting for staging's API to go quiet.</td><td>The 35 → 10 minute target needs the two parallel browsers and shorter waits, not the build alone. Measure again when W6 is built.</td></tr>
+  </table></div>
+  <p>One side finding: the plugin's safety hook blocks any command whose file name contains "seed", even a read-only script. It should look at what the command does, not at its name.</p>
+  <p>Stop rule: if S2 fails, the data design changes before anything else is built. Not spiked, because they are mechanical: the page-load gate, the round rule, crops, ship checks, scope splitting and models. Spike code lives on a throwaway branch and is never merged. Cost: about one Sonnet agent plus scripts, roughly $10 to $20.</p>
+</section>
+
+<section class="stack" id="decisions">
+  <h2>Part 1 · Decisions to approve</h2>
+  <div class="table"><table>
+    <tr><th>#</th><th>Decision</th><th>Recommended</th><th>Alternative</th></tr>
+    <tr><td class="id">D1</td><td>Order of work</td><td class="rec">Pictures right → pages load → right data → rounds → faster shoots → reviewers → ship checks → scope and models</td><td>Data first (it depends on the pictures, so no)</td></tr>
+    <tr><td class="id">D2</td><td>How it lands</td><td class="rec">One PR per workstream, merged when its tests pass, with a version bump each</td><td>One big PR: harder to measure and to revert</td></tr>
+    <tr><td class="id">D3</td><td>Keeping test data clean between states</td><td class="rec">Re-seed the world before every state that saves data</td><td>One organisation per state: more users, more sign-ins, slower</td></tr>
+    <tr><td class="id">D4</td><td>"Calling hours closed" at night</td><td class="rec">Time-based data is set relative to the moment of the shoot; the browser uses the organisation's time zone</td><td>A test-only clock override in the dashboard: touches product code, and a risk if it reached production</td></tr>
+    <tr><td class="id">D5</td><td>A new table with no seed guard</td><td class="rec">Seeding stops; the mapper drafts a guard or an intercept</td><td>Today: a warning only</td></tr>
+    <tr><td class="id">D6</td><td>Questions for you</td><td class="rec">One list before the build: data the product doesn't store, and guards to approve</td><td>Today: they surface at rounds 2 to 4</td></tr>
+    <tr><td class="id">D7</td><td>How many rounds</td><td class="rec">No fixed cap: continue while real bugs go down, stop at zero, stop after two rounds with no progress (ceiling 8)</td><td>Today: three</td></tr>
+    <tr><td class="id">D8</td><td>Re-reviewing items that already matched</td><td class="rec">Review a sample when their picture changes; review all only if the sample finds a problem</td><td>Review every changed item (Settings round 4: 219 for one colour change)</td></tr>
+    <tr><td class="id">D9</td><td>What the shoot runs against</td><td class="rec">A production build of the page</td><td>Today: the dev server, which compiles each page on first visit</td></tr>
+    <tr><td class="id">D10</td><td>Big designs</td><td class="rec">Above about 120 states, one run per screen group</td><td>One run for everything (Rounds: 275 states)</td></tr>
+    <tr><td class="id">D11</td><td>Models</td><td class="rec">Extractors Sonnet low → medium; Sonnet never above high; try the first builder at Opus medium for one run; fixer stays Sonnet medium</td><td>Leave as 0.14</td></tr>
+    <tr><td class="id">D13</td><td>Who writes test data</td><td class="rec">A command, not an agent: <code>delivery seed --from-trace</code> builds worlds from the trace, and <code>delivery seed --need "&lt;state&gt;: 3 failed calls"</code> lets any agent ask for data. A small seed agent only handles what the command can't</td><td>Today: a seed-writer agent reads the whole map and pictures every time</td></tr>
+    <tr><td class="id">D12</td><td>The Rounds run in flight</td><td class="rec">Keep it on 0.14 until it lands; don't update the plugin in its session</td><td>Pause it until workstreams 1 to 3 land</td></tr>
+  </table></div>
+</section>
+
+<section class="stack">
+  <h2>Part 2 · The workstreams</h2>
+  <p class="lede">Each one: what goes wrong today, what changes, where, how it's tested, and what it saves.</p>
+
+  <details>
+    <summary><span class="w">W1</span><span class="t">The design pictures are right</span><span class="s">saves 40 min to 1.3 h</span></summary>
+    <div class="body">
+      <h4>What goes wrong</h4>
+      <ul>
+        <li>Some designs keep their states in a table and pick one with a text prop. The renderer never finds those states, so they render as the default screen. Settings: 40 states fixed by hand. Rounds: about 125 states showed Home. (The plain "preset sets props" part was fixed in 0.13.4.)</li>
+        <li>Exports sometimes include a duplicate <code>_bundle_src.dc.html</code>, and intake refuses them. Both runs removed it by hand.</li>
+        <li>Phone views drawn inside an iframe can't be read.</li>
+      </ul>
+      <h4>What changes</h4>
+      <ul>
+        <li>The renderer finds preset tables and makes one state per entry, the way we did by hand.</li>
+        <li>Intake ignores the duplicate file and says so.</li>
+        <li>Phone states always come from <code>--width phone</code>; the renderer warns when a page is mostly an iframe.</li>
+        <li>A warning when a prop name clashes with a state name (the Rounds <code>screen</code> mix-up), and the stale help text is fixed.</li>
+      </ul>
+      <h4>Where</h4>
+      <p><code>lib/design/claude-dc.mjs</code>, <code>lib/design/render.mjs</code>, <code>adapters/design/claude-design.mjs</code>, <code>lib/commands/design-render.mjs</code>, the extractor brief.</p>
+      <h4>Proof</h4>
+      <p>The Settings export renders its 40 named states with no hand edits.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary><span class="w">W2</span><span class="t">The page loads before we photograph it</span><span class="s">saves about 1 h when a page breaks</span></summary>
+    <div class="body">
+      <h4>What goes wrong</h4>
+      <ul>
+        <li>The shoot checks only the site's front page. A page returning errors is shot anyway: Rounds waited out 206 timeouts; Settings shot twice against a broken page (70 min).</li>
+        <li>A broken shoot still uses up a round number.</li>
+        <li>The builder reports done without opening the page.</li>
+      </ul>
+      <h4>What changes</h4>
+      <ul>
+        <li>A new <code>delivery smoke</code> opens every page of the run, signed in, at each width. It stops at the first server error, error overlay, or loading skeleton still showing after 10 s.</li>
+        <li>The shoot runs smoke first. A failure after the shoot deletes that round, so the number is reused.</li>
+        <li>Builder and fixer must pass smoke before they report done.</li>
+      </ul>
+      <h4>Where</h4>
+      <p>New <code>lib/commands/smoke.mjs</code>; <code>lib/commands/shoot.mjs</code>, <code>lib/picture/rounds.mjs</code>, the builder and fixer briefs.</p>
+      <h4>Proof</h4>
+      <p>Replaying the Settings crash stops in seconds, not after 75 minutes.</p>
+    </div>
+  </details>
+
+  <details open>
+    <summary><span class="w">W3</span><span class="t">Right data every time</span><span class="s">saves about 1.5 h, and honest round counts</span></summary>
+    <div class="body">
+      <h4>What goes wrong</h4>
+      <div class="table"><table>
+        <tr><th>Problem</th><th>Evidence in 0.14.0</th></tr>
+        <tr><td>Test data is guessed from pictures</td><td>The design's text is saved for every state, but the agent writing test data is never given it</td></tr>
+        <tr><td>The design shows things the product doesn't store</td><td>Every gap is assumed fixable by re-seeding, so the run can never finish green (Settings: 28 items)</td></tr>
+        <tr><td>Saves leak into later states</td><td>Re-seeding happens between widths, not between states. One Settings world held 22 states, 6 of which save</td></tr>
+        <tr><td>Old rows stay behind</td><td>Refresh only cleans tables the world still seeds</td></tr>
+        <tr><td>Values the code rejects pass the check</td><td>The app's own rules are never checked (Rounds: <code>mode: "manual"</code> crashed the page)</td></tr>
+        <tr><td>New tables with no guard</td><td>Only a warning; seeding stops later</td></tr>
+        <tr><td>The clock</td><td>Nothing makes time-based states true when the picture is taken</td></tr>
+        <tr><td>Data gaps go nowhere</td><td>A round with only data gaps says "ship" while the run stays red</td></tr>
+      </table></div>
+      <h4>What changes, in the order it runs</h4>
+      <ol>
+        <li><b>Trace.</b> At map time, every piece of data the design shows is labelled: a table column, a computed value, a fixed word, or no source.</li>
+        <li><b>One list for you (D6).</b> Every "no source" item and every guard to approve arrive in one message before the build. For each: build it, drop it, or send it back to the design. Decided items stop counting as problems.</li>
+        <li><b>Test data uses the design's own values, written by a command (D13).</b> <code>delivery seed --from-trace</code> turns the trace into world rows: same names, counts, statuses and relative dates, so the live page shows what the design shows. Any agent that needs different data asks with <code>delivery seed --need</code> instead of editing world files, and the command validates, applies and reports back in one line. This keeps seeding out of the agents' context. A small seed agent is dispatched only for what the command can't infer, and it sees one state's trace, not the whole map.</li>
+        <li><b>Check before writing.</b> Columns and types against the database types; data fields against the app's own validation rules, through a small script in the Telitask repo.</li>
+        <li><b>Guards (D5).</b> A table with no guard stops seeding. The mapper drafts the guard or an intercept; you approve it once, in the list above.</li>
+        <li><b>Isolation (D3).</b> A clean re-seed before every state that saves, and refresh removes any row not in the plan, in every table.</li>
+        <li><b>Time (D4).</b> Clock-sensitive states must use times relative to the shoot; a refresh runs just before shooting; the browser uses the organisation's time zone.</li>
+        <li><b>Check the data before any reviewer looks.</b> The shoot saves each page's text. A new <code>delivery datacheck</code> compares it with the traced values. A miss is fixed and re-shot automatically before review. Generated text (an AI summary) is checked by shape only. It's a text comparison: seconds, no tokens.</li>
+      </ol>
+      <h4>Where</h4>
+      <p>Mapper and seed-writer briefs; <code>lib/picture/map.mjs</code>, <code>lib/seed/*</code>, <code>lib/picture/shoot.mjs</code>, <code>lib/design/render.mjs</code>, new <code>lib/commands/datacheck.mjs</code>, <code>lib/picture/review.mjs</code>, <code>lib/picture/next.mjs</code>, <code>lib/run/ready-compute.mjs</code>. In the Telitask repo: one validation script.</p>
+      <h4>Proof</h4>
+      <p>Replay Settings round 2: its 39 data gaps are fixed before review, or decided before the build.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary><span class="w">W4</span><span class="t">Rounds without a fixed cap</span><span class="s">no leftover-bug list</span></summary>
+    <div class="body">
+      <h4>What goes wrong</h4>
+      <p>Three rounds is a fixed number in the code, and the two places that check it count differently. After round 3, real bugs go to you as a list.</p>
+      <h4>What changes</h4>
+      <ul>
+        <li>Keep going while the real-bug count falls. Stop at zero.</li>
+        <li>Stop after two rounds in a row with no fall, and send only the stuck items, each with why it didn't move. Ceiling: 8 rounds.</li>
+        <li>Both checks share one rule; a voided round never counts.</li>
+      </ul>
+      <h4>Where</h4>
+      <p><code>lib/picture/next.mjs</code>, <code>lib/run/ready-compute.mjs</code>, <code>tunables.json</code>, the picture-build skill.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary><span class="w">W5</span><span class="t">Cheaper late rounds</span><span class="s">1.5 h → 20 to 30 min per late round</span></summary>
+    <div class="body">
+      <h4>What changes</h4>
+      <ul>
+        <li>Re-shoot only items that didn't match, plus matching items whose page files changed. When unsure, shoot.</li>
+        <li>A matching item whose picture changed goes to a sample, one per screen group. If the sample finds a problem, the whole group is reviewed.</li>
+        <li>The last round before shipping reviews every changed item, so nothing ships unreviewed.</li>
+      </ul>
+      <h4>Where</h4>
+      <p><code>lib/picture/shoot.mjs</code>, <code>lib/picture/review.mjs</code>, <code>lib/picture/map.mjs</code>, the mapper brief.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary><span class="w">W6</span><span class="t">Faster shoots</span><span class="s">35 min → about 10 to 12 min per shoot</span></summary>
+    <div class="body">
+      <h4>What changes</h4>
+      <ul>
+        <li>Shoot against a production build; the dev server stays for the builder. A failed build stops the shoot.</li>
+        <li>Two browsers at once, each on a different world.</li>
+        <li>Fixed pauses and timeouts become settings; the click timeout after load drops from 8 s to 3 s.</li>
+      </ul>
+      <h4>Where</h4>
+      <p><code>lib/picture/shoot.mjs</code>, <code>lib/commands/shoot.mjs</code>, <code>lib/capture/slots.mjs</code>, <code>tunables.json</code>, the Telitask profile.</p>
+    </div>
+  </details>
+
+  <details>
+    <summary><span class="w">W7</span><span class="t">Better reviews</span><span class="s">about 1 h in wrong fixes and false findings</span></summary>
+    <div class="body">
+      <h4>What goes wrong</h4>
+      <ul>
+        <li>Reviewers disagreed between rounds on the phone menus, so one fix went the wrong way.</li>
+        <li>The phone crop hides short bottom sheets and cuts the phone header on the live picture only: 13 false findings in Settings round 4.</li>
+        <li>The shoot's facts file is 500 KB, too big for reviewers to read.</li>
+      </ul>
+      <h4>What changes</h4>
+      <ul>
+        <li>Before round 1, one agent writes the reviewer guidance from the design: phone patterns, fixture names, rules that override the picture.</li>
+        <li>The crop hides only the real tab bar and crops both pictures the same way.</li>
+        <li>Reviewers get a short facts file per item, including the text differences from W3.</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary><span class="w">W8</span><span class="t">Shipping checks</span><span class="s">about 1.5 h, and no silent data loss on staging</span></summary>
+    <div class="body">
+      <h4>What goes wrong</h4>
+      <ul>
+        <li>Two runs redefined the same database function, and one silently dropped the other's tables on staging.</li>
+        <li>Retired test ids only surfaced at push time, which needed a prep PR and a wait for you.</li>
+        <li>Land missed a silently failed Vercel build and didn't re-run staging E2E after the deploy.</li>
+      </ul>
+      <h4>What changes</h4>
+      <ul>
+        <li>At map time, list files another open run also changes, and say who to coordinate with.</li>
+        <li>The retired-test-id check runs at map time; skipped tests are ignored.</li>
+        <li>Land checks Vercel's status on the merge commit, then re-runs staging E2E once the deploy is live.</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary><span class="w">W9</span><span class="t">Scope and models</span><span class="s">about 2.5 h on a large design</span></summary>
+    <div class="body">
+      <ul>
+        <li>Above about 120 states, the run proposes screen groups; each becomes its own run. At most four agents at once.</li>
+        <li>The first builder gets one screen group per dispatch, so it stops running out of turns (Rounds: four times).</li>
+        <li>Models as in D11. The builder-at-medium trial is recorded in the ledger so the retro can compare it.</li>
+      </ul>
+    </div>
+  </details>
+</section>
+
+<section class="stack">
+  <h2>Part 3 · Order, measurement, limits</h2>
+  <div class="table"><table>
+    <tr><th>Release</th><th>Workstreams</th><th>Why this order</th></tr>
+    <tr><td class="id">0.15.0</td><td>W1, W2</td><td>Small, and everything later compares against these pictures</td></tr>
+    <tr><td class="id">0.16.0</td><td>W3</td><td>Biggest gain in quality; uses W1's text</td></tr>
+    <tr><td class="id">0.17.0</td><td>W4, W5</td><td>More rounds only make sense once rounds are cheap and honest</td></tr>
+    <tr><td class="id">0.18.0</td><td>W6</td><td>Independent; biggest single time saving</td></tr>
+    <tr><td class="id">0.19.0</td><td>W7</td><td>Uses W3's text differences</td></tr>
+    <tr><td class="id">0.20.0</td><td>W8, W9</td><td>Least urgent; the model trial is measured on the next run</td></tr>
+  </table></div>
+  <h3>How we measure</h3>
+  <p>The runs ledger already records each phase's minutes and each agent's model and cost. After the next two runs, compare with Settings and Rounds on wall time, cost per run, rounds thrown away, data faults caught before review, and real bugs left. A workstream that doesn't move its number gets reverted.</p>
+  <h3>Not in this plan</h3>
+  <ul>
+    <li>Machines don't replace the picture reviewers. They check data, loading and crops; judging the look stays with agents.</li>
+    <li>No test clock inside the dashboard.</li>
+    <li>No automatic guard approvals. The safety file stays yours.</li>
+  </ul>
+  <h3>Risks</h3>
+  <ul>
+    <li>The trace adds 10 to 15 minutes of mapper work; round 1 pays it back.</li>
+    <li>Production-build shoots wait for a free heavy slot at busy times; the wait is logged.</li>
+    <li>Sampling can miss a regression; the full review before shipping catches it.</li>
+    <li>Generated text is checked by shape only, so a wrong AI summary still needs a reviewer.</li>
+  </ul>
+</section>
+</div>

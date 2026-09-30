@@ -97,6 +97,16 @@ and never twice without saying so in your report.
 
 ## What done means
 
+Every page loads. Before you report done, run
+
+    node scripts/delivery.mjs smoke --base-url <url>
+
+and read its output. It opens every route of the map at every width, signed in, and fails at the
+first page that answers 500 or more, shows the error overlay, or still shows a loading placeholder
+after 10 seconds. It must pass: a page that does not load is not done, whatever its pictures showed
+before. It signs in as the worlds' fixture users, so it runs only once they are seeded. Name it and
+its result in your report. `delivery shoot` runs it too, and pictures nothing when it fails.
+
 For every state in the checklist:
 
 - Everything in the design is there: sections, buttons, badges, counts, progress bars, empty

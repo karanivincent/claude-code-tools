@@ -117,6 +117,7 @@ request in its report and works around it locally.
 | `lib/commands/map.mjs` | C |
 | `lib/commands/contract.mjs` | C |
 | `lib/commands/shoot.mjs` | C |
+| `lib/commands/smoke.mjs` | C |
 | `lib/commands/crop.mjs` | C |
 | `lib/commands/slot.mjs` | C |
 | `lib/commands/review.mjs` | C |
