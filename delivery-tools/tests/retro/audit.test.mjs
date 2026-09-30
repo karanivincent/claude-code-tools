@@ -4,7 +4,7 @@
 // proposals (never applied), and `delivery crop`.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, existsSync, realpathSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, writeFileSync, existsSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -99,7 +99,7 @@ function frontmatter(rel) {
 
 test('models.json: every role names an agent whose own file carries the same model and effort', () => {
   const cfg = loadModels();
-  const want = { extractor: ['sonnet', 'low'], mapper: ['sonnet', 'medium'], 'seed-writer': ['sonnet', 'medium'], builder: ['opus', 'high'], 'fix-builder': ['sonnet', 'medium'], reviewer: ['sonnet', 'medium'], 'ci-fixer': ['sonnet', 'medium'], 'unit-builder': ['sonnet', 'medium'], 'contract-builder': ['opus', 'high'], auditor: ['sonnet', 'high'], main: ['opus', 'high'] };
+  const want = { extractor: ['sonnet', 'medium'], contract: ['sonnet', 'medium'], steers: ['sonnet', 'medium'], mapper: ['sonnet', 'medium'], 'seed-writer': ['sonnet', 'medium'], builder: ['opus', 'high'], 'fix-builder': ['sonnet', 'medium'], reviewer: ['sonnet', 'medium'], 'ci-fixer': ['sonnet', 'medium'], 'unit-builder': ['sonnet', 'medium'], 'contract-builder': ['opus', 'high'], auditor: ['sonnet', 'high'], main: ['opus', 'high'] };
   for (const [role, [model, effort]] of Object.entries(want)) assert.deepEqual([cfg.roles[role].model, cfg.roles[role].effort], [model, effort], role);
   for (const [role, r] of Object.entries(cfg.roles)) {
     if (!r.agent) continue;
@@ -110,8 +110,30 @@ test('models.json: every role names an agent whose own file carries the same mod
     assert.equal(fm.effort, r.effort, `${role}: ${name}.md effort`);
     if (r.edits && r.model === 'sonnet') assert.match(readFileSync(join(ROOT, 'agents', `${name}.md`), 'utf8'), /run (a|the) real check/i, `${name}: a Sonnet role that edits runs a real check`);
   }
+  // D11: the experiment's agent file exists and carries the experiment's model and effort.
+  const e = cfg.experiment;
+  assert.ok(e, 'models.json names an experiment');
+  assert.ok(cfg.roles[e.role], 'the experiment is for a known role');
+  const ename = e.agent.replace(/^delivery-tools:/, '');
+  const efm = frontmatter(`agents/${ename}.md`);
+  assert.equal(efm.name, ename);
+  assert.equal(efm.model, e.model, `${ename}.md model`);
+  assert.equal(efm.effort, e.effort, `${ename}.md effort`);
+  assert.ok(cfg.roles[e.role].agentTypes.includes(e.agent), 'the role lists the experiment agent so the ledger knows its role');
   assert.deepEqual(cfg.models.opus, { id: 'claude-opus-5-5', match: 'opus', inPerMTok: 4, outPerMTok: 20 });
   assert.deepEqual(cfg.models.sonnet, { id: 'claude-sonnet-5-5', match: 'sonnet', inPerMTok: 2, outPerMTok: 10 });
+});
+
+test('models.json: no Sonnet role runs above high effort', () => {
+  const cfg = loadModels();
+  for (const [role, r] of Object.entries(cfg.roles)) {
+    if (r.model === 'sonnet') assert.ok(!['xhigh', 'max'].includes(r.effort), `${role}: Sonnet at ${r.effort}`);
+  }
+  if (cfg.experiment?.model === 'sonnet') assert.ok(!['xhigh', 'max'].includes(cfg.experiment.effort), 'the experiment: Sonnet above high');
+  for (const f of readdirSync(join(ROOT, 'agents'))) {
+    const fm = frontmatter(`agents/${f}`);
+    if (fm.model === 'sonnet') assert.ok(!['xhigh', 'max'].includes(fm.effort), `${f}: Sonnet at ${fm.effort}`);
+  }
 });
 
 test('prices: a million in and out tokens cost $24 on Opus and $12 on Sonnet; cache reads at a tenth; unknown models cost null', () => {

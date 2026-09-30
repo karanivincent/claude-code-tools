@@ -71,6 +71,8 @@ export function validateMap(map, opts = {}) {
   }
   if (!map || typeof map !== 'object') return ['map.json is not an object'];
   if (map.schemaVersion !== 1) problems.push('schemaVersion must be 1');
+  // D10: "oneRun": true is the founder's answer to NEXT's split proposal (keep a big design in one run).
+  if (map.oneRun !== undefined && typeof map.oneRun !== 'boolean') problems.push('oneRun must be true or false');
   if (!['redesign', 'new', 'components'].includes(map.kind)) problems.push('kind must be "redesign", "new" or "components"');
   if (typeof map.route !== 'string' || !map.route.startsWith('/')) problems.push('route must be a path starting with /');
   const area = map.pageArea ?? {};

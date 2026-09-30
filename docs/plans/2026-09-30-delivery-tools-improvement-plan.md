@@ -612,3 +612,41 @@ Decisions:
   raised to the live picture's open-panel top, since the design's dom.json does not record panels.
   `picture.keepPhoneHeader` sets both to 0 at phone width.
 - The facts file is markdown, one per item sent to a reviewer, cut to 2 KB with "and N more".
+
+Built: PR https://github.com/karanivincent/claude-code-tools/pull/71 (tests 1412, 1393 pass, 0 fail, 19 skipped).
+
+## W8 ship checks and W9 scope and models (0.23.0)
+
+Already there (W8): prepush's removed-name rule (base specs and plans against the branch's app
+sources), the org-scoped retirement lists, land's deploy waiter, workflow runs and loop test. No
+overlap detection between runs; statuses were never read.
+
+Decisions (W8):
+
+- Overlap lives in a new `lib/lifecycle/overlap.mjs`. "Another open run" is any open PR whose
+  branch starts with the profile's `repo.branchPrefix`. Its files and the functions its migrations
+  define come from the PR's file patches. At map time it only warns; at prepush a function both
+  runs redefine is a problem (that was the staging data loss), shared-file overlaps stay warnings.
+- The navigation config is the profile's optional `paths.sharedFiles`; the message files are always
+  shared.
+- Retired test ids at map time need the map's `sources` (W5). Without them the check says so and
+  prepush catches them as before.
+- Prepush cuts `test.skip(...)`, `describe.skip(...)` and `.fixme(...)` calls out of a spec before
+  reading its ids.
+- Land reads the combined commit status of the merge commit (Vercel reports there) and runs the
+  optional `commands.stagingE2e` once per merge after the deploy is live, journalled like the loop
+  test.
+
+Decisions (W9):
+
+- The split is a NEXT step after a valid map, when the map has more than `run.splitAboveStates`
+  (120) states, listing screen groups with counts; `"oneRun": true` in the map keeps one run. It
+  proposes; starting the group runs stays with the session and the founder.
+- The builder brief and skill give the first builder one screen group per dispatch (a `Screens:`
+  line) whenever the map has more than one screen.
+- Extractor, contract and steers roles move to Sonnet medium (one agent file, `delivery-extractor`).
+  A test fails on any Sonnet role above high.
+- The D11 builder trial is `models.json` `experiment` with its own agent file,
+  `picture-builder-medium` (effort lives in agent files). The builder role lists it in
+  `agentTypes`; the SubagentStop record carries the agent type, so the ledger knows the experiment
+  ran and `delivery runs` shows it. `activeExperiment` turns it off after `runs` runs.

@@ -14,6 +14,7 @@ export function agentEvent(a) {
   const put = (k, v) => { if (v !== undefined && v !== null && v !== '') counts[k] = v; };
   put('id', a.id);
   put('role', a.role);
+  put('type', a.agentType);
   if (a.phase !== undefined) counts.phase = a.phase ?? 'none';
   put('model', a.model);
   if (a.effort !== undefined) counts.effort = a.effort ?? 'none';

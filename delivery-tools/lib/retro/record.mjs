@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import { loadState, parseEvent } from '../core/state.mjs';
 import { listRounds, roundInfo, roundsDir } from '../picture/rounds.mjs';
 import { projectDirFor, scanAgents, scanMain } from './usage.mjs';
-import { costOf } from './models.mjs';
+import { configuredExperiment, costOf } from './models.mjs';
 
 export const PHASES = Object.freeze(['intake', 'render', 'map', 'seed', 'build', 'shoot', 'review', 'ci']);
 
@@ -146,6 +146,7 @@ export function agentsFromJournal(journal) {
     const prev = byId.get(id) ?? { id, role: 'other', phase: null, model: 'unknown', effort: null, minutes: 0, tokensIn: 0, tokensCached: 0, tokensOut: 0, costUsd: null, outcome: 'done', endedAt: e.at ?? null };
     const next = { ...prev };
     if (c.role) next.role = c.role;
+    if (c.type) next.agentType = c.type;
     if ('phase' in c) next.phase = c.phase === 'none' ? null : c.phase;
     if (c.model) next.model = c.model;
     if (c.effort) next.effort = c.effort === 'none' ? null : c.effort;
@@ -270,6 +271,17 @@ export function mergeAgents(fromJournal, fromTranscripts) {
   return [...fromJournal, ...fromTranscripts.filter((a) => !ids.has(a.id))];
 }
 
+/**
+ * D11: the experiment models.json names, when the run dispatched its agent; { role, agent, model,
+ * effort } as the ledger keeps it, else null. Pure.
+ * @param {{ agentType?: string|null }[]} agents
+ * @param {{ role: string, agent: string, model: string, effort: string }|null} [experiment]
+ */
+export function experimentOf(agents, experiment = configuredExperiment()) {
+  if (!experiment || !agents.some((a) => a.agentType === experiment.agent)) return null;
+  return { role: experiment.role, agent: experiment.agent, model: experiment.model, effort: experiment.effort };
+}
+
 /** Drop the fields the ledger does not keep. */
 const ledgerAgent = ({ id, role, phase, model, effort, minutes: m, tokensIn, tokensCached, tokensOut, costUsd, outcome }) => ({ id, role, phase, model, effort, minutes: m, tokensIn, tokensCached, tokensOut, costUsd, outcome });
 
@@ -294,6 +306,7 @@ export async function buildRecord(ctx, paths, opts = {}) {
   const found = mergeAgents(agentsFromJournal(journal), dir ? scanAgents(dir, window) : []);
   const { phases, founder, slotWaits } = phasesFromJournal(journal, { buildWindows: buildWindowsOf(found) });
   const agents = found.map(ledgerAgent);
+  const experiment = experimentOf(found);
   const main = dir ? scanMain(dir, window) : null;
   return {
     schemaVersion: 2,
@@ -311,6 +324,7 @@ export async function buildRecord(ctx, paths, opts = {}) {
     reviewers: reviewerRecords(paths),
     ciAfterPr: opts.ciFailures ?? ciFailuresFromJournal(journal),
     ...(shadow ? { shadow } : {}),
+    ...(experiment ? { experiment } : {}),
     improvements,
     autoChanges: opts.previous?.autoChanges ?? [],
   };

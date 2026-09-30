@@ -7,7 +7,7 @@
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { costOf, familyOf, roleConfig, roleOf } from './models.mjs';
+import { configuredExperiment, costOf, familyOf, roleConfig, roleOf } from './models.mjs';
 
 /** Claude Code's folder of a worktree's transcripts: every character outside [A-Za-z0-9] becomes "-". Null with no home. */
 export function projectDirFor(worktree, env = process.env) {
@@ -72,9 +72,12 @@ export function agentFromTranscript({ id, text, meta = {}, effortFromConfig = tr
   const role = roleOf({ prompt: u.prompt, agentType: meta.agentType, description: meta.description });
   let phase = null, effort = null;
   if (role !== 'other') { const r = roleConfig(role); phase = r.phase; if (effortFromConfig) effort = r.effort; }
+  // D11: the experiment's agent runs the role at its own effort, not the role's usual one.
+  const experiment = configuredExperiment();
+  if (experiment && meta.agentType === experiment.agent && effortFromConfig) effort = experiment.effort;
   const tokens = { tokensIn: u.tokensIn, tokensCached: u.tokensCached, tokensOut: u.tokensOut };
   return {
-    id: String(id), role, phase, model: familyOf(u.model) ?? u.model ?? 'unknown', effort,
+    id: String(id), role, phase, agentType: meta.agentType ?? null, model: familyOf(u.model) ?? u.model ?? 'unknown', effort,
     minutes: u.minutes, ...tokens, costUsd: costOf(u.model, tokens), outcome: outcomeOf(u.lastText),
     startedAt: u.start === null ? null : new Date(u.start).toISOString(),
   };

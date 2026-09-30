@@ -22,9 +22,9 @@ profile, in that project's repository (spec section 18).
 node --test 'tests/**/*.test.mjs' 'skills/**/*.test.mjs'
 ```
 
-1412 tests: 1393 pass, 0 fail, 19 skipped (the replay tests, which need the private replay set; the
+1467 tests: 1448 pass, 0 fail, 19 skipped (the replay tests, which need the private replay set; the
 real-browser render and smoke tests, which need `DELIVERY_PLAYWRIGHT_ROOT`; and the Settings export
-check, which needs `DELIVERY_SETTINGS_EXPORT`). That is the whole suite after 0.22.0 (steers written before round 1 and carried by update runs, the crop hiding only the tab bar and cutting both pictures at the same top, a facts file per reviewed item), 0.21.0 (`shoot --prod` with `commands.prodServer`, worlds shot two at a time, the shoot's waits as tunables with a 3 s click timeout), 0.20.0 (no fixed round cap: the stop rule in `lib/picture/stop.mjs`
+check, which needs `DELIVERY_SETTINGS_EXPORT`). That is the whole suite after 0.23.0 (overlap with other open runs and likely retired test ids at map time, skipped tests ignored by prepush, commit statuses and the staging E2E at land; the split step above `run.splitAboveStates` states, one builder dispatch per screen group, extractors at Sonnet medium and the builder experiment in `models.json`), 0.22.0 (steers written before round 1 and carried by update runs, the crop hiding only the tab bar and cutting both pictures at the same top, a facts file per reviewed item), 0.21.0 (`shoot --prod` with `commands.prodServer`, worlds shot two at a time, the shoot's waits as tunables with a 3 s click timeout), 0.20.0 (no fixed round cap: the stop rule in `lib/picture/stop.mjs`
 shared by NEXT and ready, `stuck.md`; a fix round shoots only routes whose `sources` changed; sampled
 re-reviews with held items and `review --plan --held`), 0.19.0 (the contract's
 `row`, `generated` and `none` with the founder's decisions and `contract --questions`, `seed

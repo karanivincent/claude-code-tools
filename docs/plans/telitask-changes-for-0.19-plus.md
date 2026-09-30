@@ -139,3 +139,42 @@ from the dashboard's mobile navigation component:
 
 If the tab bar has no stable selector, add `data-testid="mobile-tab-bar"` to its root element in
 the dashboard's mobile navigation component first.
+
+## 0.23.0 (W8, ship checks; W9, scope and models)
+
+### 7. `commands.stagingE2e` (optional)
+
+What it buys: `delivery land` runs the staging E2E itself once the merge commit's deploy is live,
+once per merge. It also now reads the merge commit's commit statuses, so a Vercel build that failed
+turns land red (no change needed for that).
+
+Default without it: land says the profile names none, and relies on the workflow runs as today.
+
+Profile snippet (inside `"commands"`), using the repo's existing staging E2E entry point:
+
+```json
+"stagingE2e": "pnpm --filter e2e test:staging"
+```
+
+Placeholders `{sha}` and `{pr}` are available. Exit 0 is a pass; any other exit fails land.
+
+### 8. `paths.sharedFiles` (optional)
+
+What it buys: `delivery map` warns when another open run changes the navigation config (or any file
+listed) that this run will change too. The message files are always included.
+
+```json
+"sharedFiles": ["apps/dashboard/src/config/navigation.ts"]
+```
+
+Use the real path of the dashboard's navigation config.
+
+### 9. Map `sources` (written by the mapper, nothing to configure)
+
+W5's cheaper fix rounds and W8's retired-test-id check read the map's `sources` (route → globs).
+The mapper brief asks for them; nothing to change in the Telitask repo.
+
+### 10. Nothing for W9
+
+The models change (extractors Sonnet medium, the builder experiment at Opus medium) lives in the
+plugin. The next run records the experiment in `docs/delivery/runs.jsonl`.

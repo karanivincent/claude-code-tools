@@ -8,6 +8,8 @@ import { parseCommandArgs } from '../core/args.mjs';
 import { EXIT } from '../core/exit.mjs';
 import { checklistPath, clockProblems, designIds, mapFromPlan, mapPath, readMap, renderChecklist, validateMap } from '../picture/map.mjs';
 import { worldFilePath } from '../seed/plan.mjs';
+import { likelyRetiredIds } from '../lifecycle/prepush.mjs';
+import { overlapLines } from '../lifecycle/overlap.mjs';
 import { hasPhone, mapItems, mapWidths } from '../picture/widths.mjs';
 import { readRules } from '../picture/rules.mjs';
 
@@ -28,6 +30,13 @@ day: its times are written relative to the shoot, {"$rel": ...}), then writes ch
 to it, which builders and reviewers read. When rules.json exists, each rule is written under the
 states that show it, so builders and reviewers see it next to the picture. A valid map switches the run to picture mode: status
 then follows the picture loop.
+
+Two warnings, never refusals, so they can be acted on while the build runs: test ids the base
+branch's e2e specs name (skipped tests left out) that the page's code has today (the map's route
+sources) and the map does not keep, so the PR that skips those specs can go up now; and other open
+runs (PRs on the profile's branch prefix) that change the same files: a database function both
+redefine, the message files or the profile's paths.sharedFiles (the navigation config), or files
+under this run's routes.
 
 options:
   --from-plan   write map.json from the run's coverage plan first (a run that began in full mode);
@@ -84,7 +93,23 @@ common options:
     if (hasPhone(map)) ctx.out.line(`widths: ${mapWidths(map).join(', ')}; ${mapItems(map).length} item(s), a state at a width`);
     if (rules) ctx.out.line(`rules: ${(rules.rules ?? []).length} written into the checklist; check them with delivery rules`);
     ctx.out.line(`checklist: ${checklistPath(paths)}`);
-    ctx.out.set('map', { states: map.states.length, reachable, buttons, worlds: map.worlds.length, widths: mapWidths(map), items: mapItems(map).length });
+    // W8: what the run can find out now rather than at prepush. Warnings only.
+    const profile = await ctx.profile().catch(() => null);
+    let retired = [];
+    let overlap = [];
+    if (profile && ctx.git) {
+      try {
+        const r = await likelyRetiredIds(ctx, { profile, map });
+        retired = r.ids;
+        if (r.note) ctx.out.line(`note: ${r.note}`);
+        for (const x of retired) ctx.out.warn(`test id "${x.id}" is named by ${x.spec} on the base branch, is in the page's code today, and the map does not keep it: open the PR that skips or updates that spec now, while the build runs`);
+      } catch (err) { ctx.out.line(`note: could not look for retired test ids (${String(err?.message ?? err).split('\n')[0]})`); }
+      if (ctx.gh) {
+        overlap = await overlapLines(ctx, { profile, map });
+        for (const l of overlap) ctx.out.warn(l);
+      }
+    }
+    ctx.out.set('map', { states: map.states.length, reachable, buttons, worlds: map.worlds.length, widths: mapWidths(map), items: mapItems(map).length, retiredTestIds: retired, overlap });
     await ctx.journal({ command: 'map', exit: EXIT.PASS, counts: { states: map.states.length, buttons } });
     return EXIT.PASS;
   },

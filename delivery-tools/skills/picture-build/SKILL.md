@@ -79,7 +79,7 @@ difference: it goes back to the design, or becomes a rule.
 
 `<plugin>/models.json` names each role's model, effort and agent; the agent file carries the
 effort, which the Agent tool cannot set, so dispatch the agent it names and never override its
-model. In short: extractors are Sonnet at low; the rules, map, seed-world and CI-fix jobs are one
+model. In short: extractors are Sonnet at medium; the rules, map, seed-world and CI-fix jobs are one
 `delivery-tools:delivery-worker` each (Sonnet at medium), told their role on the prompt's first
 line; the first build is Opus at high; each fix round is a fresh Sonnet fixer; reviewers are Sonnet
 at medium with a crop tool. This session stays on Opus: it runs the run, decides, sorts findings
@@ -102,7 +102,7 @@ Feature: <slug>   Worktree: <absolute path of the run's worktree>
 <contract (delivery-extractor): Role: contract, then Read <plugin>/briefs/contract-labeller.md and follow it.   Write: docs/delivery/<f>/contract-labels.json>
 <steers (delivery-extractor): Role: steers, then Read <plugin>/briefs/steers.md and follow it.   Write: docs/delivery/<f>/steers.md>
 <ci-fixer: Check: <the failing check>   Log: <the log file delivery ci wrote>   Dev server: <running at <url>, or stopped>>
-<builder: Dev server: <url>   Round: 1   Components: run `delivery components --used`>
+<builder: Dev server: <url>   Round: 1   Screens: <one screen group>   Components: run `delivery components --used`>
 <fixer: Dev server: <url>   Round: <n>   Components: run `delivery components --used`   Review: .delivery/<f>/rounds/<n-1>/review.json   Notes: .delivery/<f>/builder-notes.md>
 <reviewer: Round: .delivery/<f>/rounds/<n>/   States: <ITEMS, e.g. KC-05 KC-05@phone>   Write: review-batch-<k>.md>
 ```
@@ -116,7 +116,12 @@ a match (auto). Both show on the comparison page. If `docs/delivery/<f>/steers.m
 is added to every prompt; put anything you would otherwise repeat to each reviewer there.
 
 - The first build is one `delivery-tools:picture-builder` agent (Opus, high), in the background:
-  it takes about an hour, and it leaves `.delivery/<f>/builder-notes.md` behind. Each fix round is
+  it takes about an hour, and it leaves `.delivery/<f>/builder-notes.md` behind. When the map has
+  more than one screen (`screen` on its states), dispatch it once per screen group, one after
+  another, each with a `Screens:` line naming one group, so no dispatch runs into its turn limit;
+  each later dispatch continues from the notes the one before left. When `models.json` has an
+  active experiment for a role, dispatch its agent instead of the role's usual one; the ledger
+  records it. Each fix round is
   a fresh `delivery-tools:picture-fixer` agent (Sonnet, medium), in the background, given the
   round's review and those notes; never resume the first builder for a fix round. Neither is ever
   dispatched as `delivery-tools:delivery-builder`: that agent works in a fresh worktree of its own,
