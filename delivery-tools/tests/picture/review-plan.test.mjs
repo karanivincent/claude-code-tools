@@ -36,7 +36,8 @@ test('a changed design picture is sent too, and so is an item with no hash or no
   const now = shootOf(KEYS, { factsAgree: false });
   now.states['KC-05'].designHash = 'new design';
   delete now.states['KC-04'].liveHash;
-  const plan = planReview({ map: m, shoot: now, prev });
+  // Sampling (W5) is off here: this test is about what is sent, not what is held.
+  const plan = planReview({ map: m, shoot: now, prev, sample: 0 });
   assert.deepEqual(Object.keys(plan.carried), []);
   assert.deepEqual(plan.batches.flatMap((b) => b.items), KEYS);
 });

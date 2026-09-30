@@ -345,21 +345,23 @@ test('picture mode: ready proves the page with its rounds, not a full capture or
   const f = await fixture({ changed: PICTURE_RUN });
   try {
     // Round 3 re-shoots two states; KC-06 keeps round 2's verdict. One state is still open after
-    // the fix rounds are spent, which is the founder's list, not a red ready.
+    // the count stopped falling (2 > 1 > 1 > 1: two rounds in a row with no fall), which is the
+    // founder's list, not a red ready.
     writeRounds(f.paths, {
       1: { 'KC-05': 'must', 'KC-06': 'must', 'KC-07': 'match' },
       2: { 'KC-05': 'must', 'KC-06': 'small', 'KC-07': 'match' },
       3: { 'KC-05': 'must', 'KC-06': 'not-shot', 'KC-07': 'match' },
+      4: { 'KC-05': 'must', 'KC-06': 'not-shot', 'KC-07': 'not-shot' },
     });
     const { ready, exit } = await computeReady(f.ctx, { pr: f.pr });
     assert.equal(exit, 0, JSON.stringify(ready.checks.filter((c) => !c.ok)));
     assert.deepEqual(ready.checks.map((c) => c.id), ['baseline-refresh', 'head', 'ci', 'preview', 'dupes', 'scope', 'loop-test', 'pictures', 'rules']);
     const pictures = ready.checks.find((c) => c.id === 'pictures');
-    assert.match(pictures.detail, /3 state\(s\): 1 match, 1 small differences, every pictured state reached; 1 still open after 3 rounds/);
+    assert.match(pictures.detail, /3 state\(s\): 1 match, 1 small differences, every pictured state reached; the loop stopped \(1 still open and the count has not fallen for 2 round\(s\) \(2 > 1 > 1 > 1\)\): 1 stuck item\(s\) go to the founder with rounds\/4\/stuck\.md/);
   } finally { f.repo.cleanup(); }
 });
 
-test('picture mode: no round, open states with fix rounds left, an unreached newest picture, or an uncompiled round are red', async () => {
+test('picture mode: no round, open states while the loop is still fixing, an unreached newest picture, or an uncompiled round are red', async () => {
   const f = await fixture({ changed: PICTURE_RUN });
   try {
     const pictures = async () => {
@@ -369,7 +371,7 @@ test('picture mode: no round, open states with fix rounds left, an unreached new
     };
     assert.match((await pictures()).detail, /no picture round yet/);
     writeRounds(f.paths, { 1: { 'KC-05': 'must', 'KC-07': 'match' } });
-    assert.match((await pictures()).detail, /1 state\(s\) still to fix and 2 fix round\(s\) left: KC-05 \(round 1\)/);
+    assert.match((await pictures()).detail, /1 state\(s\) still to fix, and the fix rounds go on while the count falls \(1 still open \(1\)\): KC-05 \(round 1\)/);
     writeRounds(f.paths, { 2: { 'KC-05': 'not-reached', 'KC-07': 'match' } });
     assert.match((await pictures()).detail, /newest picture was not reached: KC-05 \(round 2\)/);
     const three = join(f.paths.runDir, 'rounds', '3');

@@ -61,6 +61,14 @@ function designShapeOk(d) {
  */
 export function validateMap(map, opts = {}) {
   const problems = [];
+  // W5: each route's source folders, so a fix round re-shoots only the routes whose files changed.
+  if (map?.sources !== undefined) {
+    if (!map.sources || typeof map.sources !== 'object' || Array.isArray(map.sources)) problems.push('sources must be an object of "<route>": ["<glob>", ...]');
+    else for (const [route, globs] of Object.entries(map.sources)) {
+      if (!route.startsWith('/')) problems.push(`sources key "${route}" must be a route starting with /`);
+      if (!Array.isArray(globs) || !globs.length || globs.some((g) => typeof g !== 'string' || !g)) problems.push(`sources["${route}"] must be a list of file globs`);
+    }
+  }
   if (!map || typeof map !== 'object') return ['map.json is not an object'];
   if (map.schemaVersion !== 1) problems.push('schemaVersion must be 1');
   if (!['redesign', 'new', 'components'].includes(map.kind)) problems.push('kind must be "redesign", "new" or "components"');

@@ -1,6 +1,6 @@
 // delivery shoot: picture each designed state's page area on a running app (picture mode).
 
-import { existsSync } from 'node:fs';
+import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { defineCommand } from '../core/command.mjs';
 import { parseCommandArgs } from '../core/args.mjs';
@@ -18,7 +18,9 @@ import { readSwaps } from '../seed/trace.mjs';
 import { readQuerySources, selectedColumns, sourceProblems } from '../picture/sources.mjs';
 import { writeDatacheck } from '../picture/datacheck.mjs';
 import { changedGlobals, readGlobalHashes, readRecordedGlobals, readTableShapes, schemaChangeMessage, schemaChanges } from '../seed/drift.mjs';
-import { hasPhone } from '../picture/widths.mjs';
+import { hasPhone, roundFiles } from '../picture/widths.mjs';
+import { changedSince, unchangedItems } from '../picture/changed.mjs';
+import { latestVerdicts } from '../picture/next.mjs';
 import { probeServer } from '../picture/smoke.mjs';
 import { smokeGate } from './smoke.mjs';
 
@@ -80,6 +82,12 @@ options:
                      "data-gaps") for every item the round found a data fault or gap in. Then
                      review --plan reviews just those.
   --no-reset         do not reset the worlds first (the pictures may show drifted data)
+  --all              shoot every item, also those a fix round would keep (see below)
+
+A new fix round shoots only what can have changed: an item the last reviewed round passed (match
+or small) keeps that round's pictures and record when no file under its route's sources (map.json
+"sources", "<route>": [globs]) changed since that round was shot. Any changed file outside every
+route's sources, or a map with no sources, means every item is shot.
 
 exit: 0 every item was reached; 1 a state was not reached, a page is broken, or the map has
       problems; 2 usage
@@ -90,7 +98,7 @@ common options:
   --help             this text`,
   async run(ctx, argv) {
     const { values, positionals } = parseCommandArgs(argv, {
-      options: { 'base-url': { type: 'string' }, round: { type: 'string' }, only: { type: 'string' }, 'no-reset': { type: 'boolean' } },
+      options: { 'base-url': { type: 'string' }, round: { type: 'string' }, only: { type: 'string' }, 'no-reset': { type: 'boolean' }, all: { type: 'boolean' } },
       positionals: { max: -1 },
     });
     const baseUrl = values['base-url'];
@@ -116,7 +124,9 @@ common options:
       picks = dataOnly ? dataGapItems(roundInfo(paths, Number(target))) : values.only.split(',').map((x) => x.trim()).filter(Boolean);
       if (!picks.length) { ctx.out.line(`nothing to re-shoot: round ${target} has no ${dataOnly ? 'data fault' : 'item named'}`); return EXIT.PASS; }
     }
-    const { items, states, unknown } = selectStates(map, picks);
+    const selected = selectStates(map, picks);
+    const { states, unknown } = selected;
+    let { items } = selected;
     if (unknown.length) throw new UsageError(`not states (or widths) in the map: ${unknown.join(', ')}`);
     if (!items.length) { ctx.out.fail('no-states', 'no capture-reachable state was chosen'); return EXIT.USAGE; }
     const noun = hasPhone(map) ? 'item' : 'state';
@@ -125,6 +135,24 @@ common options:
     if (round !== WORK_ROUND && !/^\d+$/.test(round)) throw new UsageError('--round is a number or "work"');
     const outDir = roundDir(paths, round);
     const newRound = round !== WORK_ROUND && !existsSync(outDir);
+    // W5: a new fix round shoots only what can have changed; the rest keep the last round's record.
+    let unchanged = { skip: {}, why: null };
+    let prevRound = null;
+    if (newRound && values.only === undefined && !positionals.length && !values.all) {
+      prevRound = listRounds(paths).filter((n) => n < Number(round) && roundInfo(paths, n).review).pop() ?? null;
+      const prevShoot = prevRound ? roundInfo(paths, prevRound).shoot : null;
+      if (prevShoot) {
+        unchanged = unchangedItems({ map, items, verdicts: latestVerdicts(paths), prevShoot, changed: await changedSince(ctx.git, prevShoot.head ?? null) });
+        const n = Object.keys(unchanged.skip).length;
+        if (n && n < items.length) {
+          items = items.filter((i) => !unchanged.skip[i.key]);
+          ctx.out.line(`${n} ${noun}(s) passed round ${prevRound} and none of their route's files changed: they keep round ${prevRound}'s pictures (--all shoots them too)`);
+        } else {
+          unchanged = { skip: {}, why: unchanged.why };
+          if (unchanged.why) ctx.out.line(`every ${noun} is shot: ${unchanged.why}`);
+        }
+      }
+    }
     const profile = await ctx.profile();
     const db = await createDataAdapter(ctx);
     const { chromium } = await resolvePlaywright({ repoRoot: ctx.repoRoot, e2eDir: profile.paths?.e2eDir ?? null });
@@ -172,8 +200,19 @@ common options:
       await ctx.journal({ command: `shoot --round ${round}`, exit: EXIT.RED, counts: { items: items.length, smokeFailed: 1 } });
       return EXIT.RED;
     }
+    // The skipped items' records and pictures are copied from the round before, which holds them
+    // (shot there, or copied there in turn); `unchanged.from` names the round that shot them.
+    const prevStates = prevRound ? roundInfo(paths, prevRound).shoot?.states ?? {} : {};
+    for (const key of Object.keys(unchanged.skip)) {
+      const rec = prevStates[key];
+      if (!rec) continue;
+      const src = roundDir(paths, prevRound);
+      for (const f of [...Object.values(roundFiles(key)), `${key}.live.txt`]) if (existsSync(join(src, f))) copyFileSync(join(src, f), join(outDir, f));
+      report[key] = { ...rec, unchanged: { from: rec.unchanged?.from ?? prevRound } };
+    }
     const why = values.only === undefined ? null : ['data-gaps', 'data-faults'].includes(values.only.trim()) ? 'data-faults' : 'items';
-    const doc = await writeShootJson(outDir, { baseUrl, at: ctx.clock.now().toISOString(), report, reshot: values.only !== undefined, why });
+    const head = await ctx.git.revParse('HEAD').catch(() => null);
+    const doc = await writeShootJson(outDir, { baseUrl, at: ctx.clock.now().toISOString(), report, reshot: values.only !== undefined, why, head });
     // A build that ran while the shoot did can break the server halfway; its pictures are then of an
     // error page. Such a round never counts: its folder goes, and the next shoot takes its number.
     const brokeDuring = (await probeServer(ctx, baseUrl)) ?? (await smokeGate(ctx, { map, items, baseUrl, profile, paths, db, chromium, quiet: true })).failure;

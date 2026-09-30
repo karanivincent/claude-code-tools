@@ -48,7 +48,12 @@ After intake and preflight, the design's states are rendered to pictures. A mapp
 pictures. `delivery shoot --base-url <dev server>` takes full-height pictures of the page's own
 area, with the sidebar and top bar cropped away, next to the design cropped the same way. Reviewer
 agents compare them, one per screen, and `delivery review` compiles their notes into a comparison
-page. At most two fix rounds follow. `delivery status` names the next step throughout.
+page. Fix rounds follow while the count of items to fix falls; the loop ships at zero and stops
+after two rounds with no fall (or at eight rounds), sending the founder only the stuck items
+(`rounds/<n>/stuck.md`). A fix round shoots only routes whose files changed (map `sources`;
+`shoot --all` shoots everything), and an earlier-passing item whose picture changed is sampled per
+screen; `review --plan --held` reviews the held rest, always once before shipping. `delivery status`
+names the next step throughout.
 
 Review only what changed. The shoot records a sha256 of every live and design picture, whether the
 live page's text, test ids and buttons equal the design's, and the share of pixels that differ (the

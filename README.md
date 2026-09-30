@@ -78,7 +78,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### delivery-tools `v0.19.0`
+### delivery-tools `v0.20.0`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -190,7 +190,12 @@ re-shot (`shoot --only data-faults`) before any reviewer looks. `delivery datach
 round without shooting. A round with only data faults left never ships, a traced column no query
 selects becomes a founder question, a `clock: true` state's world must use relative times, and the
 design render uses the profile's time zone. The pre-bash hook judges a seed-named script by
-whether it writes to a database, not by its name. An export
+whether it writes to a database, not by its name. Since 0.20.0 there is no fixed round cap:
+fix rounds go on while the count of items to fix falls, the run ships at zero, and after two rounds
+with no fall (or eight in all) only the stuck items go to the founder in `stuck.md`; NEXT and
+`ready` share the rule. Late rounds are cheap: a fix round shoots only routes whose files changed
+(the map's `sources`), and earlier-passing items whose picture changed are sampled per screen, the
+rest held and reviewed once before shipping (`review --plan --held`). An export
 holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run

@@ -5,7 +5,7 @@ import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { captureOrder, isLocal, resultLine, selectStates, signInUrl, testidSelector, userFor } from '../../lib/picture/shoot.mjs';
 import { backToDesignItems, parseReview, renderCompare, summarise } from '../../lib/picture/review.mjs';
-import { MAX_ROUNDS, pictureFacts, pictureNext } from '../../lib/picture/next.mjs';
+import { pictureFacts, pictureNext } from '../../lib/picture/next.mjs';
 import { sampleMap } from './map.test.mjs';
 import { featurePaths } from '../../lib/core/paths.mjs';
 import { makeTempDir } from '../helpers/tmp-repo.mjs';
@@ -232,6 +232,7 @@ test('the comparison page shows each state, its pictures and notes, escaped', ()
 
 const facts = (over = {}) => ({ designed: 4, hasMap: true, mapError: null, problemCount: 0, checklistStale: false, seedStale: false, rounds: [], ...over });
 const next = (f) => pictureNext(f, { cli: 'node scripts/delivery.mjs' });
+const STOPPED = { round: 4, decision: { decision: 'stop', why: '4 still open and the count has not fallen for 2 round(s) (4 > 4 > 4)', flat: 2 } };
 
 test('picture NEXT walks the loop', () => {
   assert.equal(next(facts({ designed: 0 })).step, 'pictures');
@@ -244,13 +245,16 @@ test('picture NEXT walks the loop', () => {
   assert.match(next(facts({ rounds: [{ round: 1, shot: true, reviews: 4, compiled: false }] })).text, /review --round 1/);
   const open = { round: 1, shot: true, reviews: 4, compiled: true, counts: { must: 3, notReached: 1 } };
   assert.match(next(facts({ rounds: [open] })).text, /fix round.*4 state\(s\) open.*round 2/);
-  assert.equal(next(facts({ rounds: [{ ...open, round: MAX_ROUNDS }] })).step, 'ship');
-  assert.match(next(facts({ rounds: [{ ...open, round: MAX_ROUNDS }] })).text, /go to the founder as a list/);
+  // No fixed cap: with one round the count is still allowed to fall, so it stays a fix round at any round number.
+  assert.equal(next(facts({ rounds: [{ ...open, round: 3 }] })).step, 'fix');
+  // Once the stop rule (lib/picture/stop.mjs) has stopped the loop, the open items go to the founder.
+  assert.equal(next(facts({ rounds: [{ ...open, round: STOPPED.round }], decision: STOPPED.decision })).step, 'ship');
+  assert.match(next(facts({ rounds: [{ ...open, round: STOPPED.round }], decision: STOPPED.decision })).text, /the loop stopped \(.*\): 4 state\(s\) go to the founder with rounds\/4\/stuck\.md/);
   assert.equal(next(facts({ rounds: [{ ...open, counts: { must: 0, notReached: 0 } }] })).step, 'ship');
   // A partial re-shoot: the newest round lists unshot states as not reached, the latest verdicts do not.
-  const partial = { ...open, round: MAX_ROUNDS + 1, counts: { must: 1, notReached: 47 } };
-  assert.match(next(facts({ rounds: [partial], open: { must: 1, notReached: 0 } })).text, /1 state\(s\) stay open/);
-  const shipped = pictureNext(facts({ rounds: [{ ...open, round: MAX_ROUNDS }] }), { cli: 'node scripts/delivery.mjs', readyOk: true, epic: 1947 });
+  const partial = { ...open, round: 4, counts: { must: 1, notReached: 47 } };
+  assert.match(next(facts({ rounds: [partial], open: { must: 1, notReached: 0 }, decision: STOPPED.decision })).text, /1 state\(s\) go to the founder/);
+  const shipped = pictureNext(facts({ rounds: [{ ...open, round: STOPPED.round }], decision: STOPPED.decision }), { cli: 'node scripts/delivery.mjs', readyOk: true, epic: 1947 });
   assert.equal(shipped.step, 'land');
   assert.match(shipped.text, /after the founder's merge, node scripts\/delivery\.mjs land --epic 1947/);
 });
@@ -263,10 +267,10 @@ test('picture NEXT: items sent back to the design get their own tail line at shi
   assert.match(shipClean.text, /; 2 item\(s\) go back to the design: node scripts\/delivery\.mjs brief new <slug> --from-run$/);
   // No back-to-design items: no such tail at all.
   assert.doesNotMatch(next(facts({ rounds: [clean], backToDesign: 0 })).text, /back to the design/);
-  // Combines with the "stay open after MAX_ROUNDS" tail when both are true.
-  const stillOpen = { round: MAX_ROUNDS, shot: true, reviews: 1, compiled: true, counts: { must: 1, notReached: 0 } };
-  const both = next(facts({ rounds: [stillOpen], backToDesign: 1 }));
-  assert.match(both.text, /go to the founder as a list; 1 item\(s\) go back to the design: node scripts\/delivery\.mjs brief new <slug> --from-run$/);
+  // Combines with the "loop stopped, stuck items go to the founder" tail when both are true.
+  const stillOpen = { round: STOPPED.round, shot: true, reviews: 1, compiled: true, counts: { must: 1, notReached: 0 } };
+  const both = next(facts({ rounds: [stillOpen], backToDesign: 1, decision: STOPPED.decision }));
+  assert.match(both.text, /go to the founder with rounds\/4\/stuck\.md[^;]*; 1 item\(s\) go back to the design: node scripts\/delivery\.mjs brief new <slug> --from-run$/);
 });
 
 test('picture NEXT: components-first branches (page blocked, components run unbuilt, landed components run owing design-sync)', () => {
@@ -286,7 +290,7 @@ test('picture NEXT: components-first branches (page blocked, components run unbu
 
   // A components run whose gallery still has an unmarked component is stopped before land/ship,
   // even once every round is clean.
-  const openNone = { round: MAX_ROUNDS, shot: true, reviews: 1, compiled: true, counts: { must: 0, notReached: 0 } };
+  const openNone = { round: 3, shot: true, reviews: 1, compiled: true, counts: { must: 0, notReached: 0 } };
   const unbuilt = next(facts({ rounds: [openNone], componentsUnbuilt: ['Picker', 'TimePicker'], componentsMapRelPath: 'docs/delivery/components.json' }));
   assert.equal(unbuilt.step, 'components-build');
   assert.match(unbuilt.text, /components --mark-built Picker TimePicker/);

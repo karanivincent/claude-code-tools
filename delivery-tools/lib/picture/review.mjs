@@ -99,7 +99,9 @@ export function summarise({ map, shoot, notes, pre = {} }) {
     const given = notes[key] ?? { must: [], small: [], design: [], dataGap: [] };
     const shot = shoot?.states?.[key];
     const n = { must: [...given.must], small: [...given.small], design: [...(given.design ?? [])], dataGap: [...(given.dataGap ?? [])], dataFault: [] };
-    const carried = shot?.reached && !s.reach?.test ? pre.carried?.[key] : null;
+    // W5: an item held while its screen's sample was clean keeps its earlier label, like a carried one.
+    const heldFrom = shot?.reached && !s.reach?.test && !pre.carried?.[key] ? pre.held?.[key] : null;
+    const carried = shot?.reached && !s.reach?.test ? (pre.carried?.[key] ?? heldFrom) : null;
     if (carried) {
       const c = carried.state;
       n.must = [...(c.must ?? [])]; n.small = [...(c.small ?? [])]; n.design = [...(c.design ?? [])]; n.dataGap = [...(c.dataGap ?? [])]; n.dataFault = [...(c.dataFault ?? [])];
@@ -125,7 +127,7 @@ export function summarise({ map, shoot, notes, pre = {} }) {
     const auto = !carried && verdict === 'match' && pre.auto?.[key];
     states[key] = {
       verdict, must: n.must, small: n.small, design: n.design, ...(n.dataGap.length ? { dataGap: n.dataGap } : {}), ...(n.dataFault.length ? { dataFault: n.dataFault } : {}),
-      ...(carried ? { carried: { from: carried.from } } : {}), ...(auto ? { auto: true } : {}),
+      ...(carried && !heldFrom ? { carried: { from: carried.from } } : {}), ...(heldFrom ? { held: { from: heldFrom.from } } : {}), ...(auto ? { auto: true } : {}),
     };
   }
   return { states, counts };
@@ -393,7 +395,7 @@ export function packBatches(units, cap = MAX_BATCH_ITEMS) {
  * reviewer, and the batches of the rest.
  * @param {{ map: object, shoot: object, prev?: { round: number, shoot: object|null, review: object|null }|null, threshold?: number, cap?: number }} o
  */
-export function planReview({ map, shoot, prev = null, threshold = AUTO_MATCH_MAX_DIFF, cap = MAX_BATCH_ITEMS }) {
+export function planReview({ map, shoot, prev = null, threshold = AUTO_MATCH_MAX_DIFF, cap = MAX_BATCH_ITEMS, sample = SAMPLE_PER_SCREEN }) {
   const items = mapItems(map);
   const keys = items.filter((i) => !i.state.reach?.test && shoot.states?.[i.key]?.reached).map((i) => i.key);
   const carried = carriedItems({ keys, shoot, prevShoot: prev?.shoot, prevReview: prev?.review, prevRound: prev?.round });
@@ -401,13 +403,66 @@ export function planReview({ map, shoot, prev = null, threshold = AUTO_MATCH_MAX
   for (const key of keys) {
     if (!carried[key] && canAutoMatch(shoot.states[key], threshold)) auto[key] = { pixelDiff: shoot.states[key].pixelDiff };
   }
+  const { held, sampled } = sampleItems({ items, keys: keys.filter((k) => !carried[k] && !auto[k]), shoot, prev, threshold, sample });
   const units = [];
   for (const s of map.states ?? []) {
-    const mine = items.filter((i) => i.id === s.id && keys.includes(i.key) && !carried[i.key] && !auto[i.key]).map((i) => i.key);
+    const mine = items.filter((i) => i.id === s.id && keys.includes(i.key) && !carried[i.key] && !auto[i.key] && !held[i.key]).map((i) => i.key);
     if (mine.length) units.push({ screen: s.screen, items: mine });
   }
   const batches = packBatches(units, cap).map((b, i) => ({ id: i + 1, ...b }));
-  return { carried, auto, batches };
+  return { carried, auto, held, sampled, batches };
+}
+
+/** Items per screen sampled when earlier-matching items' pictures changed (W5, D8). */
+export const SAMPLE_PER_SCREEN = tunable('review.samplePerScreen');
+const FINE = new Set(['match', 'small']);
+
+/**
+ * W5 (D8): an item the last round passed (match or small) whose picture changed is not reviewed
+ * again one by one. Per screen, a sample is: the `sample` items whose pixels differ most from the
+ * design, plus every item above the auto-match line. The rest are held on their earlier label;
+ * if the sample finds a problem, `review --plan --held` reviews the rest of that screen, and every
+ * held item is reviewed once before shipping (ready stays red until then). `sample` 0 turns it off.
+ * @returns {{ held: Record<string, { from: number, state: object, screen: string }>, sampled: Record<string, { screen: string }> }}
+ */
+export function sampleItems({ items, keys, shoot, prev, threshold = AUTO_MATCH_MAX_DIFF, sample = SAMPLE_PER_SCREEN }) {
+  const held = {};
+  const sampled = {};
+  if (!prev?.review || !sample) return { held, sampled };
+  const byScreen = new Map();
+  for (const key of keys) {
+    const label = prev.review.states?.[key];
+    if (!label || !FINE.has(label.verdict) || label.held) continue;
+    const it = items.find((i) => i.key === key);
+    const screen = it?.state?.screen ?? it?.id ?? key;
+    if (!byScreen.has(screen)) byScreen.set(screen, []);
+    byScreen.get(screen).push({ key, label, diff: Number.isFinite(shoot.states[key]?.pixelDiff) ? shoot.states[key].pixelDiff : Infinity });
+  }
+  for (const [screen, list] of byScreen) {
+    list.sort((a, b) => b.diff - a.diff || (a.key < b.key ? -1 : 1));
+    list.forEach((x, i) => {
+      if (i < sample || x.diff > threshold) sampled[x.key] = { screen };
+      else held[x.key] = { from: x.label.carried?.from ?? x.label.held?.from ?? prev.round, state: x.label, screen };
+    });
+  }
+  return { held, sampled };
+}
+
+/**
+ * The held items `review --plan --held` sends to reviewers: those of the screens whose sample found
+ * a problem (a sampled item that is now must or not reached), or every held item when no sample
+ * failed (the review owed before shipping).
+ * @param {{ held?: object, sampled?: object }|null} reviewPlan
+ * @param {{ states?: object }|null} review the round's compiled review.json
+ * @returns {{ failedScreens: string[], keys: string[] }}
+ */
+export function heldToReview(reviewPlan, review) {
+  const held = reviewPlan?.held ?? {};
+  const heldScreens = new Set(Object.values(held).map((v) => v.screen));
+  const failed = new Set(Object.entries(reviewPlan?.sampled ?? {})
+    .filter(([k, v]) => heldScreens.has(v.screen) && ['must', 'not-reached'].includes(review?.states?.[k]?.verdict)).map(([, v]) => v.screen));
+  const keys = Object.entries(held).filter(([, v]) => !failed.size || failed.has(v.screen)).map(([k]) => k);
+  return { failedScreens: [...failed], keys };
 }
 
 /** The batches in the order they are dispatched: waves of at most MAX_PARALLEL_REVIEWERS. */
@@ -461,6 +516,6 @@ export function reshotItems(shoot, reviewPlan) {
 export function noteOwners(batchesDoc, reviewPlan) {
   const owners = new Map();
   for (const b of batchesDoc?.batches ?? []) for (const k of b.items ?? []) owners.set(k, b.write);
-  for (const k of [...Object.keys(reviewPlan?.carried ?? {}), ...Object.keys(reviewPlan?.auto ?? {})]) owners.set(k, null);
+  for (const k of [...Object.keys(reviewPlan?.carried ?? {}), ...Object.keys(reviewPlan?.auto ?? {}), ...Object.keys(reviewPlan?.held ?? {})]) owners.set(k, null);
   return owners;
 }

@@ -7,7 +7,7 @@ import { join, relative } from 'node:path';
 import { checklistPath, designIds, mapPath, validateMap } from './map.mjs';
 import { featurePaths } from '../core/paths.mjs';
 import { listRounds, roundInfo } from './rounds.mjs';
-import { backToDesignItems, reshotItems } from './review.mjs';
+import { backToDesignItems, heldToReview, reshotItems } from './review.mjs';
 import { designFor, hasPhone, mapItems } from './widths.mjs';
 import { owedDesignRules, readRules, ruleFacts, rulesPath } from './rules.mjs';
 import { componentsMapPath, effectiveComponentsFor, findDesignSystemManifest, missingFromDesignSystem } from '../components/map.mjs';
@@ -18,6 +18,7 @@ import { worldFilePath } from '../seed/plan.mjs';
 import { tablesWithoutGuard } from '../seed/data.mjs';
 import { contractPath, contractSummary } from './contract.mjs';
 import { dataFaultItems } from './datacheck.mjs';
+import { roundDecision, runDecision } from './stop.mjs';
 import { openNeeds } from '../seed/trace.mjs';
 
 /**
@@ -51,8 +52,6 @@ async function safeExportComponents(dir) {
   try { return (await readExportComponents(dir)).components; } catch { return []; }
 }
 
-/** Round 1 is the first build; two fix rounds follow at most. */
-export const MAX_ROUNDS = 3;
 
 const mtime = (p) => { try { return statSync(p).mtimeMs; } catch { return 0; } };
 
@@ -66,7 +65,7 @@ export function latestVerdicts(paths) {
   const latest = new Map();
   for (const n of listRounds(paths)) {
     const states = roundInfo(paths, n).review?.states ?? {};
-    for (const [id, s] of Object.entries(states)) if (s.verdict !== 'not-shot') latest.set(id, { verdict: s.verdict, round: n });
+    for (const [id, s] of Object.entries(states)) if (s.verdict !== 'not-shot') latest.set(id, { verdict: s.verdict, round: n, ...(s.held ? { held: true } : {}) });
   }
   return latest;
 }
@@ -203,6 +202,10 @@ export async function pictureFacts(paths, opts = {}) {
       // W3: items the shoot's datacheck found a data fault in, and the re-shoots already spent on them.
       dataFaults: faultItems.length,
       dataFixPasses: (info.shoot?.reshot ?? []).filter((r) => r.why === 'data-faults').length,
+      // W5: items review.json still carries on their earlier label because their screen's sample
+      // was clean; they are reviewed once before shipping.
+      held: Object.values(info.review?.states ?? {}).filter((x) => x.held).length,
+      heldFailed: heldToReview(info.reviewPlan, info.review).failedScreens.length,
       // R5: items re-shot (shoot --only) since the round was planned, and planned batches no
       // reviewer has written yet.
       reshot: batchesDoc ? reshotItems(info.shoot, info.reviewPlan).length : 0,
@@ -267,6 +270,8 @@ export async function pictureFacts(paths, opts = {}) {
     phoneRenderOwed: phoneRenderOwed(map, designed),
     noun: map && hasPhone(map) ? 'item' : 'state',
     open: latest.length ? { must: count('must'), notReached: count('not-reached'), data: count('data-fault') + count('data-gap') } : null,
+    // W4: the stop rule over the compiled rounds' real-bug counts, shared with ready.
+    decision: runDecision(paths),
     // D13: data an agent asked for (seed --need) that no seed-writer has added yet.
     needs: openNeeds(paths).length,
     hasMap: Boolean(map),
@@ -371,10 +376,18 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   if (!open && dataOpen) {
     return { step: 'data-faults', skill, text: `${dataOpen} ${noun}(s) have a data fault or gap and nothing else: dispatch the seed-writer with their notes (round ${last.round}'s review.json), then ${cli} seed --plan and --check, ${cli} shoot --base-url <url> --only data-faults --round ${last.round}, and review just those` };
   }
-  if (open && last.round < MAX_ROUNDS) {
-    return { step: 'fix', skill, text: `fix round: send the builder round ${last.round}'s review.json (${open} ${noun}(s) open), then ${cli} shoot --base-url <url> (round ${last.round + 1}; it resets the worlds itself)` };
+  // W5: a sample found a problem in a screen: the rest of that screen is reviewed before the fix.
+  if (last.heldFailed) return { step: 'review', skill, text: `${cli} review --plan --round ${last.round} --held: the sample found a problem in ${last.heldFailed} screen(s), so the items held there are reviewed too; then dispatch the batches and ${cli} review --round ${last.round}` };
+  // W4 (D7): no fixed cap. The same rule ready reads (lib/picture/stop.mjs): fix while the count
+  // falls, ship at zero, stop after rounds.stallRounds rounds with no fall or at the ceiling.
+  const d = f.decision ?? roundDecision([open]);
+  if (open && d.decision === 'fix') {
+    return { step: 'fix', skill, text: `fix round: send the fixer round ${last.round}'s review.json (${open} ${noun}(s) open; ${d.why}), then ${cli} shoot --base-url <url> (round ${last.round + 1}; it resets the worlds itself)` };
   }
-  let tail = open ? `; ${open} ${noun}(s) stay open after ${MAX_ROUNDS} rounds and go to the founder as a list` : '';
+  // W5: items held back from review while their screen's sample was clean are reviewed once
+  // before anything ships, so nothing ships unreviewed.
+  if (last.held) return { step: 'review', skill, text: `${cli} review --plan --round ${last.round} --held: ${last.held} item(s) whose pictures changed were held back while their screen's sample was clean; they are reviewed once before shipping` };
+  let tail = open ? `; the loop stopped (${d.why}): ${open} ${noun}(s) go to the founder with rounds/${last.round}/stuck.md (review writes it), each with the reviewers' notes and why it did not move` : '';
   const backToDesign = f.backToDesign ?? 0;
   if (backToDesign) tail += `; ${backToDesign} item(s) go back to the design: ${cli} brief new <slug> --from-run`;
   if (f.componentsUnbuilt?.length) {

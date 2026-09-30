@@ -21,7 +21,8 @@ import { refreshBaseline } from '../baseline/refresh.mjs';
 import { outOfScopeFiles } from '../baseline/scope.mjs';
 import { CHECK_IDS, runChecks } from '../checks/index.mjs';
 import { readMap } from '../picture/map.mjs';
-import { MAX_ROUNDS, latestVerdicts, pictureFacts } from '../picture/next.mjs';
+import { latestVerdicts, pictureFacts } from '../picture/next.mjs';
+import { runDecision } from '../picture/stop.mjs';
 import { contractSummary, readContract } from '../picture/contract.mjs';
 import { ruleFacts } from '../picture/rules.mjs';
 import { designFor } from '../picture/widths.mjs';
@@ -337,8 +338,8 @@ export async function pictureReadiness(paths) {
   const by = (v) => [...latest].filter(([, s]) => s.verdict === v).map(([id, s]) => `${id} (round ${s.round})`);
   const unreached = by('not-reached');
   if (unreached.length) return { ok: false, detail: `${unreached.length} ${noun}(s) whose newest picture was not reached: ${unreached.slice(0, 5).join(', ')}`, evidence: 'review.json' };
-  // A1: a data gap is the world's problem, not the builder's, so it is never counted against the
-  // MAX_ROUNDS fix-round allowance below and never quietly goes to the founder as an accepted open
+  // A1: a data gap is the world's problem, not the builder's, so it is never counted by the
+  // stop rule below and never quietly goes to the founder as an accepted open
   // item the way a stale must-fix can. It always keeps ready red, listed apart from code defects,
   // until the world is re-seeded (delivery seed --apply) and the state shot again.
   const dataGaps = [...by('data-fault'), ...by('data-gap')];
@@ -353,11 +354,16 @@ export async function pictureReadiness(paths) {
   }
   const open = by('must');
   const last = rounds.at(-1).round;
-  if (open.length && rounds.length < MAX_ROUNDS) {
-    return { ok: false, detail: `${open.length} ${noun}(s) still to fix and ${MAX_ROUNDS - rounds.length} fix round(s) left: ${open.slice(0, 5).join(', ')}`, evidence: `rounds/${last}` };
+  // W4: the same stop rule NEXT reads. Open items are allowed only once the loop has stopped.
+  const d = runDecision(paths);
+  if (open.length && d.decision === 'fix') {
+    return { ok: false, detail: `${open.length} ${noun}(s) still to fix, and the fix rounds go on while the count falls (${d.why}): ${open.slice(0, 5).join(', ')}`, evidence: `rounds/${last}` };
   }
+  // W5: an item held back from review (its screen's sample was clean) is reviewed before shipping.
+  const held = [...latest].filter(([, s]) => s.held).map(([id]) => id);
+  if (held.length) return { ok: false, detail: `${held.length} ${noun}(s) were held back from review while their screen's sample was clean; review them before shipping: delivery review --plan --round ${last} --held`, evidence: `rounds/${last}/review-plan.json` };
   const n = (v) => by(v).length;
-  const tail = open.length ? `; ${open.length} still open after ${rounds.length} rounds go to the founder as a list` : '';
+  const tail = open.length ? `; the loop stopped (${d.why}): ${open.length} stuck item(s) go to the founder with rounds/${last}/stuck.md` : '';
   return { ok: true, detail: `${latest.size} ${noun}(s): ${n('match')} match, ${n('small')} small differences, every pictured ${noun} reached${tail}`, evidence: `rounds/${last}/review.json` };
 }
 

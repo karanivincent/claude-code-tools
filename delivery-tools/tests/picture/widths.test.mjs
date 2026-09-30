@@ -343,7 +343,7 @@ test('latestVerdicts and pictureReadiness key and count by item', async () => {
     assert.deepEqual(latest.get('KC-04@phone'), { verdict: 'small', round: 2 });
     const red = await pictureReadiness(r.paths);
     assert.equal(red.ok, false);
-    assert.match(red.detail, /^1 item\(s\) still to fix and 1 fix round\(s\) left: KC-05@phone \(round 1\)/);
+    assert.match(red.detail, /^1 item\(s\) still to fix, and the fix rounds go on while the count falls \(1 still open \(3 > 1\)\): KC-05@phone \(round 1\)/);
     r.round(3, { 'KC-05@phone': 'match' });
     const green = await pictureReadiness(r.paths);
     assert.equal(green.ok, true);
