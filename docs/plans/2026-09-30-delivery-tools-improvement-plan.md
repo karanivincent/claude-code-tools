@@ -1,8 +1,9 @@
 # delivery-tools: the improvement plan
 
 **Status: approved by Vincent on 2026-09-30, all 13 decisions as recommended, with the spike
-amendments below.** The review page is https://claude.ai/artifact/CnctSJf2pBVaZYJLsTiB2n. Next:
-release 0.15.0 (W1 and W2).
+amendments below. Built in full by 2026-09-30: W1+W2 in 0.18.0 (#67), W3 to W9 in 0.19.0 to
+0.23.0 (#68 to #72); see Progress at the bottom.** The review page is
+https://claude.ai/artifact/CnctSJf2pBVaZYJLsTiB2n. Next: measure the next two runs.
 
 **Release numbers (added when W1 and W2 shipped).** Releases 0.15.0 to 0.17.0 were taken by the
 stable-picture-data plan, which landed the same week. W1 and W2 shipped as 0.18.0, so every release
@@ -650,3 +651,22 @@ Decisions (W9):
   `picture-builder-medium` (effort lives in agent files). The builder role lists it in
   `agentTypes`; the SubagentStop record carries the agent type, so the ledger knows the experiment
   ran and `delivery runs` shows it. `activeExperiment` turns it off after `runs` runs.
+
+Built: PR https://github.com/karanivincent/claude-code-tools/pull/72 (tests 1467, 1448 pass, 0 fail, 19 skipped).
+
+## What the next run should measure
+
+The plan's five numbers, from `docs/delivery/runs.jsonl` and `delivery runs`, against Settings
+(12 h, about $200, 2 rounds thrown away, 39 data gaps in round 2, 13 open at the end) and Rounds:
+
+1. Wall time, and the share of it in shoots (W6: target 10 to 12 min per shoot on `--prod`).
+2. Cost per run and per finished round, and the builder experiment's build-phase cost against a
+   run at Opus high.
+3. Rounds thrown away (target 0): a round deleted by W2 or re-shot for a broken page.
+4. Data faults per round (datacheck, before review) against data gaps per round (reviewers): the
+   ledger now records both. Target: almost all caught as data faults, before round 1's review.
+5. Real bugs left when the loop stops, and whether it stopped at zero, stuck (`stuck.md`) or at
+   the ceiling.
+
+Also worth one line each in the retro: items skipped as unchanged per fix round (W5), held items
+and failed samples, and whether the shorter shoot pauses raised not-reached counts.
