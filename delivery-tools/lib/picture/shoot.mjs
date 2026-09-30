@@ -9,6 +9,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { reachSteps, writesData } from './map.mjs';
 import { withSlot, slotsFile } from '../capture/slots.mjs';
+import { tunable } from '../retro/tunables.mjs';
 import { waitEvent } from '../retro/log.mjs';
 import { pageExtract } from '../capture/page-extract.mjs';
 import { sha256 } from '../core/hash.mjs';
@@ -364,6 +365,7 @@ export async function openSignedIn(browser, o, entry, user, ip, prepare) {
  *   lookup sorts data differences by. Throws when the world cannot be reset safely: its items are
  *   then not reached, never pictured on a world nobody checked.
  * @param {string|null} [o.timeZone] the profile's testData.timeZone, for the browser
+ * @param {number} [o.parallel] worlds shot at once (default shoot.parallelWorlds)
  * @param {object|null} [o.contract] the run's contract.json, for the datacheck (W3)
  * @param {Record<string, Record<string, string>>|null} [o.swaps] swaps.json's worlds (seed --from-trace)
  * @returns {Promise<Record<string, object>>} keyed by item key
@@ -379,11 +381,20 @@ export async function runShoot(o) {
   const failedReset = new Map(); // world -> why it could not be reset
   let ip = 20;
   try {
+    // W6: worlds are shot side by side, one browser context each (shoot.parallelWorlds at once). A
+    // world is never in two contexts at the same time, so its resets and saves stay its own; the
+    // entries of one world keep their order (reads before writes).
+    const byWorld = new Map();
     for (const entry of captureOrder(o.items, o.map)) {
+      if (!byWorld.has(entry.world)) byWorld.set(entry.world, []);
+      byWorld.get(entry.world).push(entry);
+    }
+    const queues = [...byWorld.values()];
+    const shootEntry = async (entry) => {
       const user = userFor(o.map, entry.world, entry.role);
       if (!user) {
         for (const it of entry.items) report[it.key] = { user: null, width: it.width, reached: false, problems: [`world ${entry.world} has no ${entry.role} user`], buttons: [] };
-        continue;
+        return;
       }
       if (o.reset && !failedReset.has(entry.world) && (!seeded.has(entry.world) || dirty.has(entry.world))) {
         try {
@@ -399,7 +410,7 @@ export async function runShoot(o) {
           report[it.key] = { user: `${entry.world}/${entry.role}`, width: it.width, reached: false, problems: [`world ${entry.world} could not be reset to its seed: ${failedReset.get(entry.world)}`], buttons: [] };
           o.log(resultLine(it.key, report[it.key]));
         }
-        continue;
+        return;
       }
       const frozenAt = seeded.get(entry.world)?.at ?? null;
       let frozen = false;
@@ -423,7 +434,17 @@ export async function runShoot(o) {
         await o.reseed(entry.world);
         if (seeded.has(entry.world)) { seeded.set(entry.world, { ...seeded.get(entry.world), at: o.now ? o.now() : new Date() }); dirty.delete(entry.world); }
       }
-    }
+    };
+    let next = 0;
+    const worker = async () => {
+      while (next < queues.length) {
+        const queue = queues[next++];
+        for (const entry of queue) await shootEntry(entry);
+      }
+    };
+    const parallel = Math.max(1, Math.min(o.parallel ?? PARALLEL_WORLDS, queues.length));
+    if (parallel > 1) o.log(`shooting ${queues.length} world(s), ${parallel} at a time`);
+    await Promise.all(Array.from({ length: parallel }, worker));
     await cropDesigns(browser, o, o.items);
     await recordPictureFacts(browser, o, report, liveFacts, seeded);
     await writeSeeded(o.outDir, seeded);
@@ -434,8 +455,15 @@ export async function runShoot(o) {
 }
 
 /** How long the network must stay quiet before a reach step counts as settled, and the most a step waits. */
-export const SETTLE_QUIET_MS = 500;
-export const SETTLE_CAP_MS = 10000;
+export const SETTLE_QUIET_MS = tunable('shoot.settleQuietMs');
+export const SETTLE_CAP_MS = tunable('shoot.settleCapMs');
+/** W6: the waits of a shoot, from tunables.json. The page has loaded before any click, so a missing control fails in 3 s, not 8. */
+export const CLICK_TIMEOUT_MS = tunable('shoot.clickTimeoutMs');
+export const STEP_PAUSE_MS = tunable('shoot.stepPauseMs');
+export const SETTLE_PAUSE_MS = tunable('shoot.settlePauseMs');
+export const RESIZE_PAUSE_MS = tunable('shoot.resizePauseMs');
+/** W6: worlds shot at once, each in its own browser context. */
+export const PARALLEL_WORLDS = tunable('shoot.parallelWorlds');
 const STREAMING = new Set(['eventsource', 'websocket']);
 
 /**
@@ -493,14 +521,14 @@ async function shootItem(page, it, o, liveFacts = new Map()) {
       else if (step.click) {
         let loc = step.click.testid ? await locateTestid(page, step.click.testid) : page.getByRole(step.click.role ?? 'button', { name: step.click.name });
         if (step.click.testid && step.click.name) loc = loc.filter({ hasText: step.click.name });
-        await loc.first().click({ timeout: 8000 });
+        await loc.first().click({ timeout: CLICK_TIMEOUT_MS });
       } else if (step.type) {
-        await (await locateTestid(page, step.type.testid)).first().fill(step.type.text, { timeout: 8000 });
+        await (await locateTestid(page, step.type.testid)).first().fill(step.type.text, { timeout: CLICK_TIMEOUT_MS });
       } else if (step.open) {
         const g = (await locateTestid(page, step.open.testid)).first();
-        if ((await g.getAttribute('aria-expanded', { timeout: 8000 })) === 'false') await g.click();
+        if ((await g.getAttribute('aria-expanded', { timeout: CLICK_TIMEOUT_MS })) === 'false') await g.click();
       }
-      await page.waitForTimeout(400);
+      await page.waitForTimeout(STEP_PAUSE_MS);
       // A click that saves starts a request; picture what the page does once it answers.
       // A page that polls may never go quiet; the cap then just ends the wait.
       await waitForQuiet(net);
@@ -510,7 +538,7 @@ async function shootItem(page, it, o, liveFacts = new Map()) {
     rec.problems.push(String(err?.message ?? err).split('\n')[0]);
   }
   await page.waitForLoadState('networkidle').catch(() => {});
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(SETTLE_PAUSE_MS);
 
   if (o.map.kind === 'components') {
     const loc = page.locator(crop.selector).first();
@@ -548,7 +576,7 @@ async function shootItem(page, it, o, liveFacts = new Map()) {
   const extra = await page.evaluate(extraScrollHeight, phone);
   const height = Math.min(size.height + extra, MAX_HEIGHT);
   await page.setViewportSize({ width: size.width, height });
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(RESIZE_PAUSE_MS);
   const top = await page.evaluate(pageAreaTop, left);
   // Every width, not only the phone: a fixed bar (a bottom tab bar, a dev-server overlay) is
   // shared chrome, hidden before the picture rather than graded, at any width it happens to show.

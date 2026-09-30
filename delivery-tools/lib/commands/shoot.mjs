@@ -22,6 +22,9 @@ import { hasPhone, roundFiles } from '../picture/widths.mjs';
 import { changedSince, unchangedItems } from '../picture/changed.mjs';
 import { latestVerdicts } from '../picture/next.mjs';
 import { probeServer } from '../picture/smoke.mjs';
+import { startProdServer } from '../picture/prod-server.mjs';
+import { freePort } from '../capture/run.mjs';
+import { tunable } from '../retro/tunables.mjs';
 import { smokeGate } from './smoke.mjs';
 
 export { probeServer };
@@ -62,8 +65,9 @@ re-shot before any reviewer looks) or holds it and the page does not show it (a 
 into shoot.json as the item's lookup and into datacheck.json; review counts them. delivery
 datacheck runs the same check again from those files.
 
-The app must already be running: start the profile's dev server in the background first, or pass
-a preview URL. Never click anything by hand to reach a state; fix the map instead.
+The app must already be running (start the profile's dev server in the background first, or pass
+a preview URL), or pass --prod. Worlds are shot side by side (tunables shoot.parallelWorlds), one
+browser context each; a world is never in two contexts at once. Never click anything by hand to reach a state; fix the map instead.
 
 Every page loads first. Before anything is pictured, the shoot runs delivery smoke on the routes
 the chosen items reach, and stops at the first broken page (a status of 500 or more, the Next.js
@@ -73,6 +77,11 @@ so the next shoot takes the same number (a re-shoot into an existing round keeps
 
 options:
   --base-url <url>   the running app (a local dev server or a preview)
+  --prod             instead of --base-url: build and serve a production build with the profile's
+                     commands.prodServer ({port}; its own build folder, so the dev server keeps
+                     running), shoot it, and stop it. A dev server compiles each route on its first
+                     visit; a production build answers at once. A build that fails stops the shoot
+                     with its last lines, and no round is used.
   --round <n|work>   where the pictures go: a numbered round (default: the next one) or "work",
                      a builder's own looking, which never counts as a round
   <ITEM>             take only these: <ID> is the state at every width, <ID>@phone or
@@ -98,12 +107,13 @@ common options:
   --help             this text`,
   async run(ctx, argv) {
     const { values, positionals } = parseCommandArgs(argv, {
-      options: { 'base-url': { type: 'string' }, round: { type: 'string' }, only: { type: 'string' }, 'no-reset': { type: 'boolean' }, all: { type: 'boolean' } },
+      options: { 'base-url': { type: 'string' }, round: { type: 'string' }, only: { type: 'string' }, 'no-reset': { type: 'boolean' }, all: { type: 'boolean' }, prod: { type: 'boolean' } },
       positionals: { max: -1 },
     });
-    const baseUrl = values['base-url'];
-    if (!baseUrl) throw new UsageError('--base-url is required: the running app to picture');
-    try { new URL(baseUrl); } catch { throw new UsageError(`--base-url "${baseUrl}" is not a URL`); }
+    let baseUrl = values['base-url'];
+    if (values.prod && baseUrl) throw new UsageError('give --prod or --base-url, not both');
+    if (!baseUrl && !values.prod) throw new UsageError('--base-url is required: the running app to picture (or --prod: a production build from the profile\'s commands.prodServer)');
+    if (baseUrl) { try { new URL(baseUrl); } catch { throw new UsageError(`--base-url "${baseUrl}" is not a URL`); } }
     const paths = ctx.requirePaths();
     const map = readMap(paths);
     if (!map) { ctx.out.fail('no-map', 'there is no map.json; run delivery map first'); return EXIT.USAGE; }
@@ -157,98 +167,118 @@ common options:
     const db = await createDataAdapter(ctx);
     const { chromium } = await resolvePlaywright({ repoRoot: ctx.repoRoot, e2eDir: profile.paths?.e2eDir ?? null });
 
-    const broken = await probeServer(ctx, baseUrl);
-    if (broken) { ctx.out.fail('server-broken', broken); return EXIT.RED; }
-    const seedPlan = await readArtefact(paths, 'seedplan', { optional: true }).catch(() => null);
-    const resetting = !values['no-reset'] && Boolean(seedPlan);
-    if (!values['no-reset'] && !seedPlan) ctx.out.warn('no seedplan.json: the worlds are not reset before the shoot, so the pictures may show drifted data (delivery seed --plan)');
-    const drift = seedPlan ? await driftWarnings(ctx, db, paths, seedPlan, [...new Set(items.map((i) => i.state.reach.world))]) : [];
-    let contract = null;
-    try { contract = readContract(paths); } catch (err) { ctx.out.warn(`contract.json does not parse (${err.message}); data differences are not looked up`); }
-    const swaps = readSwaps(paths);
-    // W2: every page the items reach loads before anything is pictured.
-    let smoke = null;
-    const report = await withShootSlot(ctx, async () => {
-      smoke = await smokeGate(ctx, { map, items, baseUrl, profile, paths, db, chromium, inSlot: true });
-      if (smoke.failure) return null;
-      ctx.out.line(`${values.only !== undefined ? 're-' : ''}shooting ${items.length} ${noun}(s) on ${baseUrl} into ${outDir}`);
-      return runShoot({
-        map, items, baseUrl, outDir,
-        timeZone: profile.testData?.timeZone ?? null,
-        contract,
-        swaps,
-        at: () => ctx.clock.now().toISOString(),
-        now: () => ctx.clock.now(),
-        reset: resetting ? (worldId) => resetWorld(ctx, db, seedPlan, worldId) : undefined,
-        designDir: paths.designRenders,
-        sessionsDir: join(paths.runDir, 'sessions'),
-        magicLinkPath: profile.auth?.magicLinkPath ?? '/auth/confirm',
-        auth: { signInHash: (email) => db.signInHash(email) },
-        chromium,
-        log: (l) => ctx.out.line(l),
-        // A state that changes data and is checked at both widths uses a freshly seeded world each
-        // time: reuse the seed plan's own apply path (spec 7.4), the same one `seed --refresh` runs.
-        reseed: async (worldId) => {
-          const gate = await refreshWorld(ctx, worldId);
-          if (!gate.ok) ctx.out.warn(`re-seeding ${worldId} before the next width's shot found problems: ${gate.failures.map((f) => f.message).join('; ')}`);
-        },
+    // W6 (D9): a production build of the page, built while the shoot holds the heavy slot.
+    let prod = null;
+    if (values.prod) {
+      if (!profile.commands?.prodServer) throw new UsageError('--prod needs the profile\'s commands.prodServer: a command that builds and serves a production build on {port} without touching the dev server\'s build folder');
+      ctx.out.line('building and starting a production server (commands.prodServer) for the shoot');
+      const r = await withShootSlot(ctx, async () => startProdServer({ command: profile.commands.prodServer, port: await freePort(), cwd: ctx.repoRoot, timeoutMs: tunable('capture.prodBuildTimeoutMs') }));
+      if (r.failure) {
+        ctx.out.fail('build-failed', `${r.failure}; nothing was pictured, and no round was used`);
+        if (r.output) ctx.out.line(r.output.split('\n').slice(-15).map((l) => `  ${l}`).join('\n'));
+        await ctx.journal({ command: `shoot --round ${round}`, exit: EXIT.RED, counts: { items: items.length, buildFailed: 1 } });
+        return EXIT.RED;
+      }
+      prod = r;
+      baseUrl = r.baseUrl;
+      ctx.out.line(`production server up on ${baseUrl}`);
+    }
+    try {
+      const broken = await probeServer(ctx, baseUrl);
+      if (broken) { ctx.out.fail('server-broken', broken); return EXIT.RED; }
+      const seedPlan = await readArtefact(paths, 'seedplan', { optional: true }).catch(() => null);
+      const resetting = !values['no-reset'] && Boolean(seedPlan);
+      if (!values['no-reset'] && !seedPlan) ctx.out.warn('no seedplan.json: the worlds are not reset before the shoot, so the pictures may show drifted data (delivery seed --plan)');
+      const drift = seedPlan ? await driftWarnings(ctx, db, paths, seedPlan, [...new Set(items.map((i) => i.state.reach.world))]) : [];
+      let contract = null;
+      try { contract = readContract(paths); } catch (err) { ctx.out.warn(`contract.json does not parse (${err.message}); data differences are not looked up`); }
+      const swaps = readSwaps(paths);
+      // W2: every page the items reach loads before anything is pictured.
+      let smoke = null;
+      const report = await withShootSlot(ctx, async () => {
+        smoke = await smokeGate(ctx, { map, items, baseUrl, profile, paths, db, chromium, inSlot: true });
+        if (smoke.failure) return null;
+        ctx.out.line(`${values.only !== undefined ? 're-' : ''}shooting ${items.length} ${noun}(s) on ${baseUrl} into ${outDir}`);
+        return runShoot({
+          map, items, baseUrl, outDir,
+          timeZone: profile.testData?.timeZone ?? null,
+          contract,
+          swaps,
+          at: () => ctx.clock.now().toISOString(),
+          now: () => ctx.clock.now(),
+          reset: resetting ? (worldId) => resetWorld(ctx, db, seedPlan, worldId) : undefined,
+          designDir: paths.designRenders,
+          sessionsDir: join(paths.runDir, 'sessions'),
+          magicLinkPath: profile.auth?.magicLinkPath ?? '/auth/confirm',
+          auth: { signInHash: (email) => db.signInHash(email) },
+          chromium,
+          log: (l) => ctx.out.line(l),
+          // A state that changes data and is checked at both widths uses a freshly seeded world each
+          // time: reuse the seed plan's own apply path (spec 7.4), the same one `seed --refresh` runs.
+          reseed: async (worldId) => {
+            const gate = await refreshWorld(ctx, worldId);
+            if (!gate.ok) ctx.out.warn(`re-seeding ${worldId} before the next width's shot found problems: ${gate.failures.map((f) => f.message).join('; ')}`);
+          },
+        });
       });
-    });
-    if (smoke?.failure) {
-      ctx.out.line('nothing was pictured, and no round was used');
-      ctx.out.set('shoot', { round, outDir, smoke: smoke.failure, reached: 0 });
-      await ctx.journal({ command: `shoot --round ${round}`, exit: EXIT.RED, counts: { items: items.length, smokeFailed: 1 } });
-      return EXIT.RED;
-    }
-    // The skipped items' records and pictures are copied from the round before, which holds them
-    // (shot there, or copied there in turn); `unchanged.from` names the round that shot them.
-    const prevStates = prevRound ? roundInfo(paths, prevRound).shoot?.states ?? {} : {};
-    for (const key of Object.keys(unchanged.skip)) {
-      const rec = prevStates[key];
-      if (!rec) continue;
-      const src = roundDir(paths, prevRound);
-      for (const f of [...Object.values(roundFiles(key)), `${key}.live.txt`]) if (existsSync(join(src, f))) copyFileSync(join(src, f), join(outDir, f));
-      report[key] = { ...rec, unchanged: { from: rec.unchanged?.from ?? prevRound } };
-    }
-    const why = values.only === undefined ? null : ['data-gaps', 'data-faults'].includes(values.only.trim()) ? 'data-faults' : 'items';
-    const head = await ctx.git.revParse('HEAD').catch(() => null);
-    const doc = await writeShootJson(outDir, { baseUrl, at: ctx.clock.now().toISOString(), report, reshot: values.only !== undefined, why, head });
-    // A build that ran while the shoot did can break the server halfway; its pictures are then of an
-    // error page. Such a round never counts: its folder goes, and the next shoot takes its number.
-    const brokeDuring = (await probeServer(ctx, baseUrl)) ?? (await smokeGate(ctx, { map, items, baseUrl, profile, paths, db, chromium, quiet: true })).failure;
-    if (brokeDuring) {
-      const why = typeof brokeDuring === 'string' ? brokeDuring : `${brokeDuring.route} at ${brokeDuring.width} is broken: ${brokeDuring.why}`;
-      const discarded = newRound && discardRound(paths, round);
-      ctx.out.fail('server-broken', `${why}. It broke during the shoot, so some pictures show an error page: ${discarded ? `round ${round} was deleted, and the next shoot takes its number again` : 'shoot this round again once it serves'}`);
-      ctx.out.set('shoot', { round, outDir, brokeDuring: why, discarded });
-      await ctx.journal({ command: `shoot --round ${round}`, exit: EXIT.RED, counts: { items: items.length, brokeDuring: 1, discarded: discarded ? 1 : 0 } });
-      return EXIT.RED;
-    }
+      if (smoke?.failure) {
+        ctx.out.line('nothing was pictured, and no round was used');
+        ctx.out.set('shoot', { round, outDir, smoke: smoke.failure, reached: 0 });
+        await ctx.journal({ command: `shoot --round ${round}`, exit: EXIT.RED, counts: { items: items.length, smokeFailed: 1 } });
+        return EXIT.RED;
+      }
+      // The skipped items' records and pictures are copied from the round before, which holds them
+      // (shot there, or copied there in turn); `unchanged.from` names the round that shot them.
+      const prevStates = prevRound ? roundInfo(paths, prevRound).shoot?.states ?? {} : {};
+      for (const key of Object.keys(unchanged.skip)) {
+        const rec = prevStates[key];
+        if (!rec) continue;
+        const src = roundDir(paths, prevRound);
+        for (const f of [...Object.values(roundFiles(key)), `${key}.live.txt`]) if (existsSync(join(src, f))) copyFileSync(join(src, f), join(outDir, f));
+        report[key] = { ...rec, unchanged: { from: rec.unchanged?.from ?? prevRound } };
+      }
+      const why = values.only === undefined ? null : ['data-gaps', 'data-faults'].includes(values.only.trim()) ? 'data-faults' : 'items';
+      const head = await ctx.git.revParse('HEAD').catch(() => null);
+      const doc = await writeShootJson(outDir, { baseUrl, at: ctx.clock.now().toISOString(), report, reshot: values.only !== undefined, why, head });
+      // A build that ran while the shoot did can break the server halfway; its pictures are then of an
+      // error page. Such a round never counts: its folder goes, and the next shoot takes its number.
+      const brokeDuring = (await probeServer(ctx, baseUrl)) ?? (await smokeGate(ctx, { map, items, baseUrl, profile, paths, db, chromium, quiet: true })).failure;
+      if (brokeDuring) {
+        const why = typeof brokeDuring === 'string' ? brokeDuring : `${brokeDuring.route} at ${brokeDuring.width} is broken: ${brokeDuring.why}`;
+        const discarded = newRound && discardRound(paths, round);
+        ctx.out.fail('server-broken', `${why}. It broke during the shoot, so some pictures show an error page: ${discarded ? `round ${round} was deleted, and the next shoot takes its number again` : 'shoot this round again once it serves'}`);
+        ctx.out.set('shoot', { round, outDir, brokeDuring: why, discarded });
+        await ctx.journal({ command: `shoot --round ${round}`, exit: EXIT.RED, counts: { items: items.length, brokeDuring: 1, discarded: discarded ? 1 : 0 } });
+        return EXIT.RED;
+      }
 
-    const notReached = Object.entries(report).filter(([, r]) => !r.reached).map(([id]) => id);
-    const dirty = [...new Set(items.filter((i) => report[i.key]?.writes).map((i) => i.state.reach.world))];
-    const sideways = Object.entries(report).filter(([, r]) => r.overflow).map(([key]) => key);
-    ctx.out.line(`reached ${Object.keys(report).length - notReached.length} of ${Object.keys(report).length}${notReached.length ? `; not reached: ${notReached.join(', ')}` : ''}`);
-    if (sideways.length) ctx.out.line(`scrolls sideways at phone width: ${sideways.join(', ')}`);
-    if (dirty.length) ctx.out.line(resetting ? `these worlds changed: ${dirty.join(', ')} (the next shoot resets them itself)` : `these worlds changed; re-seed them before the next shoot: delivery seed ${dirty.map((w) => `--refresh ${w}`).join(' ')}`);
-    const looked = Object.entries(report).filter(([, r]) => r.lookup);
-    const gaps = looked.filter(([, r]) => r.lookup.dataFault?.length).map(([k]) => k);
-    const musts = looked.filter(([, r]) => r.lookup.must?.length).map(([k]) => k);
-    const checked = Object.values(report).reduce((n, r) => n + (r.datacheck?.checked ?? 0), 0);
-    if (contract) ctx.out.line(`datacheck: ${checked} traced value(s) looked for; ${gaps.length} item(s) with a data fault, ${musts.length} with a value the world holds and the page does not show`);
-    if (gaps.length) ctx.out.line(`data faults (the world lacks what the design shows; a seed-writer fixes the world file, then shoot --only data-faults, before any reviewer): ${gaps.join(', ')}`);
-    if (musts.length) ctx.out.line(`must fix found by datacheck (the world holds it, the page does not show it): ${musts.join(', ')}`);
-    if (contract && round !== WORK_ROUND) {
-      const sources = sourceProblems(contract, selectedColumns(await readQuerySources(ctx.repoRoot)));
-      await writeDatacheck(outDir, doc, ctx.clock.now().toISOString(), sources);
-      if (sources.length) ctx.out.line(`${sources.length} traced column(s) no query in the code selects (a "no source" question for the founder, in delivery contract --questions): ${sources.slice(0, 5).map((x) => `${x.table}.${x.column}`).join(', ')}`);
+      const notReached = Object.entries(report).filter(([, r]) => !r.reached).map(([id]) => id);
+      const dirty = [...new Set(items.filter((i) => report[i.key]?.writes).map((i) => i.state.reach.world))];
+      const sideways = Object.entries(report).filter(([, r]) => r.overflow).map(([key]) => key);
+      ctx.out.line(`reached ${Object.keys(report).length - notReached.length} of ${Object.keys(report).length}${notReached.length ? `; not reached: ${notReached.join(', ')}` : ''}`);
+      if (sideways.length) ctx.out.line(`scrolls sideways at phone width: ${sideways.join(', ')}`);
+      if (dirty.length) ctx.out.line(resetting ? `these worlds changed: ${dirty.join(', ')} (the next shoot resets them itself)` : `these worlds changed; re-seed them before the next shoot: delivery seed ${dirty.map((w) => `--refresh ${w}`).join(' ')}`);
+      const looked = Object.entries(report).filter(([, r]) => r.lookup);
+      const gaps = looked.filter(([, r]) => r.lookup.dataFault?.length).map(([k]) => k);
+      const musts = looked.filter(([, r]) => r.lookup.must?.length).map(([k]) => k);
+      const checked = Object.values(report).reduce((n, r) => n + (r.datacheck?.checked ?? 0), 0);
+      if (contract) ctx.out.line(`datacheck: ${checked} traced value(s) looked for; ${gaps.length} item(s) with a data fault, ${musts.length} with a value the world holds and the page does not show`);
+      if (gaps.length) ctx.out.line(`data faults (the world lacks what the design shows; a seed-writer fixes the world file, then shoot --only data-faults, before any reviewer): ${gaps.join(', ')}`);
+      if (musts.length) ctx.out.line(`must fix found by datacheck (the world holds it, the page does not show it): ${musts.join(', ')}`);
+      if (contract && round !== WORK_ROUND) {
+        const sources = sourceProblems(contract, selectedColumns(await readQuerySources(ctx.repoRoot)));
+        await writeDatacheck(outDir, doc, ctx.clock.now().toISOString(), sources);
+        if (sources.length) ctx.out.line(`${sources.length} traced column(s) no query in the code selects (a "no source" question for the founder, in delivery contract --questions): ${sources.slice(0, 5).map((x) => `${x.table}.${x.column}`).join(', ')}`);
+      }
+      ctx.out.line(`pictures: ${outDir}`);
+      if (values.only !== undefined) ctx.out.line(`next: delivery review --plan --round ${round} (it reviews only the ${items.length} re-shot ${noun}(s))`);
+      ctx.out.set('shoot', { drift, round, outDir, reached: Object.keys(report).length - notReached.length, notReached, sideways, dirtyWorlds: dirty, states: Object.keys(doc.states).length, reset: resetting, reshot: values.only !== undefined, lookupDataGaps: gaps, lookupMust: musts });
+      const exit = notReached.length ? EXIT.RED : EXIT.PASS;
+      await ctx.journal({ command: `shoot --round ${round}`, exit, counts: { states: states.length, items: items.length, notReached: notReached.length, lookupDataGaps: gaps.length, lookupMust: musts.length } });
+      return exit;
+    } finally {
+      if (prod) await prod.stop();
     }
-    ctx.out.line(`pictures: ${outDir}`);
-    if (values.only !== undefined) ctx.out.line(`next: delivery review --plan --round ${round} (it reviews only the ${items.length} re-shot ${noun}(s))`);
-    ctx.out.set('shoot', { drift, round, outDir, reached: Object.keys(report).length - notReached.length, notReached, sideways, dirtyWorlds: dirty, states: Object.keys(doc.states).length, reset: resetting, reshot: values.only !== undefined, lookupDataGaps: gaps, lookupMust: musts });
-    const exit = notReached.length ? EXIT.RED : EXIT.PASS;
-    await ctx.journal({ command: `shoot --round ${round}`, exit, counts: { states: states.length, items: items.length, notReached: notReached.length, lookupDataGaps: gaps.length, lookupMust: musts.length } });
-    return exit;
   },
 });
 

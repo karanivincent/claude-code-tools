@@ -95,7 +95,7 @@ test('each world is reset once right before its first shot, again after a data-c
     const calls = [];
     let n = 0;
     const report = await runShoot(baseOpts({
-      map: m, items, outDir: d.outDir, designDir: d.designDir, chromium: fakeChromium({ calls }), timeZone: 'Africa/Nairobi',
+      map: m, items, outDir: d.outDir, designDir: d.designDir, chromium: fakeChromium({ calls }), timeZone: 'Africa/Nairobi', parallel: 1,
       reset: async (world) => { calls.push(`reset ${world}`); return { at: new Date(SEEDED.getTime() + 60000 * n++), rows: [], users: [] }; },
     }));
     // messy only reads, so its group goes first; design is reset once for WL-01 and WL-02 (the
@@ -106,6 +106,24 @@ test('each world is reset once right before its first shot, again after a data-c
     ]);
     assert.equal(report['WL-01'].clock, '2026-01-15T12:01:00.000Z');
     assert.ok(calls.indexOf('reset design') < calls.indexOf('shoot WL-01.live.png'));
+  } finally { d.cleanup(); }
+});
+
+test('with two worlds shot side by side, each world\'s own calls keep their order: reset, then its reads, then its write', async () => {
+  const m = map();
+  const { items } = selectStates(m);
+  const d = dirs();
+  try {
+    const calls = [];
+    await runShoot(baseOpts({
+      map: m, items, outDir: d.outDir, designDir: d.designDir, chromium: fakeChromium({ calls }), timeZone: 'Africa/Nairobi', parallel: 2,
+      reset: async (world) => { calls.push(`reset ${world}`); return { at: SEEDED, rows: [], users: [] }; },
+    }));
+    const at = (c) => calls.indexOf(c);
+    assert.ok(at('reset messy') >= 0 && at('reset messy') < at('shoot WL-03.live.png'));
+    assert.ok(at('reset design') >= 0 && at('reset design') < at('shoot WL-01.live.png'));
+    assert.ok(at('shoot WL-01.live.png') < at('shoot WL-02.live.png'), 'design\'s read comes before its write');
+    assert.equal(calls.filter((c) => c === 'reset design').length, 1);
   } finally { d.cleanup(); }
 });
 
