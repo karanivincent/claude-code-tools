@@ -78,7 +78,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### delivery-tools `v0.21.0`
+### delivery-tools `v0.22.0`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -199,7 +199,12 @@ rest held and reviewed once before shipping (`review --plan --held`). Since 0.21
 faster: `shoot --prod` pictures a production build from the profile's optional
 `commands.prodServer` (built in the heavy slot, on its own port, so the dev server keeps running), a
 failed build stops the shoot, worlds are shot two at a time in their own browser contexts, and the
-waits are tunables with a 3 s click timeout. An export
+waits are tunables with a 3 s click timeout. Since 0.22.0 reviews agree between rounds: a
+Sonnet extractor writes `steers.md` from the design before round 1 (phone patterns, test data,
+rules over the picture), and update runs carry it; the crop hides only the phone tab bar (the
+profile's optional `picture.tabBar`, never a sheet) and cuts the design and live pictures at the
+same top edge (`picture.keepPhoneHeader` keeps the phone header); and reviewers read a facts file
+under 2 KB per item instead of `shoot.json`. An export
 holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run

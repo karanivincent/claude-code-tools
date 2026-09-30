@@ -118,3 +118,24 @@ Two changes on the Telitask side:
 
 Check it by hand once: run the command with a port, open the page, stop it, and confirm the dev
 server still serves.
+
+## 0.22.0 (W7, reviews)
+
+### 6. `picture.tabBar` and `picture.keepPhoneHeader` (optional)
+
+What they buy: the shoot hides exactly the phone tab bar, and nothing else at the bottom; with
+`keepPhoneHeader`, both pictures keep the phone header (the Settings round 4 false "to fix" items
+came from cutting it on the live picture only).
+
+Default without them: a full-width bar fixed to the bottom and at most 160 px tall is hidden, but
+never one inside or holding a sheet or dialog; both pictures are cut at the page title less 24 px.
+
+Profile snippet (top level of `.claude/delivery-profile.json`), with the tab bar's real selector
+from the dashboard's mobile navigation component:
+
+```json
+"picture": { "tabBar": ["[data-testid=\"mobile-tab-bar\"]"], "keepPhoneHeader": true }
+```
+
+If the tab bar has no stable selector, add `data-testid="mobile-tab-bar"` to its root element in
+the dashboard's mobile navigation component first.

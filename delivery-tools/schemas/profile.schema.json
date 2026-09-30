@@ -291,6 +291,15 @@
         "galleryRoute": { "description": "The built gallery page's route, e.g. /admin/design/components.", "type": "string", "pattern": "^/" }
       }
     },
+    "picture": {
+      "description": "Optional (W7, the shoot's crop). tabBar: the CSS selectors of the app's phone tab bar, the only bottom bars the shoot hides (without it, a full-width bar fixed to the bottom and at most 160 px tall is hidden, never a sheet or dialog). keepPhoneHeader: keep the phone header in both pictures instead of cutting everything above the page title.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tabBar": { "$ref": "common.schema.json#/$defs/Strings" },
+        "keepPhoneHeader": { "type": "boolean" }
+      }
+    },
     "smoke": {
       "description": "Optional (delivery smoke, the page-load gate). skeleton: the CSS selectors of the loading placeholders the app shows until its data arrives; a page still showing one 10 s after it loaded is broken. Default [aria-busy=true] and [data-skeleton].",
       "type": "object",

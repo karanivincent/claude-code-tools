@@ -202,6 +202,8 @@ common options:
         return runShoot({
           map, items, baseUrl, outDir,
           timeZone: profile.testData?.timeZone ?? null,
+        tabBar: profile.picture?.tabBar ?? null,
+        keepPhoneHeader: Boolean(profile.picture?.keepPhoneHeader),
           contract,
           swaps,
           at: () => ctx.clock.now().toISOString(),
