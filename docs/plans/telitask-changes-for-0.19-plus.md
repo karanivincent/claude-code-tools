@@ -83,3 +83,38 @@ it if it is not set yet:
 
 And in the run's scratch folder (`.delivery/<feature>/rounds/<n>/`, never committed):
 `<ITEM>.live.txt`, `seeded.json`, `datacheck.json`.
+
+## 0.21.0 (W6, faster shoots)
+
+### 5. `commands.prodServer` (optional)
+
+What it buys: `delivery shoot --prod` pictures a production build instead of the dev server (the
+spike measured 1.8x faster over five states, before parallel worlds). NEXT then says `shoot --prod`.
+
+Default without it: `shoot --base-url <dev server>` as today.
+
+The contract: one shell command with a `{port}` placeholder. It builds the dashboard and serves the
+build on that port, in the foreground, until it is killed (the plugin kills its process group).
+It must not use the dev server's build folder (`.next`), because the builder's dev server keeps
+running beside it, and the shoot refuses a dev server whose build output a production build
+replaced. The plugin sets `PORT` too.
+
+Two changes on the Telitask side:
+
+1. `apps/dashboard/next.config.*`: let the build folder come from the environment.
+
+   ```js
+   distDir: process.env.NEXT_DIST_DIR || '.next',
+   ```
+
+2. `.claude/delivery-profile.json`, inside `"commands"`:
+
+   ```json
+   "prodServer": "cd apps/dashboard && NEXT_DIST_DIR=.next-shoot pnpm next build && NEXT_DIST_DIR=.next-shoot pnpm next start -p {port}"
+   ```
+
+   Add `.next-shoot/` to `.gitignore`. The env the build needs (Supabase URL and keys for the test
+   project) is the same the dev server reads from `apps/dashboard/.env.local`.
+
+Check it by hand once: run the command with a port, open the page, stop it, and confirm the dev
+server still serves.

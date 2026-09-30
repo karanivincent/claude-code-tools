@@ -53,6 +53,7 @@
           }
         },
         "validateSeedJson": { "type": "string" },
+        "prodServer": { "description": "Optional (W6): builds and serves a production build on {port} in a build folder of its own, so the dev server keeps running; delivery shoot --prod uses it.", "type": "string" },
         "flight": { "type": "string" },
         "tried": { "type": "string" },
         "planner": { "type": "string" },

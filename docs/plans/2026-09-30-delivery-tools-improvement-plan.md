@@ -568,3 +568,26 @@ Decisions:
   that screen (`review --plan --held`) before the fix; every held item is reviewed once before
   shipping, and ready stays red until then. That is the plan's "final round reviews every changed
   item".
+
+Built: PR https://github.com/karanivincent/claude-code-tools/pull/69 (tests 1365, 1347 pass, 0 fail).
+
+## W6 faster shoots (0.21.0)
+
+Already there: the shoot is one browser, fully sequential, against `--base-url` (a dev server or a
+preview); `waitForQuiet` (0.13.1) and one saved sign-in per world and role; the profile already has
+`prodBuild`/`prodStart`, used by full-mode captures with no preview.
+
+Decisions:
+
+- A new optional `commands.prodServer`, not `prodBuild`+`prodStart`: those build into the dev
+  server's own folder, which would break the builder's running dev server. The consuming repo gives
+  prodServer its own build folder (Telitask note, item 5). `shoot --prod` uses it; `--base-url`
+  stays for a preview or the dev server.
+- The build runs inside the shoot's own heavy slot rather than through `commands.heavy`, which would
+  take a second slot and could wait on itself.
+- Parallelism is by world (tunable `shoot.parallelWorlds`, 2): whole world queues, so a world is
+  never in two contexts and its resets stay safe.
+- Waits became tunables. Click timeout 8 s → 3 s as planned; the fixed pauses were also shortened
+  (step 400 → 250 ms, settle 600 → 300 ms, resize 300 → 200 ms) because `waitForQuiet` and
+  `networkidle` already do the real waiting and screenshots disable animations. The next run's
+  ledger says whether that moved not-reached counts; the retro can move them back.

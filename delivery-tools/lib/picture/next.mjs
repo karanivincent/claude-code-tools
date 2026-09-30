@@ -272,6 +272,8 @@ export async function pictureFacts(paths, opts = {}) {
     open: latest.length ? { must: count('must'), notReached: count('not-reached'), data: count('data-fault') + count('data-gap') } : null,
     // W4: the stop rule over the compiled rounds' real-bug counts, shared with ready.
     decision: runDecision(paths),
+    // W6: shoot a production build when the profile can make one.
+    shootArgs: opts.profile?.commands?.prodServer ? '--prod' : '--base-url <url>',
     // D13: data an agent asked for (seed --need) that no seed-writer has added yet.
     needs: openNeeds(paths).length,
     hasMap: Boolean(map),
@@ -356,12 +358,12 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   if (f.seedStale) return { step: 'worlds', skill, text: `${cli} seed --from-trace (world rows from the contract), then --plan, --check and --apply; a seed-writer handles only what --from-trace lists (the seed plan is older than the map, a world file or the data contract)` };
   if (f.needs) return { step: 'worlds', skill, text: `dispatch the seed-writer (Problem: the ${f.needs} open need(s) in docs/delivery/<f>/needs.json), then ${cli} seed --plan and --check, and ${cli} seed --need-done` };
   const last = f.rounds[f.rounds.length - 1];
-  if (!last && f.update) return { step: 'shoot', skill, text: `update run from ${f.update}: picture the page as it is before building. Start the dev server, then ${cli} shoot --base-url <url> (round 1); the reviewers list what the new design changed, and the builder fixes only that` };
-  if (!last) return { step: 'build', skill, text: `dispatch delivery-tools:picture-builder (opus, no worktree) with briefs/builder-picture.md; when it reports, start the dev server and run ${cli} shoot --base-url <url> (round 1)` };
-  if (!last.shot) return { step: 'shoot', skill, text: `${cli} shoot --base-url <url> --round ${last.round}` };
+  if (!last && f.update) return { step: 'shoot', skill, text: `update run from ${f.update}: picture the page as it is before building. Start the dev server, then ${cli} shoot ${f.shootArgs ?? '--base-url <url>'} (round 1); the reviewers list what the new design changed, and the builder fixes only that` };
+  if (!last) return { step: 'build', skill, text: `dispatch delivery-tools:picture-builder (opus, no worktree) with briefs/builder-picture.md; when it reports, start the dev server and run ${cli} shoot ${f.shootArgs ?? '--base-url <url>'} (round 1)` };
+  if (!last.shot) return { step: 'shoot', skill, text: `${cli} shoot ${f.shootArgs ?? '--base-url <url>'} --round ${last.round}` };
   // W3: data faults are fixed in the world and re-shot before any reviewer sees the round.
   if (last.dataFaults && (last.dataFixPasses ?? 0) < DATA_FIX_PASSES && !last.reviews && !last.planned) {
-    return { step: 'data-faults', skill, text: `round ${last.round}: datacheck found data faults in ${last.dataFaults} item(s) before review: dispatch the seed-writer (Problem: .delivery/<f>/rounds/${last.round}/datacheck.json), then ${cli} seed --plan and --check, then ${cli} shoot --base-url <url> --only data-faults (the reviewers see the round after that)` };
+    return { step: 'data-faults', skill, text: `round ${last.round}: datacheck found data faults in ${last.dataFaults} item(s) before review: dispatch the seed-writer (Problem: .delivery/<f>/rounds/${last.round}/datacheck.json), then ${cli} seed --plan and --check, then ${cli} shoot ${f.shootArgs ?? '--base-url <url>'} --only data-faults (the reviewers see the round after that)` };
   }
   if (last.reshot) return { step: 'review', skill, text: `${cli} review --plan --round ${last.round}: ${last.reshot} item(s) were re-shot since the round was planned, and it plans just those` };
   if (last.reviews && last.pending) return { step: 'review', skill, text: `dispatch the ${last.pending} batch prompt file(s) in .delivery/<f>/rounds/${last.round}/batches.json whose review is not written yet, as written; then ${cli} review --round ${last.round}` };
@@ -374,7 +376,7 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   // A round with only data faults or gaps left is never a ship: the world is fixed, not the code.
   const dataOpen = o.data ?? ((last.counts?.dataFault ?? 0) + (last.counts?.dataGap ?? 0));
   if (!open && dataOpen) {
-    return { step: 'data-faults', skill, text: `${dataOpen} ${noun}(s) have a data fault or gap and nothing else: dispatch the seed-writer with their notes (round ${last.round}'s review.json), then ${cli} seed --plan and --check, ${cli} shoot --base-url <url> --only data-faults --round ${last.round}, and review just those` };
+    return { step: 'data-faults', skill, text: `${dataOpen} ${noun}(s) have a data fault or gap and nothing else: dispatch the seed-writer with their notes (round ${last.round}'s review.json), then ${cli} seed --plan and --check, ${cli} shoot ${f.shootArgs ?? '--base-url <url>'} --only data-faults --round ${last.round}, and review just those` };
   }
   // W5: a sample found a problem in a screen: the rest of that screen is reviewed before the fix.
   if (last.heldFailed) return { step: 'review', skill, text: `${cli} review --plan --round ${last.round} --held: the sample found a problem in ${last.heldFailed} screen(s), so the items held there are reviewed too; then dispatch the batches and ${cli} review --round ${last.round}` };
@@ -382,7 +384,7 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   // falls, ship at zero, stop after rounds.stallRounds rounds with no fall or at the ceiling.
   const d = f.decision ?? roundDecision([open]);
   if (open && d.decision === 'fix') {
-    return { step: 'fix', skill, text: `fix round: send the fixer round ${last.round}'s review.json (${open} ${noun}(s) open; ${d.why}), then ${cli} shoot --base-url <url> (round ${last.round + 1}; it resets the worlds itself)` };
+    return { step: 'fix', skill, text: `fix round: send the fixer round ${last.round}'s review.json (${open} ${noun}(s) open; ${d.why}), then ${cli} shoot ${f.shootArgs ?? '--base-url <url>'} (round ${last.round + 1}; it resets the worlds itself)` };
   }
   // W5: items held back from review while their screen's sample was clean are reviewed once
   // before anything ships, so nothing ships unreviewed.

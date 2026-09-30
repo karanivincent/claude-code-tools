@@ -12,6 +12,13 @@
     "slots.max": { "value": 2, "min": 1, "max": 4, "step": 1, "loosens": "never", "about": "heavy jobs (shoots, e2e) at once on one machine" },
     "slots.waitTimeoutMs": { "value": 1800000, "min": 300000, "max": 7200000, "step": 300000, "loosens": "never", "about": "how long a job waits for a free slot" },
     "shoot.commandTimeoutMs": { "value": 5400000, "min": 600000, "max": 10800000, "step": 600000, "loosens": "never", "about": "how long one capture or shoot command may run" },
+    "shoot.clickTimeoutMs": { "value": 3000, "min": 1000, "max": 10000, "step": 500, "loosens": "never", "about": "how long a reach step waits for a control once the page has loaded" },
+    "shoot.stepPauseMs": { "value": 250, "min": 0, "max": 1000, "step": 50, "loosens": "never", "about": "pause after each reach step, before waiting for the network" },
+    "shoot.settlePauseMs": { "value": 300, "min": 0, "max": 1500, "step": 100, "loosens": "never", "about": "pause after a state is reached and the network is idle, before the picture" },
+    "shoot.resizePauseMs": { "value": 200, "min": 0, "max": 1000, "step": 50, "loosens": "never", "about": "pause after the window grows to the page's full height" },
+    "shoot.settleQuietMs": { "value": 500, "min": 100, "max": 2000, "step": 100, "loosens": "never", "about": "how long the network stays quiet before a reach step counts as settled" },
+    "shoot.settleCapMs": { "value": 10000, "min": 2000, "max": 30000, "step": 1000, "loosens": "never", "about": "the most one reach step waits for the network to settle" },
+    "shoot.parallelWorlds": { "value": 2, "min": 1, "max": 4, "step": 1, "loosens": "never", "about": "worlds a shoot pictures at once, each in its own browser context" },
     "capture.devServerTimeoutMs": { "value": 300000, "min": 60000, "max": 900000, "step": 60000, "loosens": "never", "about": "how long the capture waits for a dev server" },
     "capture.prodBuildTimeoutMs": { "value": 900000, "min": 300000, "max": 3600000, "step": 300000, "loosens": "never", "about": "how long the capture waits for a local production build" }
   }
