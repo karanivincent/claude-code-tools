@@ -17,6 +17,8 @@ import { parseEvent } from '../core/state.mjs';
 import { worldFilePath } from '../seed/plan.mjs';
 import { tablesWithoutGuard } from '../seed/data.mjs';
 import { contractPath, contractSummary } from './contract.mjs';
+import { dataFaultItems } from './datacheck.mjs';
+import { openNeeds } from '../seed/trace.mjs';
 
 /**
  * A2: every table the map's worlds write (their world files, already on disk once the mapper
@@ -28,7 +30,7 @@ import { contractPath, contractSummary } from './contract.mjs';
  * @param {object} safety
  * @returns {string[]}
  */
-function worldsGuardsToApprove(paths, map, safety) {
+export function worldsGuardsToApprove(paths, map, safety) {
   const rows = [];
   for (const w of map.worlds ?? []) {
     let file;
@@ -153,15 +155,24 @@ function alreadyLanded(journal) {
   });
 }
 
-/** Whether the run's data contract is written, and how many texts are still to label or fix. */
+/**
+ * Whether the run's data contract is written, how many texts are still to label or fix, and how
+ * many values the product does not store wait for the founder (D6). `questionsAsked`: the list of
+ * them was written (questions.md) after the contract last changed, so it has been sent once.
+ */
 function contractFacts(paths, map) {
-  if (!map || map.kind === 'components') return { contractMissing: false, contractTodo: 0 };
-  if (!existsSync(contractPath(paths))) return { contractMissing: true, contractTodo: 0 };
+  const none = { contractMissing: false, contractTodo: 0, undecided: 0, questionsAsked: false };
+  if (!map || map.kind === 'components') return none;
+  if (!existsSync(contractPath(paths))) return { ...none, contractMissing: true };
   const doc = readJsonSync(contractPath(paths));
-  if (!doc) return { contractMissing: true, contractTodo: 0 };
+  if (!doc) return { ...none, contractMissing: true };
   const s = contractSummary(doc);
-  return { contractMissing: false, contractTodo: s.unlabelled.length + s.invalid.length };
+  const asked = new Set(readJsonSync(join(paths.deliveryDir, 'questions.json'))?.values ?? []);
+  return { contractMissing: false, contractTodo: s.unlabelled.length + s.invalid.length, undecided: s.undecided.length, questionsAsked: s.undecided.every((u) => asked.has(`${u.state}\0${u.text}`)) };
 }
+
+/** Datacheck passes a round may take before its reviewers see it: a seed-writer fix, then a re-shoot. */
+export const DATA_FIX_PASSES = 2;
 
 /**
  * Read what the picture loop needs from a run's files.
@@ -185,9 +196,13 @@ export async function pictureFacts(paths, opts = {}) {
     const info = roundInfo(paths, n);
     const newestReview = Math.max(0, ...info.reviews.map((f) => mtime(join(info.dir, f))));
     const batchesDoc = readJsonSync(join(info.dir, 'batches.json'));
+    const faultItems = dataFaultItems(info.shoot);
     return {
       round: n,
       shot: Boolean(info.shoot),
+      // W3: items the shoot's datacheck found a data fault in, and the re-shoots already spent on them.
+      dataFaults: faultItems.length,
+      dataFixPasses: (info.shoot?.reshot ?? []).filter((r) => r.why === 'data-faults').length,
       // R5: items re-shot (shoot --only) since the round was planned, and planned batches no
       // reviewer has written yet.
       reshot: batchesDoc ? reshotItems(info.shoot, info.reviewPlan).length : 0,
@@ -251,7 +266,9 @@ export async function pictureFacts(paths, opts = {}) {
     phonePictures: designed.size - desktopPictures,
     phoneRenderOwed: phoneRenderOwed(map, designed),
     noun: map && hasPhone(map) ? 'item' : 'state',
-    open: latest.length ? { must: count('must'), notReached: count('not-reached') } : null,
+    open: latest.length ? { must: count('must'), notReached: count('not-reached'), data: count('data-fault') + count('data-gap') } : null,
+    // D13: data an agent asked for (seed --need) that no seed-writer has added yet.
+    needs: openNeeds(paths).length,
     hasMap: Boolean(map),
     mapError: mapError ?? problems[0] ?? null,
     problemCount: problems.length,
@@ -286,6 +303,7 @@ export async function pictureFacts(paths, opts = {}) {
     // A2: guards to approve, once, right after the map (opts.safety omitted: status still works
     // without it, same convention as opts.profile above; then this is simply empty).
     guardsToApprove: map && opts.safety ? worldsGuardsToApprove(paths, map, opts.safety) : [],
+    guardsAsked: existsSync(join(paths.deliveryDir, 'questions.json')),
     seedPlanWritten: existsSync(paths.seedplan),
   };
 }
@@ -312,13 +330,7 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   if (!f.designed) return { step: 'pictures', skill: 'design-inventory', text: `render the design's states: ${cli} design render` };
   if (!f.hasMap && !f.mapError) return { step: 'map', skill, text: 'dispatch the mapper agent with briefs/mapper.md to write map.json from the design pictures' };
   if (f.mapError) return { step: 'map', skill, text: `fix map.json (${f.problemCount || 1} problem(s); first: ${f.mapError}), then ${cli} map` };
-  // A2: surfaced once, right after the map, so the founder approves every guard together instead
-  // of one at a time as later seed --apply calls hit them; once a seed plan exists the ordinary
-  // "worlds" step (seedStale, below) carries the loop forward, and seed --plan reprints this list
-  // itself on every run.
-  if (f.guardsToApprove?.length && !f.seedPlanWritten) {
-    return { step: 'guards', skill, text: `${cli} seed --plan will ask you to approve a guard for ${f.guardsToApprove.join(', ')} in the safety file before any world is seeded; review it now` };
-  }
+
   if (f.pageBlockedComponents?.length) {
     // A components run already exists once (the product-wide components.json is proof of that):
     // "components" is a taken feature slug, so reaching it again needs --from (fix round, I12).
@@ -330,11 +342,22 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   if (f.checklistStale) return { step: 'map', skill, text: `${cli} map (the checklist is older than map.json)` };
   if (f.contractMissing) return { step: 'contract', skill, text: `${cli} contract: the data contract, every text each design state shows, taken from the design renders` };
   if (f.contractTodo) return { step: 'contract', skill, text: `dispatch delivery-tools:delivery-extractor with Role: contract and briefs/contract-labeller.md (${f.contractTodo} text(s) to label or fix), then ${cli} contract` };
-  if (f.seedStale) return { step: 'worlds', skill, text: `${cli} seed --plan, then --check, then --apply (the seed plan is older than the map, a world file or the data contract)` };
+  // D6 (and A2): one list for the founder, sent once, before the build: the values the product does
+  // not store, and the guards the worlds need. The run goes on while the founder answers; ready
+  // stays red until every value is decided.
+  if ((f.undecided && !f.questionsAsked) || (f.guardsToApprove?.length && !f.seedPlanWritten && !f.guardsAsked)) {
+    return { step: 'questions', skill, text: `${cli} contract --questions, and send the founder questions.md in one message (${f.undecided ?? 0} value(s) the product does not store${f.guardsToApprove?.length ? `, guards for ${f.guardsToApprove.join(', ')}` : ''}); record each answer with ${cli} contract --decide. Carry on while they answer` };
+  }
+  if (f.seedStale) return { step: 'worlds', skill, text: `${cli} seed --from-trace (world rows from the contract), then --plan, --check and --apply; a seed-writer handles only what --from-trace lists (the seed plan is older than the map, a world file or the data contract)` };
+  if (f.needs) return { step: 'worlds', skill, text: `dispatch the seed-writer (Problem: the ${f.needs} open need(s) in docs/delivery/<f>/needs.json), then ${cli} seed --plan and --check, and ${cli} seed --need-done` };
   const last = f.rounds[f.rounds.length - 1];
   if (!last && f.update) return { step: 'shoot', skill, text: `update run from ${f.update}: picture the page as it is before building. Start the dev server, then ${cli} shoot --base-url <url> (round 1); the reviewers list what the new design changed, and the builder fixes only that` };
   if (!last) return { step: 'build', skill, text: `dispatch delivery-tools:picture-builder (opus, no worktree) with briefs/builder-picture.md; when it reports, start the dev server and run ${cli} shoot --base-url <url> (round 1)` };
   if (!last.shot) return { step: 'shoot', skill, text: `${cli} shoot --base-url <url> --round ${last.round}` };
+  // W3: data faults are fixed in the world and re-shot before any reviewer sees the round.
+  if (last.dataFaults && (last.dataFixPasses ?? 0) < DATA_FIX_PASSES && !last.reviews && !last.planned) {
+    return { step: 'data-faults', skill, text: `round ${last.round}: datacheck found data faults in ${last.dataFaults} item(s) before review: dispatch the seed-writer (Problem: .delivery/<f>/rounds/${last.round}/datacheck.json), then ${cli} seed --plan and --check, then ${cli} shoot --base-url <url> --only data-faults (the reviewers see the round after that)` };
+  }
   if (last.reshot) return { step: 'review', skill, text: `${cli} review --plan --round ${last.round}: ${last.reshot} item(s) were re-shot since the round was planned, and it plans just those` };
   if (last.reviews && last.pending) return { step: 'review', skill, text: `dispatch the ${last.pending} batch prompt file(s) in .delivery/<f>/rounds/${last.round}/batches.json whose review is not written yet, as written; then ${cli} review --round ${last.round}` };
   if (last.planned === null && !last.reviews) return { step: 'review', skill, text: `${cli} review --plan --round ${last.round}: it carries unchanged items forward, matches exact ones without a reviewer and writes the batches; then dispatch the batch prompt files it lists, as written, at most four at once (briefs/reviewer-picture.md)` };
@@ -343,6 +366,11 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   const o = f.open ?? last.counts ?? {};
   const open = (o.must ?? 0) + (o.notReached ?? 0);
   const noun = f.noun ?? 'state';
+  // A round with only data faults or gaps left is never a ship: the world is fixed, not the code.
+  const dataOpen = o.data ?? ((last.counts?.dataFault ?? 0) + (last.counts?.dataGap ?? 0));
+  if (!open && dataOpen) {
+    return { step: 'data-faults', skill, text: `${dataOpen} ${noun}(s) have a data fault or gap and nothing else: dispatch the seed-writer with their notes (round ${last.round}'s review.json), then ${cli} seed --plan and --check, ${cli} shoot --base-url <url> --only data-faults --round ${last.round}, and review just those` };
+  }
   if (open && last.round < MAX_ROUNDS) {
     return { step: 'fix', skill, text: `fix round: send the builder round ${last.round}'s review.json (${open} ${noun}(s) open), then ${cli} shoot --base-url <url> (round ${last.round + 1}; it resets the worlds itself)` };
   }

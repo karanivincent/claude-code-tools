@@ -22,6 +22,7 @@ import { outOfScopeFiles } from '../baseline/scope.mjs';
 import { CHECK_IDS, runChecks } from '../checks/index.mjs';
 import { readMap } from '../picture/map.mjs';
 import { MAX_ROUNDS, latestVerdicts, pictureFacts } from '../picture/next.mjs';
+import { contractSummary, readContract } from '../picture/contract.mjs';
 import { ruleFacts } from '../picture/rules.mjs';
 import { designFor } from '../picture/widths.mjs';
 import { componentsMapPath, readComponentsMap } from '../components/map.mjs';
@@ -340,9 +341,15 @@ export async function pictureReadiness(paths) {
   // MAX_ROUNDS fix-round allowance below and never quietly goes to the founder as an accepted open
   // item the way a stale must-fix can. It always keeps ready red, listed apart from code defects,
   // until the world is re-seeded (delivery seed --apply) and the state shot again.
-  const dataGaps = by('data-gap');
+  const dataGaps = [...by('data-fault'), ...by('data-gap')];
   if (dataGaps.length) {
-    return { ok: false, detail: `${dataGaps.length} ${noun}(s) have a data gap, not a code defect: reseed the world (delivery seed --apply), then shoot again: ${dataGaps.slice(0, 5).join(', ')}`, evidence: 'review.json' };
+    return { ok: false, detail: `${dataGaps.length} ${noun}(s) have a data fault or gap, not a code defect: a seed-writer fixes the world file, then delivery shoot --only data-faults: ${dataGaps.slice(0, 5).join(', ')}`, evidence: 'review.json' };
+  }
+  // D6: a value the design shows that the product does not store is closed once the founder
+  // decided it (build, drop or back to the design), and keeps ready red until then.
+  const undecided = contractFactsFor(paths).undecided;
+  if (undecided.length) {
+    return { ok: false, detail: `${undecided.length} value(s) the product does not store wait for the founder's decision: delivery contract --questions, then delivery contract --decide`, evidence: 'contract.json' };
   }
   const open = by('must');
   const last = rounds.at(-1).round;
@@ -352,6 +359,11 @@ export async function pictureReadiness(paths) {
   const n = (v) => by(v).length;
   const tail = open.length ? `; ${open.length} still open after ${rounds.length} rounds go to the founder as a list` : '';
   return { ok: true, detail: `${latest.size} ${noun}(s): ${n('match')} match, ${n('small')} small differences, every pictured ${noun} reached${tail}`, evidence: `rounds/${last}/review.json` };
+}
+
+/** The run's contract summary, or an empty one when there is no contract (a full-mode run). */
+function contractFactsFor(paths) {
+  try { return contractSummary(readContract(paths)); } catch { return contractSummary(null); }
 }
 
 /**

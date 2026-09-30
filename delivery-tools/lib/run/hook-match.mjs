@@ -3,6 +3,9 @@
 // its text mentions one of them; this lexer decides precisely, so quoted text ("fix the seed" in a
 // commit message, a heredoc body) never counts, and $(...), `...`, sh -c and eval are looked into.
 
+import { readFileSync, statSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 const MAX_DEPTH = 4;
 
 /** Index just past the ')' matching the '(' at str[open]; quotes and nesting respected. */
@@ -255,6 +258,56 @@ const SEED_NAME = /seed/i;
 const TEST_FILE = /\.(test|spec)\.[cm]?[jt]sx?$|(^|\/)__tests__\//;
 const SEED_SUBCOMMAND = /^(db:)?seeds?(:[A-Za-z-]+)?$|^seed:/i;
 
+// What shows that a script's text writes to a database. Any one is enough to refuse the run; a
+// script with none of them only reads and is allowed. Each entry is a test on the whole text.
+const WRITE_SIGNS = [
+  (t) => /\.(?:insert|upsert|update|delete)\s*\(/.test(t), // query builders: supabase, knex, prisma, mongo
+  (t) => /\bINSERT\s+INTO\b/i.test(t),
+  (t) => /\bUPDATE\s+[\w."`]+\s+SET\b/i.test(t),
+  (t) => /\bDELETE\s+FROM\b/i.test(t),
+  (t) => /\bTRUNCATE\b/.test(t) || /\btruncate\s+table\b/i.test(t),
+  (t) => /\bcreateClient\s*\(/.test(t) && /SERVICE_ROLE/i.test(t), // a service-role key bypasses row security
+  (t) => /\bnew\s+(?:Pool|Client)\s*\(/.test(t) && /['"]pg['"]/.test(t), // node-postgres
+  (t) => /\bpostgres\s*\(/.test(t), // postgres.js
+  (t) => /\.rpc\s*\(/.test(t), // supabase.rpc runs a stored function, which may write
+  (t) => /\b(?:exec|execSync|execFile|execFileSync|spawn|spawnSync)\s*\([^)]*\bpsql\b/.test(t),
+  (t) => /child_process/.test(t) && /\bpsql\b/.test(t),
+];
+
+/** The biggest script the hook will read; a bigger one is treated as unreadable. */
+const MAX_SCRIPT_BYTES = 1024 * 1024;
+
+/**
+ * The text of a script file, or null when it cannot be read (missing, a directory, unreadable,
+ * over 1 MB). This is the default reader; tests and callers can inject another.
+ * @param {string} path
+ * @returns {string|null}
+ */
+export function readScriptText(path) {
+  try {
+    if (statSync(path).size > MAX_SCRIPT_BYTES) return null;
+    return readFileSync(path, 'utf8');
+  } catch {
+    return null;
+  }
+}
+
+/** Whether the text of a script shows a sign of writing to a database. @param {string} text */
+export function scriptWrites(text) {
+  return WRITE_SIGNS.some((sign) => sign(text));
+}
+
+/**
+ * Whether an interpreter running this script (named like a seed) only reads: the file is read
+ * relative to cwd and shows no sign of writing. Unreadable means false, so the command is refused.
+ * @param {string} script
+ * @param {{ cwd?: string, readFile?: (path: string) => string|null }} [opts]
+ */
+function scriptOnlyReads(script, opts = {}) {
+  const text = (opts.readFile ?? readScriptText)(resolve(opts.cwd ?? process.cwd(), script));
+  return typeof text === 'string' && !scriptWrites(text);
+}
+
 /** The delivery CLI itself: `delivery seed` is the one allowed writer of fixture rows. */
 function isDelivery(words) {
   const b = base(words[0] ?? '');
@@ -293,26 +346,28 @@ function packageWords(words) {
 
 /**
  * Why a simple command is a raw seed command, or null. `sh -c` and `eval` are handled by
- * classifyBash, which lexes their script.
+ * classifyBash, which lexes their script. An interpreter running a script whose name mentions
+ * seed is refused only when the script's text writes to a database (or cannot be read).
  * @param {string[]} words already unwrapped
+ * @param {{ cwd?: string, readFile?: (path: string) => string|null }} [opts] where relative scripts are read from, and how
  */
-export function seedReason(words) {
+export function seedReason(words, opts = {}) {
   if (!words.length || isDelivery(words)) return null;
   const b = base(words[0]);
   if (INTERPRETERS.has(b)) {
     if ((b === 'node' || b === 'nodejs') && words.some((w, j) => ['-e', '--eval', '-p', '--print'].includes(w) && SEED_NAME.test(words[j + 1] ?? ''))) return 'inline code that seeds';
     const script = interpreterScript(words);
-    if (script && SEED_NAME.test(base(script)) && !TEST_FILE.test(script)) return `runs ${script}`;
+    if (script && SEED_NAME.test(base(script)) && !TEST_FILE.test(script) && !scriptOnlyReads(script, opts)) return `runs ${script}`;
     return null;
   }
   if (PACKAGE_MANAGERS.has(b)) {
     const rest = packageWords(words);
-    if (rest[0] === 'exec' || rest[0] === 'dlx' || (b === 'bun' && rest[0] === 'x')) return seedReason(rest.slice(1));
+    if (rest[0] === 'exec' || rest[0] === 'dlx' || (b === 'bun' && rest[0] === 'x')) return seedReason(rest.slice(1), opts);
     const script = rest[0] === 'run' || rest[0] === 'run-script' ? rest[1] : rest[0];
     if (script && SEED_NAME.test(script) && !TEST_FILE.test(script)) return `runs the package script ${script}`;
     return null;
   }
-  if (b === 'npx' || b === 'pnpx') return seedReason(words.slice(1).filter((w) => !w.startsWith('-')));
+  if (b === 'npx' || b === 'pnpx') return seedReason(words.slice(1).filter((w) => !w.startsWith('-')), opts);
   if (['psql', 'mysql', 'sqlite3'].includes(b)) {
     for (let j = 1; j < words.length; j++) {
       const a = words[j];
@@ -337,9 +392,10 @@ function innerScript(words) {
 
 /**
  * @param {string} text the Bash tool's command
+ * @param {{ cwd?: string, readFile?: (path: string) => string|null }} [opts] the directory the command runs in, and a reader for seed scripts (default: from disk)
  * @returns {{ ready: ReturnType<typeof parseTarget>[], readyApi: boolean, seed: string|null, unparsed: boolean }}
  */
-export function classifyBash(text) {
+export function classifyBash(text, opts = {}) {
   const out = { ready: [], readyApi: false, seed: null, unparsed: false };
   const visit = (src, depth) => {
     if (depth > MAX_DEPTH) return;
@@ -348,7 +404,7 @@ export function classifyBash(text) {
       lexed = lex(src);
     } catch {
       out.unparsed = true;
-      fallback(src, out);
+      fallback(src, out, opts);
       return;
     }
     for (const raw of simpleCommands(lexed.tokens)) {
@@ -359,7 +415,7 @@ export function classifyBash(text) {
       const target = ghPrReady(words);
       if (target) out.ready.push(target);
       if (ghApiReady(words)) out.readyApi = true;
-      const why = seedReason(words);
+      const why = seedReason(words, opts);
       if (why && !out.seed) out.seed = `${words.join(' ')} (${why})`.slice(0, 200);
     }
     for (const sub of lexed.subs) visit(sub, depth + 1);
@@ -369,12 +425,13 @@ export function classifyBash(text) {
 }
 
 /** When the text cannot be lexed: patterns on the raw text, erring towards a check. */
-function fallback(src, out) {
+function fallback(src, out, opts = {}) {
   if (/\bgh\s+pr\s+ready\b/.test(src) && !/--undo\b/.test(src)) out.ready.push(parseTarget(null));
   if (/\bgh\s+api\b[\s\S]*(ready_for_review|markPullRequestReadyForReview)/.test(src)) out.readyApi = true;
   if (!out.seed && !/delivery(\.mjs)?\s+seed\b/.test(src)) {
-    const m = src.match(/\b(?:node|tsx|ts-node|bun|deno|python3?|ruby|bash|sh)\s+(?:-\S+\s+)*([^\s;&|'"]*seed[^\s;&|'"]*)/i)
-      ?? src.match(/\b(?:npm|pnpm|yarn)\b[^\n;&|]*?\b((?:db:)?seed[\w:-]*)/i);
-    if (m && !TEST_FILE.test(m[1])) out.seed = `${m[0].trim()} (unparsed command)`.slice(0, 200);
+    const script = src.match(/\b(?:node|tsx|ts-node|bun|deno|python3?|ruby|bash|sh)\s+(?:-\S+\s+)*([^\s;&|'"]*seed[^\s;&|'"]*)/i);
+    const m = script ?? src.match(/\b(?:npm|pnpm|yarn)\b[^\n;&|]*?\b((?:db:)?seed[\w:-]*)/i);
+    // A caught interpreter script is read like in seedReason; a package script is refused as before.
+    if (m && !TEST_FILE.test(m[1]) && !(script && scriptOnlyReads(m[1], opts))) out.seed = `${m[0].trim()} (unparsed command)`.slice(0, 200);
   }
 }

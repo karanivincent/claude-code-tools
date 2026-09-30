@@ -132,10 +132,16 @@ export async function readWorldFile(paths, worldId) {
  * delete by id list. A join row is written without one and goes when its organisation does, so a
  * world can say who its fixture users are members of. Nothing could, before: `applyRows` set `id`
  * on every row and the database refused the insert.
- * @param {{ feature: string, runId: string, project: string, plan: object, worldFiles: Record<string, object>, safety: object, tablesWithoutId?: Set<string> }} input
+ *
+ * `previous` is the seed plan this one replaces, if there was one. Each world records
+ * `seededTables`: every table its rows write now plus every table it wrote before (the previous
+ * plan's own `seededTables`, or its rows' tables). A refresh uses it to clean a table the world
+ * has stopped seeding, which the current rows alone would never name. Tables with no `id` column
+ * (a join table) are left out: a refresh judges rows by id.
+ * @param {{ feature: string, runId: string, project: string, plan: object, worldFiles: Record<string, object>, safety: object, tablesWithoutId?: Set<string>, previous?: object|null }} input
  * @returns {object} seedplan.json value
  */
-export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safety, tablesWithoutId }) {
+export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safety, tablesWithoutId, previous }) {
   const worlds = [];
   const rows = [];
   const users = [];
@@ -144,7 +150,8 @@ export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safet
     const file = worldFiles[w.id];
     if (!file) { problems.push(`world ${w.id} has no world file`); continue; }
     const orgId = fixtureId(feature, w.id, 'org');
-    worlds.push({ id: w.id, orgId, ...(file.globals?.length ? { globals: file.globals } : {}) });
+    const world = { id: w.id, orgId, ...(file.globals?.length ? { globals: file.globals } : {}) };
+    worlds.push(world);
     const userIds = new Map();
     const usedRoles = new Set();
     for (const u of w.users ?? []) {
@@ -235,11 +242,33 @@ export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safet
       problems.push(`world ${w.id}: the plan declares a ${role} user and no row of its world file references it; join it to the organisation with {"$ref": "user:${role}"}, or the capture signs that user in and they belong to nothing`);
     }
   }
+  for (const world of worlds) world.seededTables = seededTablesOf(world.id, rows, previous, tablesWithoutId);
   if (problems.length) {
     throw new UsageError(`the worlds cannot become a seed plan (${problems.length} problem(s))`, { failures: problems.map((m) => ({ code: 'seed-plan', message: m })) });
   }
   const staggered = staggerTies(rows);
   return { schemaVersion: 1, runId, project, worlds, rows, users, ...(staggered.length ? { staggered } : {}) };
+}
+
+/**
+ * The sorted union of the tables a world's rows write now and the tables it wrote in the previous
+ * plan, without any table that has rows with no id (a join table, in this plan or the last).
+ */
+function seededTablesOf(worldId, rows, previous, tablesWithoutId) {
+  const idless = new Set(tablesWithoutId ?? []);
+  const tables = new Set();
+  for (const r of rows) {
+    if (r.world !== worldId) continue;
+    if (r.idless) idless.add(r.table);
+    tables.add(r.table);
+  }
+  for (const r of previous?.rows ?? []) if (r.idless) idless.add(r.table);
+  const before = (previous?.worlds ?? []).find((w) => w.id === worldId);
+  const carried = Array.isArray(before?.seededTables)
+    ? before.seededTables
+    : (previous?.rows ?? []).filter((r) => r.world === worldId).map((r) => r.table);
+  for (const t of carried) tables.add(t);
+  return [...tables].filter((t) => !idless.has(t)).sort();
 }
 
 // Any fixed instant: ties between relative times do not depend on which one.

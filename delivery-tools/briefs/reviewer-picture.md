@@ -35,15 +35,16 @@ Look at the two pictures side by side and ask:
 5. Does every rule the checklist lists under this state hold in the live picture? A rule that
    breaks is `must fix`, and the bullet starts with its id: `must fix: R7 ...`.
 6. Does the wording mean the same? The world is seeded with the design's own names and numbers,
-   and the shoot has already looked up every difference in a data value: your prompt lists them
-   under "Already sorted", and they are counted, so never write them again. A date in the same
+   and the shoot's datacheck has already looked for every traced data value: your prompt lists
+   what it found under "Already sorted", and they are counted, so never write them again. Values
+   the founder decided the product does not store are listed too; they are not differences. A date in the same
    format as the design's ("Tue 14 Oct" against "Wed 3 Sep") is not a difference. Fake phone
    numbers and example addresses are fake on purpose. None of these is a problem.
 7. Is the live page actually right, and the design wrong or missing something the product already
    does elsewhere? That is never `must fix` — the live page is not the thing to change. Write
    `design:` instead, so it goes back to whoever writes the design brief, not to the builder.
-8. Is the only thing wrong that the seeded world doesn't have enough of something the lookup did
-   not already sort? The checklist lists each state's "Needs data" line when the map declares one
+8. Is the only thing wrong that the seeded world doesn't have enough of something datacheck did
+   not already sort (a value the trace missed)? The checklist lists each state's "Needs data" line when the map declares one
    (a table, a filter, a count). If what you see missing matches that line — an empty list where
    the design shows several rows — write `data gap:`, not `must fix:`. That is the world's
    problem, not the builder's: it costs no fix round and is fixed in the world file. When you

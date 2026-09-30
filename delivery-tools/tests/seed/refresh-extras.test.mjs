@@ -13,10 +13,10 @@ import { readArtefact, writeArtefact } from '../../lib/core/artefacts.mjs';
 import { DeliveryError, EXIT } from '../../lib/core/exit.mjs';
 import seedCommand from '../../lib/commands/seed.mjs';
 import { refreshWorld, refreshWorldReport } from '../../lib/seed/scan.mjs';
-import { fixtureId } from '../../lib/seed/plan.mjs';
+import { fixtureId, buildSeedPlan } from '../../lib/seed/plan.mjs';
 import { worldOrgId, extraReads, extraRows, deleteOrder } from '../../lib/seed/extras.mjs';
 import { createDataAdapter } from '../../adapters/data/supabase.mjs';
-import { createStubDb } from './stub-db.mjs';
+import { createStubDb, guardsWithFixtureTables } from './stub-db.mjs';
 import { WORKER_FILES } from '../sidefx/fixtures.mjs';
 
 const NOW = '2026-01-15T12:00:00.000Z';
@@ -64,7 +64,7 @@ async function setup({ db = stubDb() } = {}) {
   });
   repo.git('update-ref', 'refs/remotes/origin/main', 'HEAD');
   const t = await makeTestCtx({
-    repoRoot: repo.dir, feature: 'widgets', profile: makeProfile(), safety: makeSafety({ workers: WORKERS }),
+    repoRoot: repo.dir, feature: 'widgets', profile: makeProfile(), safety: makeSafety({ workers: WORKERS, guards: guardsWithFixtureTables(makeSafety()) }),
     passthrough: ['git'], clock: fakeClock(NOW),
   });
   t.ctx.dataBackend = db;
@@ -267,4 +267,84 @@ test('adapter: a refresh deletes only through the organisation filter', async ()
     assert.equal(await http.deleteOrgRows('widgets', ['a'], { column: 'organization_id', orgId: 'o1' }), 1);
     assert.deepEqual(requests, [{ url: `https://${REF}.supabase.co/rest/v1/widgets?id=in.(${encodeURIComponent('"a"')})&organization_id=eq.o1`, method: 'DELETE' }]);
   } finally { dir.cleanup(); }
+});
+
+// W3 item 6: a refresh cleans every table the world has ever seeded, not only the ones its plan
+// seeds now. The tables come from the plan's `seededTables`, carried from plan to plan.
+const OTHER_ORG = '11111111-2222-4333-8444-555555555555';
+
+function writeWorld(repo, id, rows) {
+  writeFileSync(`${repo.dir}/docs/delivery/widgets/worlds/${id}.json`, JSON.stringify({ ...world(id), rows }));
+}
+
+test('refresh empties the organisation\'s rows in a table the world stopped seeding, and leaves a table it never seeded', async () => {
+  const { repo, ctx, db, stdout } = await setup();
+  try {
+    // Plan 2 seeds a note; apply it. Plan 3 drops the note from the world file.
+    const withNote = [...world('design').rows, { key: 'n1', table: 'notes', values: { organization_id: { $ref: 'org' }, body: 'hello' } }];
+    writeWorld(repo, 'design', withNote);
+    assert.equal(await seedCommand.run(ctx, ['--plan']), 0, stdout.text());
+    assert.equal(await seedCommand.run(ctx, ['--apply']), 0, stdout.text());
+    assert.equal(ids(db, 'notes').length, 1, 'the note was seeded');
+    writeWorld(repo, 'design', world('design').rows);
+    assert.equal(await seedCommand.run(ctx, ['--plan']), 0, stdout.text());
+    const plan = await readArtefact(ctx.paths, 'seedplan');
+    assert.ok(!plan.rows.some((r) => r.table === 'notes'), 'the plan no longer seeds notes');
+    assert.ok(plan.worlds.find((w) => w.id === 'design').seededTables.includes('notes'), 'but the world remembers it did');
+
+    db.tables.get('notes').push({ id: 'note-clicked', organization_id: DESIGN, body: 'added by a click' }, { id: 'note-other', organization_id: OTHER_ORG, body: 'someone else\'s' });
+    db.tables.set('audit_log', [{ id: 'a1', organization_id: DESIGN }]); // never seeded: a trigger may have made it
+    db.tables.get('widgets').push({ id: 'clicked-w', organization_id: DESIGN, state: 'idle' });
+    const before = db.writes().length;
+
+    const r = await refreshWorldReport(ctx, 'design');
+    assert.equal(r.gate.ok, true, JSON.stringify(r.gate.failures));
+    assert.deepEqual(r.removed.tables, { widgets: 1, notes: 2 }, 'the seeded note and the clicked one both go');
+    assert.deepEqual(ids(db, 'notes'), ['note-other'], 'another organisation\'s note stays');
+    assert.deepEqual(ids(db, 'audit_log'), ['a1'], 'a table the world never seeded is not read or touched');
+    const deletes = db.writes().slice(before).filter((w) => w.op === 'delete');
+    assert.ok(deletes.length && deletes.every((d) => d.where.organization_id === DESIGN), 'every delete carries the organisation filter');
+  } finally { repo.cleanup(); }
+});
+
+test('a stale table with no organisation column is never read, and one the database no longer has is skipped', () => {
+  const plan = {
+    worlds: [{ id: 'a', orgId: 'o-a', seededTables: ['gone', 'notes', 'organizations', 'settings', 'widgets'] }],
+    rows: [
+      { world: 'a', table: 'organizations', id: 'o-a', values: { id: 'o-a' } },
+      { world: 'a', table: 'widgets', id: 'w1', values: { id: 'w1', organization_id: 'o-a' } },
+    ],
+  };
+  const schema = { columns: [{ table_name: 'widgets', column_name: 'organization_id' }, { table_name: 'notes', column_name: 'org_id' }, { table_name: 'notes', column_name: 'tenant_id' }] };
+  assert.deepEqual(extraReads(plan, 'a', 'o-a').stale, ['gone', 'notes', 'settings'], 'without a schema, the stale tables are named for the caller');
+  assert.deepEqual(extraReads(plan, 'a', 'o-a').reads.map((r) => r.table), ['widgets']);
+  const { reads, unscoped } = extraReads(plan, 'a', 'o-a', schema);
+  assert.deepEqual(reads.map((r) => [r.table, r.column]), [['widgets', 'organization_id'], ['notes', 'org_id']], 'the first organisation column the table has');
+  assert.match(reads[1].sql, /^select id, "org_id" from public\."notes" where "org_id"::text = any\('\{o-a\}'\)$/);
+  assert.deepEqual(unscoped, ['gone', 'settings']);
+  // A table with no planned rows relates to nothing, so it goes latest: after the tables the plan seeds.
+  assert.deepEqual(deleteOrder(plan, 'a', ['notes', 'widgets']), ['widgets', 'notes']);
+});
+
+test('seededTables carries over from plan to plan, and leaves join tables out', () => {
+  const world = (rows) => ({ schemaVersion: 1, world: 'design', rows });
+  const org = { key: 'org', table: 'organizations', values: { name: { $orgName: true } } };
+  const one = { key: 'n1', table: 'notes', values: { organization_id: { $ref: 'org' }, owner_id: { $ref: 'user:admin' } } };
+  const two = { key: 'w1', table: 'widgets', values: { organization_id: { $ref: 'org' }, owner_id: { $ref: 'user:admin' } } };
+  const join = { key: 'm', table: 'organization_members', values: { organization_id: { $ref: 'org' }, user_id: { $ref: 'user:admin' }, role: 'admin' } };
+  const build = (rows, previous) => buildSeedPlan({
+    feature: 'widgets', runId: 'r-1', project: 'p', plan: validExample('plan'), safety: makeSafety(),
+    worldFiles: { design: world(rows) }, tablesWithoutId: new Set(['organization_members']), previous,
+  });
+  const first = build([org, one, join]);
+  assert.deepEqual(first.worlds[0].seededTables, ['notes', 'organizations'], 'a join table is not a table a refresh can judge by id');
+  const second = build([org, two], first);
+  assert.deepEqual(second.worlds[0].seededTables, ['notes', 'organizations', 'widgets'], 'notes carried over though nothing seeds it now');
+  const third = build([org, two], second);
+  assert.deepEqual(third.worlds[0].seededTables, ['notes', 'organizations', 'widgets'], 'and it stays');
+  // A plan from before seededTables existed contributes the tables of its rows.
+  const old = structuredClone(first);
+  delete old.worlds[0].seededTables;
+  assert.deepEqual(build([org, two], old).worlds[0].seededTables, ['notes', 'organizations', 'widgets']);
+  assert.deepEqual(build([org, two]).worlds[0].seededTables, ['organizations', 'widgets'], 'no previous plan: just its own');
 });

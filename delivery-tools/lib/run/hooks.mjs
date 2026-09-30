@@ -115,7 +115,8 @@ async function readyProblems(ctx, run, pr) {
 export async function decidePreBash(ctx, payload) {
   const command = payload?.tool_input?.command;
   if (typeof command !== 'string' || !command.trim()) return { allow: true };
-  const cls = classifyBash(command);
+  const cwd = typeof payload.cwd === 'string' && payload.cwd ? payload.cwd : ctx.cwd;
+  const cls = classifyBash(command, { cwd, readFile: ctx.readScript });
   if (!cls.ready.length && !cls.readyApi && !cls.seed) return { allow: true };
   let hctx;
   let runs;

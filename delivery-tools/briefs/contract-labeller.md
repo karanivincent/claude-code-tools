@@ -26,11 +26,19 @@ is built. You never add, remove or reword a text: the texts are the render's, ex
 | `fixed` | The page's own words: headings, button and column names, help text, empty-state sentences. The same on every account. | nothing |
 | `data` | A value that comes from the account's rows: a name, a title, a number, a status shown as a value, a date. | where it comes from (below) |
 | `random` | A value no seed can pin: a generated id, a hash, a random avatar colour. It is masked in the pictures. Use it rarely. | nothing |
+| `none` | A value the design shows that the product does not store anywhere: no table in `database.types.ts` has a column for it, and no count or total could produce it ("12 calls at once" when the product stores only the agents' count). It goes to the founder once, before the build. | `"why"`: one sentence on what is missing |
 
 A `data` text says where its value comes from, in one of these shapes:
 
 - A row value: `"table"` and `"column"` (a dotted path for a JSON column: `"meta.title"`). When the
   text wraps the value in fixed words ("Called Amina Otieno"), give `"value": "Amina Otieno"`.
+  Add `"row"`: a short key naming the one row the value belongs to, the same for every value of
+  that row in every state (`"m-james"` for James's name, email and role). `delivery seed
+  --from-trace` builds one world row per key, and datacheck uses it to tell a wrong value in a
+  row the page shows from a row the page does not show. Give every row value a `row`.
+- A value the product writes itself (an AI summary, a call's outcome): `"kind": "generated"`, the
+  `"table"` and `"column"` it is stored in, and `"shape": "text"` or `"number"`. It is checked by
+  shape only.
 - A count: `"kind": "count"`, `"table"`, and `"where"` (`{ "column": value }`, the rows it counts).
   When the number sits in words ("8 calls"), `"value": "8"`.
 - A date or a time ("Tue 14 Oct", "2 min ago"): `"kind": "date"` or `"kind": "time"`, `"table"`
@@ -38,6 +46,9 @@ A `data` text says where its value comes from, in one of these shapes:
 - The signed-in person ("Sam Kariuki", "SK", "You"): `"user": "<role>"`, `"field": "name"` or
   `"initials"`. "You" is fixed words.
 - `"world": "<id>"` only when the value lives in another world than the state's own.
+
+Read `database.types.ts` (the profile's `paths.databaseTypes`) for the tables and columns, not only
+the world files: the worlds are often empty before `--from-trace` fills them.
 
 ## Inconsistent designs
 
@@ -51,7 +62,9 @@ after today, totals that don't add up), label its texts as usual and add the sta
 { "schemaVersion": 1,
   "states": {
     "KC-05": [
-      { "text": "Amina Otieno", "label": "data", "table": "contacts", "column": "name" },
+      { "text": "Amina Otieno", "label": "data", "table": "contacts", "column": "name", "row": "c-amina" },
+      { "text": "amina@example.com", "label": "data", "table": "contacts", "column": "email", "row": "c-amina" },
+      { "text": "12 lines", "label": "none", "why": "the product stores no line count" },
       { "text": "8 calls", "label": "data", "kind": "count", "table": "calls", "where": { "status": "done" }, "value": "8" },
       { "text": "To check", "label": "fixed" } ] },
   "inconsistent": { "KC-09": "the header says 6 calls and the list shows 8" } }

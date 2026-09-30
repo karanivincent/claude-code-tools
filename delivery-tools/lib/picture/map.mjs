@@ -163,6 +163,8 @@ export function validateMap(map, opts = {}) {
       });
     }
     // R12 of stable picture data: a value no seed can pin (a generated id, a random avatar) is
+    // W3 (D4): a state whose look depends on the clock ("calling hours open", "overdue").
+    if (s.clock !== undefined && typeof s.clock !== 'boolean') problems.push(`${where} clock must be true or false`);
     // masked by test id on both pictures, listed per state and counted in the ledger.
     if (s.mask !== undefined) {
       if (!Array.isArray(s.mask)) problems.push(`${where} mask must be a list of { "testid": ..., "why": ... }`);
@@ -340,4 +342,32 @@ export function mapFromPlan(plan, opts) {
     states,
     keep: [],
   };
+}
+
+const FIXED_TIME = /^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?)?$/;
+
+/**
+ * W3 (D4): a state marked `clock: true` looks the way it does only at some times of day ("calling
+ * hours open", "overdue"). Its world's times must be relative to the shoot ({"$rel": ...}), which
+ * resets the world right before its shots; a fixed date or time in that world's file would make the
+ * state true on one day and false the next. One problem per fixed value.
+ * @param {object} map
+ * @param {Record<string, object|null>} worldFiles world id -> world file (null when unreadable)
+ * @returns {string[]}
+ */
+export function clockProblems(map, worldFiles) {
+  const out = [];
+  const worlds = new Map();
+  for (const s of map?.states ?? []) if (s.clock === true && s.reach?.world) worlds.set(s.reach.world, [...(worlds.get(s.reach.world) ?? []), s.id]);
+  for (const [world, states] of worlds) {
+    const file = worldFiles[world];
+    if (!file) continue;
+    const walk = (v, path, row) => {
+      if (typeof v === 'string' && FIXED_TIME.test(v.trim())) out.push(`world ${world} row "${row}" ${path} is a fixed time ("${v}"), and ${states.join(', ')} depend(s) on the clock: write it relative to the shoot, {"$rel": "now-2h"} or {"$rel": "today@09:00"}`);
+      else if (v && typeof v === 'object' && !Array.isArray(v) && !('$rel' in v)) for (const [k, x] of Object.entries(v)) walk(x, path ? `${path}.${k}` : k, row);
+      else if (Array.isArray(v)) v.forEach((x, i) => walk(x, `${path}[${i}]`, row));
+    };
+    for (const r of file.rows ?? []) walk(r.values ?? {}, '', r.key);
+  }
+  return out;
 }

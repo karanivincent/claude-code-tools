@@ -127,3 +127,39 @@ test('structure: production, project, own world, organisation name, users, globa
   const codes = new Set(bad.reasons.map((x) => `${x.layer}:${x.code}`));
   for (const c of ['4:production', '4:project', '4:org-name', '4:outside-world', '4:global-unlisted', '4:robot', '2:fixture-user', '2:email']) assert.ok(codes.has(c), `${c} in ${[...codes]}`);
 });
+
+// D5: a seeded table that side-effect rules watch needs a guard that covers it at all.
+test('layer 3: a watched table with no guard fails, one guard covering it passes, an unwatched table needs none', () => {
+  const orgId = '00000000-0000-5000-8000-00000000000a';
+  const rows = [
+    { world: 'design', table: 'organizations', id: orgId, values: { id: orgId, name: `${safety.fixtureOrgPrefix}Design` } },
+    { world: 'design', table: 'widgets', id: 'w1', values: { id: 'w1', organization_id: orgId, state: 'idle' } },
+  ];
+  const noGuards = { ...safety, guards: [] };
+  const watchers = predicates.filter((p) => p.table === 'widgets');
+  assert.ok(watchers.length, 'the derived rules watch widgets');
+  assert.ok(!predicates.some((p) => p.table === 'organizations'), 'and nothing watches organizations');
+
+  const bare = evaluateSeedSafety({ rows, predicates, safety: noGuards, neverDial: [], now });
+  assert.equal(bare.ok, false);
+  const l3 = bare.reasons.filter((x) => x.layer === 3);
+  assert.equal(l3.length, 1, 'one failure per table, and none for the unwatched organizations table');
+  assert.equal(l3[0].table, 'widgets');
+  assert.equal(l3[0].failureCode, 'M13-guard');
+  assert.match(l3[0].message, new RegExp(`^widgets is seeded and ${watchers.length} side-effect rule\\(s\\) watch it \\(${watchers[0].id.replace(/[.*+?^${}()|[\]\\#]/g, '\\$&')}\\), but no guard covers it: the mapper drafts a guard`));
+  assert.equal(bare.counts.layer3, 1);
+
+  for (const covers of [['widgets:*'], [`widgets:${watchers[0].id}`]]) {
+    const guarded = evaluateSeedSafety({ rows, predicates, safety: noGuards, neverDial: [], now, guards: [{ id: 'g', covers, holds: true }] });
+    assert.equal(guarded.reasons.filter((x) => x.layer === 3).length, 0, `covers ${covers}`);
+    assert.equal(guarded.ok, true, JSON.stringify(guarded.reasons.map((x) => x.message)));
+  }
+  // The guard counts from the safety file too, even when its probes were not run.
+  const inFile = evaluateSeedSafety({ rows, predicates, safety: { ...safety, guards: [{ id: 'g', covers: ['widgets:*'], probes: [], rowRules: [] }] }, neverDial: [], now });
+  assert.equal(inFile.reasons.filter((x) => x.layer === 3).length, 0);
+  // A guard that covers another table does not cover this one.
+  const other = evaluateSeedSafety({ rows, predicates, safety: noGuards, neverDial: [], now, guards: [{ id: 'g', covers: ['outbound_calls:*'], holds: true }] });
+  assert.equal(other.reasons.filter((x) => x.layer === 3).length, 1);
+  // A live scan judges rows the plan never wrote, so it does not ask for this.
+  assert.equal(evaluateSeedSafety({ rows, predicates, safety: noGuards, neverDial: [], now, requireGuards: false }).ok, true);
+});

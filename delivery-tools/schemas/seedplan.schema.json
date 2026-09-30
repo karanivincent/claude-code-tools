@@ -39,6 +39,14 @@
           "orgId": {
             "$ref": "common.schema.json#/$defs/Text"
           },
+          "seededTables": {
+            "description": "Every table the world's rows write now or wrote in an earlier plan (id-bearing tables only); a refresh cleans the organisation's rows in each, so a table the world stopped seeding does not keep its old rows.",
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z_][a-z0-9_]*$"
+            }
+          },
           "globals": {
             "description": "R7: shared tables the world reads but does not own; seed --apply hashes them into globals.json and shoot warns when one changed.",
             "type": "array",

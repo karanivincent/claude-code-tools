@@ -22,8 +22,17 @@
 // else the whole text. `world` defaults to the state's reach.world. Kinds: value (a row whose column
 // equals it), count (exactly that many rows where `where` holds), date and time (compared by
 // format, never by the absolute day the design happens to show, R1: a row with the column set is
-// enough). `user` names the world's fixture user in that role (R10): `field` name (default) or
-// initials. Everything here is pure except the two file readers.
+// enough), generated (a value the product writes itself, an AI summary or an outcome: checked by
+// shape only, "text is there" or "a number is there"). `user` names the world's fixture user in
+// that role (R10): `field` name (default) or initials. `row` (W3) groups the values one row shows
+// ("m-2": a member's name, email and role), so seed --from-trace can build the row and datacheck can
+// tell a wrong value in a row the page shows (a data fault) from a row the page does not show.
+//
+// A fourth label, "none" (W3, D6), is a value the design shows that the product does not store.
+// It is never seeded or checked. The founder decides each one once, before the build
+// (`delivery contract --decide`): "build" (a rule: the product gains it), "drop" (a cut rule) or
+// "design" (back to Claude Design). A decided one is closed; an undecided one keeps ready red.
+// Everything here is pure except the two file readers.
 
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -32,8 +41,12 @@ import { matchesWhere } from '../seed/data.mjs';
 import { plannedValues } from '../seed/plan.mjs';
 import { resolveValues } from '../seed/evaluate.mjs';
 
-export const LABELS = Object.freeze(['data', 'fixed', 'random']);
-export const KINDS = Object.freeze(['value', 'count', 'date', 'time']);
+export const LABELS = Object.freeze(['data', 'fixed', 'random', 'none']);
+export const KINDS = Object.freeze(['value', 'count', 'date', 'time', 'generated']);
+/** What the founder decides for a "none" value (D6). */
+export const DECISIONS = Object.freeze(['build', 'drop', 'design']);
+/** What a generated value is checked by. */
+export const SHAPES = Object.freeze(['text', 'number']);
 
 /** docs/delivery/<feature>/contract.json */
 export function contractPath(paths) { return join(paths.deliveryDir, 'contract.json'); }
@@ -121,6 +134,10 @@ export function buildContract({ texts, previous = null, labels = null, at }) {
     const givenBy = new Map(givenList.filter((e) => e && typeof e.text === 'string').map((e) => [collapse(e.text), e]));
     const entries = list.map((text) => {
       const e = givenBy.get(text) ?? prevBy.get(text);
+      // The founder's decision on a "none" value is recorded in the contract itself; a labeller's
+      // file written before it must not wipe it.
+      const kept = prevBy.get(text);
+      if (e && e.label === 'none' && e.decision === undefined && kept?.label === 'none' && kept.decision) return { ...e, text, decision: kept.decision, ...(kept.decisionNote ? { decisionNote: kept.decisionNote } : {}) };
       if (e && e.label !== null && e.label !== undefined) return { ...e, text };
       if (!prevBy.has(text)) added += 1;
       return fixed.has(text) ? { text, label: 'fixed' } : { text, label: null };
@@ -143,9 +160,16 @@ export function buildContract({ texts, previous = null, labels = null, at }) {
 export function entryProblem(e) {
   if (e.label === null || e.label === undefined) return null;
   if (!LABELS.includes(e.label)) return `label "${e.label}" is not one of ${LABELS.join(', ')}`;
+  if (e.label === 'none') return e.decision === undefined || DECISIONS.includes(e.decision) ? null : `decision "${e.decision}" is not one of ${DECISIONS.join(', ')}`;
   if (e.label !== 'data') return null;
   const kind = e.kind ?? 'value';
   if (!KINDS.includes(kind)) return `kind "${kind}" is not one of ${KINDS.join(', ')}`;
+  if (e.row !== undefined && (typeof e.row !== 'string' || !e.row)) return 'row must be a non-empty string';
+  if (kind === 'generated') {
+    if (e.shape !== undefined && !SHAPES.includes(e.shape)) return `shape "${e.shape}" is not one of ${SHAPES.join(', ')}`;
+    if (e.table !== undefined && !/^[a-z_][a-z0-9_]*$/.test(e.table)) return 'table must be a table name';
+    return null;
+  }
   if (e.user !== undefined) {
     if (typeof e.user !== 'string' || !e.user) return 'user must name a role';
     if (e.field !== undefined && !['name', 'initials'].includes(e.field)) return 'field must be name or initials';
@@ -168,12 +192,13 @@ export function countOf(e) {
 }
 
 /**
- * What the contract still lacks: unlabelled texts, entries that cannot be checked, and the states
- * the labeller found inconsistent in the design itself (R6: they go to Claude Design, not to seeding).
+ * What the contract still lacks: unlabelled texts, entries that cannot be checked, the states the
+ * labeller found inconsistent in the design itself (R6: they go to Claude Design, not to seeding),
+ * and the "none" values the founder has not decided yet (D6), with the decided ones beside them.
  * @param {object} contract
  */
 export function contractSummary(contract) {
-  const out = { states: 0, texts: 0, data: 0, fixed: 0, random: 0, unlabelled: [], invalid: [], inconsistent: [] };
+  const out = { states: 0, texts: 0, data: 0, fixed: 0, random: 0, none: 0, unlabelled: [], invalid: [], inconsistent: [], undecided: [], decided: [] };
   for (const [id, s] of Object.entries(contract?.states ?? {})) {
     out.states += 1;
     if (s.inconsistent) out.inconsistent.push({ state: id, why: s.inconsistent });
@@ -181,6 +206,7 @@ export function contractSummary(contract) {
       out.texts += 1;
       if (e.label === null || e.label === undefined) { out.unlabelled.push({ state: id, text: e.text }); continue; }
       if (LABELS.includes(e.label)) out[e.label] += 1;
+      if (e.label === 'none') (e.decision ? out.decided : out.undecided).push({ state: id, text: e.text, why: e.why ?? null, decision: e.decision ?? null });
       const p = entryProblem(e);
       if (p) out.invalid.push({ state: id, text: e.text, why: p });
     }
@@ -198,6 +224,43 @@ export function columnValue(values, column) {
   return v;
 }
 
+/**
+ * The value a seeded world holds for a design value: the design's own, or the safe one seed
+ * --from-trace put in its place (an email on the fake domain, an organisation name behind the
+ * fixture prefix). Compared case- and space-blind, like every value here.
+ * @param {unknown} value
+ * @param {Record<string, string>|null} swaps
+ */
+export function swapped(value, swaps) {
+  if (!swaps) return value;
+  const key = normalise(value);
+  for (const [from, to] of Object.entries(swaps)) if (normalise(from) === key) return to;
+  return value;
+}
+
+/**
+ * Record the founder's decision on "none" values (D6): one text of a state, every undecided one of
+ * a state, or ("all") every undecided one in the contract. Returns how many it decided. Pure over
+ * the contract object, which it changes in place.
+ * @param {object} contract
+ * @param {{ state: string, text?: string|null, decision: string, note?: string|null }} d
+ */
+export function decideNone(contract, { state, text = null, decision, note = null }) {
+  if (!DECISIONS.includes(decision)) throw new Error(`decision "${decision}" is not one of ${DECISIONS.join(', ')}`);
+  let n = 0;
+  for (const [id, s] of Object.entries(contract?.states ?? {})) {
+    if (state !== 'all' && id !== state) continue;
+    for (const e of s.texts ?? []) {
+      if (e.label !== 'none') continue;
+      if (text !== null ? normalise(e.text) !== normalise(text) : e.decision) continue;
+      e.decision = decision;
+      if (note) e.decisionNote = note;
+      n += 1;
+    }
+  }
+  return n;
+}
+
 /** "Amina Otieno" -> "AO". */
 export function initials(name) {
   return collapse(name).split(' ').filter(Boolean).map((w) => [...w][0]).join('').toUpperCase();
@@ -211,9 +274,10 @@ export function initials(name) {
  * @param {{ table: string, values: object }[]} rows
  * @param {{ role: string, name?: string }[]} users
  * @param {Date} now
+ * @param {Record<string, string>|null} [swaps] the world's swap list (design value -> seeded value)
  */
-export function holds(e, rows, users, now) {
-  const value = e.value ?? e.text;
+export function holds(e, rows, users, now, swaps = null) {
+  const value = swapped(e.value ?? e.text, swaps);
   if (e.user !== undefined) {
     const u = users.find((x) => x.role === e.user);
     if (!u) return { ok: false, found: 0, why: `the world has no ${e.user} user` };
@@ -229,6 +293,13 @@ export function holds(e, rows, users, now) {
     const want = countOf(e);
     const found = mine.filter((r) => matchesWhere(e.where, r.values, now)).length;
     return found === want ? { ok: true, found } : { ok: false, found, why: `${found} ${e.table} row(s)${e.where ? ' where it holds' : ''}, and the design shows ${want}` };
+  }
+  if (kind === 'generated') {
+    // A value the product writes is checked by shape: a row with the column set is enough, and
+    // one with no column named cannot be seeded at all.
+    if (!e.table || !e.column) return { ok: true, found: 0 };
+    const found = mine.filter((r) => { const v = columnValue(r.values, e.column); return v !== null && v !== undefined && v !== ''; }).length;
+    return found ? { ok: true, found } : { ok: false, found, why: `no ${e.table} row sets ${e.column}` };
   }
   if (kind === 'date' || kind === 'time') {
     const found = mine.filter((r) => { const v = columnValue(r.values, e.column); return v !== null && v !== undefined && v !== ''; }).length;
@@ -247,9 +318,10 @@ export function holds(e, rows, users, now) {
  * @param {object} map
  * @param {{ rows: object[], users: object[] }} seedPlan
  * @param {Date} now
+ * @param {Record<string, Record<string, string>>|null} [swaps] per world, from swaps.json
  * @returns {{ gaps: { state: string, text: string, why: string }[], unlabelled: number, skipped: string[] }}
  */
-export function contractGaps(contract, map, seedPlan, now = new Date()) {
+export function contractGaps(contract, map, seedPlan, now = new Date(), swaps = null) {
   const byState = new Map((map?.states ?? []).map((s) => [s.id, s]));
   const resolved = (seedPlan?.rows ?? []).map((r) => ({ world: r.world, table: r.table, values: resolveValues(plannedValues(r), now) }));
   const gaps = [];
@@ -265,7 +337,7 @@ export function contractGaps(contract, map, seedPlan, now = new Date()) {
       const problem = entryProblem(e);
       if (problem) { gaps.push({ state: id, text: e.text, why: problem }); continue; }
       const world = e.world ?? state.reach?.world;
-      const r = holds(e, resolved.filter((x) => x.world === world), (seedPlan?.users ?? []).filter((u) => u.world === world), now);
+      const r = holds(e, resolved.filter((x) => x.world === world), (seedPlan?.users ?? []).filter((u) => u.world === world), now, swaps?.[world] ?? null);
       if (!r.ok) gaps.push({ state: id, text: e.text, why: `${r.why} (world ${world})` });
     }
   }
@@ -297,37 +369,4 @@ const DAYS = /\b(mon(day)?|tue(s|sday)?|wed(nesday)?|thu(rs|rsday)?|fri(day)?|sa
  */
 export function dateShape(text) {
   return normalise(text).replace(MONTHS, 'M').replace(DAYS, 'D').replace(/\d+/g, '9');
-}
-
-/**
- * R3 of stable picture data: sort each difference in a contract data value by looking it up in the
- * world, never by guessing. For every text the design shows that the live page does not, labelled
- * data in the state's contract: the world lacks it (a data gap, for the seed worker), or the world
- * holds it and the page does not show it (a must fix, for the fixer). A date or time the page shows
- * in the same format as the design is no difference at all. Fixed words and random values are the
- * reviewers' and the masks' business, not this one's.
- * @param {{ contractState: object|null|undefined, designTexts: string[], liveTexts: string[],
- *           rows: { table: string, values: object }[]|null, users: object[], now: Date }} o
- *   rows: the world's rows as seeded for this shoot; null when they could not be read (then
- *   nothing is sorted)
- * @returns {{ dataGap: string[], must: string[] }}
- */
-export function sortDataDifferences({ contractState, designTexts: design, liveTexts: live, rows, users, now }) {
-  const out = { dataGap: [], must: [] };
-  if (!contractState || !rows) return out;
-  const liveSet = new Set((live ?? []).map(normalise));
-  const liveShapes = new Set((live ?? []).map(dateShape));
-  const byText = new Map((contractState.texts ?? []).map((e) => [normalise(e.text), e]));
-  for (const text of design ?? []) {
-    if (liveSet.has(normalise(text))) continue;
-    const e = byText.get(normalise(text));
-    if (!e || e.label !== 'data' || entryProblem(e)) continue;
-    const kind = e.kind ?? 'value';
-    if ((kind === 'date' || kind === 'time') && liveShapes.has(dateShape(text))) continue;
-    const r = holds(e, rows, users ?? [], now);
-    const where = e.user !== undefined ? `the ${e.user} fixture user` : kind === 'count' ? `${e.table} rows` : `${e.table}.${e.column}`;
-    if (r.ok) out.must.push(`the design shows "${text}" and the page does not, though the world holds it (${where}; found by lookup)`);
-    else out.dataGap.push(`the design shows "${text}": ${r.why} (found by lookup; fix the world file, not the code)`);
-  }
-  return out;
 }

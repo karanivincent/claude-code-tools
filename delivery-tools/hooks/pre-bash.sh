@@ -2,7 +2,8 @@
 # PreToolUse on Bash (spec 11.4). The fast path matches only commands that mention gh pr ready, a
 # gh api call marking a PR ready for review, or a seed, and only while a run is active does Node
 # start: `delivery hook pre-bash` then lexes the command and runs the ready check or refuses a raw
-# seed. Exit 0 allows; exit 2 refuses with the reason on stderr. Never non-zero on the fast path.
+# seed (a script counts only when its text writes to a database). Exit 0 allows; exit 2 refuses
+# with the reason on stderr. Never non-zero on the fast path.
 
 case $0 in */*) . "${0%/*}/common.sh" ;; *) . ./common.sh ;; esac
 

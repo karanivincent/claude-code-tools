@@ -663,6 +663,9 @@
           "dataGap": {
             "$ref": "common.schema.json#/$defs/Count"
           },
+          "dataFault": {
+            "$ref": "common.schema.json#/$defs/Count"
+          },
           "carried": {
             "$ref": "common.schema.json#/$defs/Count"
           },

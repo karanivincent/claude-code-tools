@@ -2,6 +2,8 @@
 // PR a gh pr ready names, and that an unexpected error fails closed where a gate is at stake.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { classifyBash, lex, simpleCommands, unwrap, parseTarget } from '../../lib/run/hook-match.mjs';
 import { decidePreBash, decidePreBrowser, readPayload } from '../../lib/run/hooks.mjs';
 import preBash from '../../lib/commands/hook-pre-bash.mjs';
@@ -62,6 +64,50 @@ test('raw seed commands: scripts, package scripts, seed subcommands, SQL files; 
     'gh issue list --search seed', 'ls seeds/',
   ];
   for (const s of fine) assert.equal(classifyBash(s).seed, null, `wrongly caught: ${s}`);
+});
+
+test('a seed-named script is refused only when its text writes to a database', () => {
+  const files = {
+    '/w/docs/plans/seed-from-trace.mjs': "import { readFileSync } from 'node:fs';\nconsole.log(JSON.parse(readFileSync('trace.json', 'utf8')).length);\n",
+    '/w/scripts/check-seed-shape.mjs': 'const rows = load(); assert.ok(rows.every((r) => r.id));\n',
+    '/w/scripts/seed-insert.mjs': "await supabase.from('widgets').insert(rows);\n",
+    '/w/scripts/seed-sql.mjs': "await db.query('DELETE FROM widgets');\n",
+    '/w/scripts/seed-admin.mjs': "const c = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY);\n",
+    '/w/scripts/seed-psql.mjs': "import { execSync } from 'node:child_process';\nexecSync('psql -f x.sql');\n",
+    '/w/scripts/seed-big.mjs': 'x'.repeat(10),
+  };
+  const readFile = (path) => (path === '/w/scripts/seed-big.mjs' ? null : files[path] ?? null);
+  const seed = (cmd) => classifyBash(cmd, { cwd: '/w', readFile }).seed;
+  assert.equal(seed('node docs/plans/seed-from-trace.mjs'), null, 'a read-only script is allowed');
+  assert.equal(seed('node scripts/check-seed-shape.mjs'), null);
+  assert.equal(seed('cd /w && node "docs/plans/seed-from-trace.mjs" --dry'), null);
+  for (const cmd of ['node scripts/seed-insert.mjs', 'node scripts/seed-sql.mjs', 'node scripts/seed-admin.mjs', 'node scripts/seed-psql.mjs']) {
+    assert.match(seed(cmd), /runs scripts\/seed-/, `writes, so refused: ${cmd}`);
+  }
+  assert.match(seed('node scripts/seed-missing.mjs'), /runs scripts\/seed-missing\.mjs/, 'a missing script fails closed');
+  assert.match(seed('node scripts/seed-big.mjs'), /runs/, 'an unreadable or oversized script fails closed');
+  assert.match(seed('npm run seed'), /package script seed/, 'package scripts are still refused');
+  assert.match(seed('psql "$DATABASE_URL" -f supabase/seed.sql'), /runs/);
+  assert.equal(seed('node scripts/delivery.mjs seed --apply'), null, 'delivery seed is still allowed');
+  // The unparsed fallback reads the script too.
+  assert.equal(seed('echo "x; node docs/plans/seed-from-trace.mjs'), null);
+  assert.match(seed('echo "x; node scripts/seed-insert.mjs'), /unparsed command/);
+  assert.match(seed('echo "x; node scripts/seed-missing.mjs'), /unparsed command/);
+});
+
+test('the default reader reads from the payload cwd on disk', async () => {
+  const { repo, dir } = await runRepo();
+  try {
+    mkdirSync(join(dir, 'docs'), { recursive: true });
+    writeFileSync(join(dir, 'docs', 'seed-from-trace.mjs'), "console.log('read only');\n");
+    writeFileSync(join(dir, 'docs', 'seed-writes.mjs'), "await sb.from('t').upsert(rows);\n");
+    const { ctx } = await ctxFor(dir);
+    assert.deepEqual(await decidePreBash(ctx, bashPayload(dir, 'node docs/seed-from-trace.mjs')), { allow: true });
+    assert.equal((await decidePreBash(ctx, bashPayload(dir, 'node docs/seed-writes.mjs'))).allow, false);
+    assert.equal((await decidePreBash(ctx, bashPayload(dir, 'node docs/seed-nowhere.mjs'))).allow, false);
+    assert.equal((await decidePreBash(ctx, bashPayload(dir, 'npm run seed'))).allow, false);
+    assert.equal((await decidePreBash(ctx, bashPayload(dir, 'node scripts/delivery.mjs seed --apply'))).allow, true);
+  } finally { repo.cleanup(); }
 });
 
 test('an unlexable command falls back to patterns and errs towards a check', () => {

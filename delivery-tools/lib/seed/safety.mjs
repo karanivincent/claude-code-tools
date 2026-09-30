@@ -111,7 +111,7 @@ export async function seedCheck(ctx, opts = {}) {
       robotEmails: [profile.auth?.robotAdminEmail, profile.auth?.robotMemberEmail],
     },
   });
-  for (const reason of evaluation.reasons) failures.push({ code: `M13-L${reason.layer}`, message: reason.message });
+  for (const reason of evaluation.reasons) failures.push({ code: reason.failureCode ?? `M13-L${reason.layer}`, message: reason.message });
   return { gate: gateResult(failures, failures.length ? exit : undefined), evaluation, seedPlan, guards, derived };
 }
 

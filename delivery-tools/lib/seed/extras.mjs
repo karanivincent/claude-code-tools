@@ -3,11 +3,18 @@
 // so the next capture in that world counted one entry too many, and a state that added the same
 // entry again got a 409. After a refresh the world is exactly what its plan says.
 //
-// The scope is deliberately narrow, and every part of it comes from the seed plan, never from the
-// database: the world's own organisation (the plan's derived id, which is also the id of the
-// world's organisation row), and only tables the world's plan seeds rows into, by the organisation
-// column those planned rows carry. A row outside that organisation cannot be named here, and the
-// delete itself carries the organisation filter too, so the database refuses it as well.
+// The scope is deliberately narrow: the world's own organisation (the plan's derived id, which is
+// also the id of the world's organisation row), and only tables the world has seeded rows into,
+// by the organisation column. A table the plan seeds now takes that column from its planned rows.
+// A table the world seeded in an earlier plan and has stopped seeding (the world's `seededTables`)
+// has no planned rows left, so its column comes from the database's own column list, and it is
+// left alone when it has none. A row outside the organisation cannot be named here, and the delete
+// itself carries the organisation filter too, so the database refuses it as well.
+//
+// It is deliberately NOT every table that has an organisation column. A database trigger creates
+// rows for a new organisation (default settings, a first workspace) in tables the world never
+// seeded; those rows belong to the organisation and must survive a refresh, so a table the world
+// never seeded is never read.
 
 import { ORG_COLUMNS } from './check.mjs';
 import { idArrayLiteral } from './db.mjs';
@@ -44,26 +51,45 @@ export function worldOrgId(seedPlan, worldId) {
  * One read per table the world's plan seeds rows into, by the organisation column its planned
  * rows set to the world's organisation. A join table (no id) and a table whose planned rows name
  * the organisation in no organisation column are not read, and are reported as not scoped.
+ *
+ * Also one read per table the world seeded before and no longer seeds (its `seededTables` minus
+ * the tables of its rows now), by the first organisation column the database says the table has
+ * (`schema.columns`, the list `worldSchema` returns). Without a schema those tables cannot be
+ * scoped, so they are listed in `stale` for the caller to read the schema and ask again; a stale
+ * table with no organisation column (or one no longer in the database) is reported as not scoped.
  * @param {object} seedPlan
  * @param {string} worldId
  * @param {string} orgId
- * @returns {{ reads: { table: string, column: string, sql: string }[], unscoped: string[] }}
+ * @param {{ columns: { table_name: string, column_name: string }[] }} [schema]
+ * @returns {{ reads: { table: string, column: string, sql: string }[], unscoped: string[], stale: string[] }}
  */
-export function extraReads(seedPlan, worldId, orgId) {
+export function extraReads(seedPlan, worldId, orgId, schema) {
   const byTable = new Map();
+  const written = new Set();
   for (const r of seedPlan.rows ?? []) {
-    if (r.world !== worldId || r.idless || r.id === orgId) continue;
+    if (r.world !== worldId) continue;
+    written.add(r.table);
+    if (r.idless || r.id === orgId) continue;
     if (!byTable.has(r.table)) byTable.set(r.table, []);
     byTable.get(r.table).push(r);
   }
   const reads = [];
   const unscoped = [];
+  const read = (table, column) => reads.push({ table, column, sql: `select id, "${column}" from public."${table}" where "${column}"::text = any(${idArrayLiteral([orgId])})` });
   for (const [table, rows] of byTable) {
     const column = ORG_COLUMNS.find((c) => rows.some((r) => r.values?.[c] === orgId));
     if (!column || !TABLE.test(table)) { unscoped.push(table); continue; }
-    reads.push({ table, column, sql: `select id, "${column}" from public."${table}" where "${column}"::text = any(${idArrayLiteral([orgId])})` });
+    read(table, column);
   }
-  return { reads, unscoped };
+  const world = (seedPlan.worlds ?? []).find((w) => w.id === worldId);
+  const stale = (world?.seededTables ?? []).filter((t) => !written.has(t) && TABLE.test(t)).sort();
+  if (schema) {
+    for (const table of stale) {
+      const column = ORG_COLUMNS.find((c) => schema.columns?.some((x) => x.table_name === table && x.column_name === c));
+      if (column) read(table, column); else unscoped.push(table);
+    }
+  }
+  return { reads, unscoped, stale };
 }
 
 /**

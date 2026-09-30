@@ -485,3 +485,59 @@ If a workstream doesn't move its number, we revert it. That's the reason for one
   before ship reviews every changed item, so nothing ships unreviewed.
 - **Values the product generates** can only be checked by shape, so a wrong AI summary still needs
   a reviewer's eye.
+
+---
+
+# Progress (unattended run from 2026-09-30, W3 to W9)
+
+Each workstream: what 0.15 to 0.18 already had, what this run built, the PR, and the decisions
+taken where the plan left a choice open. Baseline before W3: 1213 tests, 1195 pass, 0 fail, 18
+skipped (`node --test 'tests/**/*.test.mjs' 'skills/**/*.test.mjs'`).
+
+## W3 right data (0.19.0), in progress
+
+Already there:
+
+- The trace is the 0.15 data contract (`lib/picture/contract.mjs`): every design text, labelled
+  data / fixed / random, data entries with table, column and kind (value, count, date, time).
+- `seed --check` refuses a data value no world holds (0.15, `contractGaps`).
+- The shoot resets each world right before its shots and after a data-changing entry, freezes the
+  browser clock at the seed moment, in `testData.timeZone` (0.16, `lib/picture/shoot.mjs:runShoot`).
+- Data differences are looked up in the world after the shoot: world lacks it → data gap, world
+  holds it → must fix (0.16, `sortDataDifferences`); `shoot --only data-gaps` re-shoots them.
+- `seed --plan` prints guards to approve and refuses CHECK and enum violations (A2).
+
+Decisions:
+
+- D5 reading: a seeded table needs a guard only when a side-effect rule watches it. Tables no
+  predicate watches (organisations, members) stay guard-free, or every run would need guards for
+  them.
+- Refresh cleans every table the world has ever seeded (a `seededTables` history in the seed
+  plan), not every organisation-scoped table: rows a trigger creates for a new organisation live
+  in tables the world never seeded, and deleting them would break the world.
+- The trace stays the 0.15 contract, extended, not a second `trace` field in `map.json`: `row`
+  (spike S3), kind `generated` (checked by shape), and a fourth label `none` for "the product does
+  not store it". `computed` is the contract's existing `count` kind.
+- The founder's decision on a `none` value lives in `contract.json` (`decision`: build, drop,
+  design), set by `delivery contract --decide`; it survives a rebuild. The run goes on while the
+  founder answers; `ready` stays red until every value is decided. The questions step replaces the
+  separate A2 guards step, so the founder gets one list.
+- `data-fault` is a new verdict beside `data-gap`: the machine's finds (datacheck) are counted
+  apart from the reviewers' (`dataFault` per round in the ledger and in `delivery runs`), which is
+  the plan's measure 4.
+- Datacheck replaced the 0.16 lookup inside the shoot, and uses the rows the reset read back. The
+  spike's row rule (S4) is the fallback when a round has no `seeded.json`. It runs in the shoot;
+  `delivery datacheck` re-runs it from saved files. At most two data-fix passes per round, then the
+  reviewers see it anyway.
+- `seed --from-trace` never writes to the database, only world files, `swaps.json` and missing
+  fixture user names in `map.json`. Its rows are keyed `t-<row>`; hand rows are never touched.
+  Toggle state from `dom.json` (the spike's calling-hours days) is left to the seed-writer.
+- `seed --need` answers "held" only when a contract value of that state matches; anything else is
+  queued in `needs.json`, closed with `--need-done`.
+- The source check (spike S2) greps the repo's code for `.from('<table>')...select(...)` after a
+  shoot; a traced column no query selects is a founder question, never a refusal.
+- The hook refuses a seed-named interpreter script only when its text shows a database write or it
+  cannot be read (fail closed).
+
+Built (branch `w3-right-data`): see the 0.19.0 commit message; Telitask-side changes are in
+`docs/plans/telitask-changes-for-0.19-plus.md`.
