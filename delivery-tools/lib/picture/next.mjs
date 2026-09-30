@@ -20,6 +20,7 @@ import { contractPath, contractSummary } from './contract.mjs';
 import { dataFaultItems } from './datacheck.mjs';
 import { roundDecision, runDecision } from './stop.mjs';
 import { openNeeds } from '../seed/trace.mjs';
+import { tunable } from '../retro/tunables.mjs';
 
 /**
  * A2: every table the map's worlds write (their world files, already on disk once the mapper
@@ -170,6 +171,21 @@ function contractFacts(paths, map) {
   return { contractMissing: false, contractTodo: s.unlabelled.length + s.invalid.length, undecided: s.undecided.length, questionsAsked: s.undecided.every((u) => asked.has(`${u.state}\0${u.text}`)) };
 }
 
+/**
+ * D10: the map's screens in the order they first appear, each with how many states it holds. A state
+ * with no `screen` counts under "(no screen)".
+ * @param {object|null} map
+ * @returns {{ screen: string, states: number }[]}
+ */
+export function screenGroupsOf(map) {
+  const groups = new Map();
+  for (const s of map?.states ?? []) {
+    const name = typeof s.screen === 'string' && s.screen ? s.screen : '(no screen)';
+    groups.set(name, (groups.get(name) ?? 0) + 1);
+  }
+  return [...groups].map(([screen, states]) => ({ screen, states }));
+}
+
 /** Datacheck passes a round may take before its reviewers see it: a seed-writer fix, then a re-shoot. */
 export const DATA_FIX_PASSES = 2;
 
@@ -279,6 +295,11 @@ export async function pictureFacts(paths, opts = {}) {
     // D13: data an agent asked for (seed --need) that no seed-writer has added yet.
     needs: openNeeds(paths).length,
     hasMap: Boolean(map),
+    // D10: how big the design is, so a big one can be split into one run per screen group.
+    stateCount: map?.states?.length ?? 0,
+    oneRun: map?.oneRun === true,
+    screenGroups: screenGroupsOf(map),
+    componentsMap: map?.kind === 'components',
     mapError: mapError ?? problems[0] ?? null,
     problemCount: problems.length,
     checklistStale: Boolean(map) && mtime(checklistPath(paths)) < Math.max(mtime(mapPath(paths)), mtime(rulesPath(paths))),
@@ -340,6 +361,13 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   if (!f.hasMap && !f.mapError) return { step: 'map', skill, text: 'dispatch the mapper agent with briefs/mapper.md to write map.json from the design pictures' };
   if (f.mapError) return { step: 'map', skill, text: `fix map.json (${f.problemCount || 1} problem(s); first: ${f.mapError}), then ${cli} map` };
 
+  // D10: a big design is split into one run per screen group, unless the founder keeps one run.
+  if ((f.stateCount ?? 0) > tunable('run.splitAboveStates') && !f.oneRun && !f.componentsMap) {
+    const groups = f.screenGroups ?? [];
+    const list = groups.map((g) => `${g.screen} (${g.states})`).join(', ');
+    return { step: 'split', skill, text: `the design has ${f.stateCount} states, above ${tunable('run.splitAboveStates')}: propose one run per screen group to the founder. Groups: ${list}. Each group becomes its own run (${cli} intake <export> --feature <slug>-<group> --intent "<the group>"). The groups run one after another after a components run, or side by side, at most four agents at once. To keep one run instead, add "oneRun": true to map.json` };
+  }
+
   if (f.pageBlockedComponents?.length) {
     // A components run already exists once (the product-wide components.json is proof of that):
     // "components" is a taken feature slug, so reaching it again needs --from (fix round, I12).
@@ -363,7 +391,14 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   // W7: how to read the design, written once before round 1, so reviewers agree between rounds.
   if (!last && f.steersMissing) return { step: 'steers', skill, text: `dispatch delivery-tools:delivery-extractor with Role: steers and briefs/steers.md (Write: docs/delivery/<f>/steers.md): phone patterns, test data and rules over the picture, for every reviewer prompt` };
   if (!last && f.update) return { step: 'shoot', skill, text: `update run from ${f.update}: picture the page as it is before building. Start the dev server, then ${cli} shoot ${f.shootArgs ?? '--base-url <url>'} (round 1); the reviewers list what the new design changed, and the builder fixes only that` };
-  if (!last) return { step: 'build', skill, text: `dispatch delivery-tools:picture-builder (opus, no worktree) with briefs/builder-picture.md; when it reports, start the dev server and run ${cli} shoot ${f.shootArgs ?? '--base-url <url>'} (round 1)` };
+  if (!last) {
+    // D10: more than one screen: the first builder is dispatched once per screen group, not once for the page.
+    const groups = f.screenGroups?.length ?? 0;
+    const dispatch = groups > 1
+      ? `dispatch delivery-tools:picture-builder (opus, no worktree) with briefs/builder-picture.md once per screen group (${groups} groups), one after another: each dispatch has a Screens line naming one group, and the next one continues from builder-notes.md; when the last reports`
+      : 'dispatch delivery-tools:picture-builder (opus, no worktree) with briefs/builder-picture.md; when it reports';
+    return { step: 'build', skill, text: `${dispatch}, start the dev server and run ${cli} shoot ${f.shootArgs ?? '--base-url <url>'} (round 1)` };
+  }
   if (!last.shot) return { step: 'shoot', skill, text: `${cli} shoot ${f.shootArgs ?? '--base-url <url>'} --round ${last.round}` };
   // W3: data faults are fixed in the world and re-shot before any reviewer sees the round.
   if (last.dataFaults && (last.dataFixPasses ?? 0) < DATA_FIX_PASSES && !last.reviews && !last.planned) {

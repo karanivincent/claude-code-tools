@@ -24,14 +24,43 @@ function matches(re, src) {
   return [...src.matchAll(re)].map((m) => m[m.length - 1]);
 }
 
+const SKIPPED = /\b(?:test|it|describe)(?:\.(?:describe|serial|parallel|only))*\.(?:skip|fixme)\s*\(/g;
+
 /**
- * The test ids and visible text a Playwright spec names (string literals only).
+ * A spec's text without its skipped tests (W8): `test.skip(...)`, `describe.skip(...)` and
+ * `.fixme(...)` calls, each cut out to its closing parenthesis (quoted text and template literals
+ * skipped over). A skipped test runs nothing, so the ids inside it never block a push.
+ * @param {string} src
+ */
+export function withoutSkipped(src) {
+  let out = '';
+  let from = 0;
+  for (const m of String(src).matchAll(SKIPPED)) {
+    if (m.index < from) continue;
+    let depth = 0;
+    let i = m.index + m[0].length - 1;
+    for (; i < src.length; i++) {
+      const c = src[i];
+      if (c === '(') depth++;
+      else if (c === ')') { depth--; if (depth === 0) break; }
+      else if (c === '"' || c === "'" || c === '`') { const q = c; for (i++; i < src.length && src[i] !== q; i++) if (src[i] === '\\') i++; }
+    }
+    out += src.slice(from, m.index);
+    from = i + 1;
+  }
+  return out + src.slice(from);
+}
+
+/**
+ * The test ids and visible text a Playwright spec names (string literals only), leaving out
+ * skipped tests.
  * @param {string} src
  * @returns {{ testIds: Set<string>, texts: Set<string> }}
  */
 export function specNames(src) {
-  const testIds = new Set(SPEC_TESTID.flatMap((re) => matches(re, src)).filter(usable));
-  const texts = new Set(SPEC_TEXT.flatMap((re) => matches(re, src)).filter(usable));
+  const live = withoutSkipped(src);
+  const testIds = new Set(SPEC_TESTID.flatMap((re) => matches(re, live)).filter(usable));
+  const texts = new Set(SPEC_TEXT.flatMap((re) => matches(re, live)).filter(usable));
   return { testIds, texts };
 }
 
@@ -235,6 +264,12 @@ export async function prepushProblems(ctx) {
   if (behind > 0) problems.push({ code: 'behind-base', message: `the branch is ${behind} commit(s) behind ${baseTip}; merge or rebase it now, before the first push` });
 
   problems.push(...(await removedNames(ctx, profile, base, baseTip)));
+  // W8: another open run redefining a function this branch's migrations redefine is a problem now
+  // (the later one replaces the earlier's body on staging); shared-file overlaps stay warnings.
+  const { overlapLines } = await import('./overlap.mjs');
+  for (const l of await overlapLines(ctx, { profile, map: ctx.paths ? readMap(ctx.paths) : null })) {
+    if (/both runs redefine/.test(l)) problems.push({ code: 'overlap', message: l });
+  }
   problems.push(...(await orgListProblems(ctx, profile, baseTip)));
 
   // Rule 4: the components rule ready runs after CI, reused as is. Needs a picture-mode run.
@@ -244,4 +279,45 @@ export async function prepushProblems(ctx) {
     if (!r.ok) for (const m of r.problems ?? [r.detail]) problems.push({ code: 'components', message: m });
   }
   return problems;
+}
+
+/** Every test id a map names: buttons, reach steps (desktop and phone) and masks. */
+export function mapTestIds(map) {
+  const ids = new Set();
+  const steps = (xs) => { for (const st of xs ?? []) for (const k of ['click', 'type', 'open']) if (st?.[k]?.testid) ids.add(st[k].testid); };
+  for (const s of map?.states ?? []) {
+    for (const b of s.buttons ?? []) if (b.testid) ids.add(b.testid);
+    steps(s.reach?.steps); steps(s.reach?.phone?.steps);
+    for (const m of s.mask ?? []) if (m.testid) ids.add(m.testid);
+  }
+  return ids;
+}
+
+/**
+ * W8: test ids the redesign will likely retire, known at map time rather than at prepush. An id
+ * the base branch's e2e specs name (skipped tests left out), that the page's code has today (the
+ * map's route sources, at HEAD), and that the map does not keep, is one a spec will lose: the
+ * skip PR for that spec can go up while the build runs. Needs the map's sources; without them it
+ * says so and finds nothing.
+ * @param {import('../core/ctx.mjs').Ctx} ctx
+ * @param {{ profile: object, map: object }} o
+ * @returns {Promise<{ ids: { id: string, spec: string }[], note: string|null }>}
+ */
+export async function likelyRetiredIds(ctx, { profile, map }) {
+  const globs = Object.values(map?.sources ?? {}).flat();
+  if (!globs.length) return { ids: [], note: 'the map names no route sources, so retired test ids are found at prepush instead' };
+  const { git } = ctx;
+  const p = profile.paths ?? {};
+  const base = profile.repo.base;
+  const baseTip = (await git.revParse(`origin/${base}`)) ? `origin/${base}` : base;
+  const named = new Map();
+  for (const f of (await git.lsTree(baseTip, p.e2eDir)).filter((x) => SPEC_EXT.test(x))) {
+    const raw = await git.show(baseTip, f);
+    for (const id of specNames(raw.toString('utf8')).testIds) if (!named.has(id)) named.set(id, f);
+  }
+  if (!named.size) return { ids: [], note: null };
+  const kept = mapTestIds(map);
+  const candidates = [...named.keys()].filter((id) => !kept.has(id));
+  const found = await foundAt(git, 'HEAD', { testIds: new Set(candidates), texts: new Set() }, globs.map(globSpec));
+  return { ids: candidates.filter((id) => found.has(id)).map((id) => ({ id, spec: named.get(id) })), note: null };
 }

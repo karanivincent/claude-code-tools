@@ -4,7 +4,7 @@ description: Dispatched by the delivery-tools skills with a brief file and a sho
 tools: Read, Grep, Glob, Write
 disallowedTools: Agent, Skill, Edit, Bash, mcp__Claude_Browser__*, mcp__claude-in-chrome__*, mcp__computer-use__*
 model: sonnet
-effort: low
+effort: medium
 maxTurns: 60
 ---
 

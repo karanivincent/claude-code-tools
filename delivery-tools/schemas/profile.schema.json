@@ -53,6 +53,7 @@
           }
         },
         "validateSeedJson": { "type": "string" },
+        "stagingE2e": { "description": "Optional (W8): the staging E2E run after a run's merge commit is deployed ({sha}, {pr}); delivery land runs it once per merge and fails on a non-zero exit.", "type": "string" },
         "prodServer": { "description": "Optional (W6): builds and serves a production build on {port} in a build folder of its own, so the dev server keeps running; delivery shoot --prod uses it.", "type": "string" },
         "flight": { "type": "string" },
         "tried": { "type": "string" },
@@ -91,6 +92,7 @@
         "apiRouteGlobs": { "$ref": "common.schema.json#/$defs/Strings" },
         "componentGlobs": { "$ref": "common.schema.json#/$defs/Strings" },
         "databaseTypes": { "type": "string" },
+        "sharedFiles": { "description": "Optional (W8): globs of files every run that touches a page is likely to change too (the navigation config). delivery map warns when another open run changes one.", "$ref": "common.schema.json#/$defs/Strings" },
         "migrationsGlob": { "description": "Optional. Where migrations live, e.g. supabase/migrations/*.sql. With orgScopedLists, delivery prepush checks the migrations a branch adds.", "$ref": "common.schema.json#/$defs/Text" },
         "orgColumn": { "description": "Optional. The organisation column that makes a table org-scoped (default organization_id).", "type": "string" },
         "orgScopedLists": {

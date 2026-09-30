@@ -41,10 +41,14 @@ export async function landedRun({ removeRow = false, voice = true, ledger = true
   gh.setFiles(pr.number, voice ? ['apps/server/src/call.ts', 'apps/web/src/widgets/list.tsx'] : ['apps/web/src/widgets/list.tsx']);
   gh.merge(pr.number, MERGE);
   let runs = [{ name: 'CI', status: 'completed', conclusion: 'success' }, { name: 'E2E (staging)', status: 'completed', conclusion: 'success' }];
+  let commitStatuses = [];
+  const statuses = () => commitStatuses;
   gh.api = async (method, path) => {
     assert.equal(method, 'GET');
     // A red run on the merge commit asks whether a later base-branch run fixed it forward: none here.
     if (path === 'repos/example-org/example-repo/actions/runs?branch=main&status=completed&per_page=100') return { workflow_runs: [] };
+    // W8: the merge commit's commit statuses (a host's deploy); green unless a test sets them.
+    if (path === `repos/example-org/example-repo/commits/${MERGE}/status`) return { statuses: statuses() };
     assert.equal(path, `repos/example-org/example-repo/actions/runs?head_sha=${MERGE}&per_page=100`);
     return { workflow_runs: runs };
   };
@@ -64,6 +68,6 @@ export async function landedRun({ removeRow = false, voice = true, ledger = true
     { match: 'node scripts/close-epic.mjs 101 --exit 0', result: () => { gh.db.issues.get(101).state = 'closed'; return ok('Closed #101.'); } },
   ];
   const env = await ctxFor(repo.worktree, { gh, clock, rules, deps });
-  return { repo, gh, calls, deps, setRuns: (r) => { runs = r; }, capture, ...env };
+  return { repo, gh, calls, deps, setRuns: (r) => { runs = r; }, setStatuses: (x) => { commitStatuses = x; }, capture, ...env };
 }
 

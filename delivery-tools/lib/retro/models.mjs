@@ -43,6 +43,22 @@ export function roleConfig(role, cfg = CURRENT) {
   return r;
 }
 
+/**
+ * D11: the experiment models.json names, while it is still owed runs: fewer than `runs` ledger
+ * records carry an experiment for the same role and agent. Null when there is none or it is done.
+ * @param {{ experiment?: { role: string, agent: string, runs: number } }} cfg
+ * @param {{ experiment?: { role: string, agent: string } }[]} ledgerRecords
+ */
+export function activeExperiment(cfg, ledgerRecords = []) {
+  const e = cfg?.experiment;
+  if (!e) return null;
+  const done = ledgerRecords.filter((r) => r?.experiment?.role === e.role && r.experiment.agent === e.agent).length;
+  return done < e.runs ? e : null;
+}
+
+/** The experiment in the models.json this plugin ships, or null. */
+export const configuredExperiment = () => CURRENT.experiment ?? null;
+
 export const ROLES = Object.freeze(Object.keys(CURRENT.roles));
 
 const DESCRIPTION_ROLES = [

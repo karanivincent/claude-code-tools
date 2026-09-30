@@ -102,6 +102,22 @@ export function fixedForward(baseRuns, names, contains) {
   return { fixed, missing };
 }
 
+/**
+ * W8: the merge commit's commit statuses (a deploy's, Vercel's), which the workflow runs do not
+ * include: a build that failed on the host shows only here. The combined status lists the newest
+ * status per context. Pure.
+ * @param {{ context: string, state: string, description?: string }[]} statuses
+ * @returns {{ state: 'green'|'red'|'pending', detail: string }}
+ */
+export function judgeStatuses(statuses) {
+  if (!statuses?.length) return { state: 'green', detail: 'no commit statuses on the merge commit' };
+  const bad = statuses.filter((x) => ['failure', 'error'].includes(x.state));
+  if (bad.length) return { state: 'red', detail: `commit status ${bad.map((x) => `${x.context} is ${x.state}${x.description ? ` (${x.description})` : ''}`).join('; ')}` };
+  const pending = statuses.filter((x) => x.state === 'pending');
+  if (pending.length) return { state: 'pending', detail: `commit status ${pending.map((x) => x.context).join(', ')} still pending` };
+  return { state: 'green', detail: `${statuses.length} commit status(es) green: ${statuses.map((x) => x.context).join(', ')}` };
+}
+
 /** The next tag for this feature from the profile's format ({n} numbered across every tag). */
 export function nextTag(tagFormat, feature, existingTags) {
   const re = new RegExp(`^${String(tagFormat).split(/(\{n\}|\{slug\})/).map((p) => (p === '{n}' ? '(\\d+)' : p === '{slug}' ? '[a-z0-9-]+' : p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))).join('')}$`);
@@ -202,6 +218,12 @@ export async function landEvidence(outer, { epic, mode = 'check' }) {
     }
     return j.state === 'green' ? ok('workflows', j.detail) : red('workflows', j.detail, j.state === 'pending' ? EXIT.WAIT : EXIT.RED);
   }));
+  // 3b. W8: commit statuses, such as the host's deploy, which a workflow run never shows.
+  checks.push(await runCheck('statuses', async () => {
+    const res = await ctx.gh.api('GET', `repos/${ctx.gh.repo}/commits/${mergeSha}/status`);
+    const j = judgeStatuses(res?.statuses ?? []);
+    return j.state === 'green' ? ok('statuses', j.detail) : red('statuses', j.detail, j.state === 'pending' ? EXIT.WAIT : EXIT.RED);
+  }));
   checks.push(await runCheck('guards', async () => {
     const base = profile.repo.base;
     await ctx.git.raw(['fetch', 'origin', base]);
@@ -240,6 +262,28 @@ export async function landEvidence(outer, { epic, mode = 'check' }) {
         return red('loop-test', `the loop test on staging exited ${r.code}: ${lastLine(r.stdout, r.stderr)}`);
       }));
       loopText = checks[checks.length - 1].ok ? 'passed on staging after the merge' : 'owed, not yet passed';
+    }
+  }
+
+  // 4b. W8: the staging E2E, once the deploy of the merge commit is live, once per merge SHA.
+  const cmdE2e = profile.commands.stagingE2e;
+  const deployLive = checks.find((c) => c.id === 'deploy')?.ok;
+  if (!cmdE2e) checks.push(ok('staging-e2e', 'the profile names no commands.stagingE2e'));
+  else {
+    const passed = (state?.journal ?? []).some((e) => {
+      const ev = parseEvent(e.event);
+      return ev.command === 'land staging-e2e' && ev.exit === 0 && ev.counts.sha === sha12;
+    });
+    if (passed) checks.push(ok('staging-e2e', `passed on staging for ${mergeSha.slice(0, 7)}`));
+    else if (!deployLive) checks.push(red('staging-e2e', `waits for the deploy of ${mergeSha.slice(0, 7)} to be live`, EXIT.WAIT));
+    else if (mode === 'check') checks.push(red('staging-e2e', `the staging E2E has not passed for ${mergeSha.slice(0, 7)} (run delivery land)`));
+    else {
+      checks.push(await runCheck('staging-e2e', async () => {
+        const cmd = fillCommand(cmdE2e, { sha: mergeSha, pr: pr.number });
+        const r = await ctx.runner.sh(cmd, { cwd: ctx.repoRoot, timeoutMs: 45 * 60_000 });
+        await ctx.journal({ command: 'land staging-e2e', exit: r.code, counts: { sha: sha12 }, inputs: { cmd }, outputs: { code: r.code } });
+        return r.code === 0 ? ok('staging-e2e', `passed on staging for ${mergeSha.slice(0, 7)}`) : red('staging-e2e', `the staging E2E exited ${r.code}: ${lastLine(r.stdout, r.stderr)}`);
+      }));
     }
   }
 

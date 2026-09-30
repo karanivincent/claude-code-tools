@@ -151,6 +151,16 @@ carries the owner's decisions.
 - `seed --check` refuses a seeded table that a side-effect rule watches and no guard covers. `seed --refresh` cleans every table the world has ever seeded (the seed plan's `seededTables`), not only the ones it seeds now.
 - A contract text labelled `none` is a value the product does not store. `delivery contract --questions` writes the one list for the founder; `delivery contract --decide build|drop|design --state <ID> [--text ...]` records each answer.
 
+### Shipping checks
+
+- `delivery map` warns, while the build can still act on it, about test ids the base branch's e2e specs name that the page's code has and the map does not keep (open the skip PR now), and about other open runs that change the same files: a database function both redefine, the message files, `paths.sharedFiles` (the navigation config) or files under this run's routes. `delivery prepush` refuses a function both runs redefine, and ignores test ids inside `test.skip` and `.fixme`.
+- `delivery land` reads the merge commit's commit statuses too (a host's deploy, which no workflow run shows) and fails on a red one; once the deploy is live it runs the profile's optional `commands.stagingE2e` once per merge.
+
+### Scope and models
+
+- A design with more states than `run.splitAboveStates` (120) gets a NEXT step proposing one run per screen group; `"oneRun": true` in the map keeps one run. With more than one screen, the first builder is dispatched once per screen group (a `Screens:` line), continuing from `builder-notes.md`.
+- Extractors run at Sonnet medium. `models.json`'s `experiment` names a role to try on another agent for a number of runs (now: the first builder at Opus medium, `picture-builder-medium`, for one run); the ledger records it and `delivery runs` shows it.
+
 ### Shared slots
 
 Heavy work shares one machine-wide file, `~/.delivery/slots.json` (override with `DELIVERY_SLOTS_FILE`), with at most two holders. `delivery shoot` takes a slot and releases it itself. The e2e command in a project's profile can be wrapped the same way: `delivery slot run -- pnpm e2e ...`. A holder whose process has died is reclaimed. A waiting command prints who holds the slots and gives up (exit 4) after 30 minutes, or `--timeout <s>`.

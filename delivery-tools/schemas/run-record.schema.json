@@ -532,6 +532,18 @@
         }
       ]
     },
+    "experiment": {
+      "description": "Set when the run dispatched the agent models.json's experiment names (D11), so the retro can compare it with runs that did not.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "agent", "model", "effort"],
+      "properties": {
+        "role": { "type": "string" },
+        "agent": { "type": "string" },
+        "model": { "type": "string" },
+        "effort": { "type": "string" }
+      }
+    },
     "agents": {
       "description": "Every agent the run dispatched. effort is null when nothing recorded it (a backfill); costUsd is null for a model models.json does not price.",
       "type": "array",

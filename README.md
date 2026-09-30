@@ -78,7 +78,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### delivery-tools `v0.22.0`
+### delivery-tools `v0.23.0`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -204,7 +204,14 @@ Sonnet extractor writes `steers.md` from the design before round 1 (phone patter
 rules over the picture), and update runs carry it; the crop hides only the phone tab bar (the
 profile's optional `picture.tabBar`, never a sheet) and cuts the design and live pictures at the
 same top edge (`picture.keepPhoneHeader` keeps the phone header); and reviewers read a facts file
-under 2 KB per item instead of `shoot.json`. An export
+under 2 KB per item instead of `shoot.json`. Since 0.23.0 shipping is checked earlier: `delivery
+map` warns about test ids the redesign will retire (so the skip PR goes up during the build) and
+about other open runs changing the same function, message files or navigation config; prepush
+refuses a function two runs redefine and ignores ids in skipped tests; land reads commit statuses
+(a failed Vercel build) and runs the optional `commands.stagingE2e`. A design above 120 states gets
+a proposal to split into one run per screen group, the first builder works one screen group per
+dispatch, extractors run at Sonnet medium, and `models.json` carries a recorded experiment (the
+first builder at Opus medium for one run). An export
 holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run
@@ -214,8 +221,9 @@ and keep it current is in [`delivery-tools/docs/OPERATING.md`](delivery-tools/do
 
 | Agent | Description |
 |-------|-------------|
-| `delivery-extractor` | Reads a design export or a Scope reply and writes one part file. Runs nothing, opens no browser, and takes every word from a render rather than from the design's source |
+| `delivery-extractor` | Reads a design export or a Scope reply and writes one part file (Sonnet at medium): the inventory, the contract labels, the steers. Runs nothing, opens no browser, and takes every word from a render rather than from the design's source |
 | `picture-builder` | Picture mode: the first build, Opus at high, in the run's own worktree so the dev server serves its changes; commits its own work and keeps `builder-notes.md` |
+| `picture-builder-medium` | The same first build at Opus medium: the builder experiment `models.json` names, for one run, recorded in the ledger |
 | `picture-fixer` | Picture mode: one fresh fixer per fix round, Sonnet at medium, from the round's review and the builder's notes; runs a real check before it reports done |
 | `picture-reviewer` | Picture mode: compares one batch of live and design pictures, Sonnet at medium, with `delivery crop` for a close look |
 | `delivery-worker` | The rules, map, seed-world and CI-fix jobs, Sonnet at medium, told its role on the prompt's first line; done means its check passes |

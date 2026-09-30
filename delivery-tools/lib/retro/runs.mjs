@@ -32,6 +32,8 @@ export function runRows(records) {
     return {
       feature: rec.feature,
       estimate: Boolean(rec.estimate),
+      // D11: the model experiment this run was part of, if any.
+      experiment: rec.experiment ?? null,
       endedAt: rec.endedAt,
       minutes: r1(total),
       phasePct: Object.fromEntries(PHASES.map((p) => [p, pct(rec.phases?.[p] ?? null, total)])),
@@ -111,7 +113,7 @@ export function runsReport(records) {
   const out = ['Time by phase (% of the run\'s own minutes; founder waits taken out)', ''];
   out.push(...table(
     ['run', 'min', ...PHASES, 'founder', 'slots', 'cost'],
-    runs.map((r) => [`${r.feature}${r.estimate ? ' (est.)' : ''}`, r.minutes, ...PHASES.map((p) => dash(r.phasePct[p], '%')), dash(r.founderWait, 'm'), dash(r.slotWait, 'm'), money(r.costUsd)]),
+    runs.map((r) => [`${r.feature}${r.estimate ? ' (est.)' : ''}${r.experiment ? ` (exp: ${r.experiment.role} ${r.experiment.model} ${r.experiment.effort})` : ''}`, r.minutes, ...PHASES.map((p) => dash(r.phasePct[p], '%')), dash(r.founderWait, 'm'), dash(r.slotWait, 'm'), money(r.costUsd)]),
   ));
   out.push('', 'Rounds', '');
   out.push(...table(

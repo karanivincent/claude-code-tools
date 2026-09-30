@@ -27,6 +27,13 @@ Paths are relative to the worktree root.
 - In a fix round: the round's `review.json` and `review-*.md` in `.delivery/<feature>/rounds/<n>/`,
   with the live pictures the reviewers judged.
 
+## Which screens
+
+When your prompt has a `Screens:` line, build only the screens it names (every state of each, at
+every width) and leave the rest of the page as it is. The next dispatch continues with the next
+screen group and starts from `builder-notes.md`, so keep the notes complete before you report.
+Shared styles and components you make for one group are reused by the next, so note them.
+
 ## Builder notes
 
 `.delivery/<feature>/builder-notes.md` is how a fix round starts without rediscovering the page.

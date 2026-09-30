@@ -20,6 +20,7 @@
     "shoot.settleCapMs": { "value": 10000, "min": 2000, "max": 30000, "step": 1000, "loosens": "never", "about": "the most one reach step waits for the network to settle" },
     "shoot.parallelWorlds": { "value": 2, "min": 1, "max": 4, "step": 1, "loosens": "never", "about": "worlds a shoot pictures at once, each in its own browser context" },
     "capture.devServerTimeoutMs": { "value": 300000, "min": 60000, "max": 900000, "step": 60000, "loosens": "never", "about": "how long the capture waits for a dev server" },
+    "run.splitAboveStates": { "value": 120, "min": 60, "max": 300, "step": 20, "loosens": "higher", "about": "states above which NEXT proposes one run per screen group" },
     "capture.prodBuildTimeoutMs": { "value": 900000, "min": 300000, "max": 3600000, "step": 300000, "loosens": "never", "about": "how long the capture waits for a local production build" }
   }
 }
