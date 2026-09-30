@@ -87,6 +87,11 @@ don't write code.
 - `reach.writes: true` marks a state reached by saving, adding, discarding or any other click
   that changes the test data. Those states are captured last, each in its own browser, and their
   world is reset before every one of them.
+- `sources` (top level, recommended): each route's source folders, as repo-relative globs, so a
+  fix round re-shoots only the routes whose files changed: `"sources": { "/dashboard/settings":
+  ["apps/dashboard/src/app/(dash)/dashboard/settings/**", "apps/dashboard/src/components/settings/**"] }`.
+  List every folder whose files draw the route; a shared component folder belongs to every route
+  that uses it. When unsure, leave the route out: it is then always shot.
 - `clock: true` marks a state whose look depends on the time of day or the date: "calling hours
   open", "overdue", "due today". Its world's times must be relative to the shoot
   (`{ "$rel": "today@09:00" }`, `{ "$rel": "now-2h" }`); `delivery map` refuses a fixed date or

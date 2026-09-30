@@ -5,13 +5,14 @@ import { writeFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { defineCommand } from '../core/command.mjs';
 import { intFlag, parseCommandArgs } from '../core/args.mjs';
-import { EXIT } from '../core/exit.mjs';
+import { EXIT, UsageError } from '../core/exit.mjs';
 import { readMap } from '../picture/map.mjs';
 import { listRounds, roundDir, roundInfo } from '../picture/rounds.mjs';
-import { AUTO_MATCH_MAX_DIFF, MAX_BATCH_ITEMS, MAX_PARALLEL_REVIEWERS, batchPrompt, batchWaves, noteOwners, parseReview, planReview, renderCompare, reshotItems, summarise } from '../picture/review.mjs';
+import { AUTO_MATCH_MAX_DIFF, MAX_BATCH_ITEMS, MAX_PARALLEL_REVIEWERS, SAMPLE_PER_SCREEN, batchPrompt, batchWaves, heldToReview, noteOwners, parseReview, planReview, renderCompare, reshotItems, summarise } from '../picture/review.mjs';
 import { exportShadow, runShadow, shadowFindings, shadowSetup, steerLines } from '../picture/shadow.mjs';
 import { hasPhone, mapItems, roundFiles } from '../picture/widths.mjs';
 import { contractSummary, readContract } from '../picture/contract.mjs';
+import { renderStuck, runDecision, stuckItems } from '../picture/stop.mjs';
 
 export default defineCommand({
   name: 'review',
@@ -25,7 +26,13 @@ main session only dispatches them. From round 2 on, an item whose live and desig
 unchanged since the round before (their sha256, recorded by the shoot) keeps that round's label and
 is not sent. An item whose text, test ids and buttons equal the design's, with pixels differing
 in at most ${AUTO_MATCH_MAX_DIFF * 100}% of the picture, is marked a match without a reviewer; anything missing means it goes to
-one. The rest are packed into batches of up to ${MAX_BATCH_ITEMS} items (a state's desktop and phone together, a
+one. An item the round before passed (match or small) whose picture changed is sampled: per screen,
+the ${SAMPLE_PER_SCREEN} that differ most from the design and any above the auto-match line go to a reviewer, and
+the rest are held on their earlier label (review-plan.json "held"). When a sampled item comes back
+to fix, "--plan --held" reviews the rest of its screen; every held item is reviewed once before
+shipping, and ready stays red until then. When the stop rule stops the loop (no fall in the count
+of items to fix for rounds.stallRounds rounds, or the ceiling), compiling writes stuck.md: each
+stuck item with its notes per round, for the founder. The rest are packed into batches of up to ${MAX_BATCH_ITEMS} items (a state's desktop and phone together, a
 screen kept whole where it fits) and written to the round's folder: review-plan.json (carried and
 auto-matched items), batches.json (each batch, and the waves of at most ${MAX_PARALLEL_REVIEWERS} to dispatch
 together) and batch-<n>.prompt.md, the exact prompt for each reviewer. If docs/delivery/<feature>/steers.md
@@ -64,6 +71,9 @@ after every group's reviewer has written its file.
 
 options:
   --plan         write the reviewer batches instead of compiling (see above)
+  --held         with --plan: review the items held back while their screen's sample was clean
+                 (the screens whose sample found a problem, or all of them before shipping)
+  --no-sample    with --plan: review every changed item, no sampling
   --round <n>    the round (default: the latest numbered round)
   --before <n>   the earlier round shown next to it (default: round 1, when this is a later round)
 
@@ -83,7 +93,7 @@ common options:
   --json             machine output: one JSON object on stdout
   --help             this text`,
   async run(ctx, argv) {
-    const { values } = parseCommandArgs(argv, { options: { round: { type: 'string' }, before: { type: 'string' }, plan: { type: 'boolean' }, 'shadow-export': { type: 'boolean' } } });
+    const { values } = parseCommandArgs(argv, { options: { round: { type: 'string' }, before: { type: 'string' }, plan: { type: 'boolean' }, held: { type: 'boolean' }, 'no-sample': { type: 'boolean' }, 'shadow-export': { type: 'boolean' } } });
     const paths = ctx.requirePaths();
     if (values['shadow-export']) return shadowExport(ctx, paths);
     const rounds = listRounds(paths);
@@ -91,7 +101,8 @@ common options:
     if (!round) { ctx.out.fail('no-round', 'no numbered round yet; run delivery shoot first'); return EXIT.USAGE; }
     const info = roundInfo(paths, round);
     if (!info.shoot) { ctx.out.fail('no-shoot', `round ${round} has no shoot.json; run delivery shoot --round ${round}`); return EXIT.USAGE; }
-    if (values.plan) return planRound(ctx, paths, round, info, rounds);
+    if (values.held && !values.plan) throw new UsageError('--held goes with --plan');
+    if (values.plan) return planRound(ctx, paths, round, info, rounds, { held: Boolean(values.held), sample: !values['no-sample'] });
     if (!info.reviews.length && info.reviewPlan?.batches !== 0) { ctx.out.fail('no-review', `round ${round} has no review-*.md; run delivery review --plan --round ${round} and dispatch the batches (briefs/reviewer-picture.md)`); return EXIT.USAGE; }
     const map = readMap(paths);
     if (!map) { ctx.out.fail('no-map', 'there is no map.json'); return EXIT.USAGE; }
@@ -129,6 +140,15 @@ common options:
     await writeFile(join(info.dir, 'compare.html'), renderCompare({ title, round, beforeRound: before, map, summary, pictures }));
     const doc = { schemaVersion: 1, round, before, at: ctx.clock.now().toISOString(), counts: summary.counts, states: summary.states };
     await writeFile(join(info.dir, 'review.json'), JSON.stringify(doc, null, 1) + '\n');
+    // W4: when the stop rule stops the loop, the founder gets only the stuck items.
+    const decision = runDecision(paths);
+    if (decision.decision === 'stop') {
+      const stuck = stuckItems(paths);
+      await writeFile(join(info.dir, 'stuck.md'), renderStuck(stuck, decision));
+      ctx.out.line(`the loop stops: ${decision.why}; ${stuck.length} stuck item(s) for the founder in ${relative(ctx.repoRoot, join(info.dir, 'stuck.md'))}`);
+    } else if (decision.decision === 'fix') ctx.out.line(`stop rule: another fix round (${decision.why})`);
+    const heldNow = heldToReview(info.reviewPlan, doc);
+    if (heldNow.failedScreens.length) ctx.out.line(`the sample found a problem in ${heldNow.failedScreens.join(', ')}: review --plan --round ${round} --held reviews the ${heldNow.keys.length} held item(s) there`);
 
     const c = summary.counts;
     const nCarried = Object.values(summary.states).filter((v) => v.carried).length;
@@ -195,7 +215,7 @@ function readJson(file) {
 }
 
 /** review --plan: carried and auto-matched items, then the reviewer batches with their prompts. */
-async function planRound(ctx, paths, round, info, rounds) {
+async function planRound(ctx, paths, round, info, rounds, opts = {}) {
   const map = readMap(paths);
   if (!map) { ctx.out.fail('no-map', 'there is no map.json'); return EXIT.USAGE; }
   const earlier = rounds.filter((n) => n < round).pop();
@@ -203,10 +223,13 @@ async function planRound(ctx, paths, round, info, rounds) {
   const prev = prevInfo?.shoot && prevInfo.review ? { round: earlier, shoot: prevInfo.shoot, review: prevInfo.review } : null;
   // R5: after shoot --only, plan just the re-shot items, next to the round's earlier batches.
   const oldBatches = readJson(join(info.dir, 'batches.json'));
-  const reshot = oldBatches ? reshotItems(info.shoot, info.reviewPlan) : [];
+  // W5: --held plans the items held back while their screen's sample was clean.
+  const heldKeys = opts.held ? heldToReview(info.reviewPlan, info.review).keys : [];
+  if (opts.held && !heldKeys.length) { ctx.out.line(`round ${round}: no held item to review`); return EXIT.PASS; }
+  const reshot = opts.held ? heldKeys : oldBatches ? reshotItems(info.shoot, info.reviewPlan) : [];
   const partial = reshot.length > 0;
   const shoot = partial ? { ...info.shoot, states: Object.fromEntries(reshot.map((k) => [k, info.shoot.states[k]])) } : info.shoot;
-  const plan = planReview({ map, shoot, prev });
+  const plan = planReview({ map, shoot, prev: opts.held ? null : prev, sample: opts.sample === false || partial ? 0 : undefined });
   const offset = partial ? Math.max(0, ...(oldBatches.batches ?? []).map((b) => b.id)) : 0;
   if (!partial) for (const f of readdirSync(info.dir)) if (/^batch-\d+\.prompt\.md$/.test(f)) unlinkSync(join(info.dir, f));
   const steersFile = join(paths.deliveryDir, 'steers.md');
@@ -232,12 +255,15 @@ async function planRound(ctx, paths, round, info, rounds) {
   const drop = (o) => Object.fromEntries(Object.entries(o ?? {}).filter(([k]) => !reshot.includes(k)));
   const carried = partial ? { ...drop(info.reviewPlan?.carried), ...plan.carried } : plan.carried;
   const auto = partial ? { ...drop(info.reviewPlan?.auto), ...plan.auto } : plan.auto;
+  const held = partial ? drop(info.reviewPlan?.held) : plan.held;
+  const sampled = partial ? (info.reviewPlan?.sampled ?? {}) : plan.sampled;
   await writeFile(join(info.dir, 'batches.json'), JSON.stringify({ schemaVersion: 1, round, maxItems: MAX_BATCH_ITEMS, maxParallel: MAX_PARALLEL_REVIEWERS, steers: steers ? steersRel : null, waves, batches: allBatches, ...(partial ? { reshot } : {}) }, null, 1) + '\n');
-  await writeFile(join(info.dir, 'review-plan.json'), JSON.stringify({ schemaVersion: 1, round, at: ctx.clock.now().toISOString(), batches: allBatches.length, carried, auto }, null, 1) + '\n');
+  await writeFile(join(info.dir, 'review-plan.json'), JSON.stringify({ schemaVersion: 1, round, at: ctx.clock.now().toISOString(), batches: allBatches.length, carried, auto, ...(Object.keys(held).length ? { held, sampled } : {}) }, null, 1) + '\n');
   const nc = Object.keys(plan.carried).length;
   const na = Object.keys(plan.auto).length;
   const nItems = batches.reduce((n, b) => n + b.items.length, 0);
-  if (partial) ctx.out.line(`round ${round}: ${reshot.length} re-shot item(s) to review again (${reshot.join(', ')})`);
+  if (partial) ctx.out.line(`round ${round}: ${reshot.length} ${opts.held ? 'held' : 're-shot'} item(s) to review${opts.held ? '' : ' again'} (${reshot.join(', ')})`);
+  if (!partial && Object.keys(plan.held).length) ctx.out.line(`round ${round}: ${Object.keys(plan.held).length} item(s) that passed last round changed picture and are held; ${Object.keys(plan.sampled).length} sampled per screen go to a reviewer (review --plan --held reviews the rest)`);
   ctx.out.line(`round ${round}: ${nc} carried from round ${earlier ?? '-'}, ${na} matched automatically, ${nItems} item(s) for a reviewer in ${batches.length} batch(es)`);
   waves.forEach((w, i) => ctx.out.line(`  dispatch together${waves.length > 1 ? ` (wave ${i + 1} of ${waves.length})` : ''}: ${w.map((id) => `batch-${id}.prompt.md`).join(', ')}`));
   if (!batches.length) ctx.out.line('  nothing to dispatch: run delivery review to compile');

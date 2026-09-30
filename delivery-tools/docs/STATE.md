@@ -22,9 +22,11 @@ profile, in that project's repository (spec section 18).
 node --test 'tests/**/*.test.mjs' 'skills/**/*.test.mjs'
 ```
 
-1321 tests: 1303 pass, 0 fail, 18 skipped (the replay tests, which need the private replay set; the
+1365 tests: 1347 pass, 0 fail, 18 skipped (the replay tests, which need the private replay set; the
 real-browser render and smoke tests, which need `DELIVERY_PLAYWRIGHT_ROOT`; and the Settings export
-check, which needs `DELIVERY_SETTINGS_EXPORT`). That is the whole suite after 0.19.0 (the contract's
+check, which needs `DELIVERY_SETTINGS_EXPORT`). That is the whole suite after 0.20.0 (no fixed round cap: the stop rule in `lib/picture/stop.mjs`
+shared by NEXT and ready, `stuck.md`; a fix round shoots only routes whose `sources` changed; sampled
+re-reviews with held items and `review --plan --held`), 0.19.0 (the contract's
 `row`, `generated` and `none` with the founder's decisions and `contract --questions`, `seed
 --from-trace` with `swaps.json`, `seed --need`, column types and `validateSeedJson` at `seed --plan`,
 the guard refusal at `seed --check`, refresh of every table a world ever seeded, a reset before every

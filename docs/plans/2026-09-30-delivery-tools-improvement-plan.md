@@ -494,7 +494,7 @@ Each workstream: what 0.15 to 0.18 already had, what this run built, the PR, and
 taken where the plan left a choice open. Baseline before W3: 1213 tests, 1195 pass, 0 fail, 18
 skipped (`node --test 'tests/**/*.test.mjs' 'skills/**/*.test.mjs'`).
 
-## W3 right data (0.19.0), in progress
+## W3 right data (0.19.0), merged as #68
 
 Already there:
 
@@ -539,5 +539,32 @@ Decisions:
 - The hook refuses a seed-named interpreter script only when its text shows a database write or it
   cannot be read (fail closed).
 
-Built (branch `w3-right-data`): see the 0.19.0 commit message; Telitask-side changes are in
+Built: PR https://github.com/karanivincent/claude-code-tools/pull/68 (tests 1321, 1303 pass, 0 fail); Telitask-side changes are in
 `docs/plans/telitask-changes-for-0.19-plus.md`.
+
+## W4 rounds and W5 cheaper rounds (0.20.0)
+
+Already there: `MAX_ROUNDS = 3` in `lib/picture/next.mjs`, used by NEXT and by ready with
+different counts (round number against shot rounds); carried items (unchanged pictures) and
+auto-matched items skip reviewers (A6); `shoot --only` re-shoots into a round (0.16); a round the
+server broke during is deleted (0.18, W2), so void rounds already never count.
+
+Decisions:
+
+- The stop rule is `lib/picture/stop.mjs:roundDecision`, over each compiled round's real-bug count
+  (must plus not reached, each item's newest verdict up to that round). NEXT and ready both call
+  it. Stall 2 and ceiling 8 are tunables.
+- "Stuck items" are the items open in each of the last three compiled rounds; `review` writes
+  `stuck.md` when the rule stops. "Why it did not move" is stated from the notes: the same note
+  every round, or notes that changed.
+- W5 route sources are a top-level `sources` map in `map.json` (route → globs), matched by longest
+  route prefix. Any changed file outside every route's sources means "not sure", and everything is
+  shot. `.delivery/` is ignored. `--all` forces a full shoot.
+- A skipped item keeps its earlier record and pictures, copied into the new round with
+  `unchanged: { from }`; their hashes are equal, so the review carries them as before.
+- Sampling covers items that passed (match or small) whose picture changed. Per screen: the one
+  with the largest pixel difference, plus every item above the auto-match line (tunable
+  `review.samplePerScreen`). The rest are held. A failed sample makes NEXT plan the held rest of
+  that screen (`review --plan --held`) before the fix; every held item is reviewed once before
+  shipping, and ready stays red until then. That is the plan's "final round reviews every changed
+  item".

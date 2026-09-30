@@ -1,6 +1,6 @@
 ---
 name: picture-build
-description: Use inside a picture-mode delivery run (the default for /deliver-from-design) once the design's states are rendered - to write the button map, seed the test worlds, have one builder build the page from the design pictures, picture the live page, have reviewer agents compare it with the design, run at most two fix rounds, and ship. Triggers - NEXT names this skill, "build it from the pictures", "run the next round", "review the round".
+description: Use inside a picture-mode delivery run (the default for /deliver-from-design) once the design's states are rendered - to write the button map, seed the test worlds, have one builder build the page from the design pictures, picture the live page, have reviewer agents compare it with the design, run fix rounds while the count of items to fix falls, and ship. Triggers - NEXT names this skill, "build it from the pictures", "run the next round", "review the round".
 ---
 
 # Picture build
@@ -50,9 +50,19 @@ must land first.
 
 `delivery status` prints where the run is and one NEXT line. Rules run first, straight after
 intake, so a behaviour the briefs state but the design never drew is sent back before anything is
-built, not found by a builder mid-round. Round 1 is the first build. At most two fix rounds
-follow. Whatever is still open after round 3 goes to the founder as a list, with the comparison
-page. It is not a red report.
+built, not found by a builder mid-round. Round 1 is the first build. There is no fixed number of
+fix rounds: they go on while the count of items to fix (must fix plus not reached) falls, the run
+ships at zero, and the loop stops after two rounds in a row with no fall (or at the ceiling of eight
+rounds). Then only the stuck items go to the founder, in the round's `stuck.md`, each with the
+reviewers' notes and why it did not move. NEXT and `ready` read the same rule. The numbers are in
+`tunables.json` (`rounds.stallRounds`, `rounds.ceiling`).
+
+Late rounds are cheap. A fix round shoots only what can have changed: an item that passed the round
+before keeps its pictures when no file under its route's `sources` (in `map.json`) changed. An item
+that passed and whose picture changed is sampled: one per screen, plus any whose pixels differ
+beyond the auto-match line, goes to a reviewer, and the rest are held. When the sample finds a
+problem, `review --plan --held` reviews the rest of that screen; every held item is reviewed once
+before shipping.
 
 ## Update runs
 
@@ -196,10 +206,11 @@ is added to every prompt; put anything you would otherwise repeat to each review
 |---|---|
 | "Let the builder picture every state after each change" | A shoot of every state takes ten minutes and changes data. It pictures a few states at a time, into `rounds/work`. |
 | "The reviewer flagged the sidebar" | Out of scope. The crop exists so that doesn't happen. Tell the reviewer's next prompt, or ignore it. |
-| "Another round will get the last few" | Three rounds, then the founder gets the list. The trial showed the last items are data-model gaps and product questions, not effort. |
+| "Another round will get the last few" | Only while the count falls. Two rounds with no fall and the founder gets the stuck list; the last items are usually data-model gaps and product questions, not effort. |
+| "Shoot everything again, to be safe" | A fix round shoots what can have changed; `--all` exists for a change the route sources do not show. Every held item is still reviewed before shipping. |
 | "Split the page across builders to go faster" | One builder keeps one look. Two at most, by screen, when a page is truly two pages. |
 | "Check the wording letter by letter" | Meaning, not letters. Test data changes names and numbers, and that's fine. |
 | "That rule is obvious, it doesn't need a test" | If no picture shows it, nothing checks it. The test is how the next change can't quietly undo it. |
 | "Mark it cut, the design didn't draw it" | Cut needs a Scope line the founder saw. A rule nobody drew is owed to the design. |
-| "The phone can wait for a later run" | When the map declares the phone, it is part of this run. A phone item still open after round 3 goes on the founder's list like any other. |
+| "The phone can wait for a later run" | When the map declares the phone, it is part of this run. A phone item still stuck when the loop stops goes on the founder's list like any other. |
 | "Compare the phone picture with the desktop design" | A phone layout is judged against the phone design only. |

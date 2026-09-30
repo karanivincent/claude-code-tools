@@ -707,11 +707,11 @@ async function writeSeeded(outDir, seeded) {
  * item shot again replaces its earlier record). A re-shoot (`shoot --only`) is listed in `reshot`,
  * with `why: "data-faults"` when it re-shot the round's data faults (NEXT counts those passes).
  */
-export async function writeShootJson(outDir, { baseUrl, at, report, reshot = false, why = null }) {
+export async function writeShootJson(outDir, { baseUrl, at, report, reshot = false, why = null, head = null }) {
   const file = join(outDir, 'shoot.json');
   const prior = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : { states: {} };
   const history = [...(prior.reshot ?? []), ...(reshot ? [{ at, items: Object.keys(report), ...(why ? { why } : {}) }] : [])];
-  const doc = { schemaVersion: 1, baseUrl, at: reshot && prior.at ? prior.at : at, states: { ...prior.states, ...report }, ...(history.length ? { reshot: history } : {}) };
+  const doc = { schemaVersion: 1, baseUrl, at: reshot && prior.at ? prior.at : at, ...((reshot ? prior.head ?? head : head) ? { head: reshot ? prior.head ?? head : head } : {}), states: { ...prior.states, ...report }, ...(history.length ? { reshot: history } : {}) };
   await writeFile(file, JSON.stringify(doc, null, 1) + '\n');
   return doc;
 }
