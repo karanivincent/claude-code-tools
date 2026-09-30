@@ -78,7 +78,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### delivery-tools `v0.17.0`
+### delivery-tools `v0.18.0`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -165,7 +165,16 @@ under them: `seed --check` refuses a table the worlds write whose columns change
 --plan` and a world named like another run's fixture organisation; a world file lists the shared
 rows it reads as `globals`, hashed at `seed --apply`, and `shoot` warns when one changed; and a
 value no seed can pin is masked by test id on both pictures, listed in the checklist and counted
-per round in the ledger and in `delivery runs`. An export
+per round in the ledger and in `delivery runs`. Since 0.18.0 the design pictures are right and
+the page loads before it is pictured: `design candidates` finds a design's preset table (a method
+that indexes a top-level `const T = {...}`, called as `this.m(this.props.P)`) and lists one
+`preset` candidate per key, which `design render` draws with no hand edits; intake ignores a
+duplicate `_bundle_src.dc.html`; the render warns when a state's page is mostly an iframe or its
+reach sets a prop named like a state key. The new `delivery smoke` opens every route the map
+reaches, signed in, at every width, and fails at the first status of 500 or more, error overlay,
+replaced build output, or loading placeholder still there after 10 s. `shoot` runs it first and
+pictures nothing when it fails, and a server that breaks during a shoot deletes that round's
+folder so its number is reused. The builder and fixer report done only once smoke passes. An export
 holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run

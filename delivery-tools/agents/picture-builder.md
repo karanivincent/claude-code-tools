@@ -32,7 +32,10 @@ Your tools cannot enforce the following, so they are yours to keep:
   world has been seeded (`delivery seed --apply` has run for it). Signing in against an unseeded
   world creates a stray auth account outside any world, which then makes the next `seed --apply`
   fail. If a state you need isn't seeded yet, say so in your report instead of working around it.
-- Never start or stop the dev server, never run a browser tool, a capture, an e2e suite or the
-  full CI chain, and never push. The main session runs the dev server and `delivery shoot`; those
-  are how your work gets pictured, not something you do yourself.
+- Before you report done, `node scripts/delivery.mjs smoke --base-url <url>` must pass: every
+  route of the map loads at every width, signed in, with no 500, no error overlay and no page
+  stuck loading. Name it and its result in your report.
+- Never start or stop the dev server, never run a browser tool, a capture other than `smoke` and
+  `shoot --round work`, an e2e suite or the full CI chain, and never push. The main session runs
+  the dev server and the numbered `delivery shoot` rounds; those are how your work gets pictured.
 - Never dispatch another agent and never load a skill.

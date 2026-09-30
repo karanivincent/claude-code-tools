@@ -289,6 +289,14 @@
         "galleryRoute": { "description": "The built gallery page's route, e.g. /admin/design/components.", "type": "string", "pattern": "^/" }
       }
     },
+    "smoke": {
+      "description": "Optional (delivery smoke, the page-load gate). skeleton: the CSS selectors of the loading placeholders the app shows until its data arrives; a page still showing one 10 s after it loaded is broken. Default [aria-busy=true] and [data-skeleton].",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "skeleton": { "$ref": "common.schema.json#/$defs/Strings" }
+      }
+    },
     "design": {
       "description": "Optional (components-first spec §8.2).",
       "type": "object",

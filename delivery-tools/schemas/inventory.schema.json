@@ -85,7 +85,7 @@
     }
   },
   "$defs": {
-    "CandidateKind": { "enum": ["set-target", "prop-value", "dialog", "shot", "ternary", "list"] },
+    "CandidateKind": { "enum": ["set-target", "prop-value", "preset", "dialog", "shot", "ternary", "list"] },
     "DesignStep": {
       "oneOf": [
         {

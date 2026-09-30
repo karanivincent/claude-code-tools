@@ -305,6 +305,43 @@ export async function freezeClock(context, at) {
 }
 
 /**
+ * A browser context at one width, signed in as a world's user: its saved session when it still
+ * works, else a one-time sign-in link, whose session is then saved for the next context.
+ * @param {any} browser
+ * @param {{ map: object, baseUrl: string, sessionsDir: string, magicLinkPath: string, timeZone?: string|null,
+ *           auth: { signInHash: (email: string) => Promise<string> } }} o
+ * @param {{ world: string, role: string, width: string }} entry
+ * @param {{ email: string }} user
+ * @param {number} ip a local dev server rate-limits sign-in per address; each context gets its own
+ * @param {(context: any) => Promise<void>} [prepare] runs before the first page opens (the shoot freezes the clock)
+ * @returns {Promise<{ context: any, page: any }>}
+ */
+export async function openSignedIn(browser, o, entry, user, ip, prepare) {
+  const landing = o.map.route;
+  const host = new URL(o.baseUrl).hostname.replace(/[^a-z0-9.-]/gi, '_');
+  const sessionFile = join(o.sessionsDir, `shoot-${host}-${entry.world}-${entry.role}.json`);
+  const context = await browser.newContext({
+    ...contextOptions(entry.width, o.timeZone ?? null),
+    ...(isLocal(o.baseUrl) ? { extraHTTPHeaders: { 'x-real-ip': `10.77.0.${ip % 250}` } } : {}),
+    ...(existsSync(sessionFile) ? { storageState: sessionFile } : {}),
+  });
+  try {
+    if (prepare) await prepare(context);
+    const page = await context.newPage();
+    await page.goto(new URL(landing, o.baseUrl).toString(), { waitUntil: 'networkidle' }).catch(() => {});
+    if (!new URL(page.url()).pathname.startsWith(landing)) {
+      const hash = await o.auth.signInHash(user.email);
+      await page.goto(signInUrl(o.baseUrl, o.magicLinkPath, hash, landing), { waitUntil: 'networkidle' });
+      await context.storageState({ path: sessionFile });
+    }
+    return { context, page };
+  } catch (err) {
+    await context.close().catch(() => {});
+    throw err;
+  }
+}
+
+/**
  * @param {object} o
  * @param {object} o.map
  * @param {object[]} o.items        from selectStates
@@ -332,7 +369,6 @@ export async function freezeClock(context, at) {
 export async function runShoot(o) {
   await mkdir(o.outDir, { recursive: true });
   await mkdir(o.sessionsDir, { recursive: true });
-  const landing = o.map.route;
   const browser = await o.chromium.launch();
   const report = {};
   const liveFacts = new Map(); // item key -> what the live page showed (text, test ids, buttons)
@@ -363,22 +399,11 @@ export async function runShoot(o) {
         }
         continue;
       }
-      const host = new URL(o.baseUrl).hostname.replace(/[^a-z0-9.-]/gi, '_');
-      const sessionFile = join(o.sessionsDir, `shoot-${host}-${entry.world}-${entry.role}.json`);
-      const context = await browser.newContext({
-        ...contextOptions(entry.width, o.timeZone ?? null),
-        ...(isLocal(o.baseUrl) ? { extraHTTPHeaders: { 'x-real-ip': `10.77.0.${ip++ % 250}` } } : {}),
-        ...(existsSync(sessionFile) ? { storageState: sessionFile } : {}),
-      });
       const frozenAt = seeded.get(entry.world)?.at ?? null;
-      const frozen = await freezeClock(context, frozenAt).catch(() => false);
-      const page = await context.newPage();
-      await page.goto(new URL(landing, o.baseUrl).toString(), { waitUntil: 'networkidle' }).catch(() => {});
-      if (!new URL(page.url()).pathname.startsWith(landing)) {
-        const hash = await o.auth.signInHash(user.email);
-        await page.goto(signInUrl(o.baseUrl, o.magicLinkPath, hash, landing), { waitUntil: 'networkidle' });
-        await context.storageState({ path: sessionFile });
-      }
+      let frozen = false;
+      const { context, page } = await openSignedIn(browser, o, entry, user, ip++, async (c) => {
+        frozen = await freezeClock(c, frozenAt).catch(() => false);
+      });
       for (const it of entry.items) {
         try {
           report[it.key] = await shootItem(page, it, o, liveFacts);

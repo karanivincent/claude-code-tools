@@ -84,19 +84,91 @@ export function idPart(value) {
   return s || 'empty';
 }
 
+const NOT_METHODS = new Set(['if', 'for', 'while', 'switch', 'catch', 'with', 'function', 'return', 'typeof', 'new', 'await']);
+
+/**
+ * The design's preset tables (W1 of the 2026-09-30 plan): a top-level `const T = { key: {...}, ... }`
+ * that a method `m(arg) { ... T[...] ... }` indexes, called as `this.m(this.props.P)`. Setting prop
+ * P to one of T's keys shows that entry's state, but only on a prop *change* (componentDidUpdate),
+ * so each key is a state reached by `reach.kind: "preset"` with `{ P: key }`.
+ * @param {Token[]} toks the logic script's tokens
+ * @returns {{ prop: string, table: string, method: string, keys: string[], line: number }[]} line: the table's
+ */
+export function presetTables(toks) {
+  const tables = new Map();
+  let depth = 0;
+  for (let k = 0; k < toks.length; k++) {
+    const t = toks[k];
+    if (isOpen(t)) depth++;
+    else if (isClose(t)) depth--;
+    else if (depth === 0 && t.t === 'name' && t.v === 'const' && toks[k + 1]?.t === 'name' && /^[A-Z][A-Z0-9_]*$/.test(toks[k + 1].v)
+      && toks[k + 2]?.v === '=' && toks[k + 3]?.v === '{') {
+      const close = matchBracket(toks, k + 3);
+      const keys = objectEntries(toks.slice(k + 4, close)).filter((e) => !e.spread && e.key !== null).map((e) => String(e.key));
+      if (keys.length) tables.set(toks[k + 1].v, { keys: [...new Set(keys)], line: t.line });
+    }
+  }
+  if (!tables.size) return [];
+  const methods = new Map(); // method name -> table it indexes
+  for (let k = 0; k < toks.length; k++) {
+    const t = toks[k];
+    if (t.t !== 'name' || NOT_METHODS.has(t.v) || toks[k - 1]?.v === '.' || toks[k + 1]?.v !== '(') continue;
+    const params = matchBracket(toks, k + 1);
+    if (toks[params + 1]?.v !== '{') continue;
+    const end = matchBracket(toks, params + 1);
+    for (let j = params + 2; j < end; j++) {
+      if (toks[j].t === 'name' && tables.has(toks[j].v) && toks[j + 1]?.v === '[' && toks[j - 1]?.v !== '.') {
+        if (!methods.has(t.v)) methods.set(t.v, toks[j].v);
+        break;
+      }
+    }
+  }
+  const out = [];
+  const seen = new Set();
+  const is = (k, v) => toks[k]?.v === v;
+  for (let k = 0; k < toks.length; k++) {
+    // this . m ( this . props . P )
+    if (!(toks[k].t === 'name' && toks[k].v === 'this' && is(k + 1, '.') && methods.has(toks[k + 2]?.v) && is(k + 3, '(')
+      && is(k + 4, 'this') && is(k + 5, '.') && is(k + 6, 'props') && is(k + 7, '.') && toks[k + 8]?.t === 'name'
+      && (is(k + 9, ')') || is(k + 9, ',')))) continue;
+    const method = toks[k + 2].v;
+    const prop = toks[k + 8].v;
+    const table = methods.get(method);
+    if (seen.has(`${prop}:${table}`)) continue;
+    seen.add(`${prop}:${table}`);
+    out.push({ prop, table, method, keys: tables.get(table).keys, line: tables.get(table).line });
+  }
+  return out;
+}
+
 /**
  * Every value a data-props switch can take: each enum option, both booleans, a number's
- * default, minimum and maximum; anything else by its default.
+ * default, minimum and maximum; anything else by its default. A prop that picks an entry of a
+ * preset table (presetTables) takes each of the table's keys instead, marked `preset`, since a
+ * baked default never applies an entry: only a change does.
  * @param {Record<string, any>} props the parsed data-props object
- * @returns {{ key: string, value: unknown, isDefault: boolean, section: string|null, editor: string|null }[]}
+ * @param {{ presets?: { prop: string, table: string, method: string, keys: string[] }[] }} [opts]
+ * @returns {{ key: string, value: unknown, isDefault: boolean, section: string|null, editor: string|null,
+ *             preset?: { table: string, method: string, option: string|null } }[]}
  */
-export function propValues(props) {
+export function propValues(props, opts = {}) {
   const out = [];
+  const presets = new Map((opts.presets ?? []).map((p) => [p.prop, p]));
   for (const [key, meta] of Object.entries(props ?? {})) {
     if (key.startsWith('$') || !meta || typeof meta !== 'object') continue;
     const editor = typeof meta.editor === 'string' ? meta.editor : null;
     const section = typeof meta.section === 'string' ? meta.section : null;
     const def = meta.default;
+    const preset = presets.get(key);
+    if (preset) {
+      const options = Array.isArray(meta.options) ? meta.options.filter((o) => typeof o === 'string') : [];
+      for (const k of preset.keys) {
+        // The designer's own label for the entry, when the switch lists one: "A1 Calls table" for A1.
+        const option = options.find((o) => o === k || o.startsWith(`${k} `)) ?? null;
+        out.push({ key, value: k, isDefault: def === k || def === option, section, editor, preset: { table: preset.table, method: preset.method, option } });
+      }
+      continue;
+    }
     let values;
     if (Array.isArray(meta.options) && meta.options.length) values = meta.options;
     else if (editor === 'boolean' || typeof def === 'boolean') values = [true, false];

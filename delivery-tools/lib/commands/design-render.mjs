@@ -30,9 +30,17 @@ Steps: {"click": "<exact visible text>"} or {"click": "<playwright selector>"} s
 text=..., css=..., role=...; {"set": {...}} writes the design component's own state.
 
 A "prop" reach's props are baked into the served file as new defaults, so the design mounts
-with them already set. A "preset" reach's props never are: they are applied with the same
-{"set": ...} mechanism, after the page has booted, because a preset commonly applies only on a
-prop *change* (a design's componentDidUpdate) and never fires from a default.
+with them already set. A "preset" reach's props never are: the design boots with its own
+defaults, then those props are changed on the running component, because a preset applies only
+on a prop *change* (a design's componentDidUpdate) and never fires from a default. They are
+props, not state: a {"set": ...} step writes state and never applies a preset. Steps run after
+the preset and are not reset by it. design candidates lists each entry of a preset table (a
+method m(arg) that indexes a top-level const T = {...}, called as this.m(this.props.P)) as a
+"preset" candidate with its props.
+
+Warnings, which never fail the render: a state whose reach sets a prop named like one of the
+design's state keys (the prop never sets that state), and a state whose page is mostly an iframe
+(its words are not read; a phone view is rendered with --width phone, not a phone-frame prop).
 
 Every rendered picture is hashed; two different states whose pictures come out byte-identical
 are refused (both ids and the hash are named), unless one names the other in the inventory with
@@ -110,12 +118,14 @@ common options:
     for (const id of r.shots) ctx.out.line(`picture only ${id}: shot copied, no text or dom`);
     for (const s of r.skipped) ctx.out.line(`skipped ${shown(s.id)}: ${s.why}`);
     for (const f of r.failed) ctx.out.fail('render', `${shown(f.id)}: ${f.why}`);
+    for (const w of r.warnings) ctx.out.warn(`${shown(w.id)}: ${w.why}`);
     if (r.escaped.length) ctx.out.warn(`offline: aborted requests to ${r.escaped.join(', ')}`);
     ctx.out.line(`${r.rendered.length} rendered, ${r.shots.length} pictures, ${r.skipped.length} skipped, ${r.failed.length} failed; files in ${paths.designRenders}`);
     ctx.out.set('rendered', r.rendered);
     ctx.out.set('shots', r.shots);
     ctx.out.set('skipped', r.skipped);
     ctx.out.set('failed', r.failed);
+    ctx.out.set('warnings', r.warnings);
     const exit = r.failed.length ? EXIT.RED : EXIT.PASS;
     await ctx.journal({
       command: 'design render', exit,

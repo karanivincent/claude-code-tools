@@ -83,6 +83,7 @@ A state of a shared part (a header, a sidebar, a dialog several screens open) ta
 |---|---|
 | `set-target` | the state each value it sets shows (a screen, a tab, a mode, an open menu or panel) |
 | `prop-value` | the state that value shows; a value no click can reach is still a state, reached by `prop` |
+| `preset` | the state that entry of the design's preset table shows, reached by `preset` with exactly the props its `detail` names |
 | `dialog` | the dialog's own state, and one state per step or variant it draws |
 | `shot` | the state the picture shows (list it in that state's `shots`), or excluded as superseded |
 | `ternary` | every branch that shows different visible text must be visible in some state. Map the candidate to the state that shows the branch its parent state does not; if no such state exists yet, add it (a mode, an error, one item against many, an open panel) |
@@ -103,11 +104,18 @@ For each state write:
   - `click-path`: `steps` from the prototype as it opens: `{ "click": "<the visible label>" }` per
     click (or a Playwright selector such as `role=tab[name="Filters"]` when that text is not
     unique), `{ "set": { "<key>": <value> } }` where the prototype switches without a click;
+  - `preset`: `props`, for a `preset` candidate: the one prop and table key its `detail` names
+    (`{ "callsState": "A1" }`), plus `steps` for anything a click opens on top of it;
   - `prop`: `props`, the prototype values the state needs that no click produces (every value
     the state needs, not only the first one you find);
   - `shot-only`: only a picture shows it (image folders, or a shot with no prototype state);
   - `unspecified`: the design does not draw it but the product needs it; set `unspecified` to
     `loading`, `empty`, `error`, `permission`, `one` or `many`.
+Phone states are never reached through a prop that draws the page inside a phone frame
+(`screen: "Phone"`, `phoneWidth`, a device toggle): the frame is an iframe whose words the render
+cannot read. Write the state as the desktop one is written; `delivery design render --width phone`
+renders it at phone width. The render warns about a page that is mostly an iframe.
+
 - `shots`: the pictures that show it (may be empty).
 - `render`: `{ "status": "ok" }` for every state the prototype can show and every `shot-only`
   state (its render is its first picture); `{ "status": "impossible", "why": "not drawn in the

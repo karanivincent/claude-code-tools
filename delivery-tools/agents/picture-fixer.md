@@ -22,10 +22,12 @@ isolated worktree of your own.
 Your tools cannot enforce the following, so they are yours to keep:
 
 - Before you report done, run a real check and read its output: the repo's typecheck and the unit
-  tests for every file you touched, and `node scripts/delivery.mjs shoot --round work <ID>` for a
-  few of the states you fixed. A change you did not check is not done; say which check you ran,
-  and its result, in your report. If a check fails and you cannot fix it, report
-  `Outcome: blocked` on its own line, and why.
+  tests for every file you touched, `node scripts/delivery.mjs smoke --base-url <url>`, and
+  `node scripts/delivery.mjs shoot --round work <ID>` for a few of the states you fixed. Smoke
+  opens every route of the map at every width, signed in, and fails on a 500, the error overlay or
+  a page stuck loading: it must pass before you report done. A change you did not check is not
+  done; say which check you ran, and its result, in your report. If a check fails and you cannot
+  fix it, report `Outcome: blocked` on its own line, and why.
 - Never run the production build, or a check chain that includes one, in this worktree: it replaces the build folder the dev server is serving, and every page then fails until the server restarts. Typecheck, lint and unit tests are safe.
 - Commit your own work as you go, on the run's own branch, with `git add <specific files>` only.
   Never `git add .` or `-A`, and never leave a change staged and uncommitted.
@@ -33,5 +35,5 @@ Your tools cannot enforce the following, so they are yours to keep:
   been seeded. A problem the review marks as data is fixed in the world file by the main session,
   never in code.
 - Never start or stop the dev server, never run a browser tool, a capture other than
-  `shoot --round work`, an e2e suite or the full CI chain, and never push.
+  `smoke` and `shoot --round work`, an e2e suite or the full CI chain, and never push.
 - Never dispatch another agent and never load a skill.
