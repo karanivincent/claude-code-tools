@@ -13,6 +13,7 @@ Run these commands in Claude Code:
 /plugin install frontend-tools@vince-tools-marketplace
 /plugin install general-tools@vince-tools-marketplace
 /plugin install goal-map@vince-tools-marketplace
+/plugin install archive-ready@vince-tools-marketplace
 ```
 
 ### Method 2: Manual configuration
@@ -78,6 +79,18 @@ Issue documentation workflows and non-Yond productivity skills.
 | `in-flight` | Shows what work is actually in flight across every branch and worktree of a repo, and what each piece is waiting on — sorted into live (a session is on it now), review (open PR, with its blocker named: red CI, conflicts, changes requested, or just waiting for a merge), stalled (unmerged commits, no PR) and landed (merged, worktree still on disk). Detects squash merges by patch equivalence rather than commit count, so branches that already shipped stop reading as abandoned work; flags commits that exist on one machine only and worktrees holding undrained loose ends. Read-only, network-free, and silent when nothing is outstanding, so it suits a SessionStart hook |
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
+
+### archive-ready `v0.2.0`
+
+A mod that draws one line above the prompt:
+
+```
+✗ Not ready  ·  ◎ Goal map mod ↳ detour: pricing  ·  Context 27% (265k/1000k)
+```
+
+- Ready means the session is safe to archive: no open question, nothing running, nothing
+  uncommitted or unpushed, and no unticked item in `TASKS.md`. `/archive-check` lists the reasons.
+- The goal and detour come from `goal-map`'s session file and are left out when it is not installed.
 
 ### goal-map `v0.1.2`
 
