@@ -1,0 +1,6 @@
+{
+  "name": "archive-ready",
+  "version": "0.2.0",
+  "description": "The line above the prompt: whether the session is ready to archive, its goal from goal-map, and context use",
+  "types": "./types/index.d.ts"
+}

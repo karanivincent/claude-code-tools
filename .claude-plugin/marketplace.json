@@ -23,6 +23,11 @@
       "name": "goal-map",
       "source": "./goal-map",
       "description": "A live map of every goal across your Claude Code sessions: which PRs landed, where you went on a detour, and what is waiting on you"
+    },
+    {
+      "name": "archive-ready",
+      "source": "./archive-ready",
+      "description": "The line above the prompt: ready to archive or not, the session's goal from goal-map, and context use"
     }
   ]
 }
