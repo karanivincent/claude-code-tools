@@ -13,7 +13,9 @@ import {
   mapSvg,
   mapText,
   parseClassification,
-  prNumbersIn,
+  prKey,
+  prRefsIn,
+  repoOfRemote,
   slug,
   trailingQuestion,
   waitingItems,
@@ -95,7 +97,8 @@ async function refresh($: Dollar): Promise<void> {
     const prs: Record<string, PrState> = {}
     let decisions: { number: number; title: string; url: string }[] = []
     let error: string | null = null
-    const toState = (p: Record<string, unknown>): PrState => ({
+    const toState = (p: Record<string, unknown>, repo: string): PrState => ({
+      repo,
       number: p.number as number,
       title: p.title as string,
       state: p.state as PrState['state'],
@@ -107,29 +110,35 @@ async function refresh($: Dollar): Promise<void> {
     })
     const fields = 'number,title,state,isDraft,url,labels,updatedAt,statusCheckRollup'
     try {
+      const here = me?.repo ?? ''
       const open = (await gh($, ['pr', 'list', '--state', 'open', '--limit', '100', '--json', fields])) as Record<string, unknown>[]
-      for (const p of open) prs[String(p.number)] = toState(p)
+      for (const p of open) prs[`${here}#${p.number}`] = toState(p, here)
       // Merged PRs, so a duplicate of landed work is visible.
       const recent = (await gh($, ['pr', 'list', '--state', 'merged', '--limit', '60', '--json', fields])) as Record<string, unknown>[]
-      for (const p of recent) prs[String(p.number)] = toState(p)
-      // The rest of the PRs our sessions own; a merged one never changes, so it is cached.
-      const cache = ((await $.store.get('prs')) as Record<string, PrState> | undefined) ?? {}
-      const owned = [...new Set(sessions.flatMap(s => s.prs.map(p => p.number)))].filter(n => !prs[String(n)])
-      for (const n of owned.slice(0, 25)) {
-        const hit = cache[String(n)]
+      for (const p of recent) prs[`${here}#${p.number}`] = toState(p, here)
+      // The rest of the PRs our sessions own, in whatever repo; a merged one never changes, so it is cached.
+      const cache = ((await $.store.get('prs2')) as Record<string, PrState> | undefined) ?? {}
+      const owned = new Map<string, { number: number; repo: string }>()
+      for (const s of sessions) for (const p of s.prs) {
+        const key = prKey(s, p)
+        const repo = key.slice(0, key.lastIndexOf('#'))
+        if (repo && !prs[key]) owned.set(key, { number: p.number, repo })
+      }
+      for (const [key, ref] of [...owned].slice(0, 25)) {
+        const hit = cache[key]
         if (hit && hit.state !== 'OPEN') {
-          prs[String(n)] = hit
+          prs[key] = hit
           continue
         }
         try {
-          prs[String(n)] = toState((await gh($, ['pr', 'view', String(n), '--json', fields])) as Record<string, unknown>)
+          prs[key] = toState((await gh($, ['pr', 'view', String(ref.number), '--repo', ref.repo, '--json', fields])) as Record<string, unknown>, ref.repo)
         } catch {
-          // A PR in another repo, or deleted: leave it unknown.
+          // Deleted, or a repo this login cannot read: leave it unknown.
         }
       }
       const keep: Record<string, PrState> = {}
       for (const [k, v] of Object.entries(prs)) if (v.state !== 'OPEN') keep[k] = v
-      await $.store.set('prs', { ...cache, ...keep })
+      await $.store.set('prs2', { ...cache, ...keep })
       decisions = (await gh($, ['issue', 'list', '--label', 'needs-decision', '--state', 'open', '--limit', '30', '--json', 'number,title,url'])) as typeof decisions
     } catch (err) {
       error = `GitHub: ${(err as Error).message}`
@@ -231,7 +240,7 @@ async function backfill($: Dollar, days: number): Promise<void> {
     startedAt: number
     lastActiveAt: number
     prompts: { at: number; text: string }[]
-    prs: { number: number; at: number }[]
+    prs: { number: number; at: number; repo?: string }[]
   }[]
   let added = 0
   for (const s of found) {
@@ -319,6 +328,7 @@ export const register: Register = on => {
     }
     me.cwd = cwd
     me.branch = branch || me.branch
+    me.repo = repoOfRemote((await $.process.run(['git', 'remote', 'get-url', 'origin'], { cwd })).stdout) ?? me.repo
     me.status = 'idle'
     if (me.steps.length > 0) await saveMe($)
 
@@ -381,9 +391,7 @@ export const register: Register = on => {
       me.status = 'working'
       me.question = null
       if (isTrivialPrompt(e.text)) {
-        if (me.steps.length > 0) {
-          me.steps = [...me.steps, { at: await $.clock.now(), kind: 'continue' as const, topic: clip(e.text, 30), text: clip(e.text, 160) }].slice(-200)
-        }
+        // "yes", "approve!": activity, not a step.
         void saveMe($)
       } else {
         void classify($, e.text).catch(() => undefined)
@@ -413,8 +421,9 @@ export const register: Register = on => {
     if (me && /\bgh\s+pr\s+(create|merge|ready)\b/.test(command)) {
       const out = (r as unknown as { result?: { stdout?: string } }).result?.stdout ?? ''
       const now = await $.clock.now()
-      for (const n of prNumbersIn(command, out)) {
-        if (!me.prs.some(p => p.number === n)) me.prs = [...me.prs, { number: n, at: now }]
+      for (const ref of prRefsIn(command, out)) {
+        const key = prKey(me, ref)
+        if (!me.prs.some(p => prKey(me!, p) === key)) me.prs = [...me.prs, { ...ref, at: now }]
       }
       await saveMe($)
       void refresh($)

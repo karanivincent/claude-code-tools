@@ -20,7 +20,9 @@ export type SessionRecord = {
   status: 'working' | 'idle' | 'ended'
   steps: Step[]
   /** PRs this session opened or merged, with when it first saw each. */
-  prs: { number: number; at: number }[]
+  prs: { number: number; at: number; repo?: string }[]
+  /** owner/name of the session's own repo, from its origin remote. */
+  repo?: string
   /** The question the session last left you, cleared when you answer. */
   question: { text: string; at: number } | null
   /** Filled by the backfill, which cannot see live status. */
@@ -35,6 +37,7 @@ export type Goal = {
 }
 
 export type PrState = {
+  repo: string
   number: number
   title: string
   state: 'OPEN' | 'MERGED' | 'CLOSED'
