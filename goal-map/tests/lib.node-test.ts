@@ -83,3 +83,31 @@ test('@me steps come from the goal heading only', async () => {
   assert.deepEqual(myOpenSteps(md, 'Goal map mod'), ['Run the backfill'])
   assert.deepEqual(myOpenSteps(md, 'Pelican pricing'), [])
 })
+
+test('a session that moves to a new goal leaves a paused lane and forks a new one, with times', async () => {
+  const { lanes, mapSvg, mapText, clock, duration, activeTime } = await import('../hooks/lib.ts')
+  const M = 60_000
+  const t0 = Date.UTC(2026, 9, 3, 19, 0) // 22:00 in Nairobi
+  const goals = [
+    { id: 'a', title: 'Goal map mod', createdAt: t0, doneAt: null },
+    { id: 'b', title: 'Pricing idea', createdAt: t0 + 40 * M, doneAt: null },
+  ]
+  const step = (m: number, kind: 'goal' | 'continue', goalId: string, topic: string) => ({ at: t0 + m * M, kind, topic, text: topic, goalId })
+  const s = {
+    id: 'sess0001xxxx', cwd: '/x', repo: 'T/T', branch: 'claude/x', goalId: 'b', startedAt: t0, lastActiveAt: t0 + 70 * M,
+    status: 'ended' as const, question: null,
+    steps: [step(0, 'goal', 'a', 'start'), step(20, 'continue', 'a', 'more'), step(40, 'goal', 'b', 'what to charge'), step(70, 'continue', 'b', 'numbers')],
+    prs: [{ number: 74, at: t0 + 30 * M, repo: 'T/T', goalId: 'a' }],
+  }
+  const ls = lanes({ goals, sessions: [s], prs: {}, waiting: [], refreshedAt: t0, error: null }, t0 + 80 * M, true)
+  const a = ls.find(l => l.goal.id === 'a')!
+  const b = ls.find(l => l.goal.id === 'b')!
+  assert.equal(a.isPaused, true)
+  assert.ok(a.events.some(e => e.icon === 'left'))
+  assert.ok(a.events.some(e => e.label.startsWith('#74')))
+  assert.ok(b.events.some(e => e.icon === 'switch' && e.fromGoalId === 'a'))
+  assert.equal(clock(t0, 180), '22:00')
+  assert.equal(duration(activeTime([t0, t0 + 20 * M, t0 + 40 * M])), '40m')
+  assert.match(mapSvg(ls, t0 + 80 * M, 820, 60, 180).source, /TODAY|SAT/)
+  assert.ok(mapText(ls, t0 + 80 * M, 8, 180).some(line => line.includes('22:00')))
+})

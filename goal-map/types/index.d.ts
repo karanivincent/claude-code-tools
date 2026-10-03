@@ -8,6 +8,8 @@ export type Step = {
   topic: string
   /** The prompt's opening words, for the tooltip. */
   text: string
+  /** The goal this step served; absent on records written before a session could change goals. */
+  goalId?: string
 }
 
 export type SessionRecord = {
@@ -20,7 +22,7 @@ export type SessionRecord = {
   status: 'working' | 'idle' | 'ended'
   steps: Step[]
   /** PRs this session opened or merged, with when it first saw each. */
-  prs: { number: number; at: number; repo?: string }[]
+  prs: { number: number; at: number; repo?: string; goalId?: string }[]
   /** owner/name of the session's own repo, from its origin remote. */
   repo?: string
   /** The question the session last left you, cleared when you answer. */
