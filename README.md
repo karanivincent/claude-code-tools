@@ -107,7 +107,7 @@ TASKS.md format:
 - [ ] @me Run /goal-map-backfill 7 and check the map
 ```
 
-### goal-map `v0.2.1`
+### goal-map `v0.3.0`
 
 A mod (function hooks, not a skill) that keeps one map of what you are working on across every
 Claude Code session. Each session writes its own record to `~/.claude/goal-map/`; any session can
@@ -119,6 +119,11 @@ draw all of them.
 - The goal, and the detour topic while you are on one, show in the line above the prompt, next to
   context, through the `archive-ready` mod, which reads this mod's session file. A toast fires
   when a detour starts.
+- Each step records the goal it served, so a session can move between goals. Finishing a goal and
+  starting another, or dropping one for a big new idea, forks a new lane; the lane left behind shows
+  ⏸ paused until something comes back to it.
+- Every row carries its local clock time, each day gets a divider, and each goal shows when it
+  started and how long was spent on it (gaps between its steps, each capped at 30 minutes).
 - `/goal-map` opens a pane. On desktop it is a GitKraken-style graph: one coloured column per goal,
   dashed side branches for detours, PRs as open or merged dots, and orange `?` for questions waiting
   on you. The terminal gets the same content as a text tree.

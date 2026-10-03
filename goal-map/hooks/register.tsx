@@ -35,6 +35,8 @@ const SHOW_DONE = { plugin: 'goal-map', key: 'showDone' } as const
 type Dollar = EngineInterface
 
 let root = ''
+/** Minutes east of UTC, from the host's clock, so the map shows local times. */
+let tz = 0
 let me: SessionRecord | null = null
 let refreshing: Promise<void> | null = null
 
@@ -220,7 +222,7 @@ async function classify($: Dollar, text: string): Promise<void> {
   if (c.kind === 'detour' && !isInDetour(me.steps) && current) {
     $.ui.toast(`Detour from "${clip(current.title, 40)}": ${c.topic}. /goal-map shows where you are.`)
   }
-  const step: Step = { at: now, kind: c.kind === 'back' && !isInDetour(me.steps) ? 'continue' : c.kind, topic: c.topic, text: clip(text, 160) }
+  const step: Step = { at: now, kind: c.kind === 'back' && !isInDetour(me.steps) ? 'continue' : c.kind, topic: c.topic, text: clip(text, 160), goalId: me.goalId ?? undefined }
   me.steps = [...me.steps, step].slice(-200)
   await saveMe($)
   await showStatus($)
@@ -310,6 +312,8 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     const home = (await $.process.run(['printenv', 'HOME'])).stdout.trim()
     root = `${home}/.claude/goal-map`
+    const off = (await $.process.run(['date', '+%z'])).stdout.trim().match(/^([+-])(\d\d)(\d\d)$/)
+    if (off) tz = (off[1] === '-' ? -1 : 1) * (Number(off[2]) * 60 + Number(off[3]))
     const id = await $.session.id()
     const cwd = await $.session.cwd()
     const branch = (await $.process.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], { cwd })).stdout.trim()
@@ -364,7 +368,7 @@ export const register: Register = on => {
       await saveGoal($, { ...g, title: clip(title, 60) })
     } else {
       me.goalId = (await newGoal($, title)).id
-      me.steps = [...me.steps, { at: now, kind: 'goal', topic: clip(title, 50), text: title }]
+      me.steps = [...me.steps, { at: now, kind: 'goal', topic: clip(title, 50), text: title, goalId: me.goalId }]
     }
     await saveMe($)
     await showStatus($)
@@ -423,7 +427,7 @@ export const register: Register = on => {
       const now = await $.clock.now()
       for (const ref of prRefsIn(command, out)) {
         const key = prKey(me, ref)
-        if (!me.prs.some(p => prKey(me!, p) === key)) me.prs = [...me.prs, { ...ref, at: now }]
+        if (!me.prs.some(p => prKey(me!, p) === key)) me.prs = [...me.prs, { ...ref, at: now, goalId: me.goalId ?? undefined }]
       }
       await saveMe($)
       void refresh($)
@@ -493,7 +497,7 @@ export const register: Register = on => {
       body = <Text dimColor>No goals in the last week. They appear as sessions start; /goal-map-backfill imports past ones.</Text>
     } else if (e.surface !== 'terminal') {
       const { Svg } = $.ui.resolve(e)
-      const drawn = mapSvg(ls, now, width)
+      const drawn = mapSvg(ls, now, width, 60, tz)
       body = (
         <Box flexDirection="column">
           {waiting.length > 0 && (
@@ -501,7 +505,7 @@ export const register: Register = on => {
               {waiting.length} thing(s) waiting on you — {summary(waiting)}
             </Text>
           )}
-          <Svg source={drawn.source} alt={mapText(ls, now).join('\n')} width={width} height={drawn.height} isInteractive />
+          <Svg source={drawn.source} alt={mapText(ls, now, 8, tz).join('\n')} width={width} height={drawn.height} isInteractive />
           <Text dimColor>◆ session started · ○ PR open · ✓ PR merged · ✗ closed · ? waiting on you · dashed = detour. Hover a dot for detail.</Text>
         </Box>
       )
@@ -513,7 +517,7 @@ export const register: Register = on => {
               {waiting.length} thing(s) waiting on you — {summary(waiting)}
             </Text>
           )}
-          {mapText(ls, now).map(line => (
+          {mapText(ls, now, 8, tz).map(line => (
             <Text wrap="truncate">{line || ' '}</Text>
           ))}
         </Box>
