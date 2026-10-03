@@ -107,7 +107,7 @@ TASKS.md format:
 - [ ] @me Run /goal-map-backfill 7 and check the map
 ```
 
-### goal-map `v0.3.0`
+### goal-map `v0.3.1`
 
 A mod (function hooks, not a skill) that keeps one map of what you are working on across every
 Claude Code session. Each session writes its own record to `~/.claude/goal-map/`; any session can
