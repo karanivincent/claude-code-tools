@@ -1,15 +1,17 @@
 // node --test tests/lib.node-test.ts — the pure decisions, outside the engine.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { isInDetour, isTrivialPrompt, lanes, mapSvg, mapText, parseClassification, prNumbersIn, trailingQuestion, waitingItems } from '../hooks/lib.ts'
+import { isInDetour, isTrivialPrompt, lanes, mapSvg, mapText, parseClassification, prRefsIn, repoOfRemote, trailingQuestion, waitingItems } from '../hooks/lib.ts'
 
 const H = 3600_000
 const now = 1_000 * H
 
 test('a PR number comes from gh pr create output and gh pr merge args', () => {
-  assert.deepEqual(prNumbersIn('gh pr create --draft --title x', 'https://github.com/Telitask/Telitask/pull/2236\n'), [2236])
-  assert.deepEqual(prNumbersIn('gh pr merge 2231 --squash', ''), [2231])
-  assert.deepEqual(prNumbersIn('gh pr view 12', 'https://github.com/a/b/pull/12'), [])
+  assert.deepEqual(prRefsIn('gh pr create --draft --title x', 'https://github.com/karanivincent/claude-code-tools/pull/74\n'), [{ number: 74, repo: 'karanivincent/claude-code-tools' }])
+  assert.deepEqual(prRefsIn('gh pr merge 2231 --squash', ''), [{ number: 2231, repo: undefined }])
+  assert.deepEqual(prRefsIn('gh pr merge 9 --repo a/b', ''), [{ number: 9, repo: 'a/b' }])
+  assert.deepEqual(prRefsIn('gh pr view 12', 'https://github.com/a/b/pull/12'), [])
+  assert.equal(repoOfRemote('git@github.com:Telitask/Telitask.git'), 'Telitask/Telitask')
 })
 
 test('only a closing question counts as waiting on you', () => {
@@ -35,11 +37,11 @@ test('the first prompt is always a goal, and bad JSON is no answer', () => {
 })
 
 test('an open PR naming an issue a merged PR fixed is flagged as a duplicate', () => {
-  const pr = (number: number, state: 'OPEN' | 'MERGED', title: string) => ({ number, title, state, isDraft: false, checks: 'passing' as const, url: `u/${number}`, labels: [], updatedAt: '' })
+  const pr = (number: number, state: 'OPEN' | 'MERGED', title: string) => ({ repo: 'T/T', number, title, state, isDraft: false, checks: 'passing' as const, url: `u/${number}`, labels: [], updatedAt: '' })
   const items = waitingItems({
     sessions: [],
     goals: [],
-    prs: { '2235': pr(2235, 'OPEN', 'Match a verified number (#2229)'), '2236': pr(2236, 'MERGED', 'Refuse uncallable (#2229)') },
+    prs: { 'T/T#2235': pr(2235, 'OPEN', 'Match a verified number (#2229)'), 'T/T#2236': pr(2236, 'MERGED', 'Refuse uncallable (#2229)') },
     decisions: [],
     now,
   })
@@ -54,16 +56,16 @@ export const sample = () => {
   ]
   const st = (at: number, kind: 'goal' | 'continue' | 'detour' | 'back', topic: string) => ({ at: now - at * H, kind, topic, text: topic })
   const sessions = [
-    { id: '17691754aaaa', cwd: '/x', branch: 'docs/public-api-plan', goalId: 'api', startedAt: now - 40 * H, lastActiveAt: now - 1 * H, status: 'idle' as const,
+    { id: '17691754aaaa', cwd: '/x', repo: 'T/T', branch: 'docs/public-api-plan', goalId: 'api', startedAt: now - 40 * H, lastActiveAt: now - 1 * H, status: 'idle' as const,
       steps: [st(40, 'goal', 'public API plan'), st(30, 'detour', 'unlock bank PDF'), st(29, 'continue', 'pdf'), st(28, 'back', 'API step 11'), st(10, 'detour', 'why call them orders?'), st(9, 'back', 'API errors')],
       prs: [{ number: 2231, at: now - 26 * H }, { number: 2236, at: now - 5 * H }], question: { text: 'Shall I start the production release?', at: now - 1 * H } },
-    { id: '85431e71bbbb', cwd: '/x', branch: 'fix/dialler-gate', goalId: 'api', startedAt: now - 20 * H, lastActiveAt: now - 3 * H, status: 'ended' as const,
+    { id: '85431e71bbbb', cwd: '/x', repo: 'T/T', branch: 'fix/dialler-gate', goalId: 'api', startedAt: now - 20 * H, lastActiveAt: now - 3 * H, status: 'ended' as const,
       steps: [st(20, 'goal', 'dialler gate refusal')], prs: [{ number: 2237, at: now - 6 * H }], question: null },
-    { id: 'reverent0000', cwd: '/x', branch: 'claude/flake', goalId: 'flake', startedAt: now - 20 * H, lastActiveAt: now - 0.2 * H, status: 'working' as const,
+    { id: 'reverent0000', cwd: '/x', repo: 'T/T', branch: 'claude/flake', goalId: 'flake', startedAt: now - 20 * H, lastActiveAt: now - 0.2 * H, status: 'working' as const,
       steps: [st(20, 'goal', 'flake')], prs: [{ number: 2240, at: now - 0.5 * H }], question: null },
   ]
-  const pr = (number: number, state: 'OPEN' | 'MERGED', title: string, checks: 'passing' | 'failing' = 'passing') => ({ number, title, state, isDraft: false, checks, url: `https://github.com/Telitask/Telitask/pull/${number}`, labels: [], updatedAt: '' })
-  const prs = { '2231': pr(2231, 'MERGED', 'Attempts counts dials (#2220)'), '2236': pr(2236, 'MERGED', 'Refuse uncallable calls (#2229)'), '2237': pr(2237, 'MERGED', 'Gate refusal (#2228)'), '2240': pr(2240, 'OPEN', 'Fix bench row wait (#1996)', 'failing'), '2235': pr(2235, 'OPEN', 'Match verified number (#2229)') }
+  const pr = (number: number, state: 'OPEN' | 'MERGED', title: string, checks: 'passing' | 'failing' = 'passing') => ({ repo: 'T/T', number, title, state, isDraft: false, checks, url: `https://github.com/Telitask/Telitask/pull/${number}`, labels: [], updatedAt: '' })
+  const prs = { 'T/T#2231': pr(2231, 'MERGED', 'Attempts counts dials (#2220)'), 'T/T#2236': pr(2236, 'MERGED', 'Refuse uncallable calls (#2229)'), 'T/T#2237': pr(2237, 'MERGED', 'Gate refusal (#2228)'), 'T/T#2240': pr(2240, 'OPEN', 'Fix bench row wait (#1996)', 'failing'), 'T/T#2235': pr(2235, 'OPEN', 'Match verified number (#2229)') }
   const waiting = waitingItems({ sessions, goals, prs, decisions: [{ number: 1942, title: 'Drop the widgets rehearsal table?', url: 'u' }], now })
   return { goals, sessions, prs, waiting, refreshedAt: now, error: null }
 }

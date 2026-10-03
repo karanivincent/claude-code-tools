@@ -55,9 +55,9 @@ async function readSession(file) {
         for (const part of content) {
           if (part?.type !== 'tool_result' || !pendingPr.has(part.tool_use_id)) continue
           const body = typeof part.content === 'string' ? part.content : JSON.stringify(part.content)
-          for (const m of body.matchAll(/github\.com\/[\w.-]+\/[\w.-]+\/pull\/(\d+)/g)) {
-            const n = Number(m[1])
-            if (!out.prs.some(p => p.number === n)) out.prs.push({ number: n, at })
+          for (const m of body.matchAll(/github\.com\/([\w.-]+\/[\w.-]+)\/pull\/(\d+)/g)) {
+            const n = Number(m[2])
+            if (!out.prs.some(p => p.number === n && p.repo === m[1])) out.prs.push({ number: n, repo: m[1], at })
           }
           pendingPr.delete(part.tool_use_id)
         }

@@ -58,7 +58,8 @@ export function classifierPrompt(input: {
     '- "goal": the session has no goal yet, or the founder explicitly drops the old one for a new main goal.',
     '  Set goalId to an id from OPEN GOALS when the prompt is clearly the same piece of work; otherwise goalId null and newGoalTitle a 3-7 word title naming the outcome.',
     '- "continue": still serving the current goal (follow-ups, approvals, "yes", "merge it", fixes the goal needs).',
-    '- "detour": a side task the current goal does not need — fixing something unrelated, a product musing, a question about another area.',
+    '- "detour": work the current goal does not need at all — fixing something unrelated, a product musing, a different feature or area.',
+    '- Refining, extending, restyling or asking about what the current goal is building is "continue", even when it touches another file, screen or tool. When unsure, choose "continue".',
     '- "back": the session is in a detour and this prompt returns to the current goal.',
     '- Short replies ("yes", "go ahead", "continue", "merge") are always "continue" (or "back" never).',
     '- topic: 2-6 words naming what this prompt is about.',
@@ -123,14 +124,31 @@ export function trailingQuestion(text: string): string | null {
   return clip(sentences[sentences.length - 1] ?? last, 140)
 }
 
-export function prNumbersIn(command: string, stdout: string): number[] {
-  const found = new Set<number>()
+/** The repo of a GitHub remote URL, as owner/name. */
+export function repoOfRemote(url: string): string | undefined {
+  return url.trim().match(/github\.com[:/]([\w.-]+\/[\w.-]+?)(?:\.git)?$/)?.[1]
+}
+
+/** PRs a gh command opened or merged, each with its repo when the output or flags name one. */
+export function prRefsIn(command: string, stdout: string): { number: number; repo?: string }[] {
+  const found = new Map<string, { number: number; repo?: string }>()
   if (/\bgh\s+pr\s+(create|merge|ready)\b/.test(command)) {
-    for (const m of stdout.matchAll(/\/pull\/(\d+)/g)) found.add(Number(m[1]))
+    for (const m of stdout.matchAll(/github\.com\/([\w.-]+\/[\w.-]+)\/pull\/(\d+)/g)) {
+      found.set(`${m[1]}#${m[2]}`, { number: Number(m[2]), repo: m[1] })
+    }
     const direct = command.match(/\bgh\s+pr\s+(?:merge|ready)\s+(\d+)/)
-    if (direct) found.add(Number(direct[1]))
+    if (direct) {
+      const repo = command.match(/(?:--repo|-R)\s+([\w.-]+\/[\w.-]+)/)?.[1]
+      const n = Number(direct[1])
+      if (![...found.values()].some(x => x.number === n)) found.set(`${repo ?? ''}#${n}`, { number: n, repo })
+    }
   }
-  return [...found]
+  return [...found.values()]
+}
+
+/** The key a PR is stored under in a snapshot: owner/name#number. */
+export function prKey(s: { repo?: string }, p: { number: number; repo?: string }): string {
+  return `${p.repo ?? s.repo ?? ''}#${p.number}`
 }
 
 // ── What is waiting on you ──────────────────────────────────────────────────
@@ -166,10 +184,10 @@ export function waitingItems(input: {
   mySteps?: Record<string, string[]>
 }): WaitingItem[] {
   const items: WaitingItem[] = []
-  const owner = new Map<number, SessionRecord>()
-  for (const s of input.sessions) for (const p of s.prs) owner.set(p.number, s)
-  const where = (n: number): string => {
-    const s = owner.get(n)
+  const owner = new Map<string, SessionRecord>()
+  for (const s of input.sessions) for (const p of s.prs) owner.set(prKey(s, p), s)
+  const where = (p: PrState): string => {
+    const s = owner.get(`${p.repo}#${p.number}`)
     return s ? sessionLabel(s, input.goals) : 'agent lane'
   }
 
@@ -188,11 +206,11 @@ export function waitingItems(input: {
   const open = Object.values(input.prs).filter(p => p.state === 'OPEN')
   for (const p of open) {
     if (p.labels.includes('founder-click')) {
-      items.push({ kind: 'founder-click', title: `#${p.number} ${p.title}`, url: p.url, where: where(p.number) })
+      items.push({ kind: 'founder-click', title: `#${p.number} ${p.title}`, url: p.url, where: where(p) })
     } else if (!p.isDraft && p.checks === 'passing') {
-      items.push({ kind: 'merge', title: `#${p.number} ${p.title}`, url: p.url, where: where(p.number) })
-    } else if (p.checks === 'failing' && owner.has(p.number)) {
-      items.push({ kind: 'failing', title: `#${p.number} ${p.title}`, url: p.url, where: where(p.number) })
+      items.push({ kind: 'merge', title: `#${p.number} ${p.title}`, url: p.url, where: where(p) })
+    } else if (p.checks === 'failing' && owner.has(`${p.repo}#${p.number}`)) {
+      items.push({ kind: 'failing', title: `#${p.number} ${p.title}`, url: p.url, where: where(p) })
     }
   }
 
@@ -209,7 +227,7 @@ export function waitingItems(input: {
       if (p.state !== 'OPEN' || flagged.has(p.number)) continue
       const others = list.filter(o => o.number !== p.number).map(o => `#${o.number}${o.state === 'MERGED' ? ' (merged)' : ''}`)
       flagged.add(p.number)
-      items.push({ kind: 'duplicate', title: `#${p.number} also fixes #${ref}, like ${others.join(', ')} — close one?`, url: p.url, where: where(p.number) })
+      items.push({ kind: 'duplicate', title: `#${p.number} also fixes #${ref}, like ${others.join(', ')} — close one?`, url: p.url, where: where(p) })
     }
   }
 
@@ -263,12 +281,12 @@ export function lanes(snap: Snapshot, now: number, showDone: boolean): Lane[] {
         } else if (step.kind === 'back') {
           events.push({ at: step.at, goalId: goal.id, isDetour: false, icon: 'back', label: `back: ${step.topic}`, meta: sid })
           inDetour = false
-        } else if (inDetour) {
+        } else if (inDetour && !isTrivialPrompt(step.text)) {
           events.push({ at: step.at, goalId: goal.id, isDetour: true, icon: 'step', label: step.topic, meta: sid })
         }
       }
       for (const p of s.prs) {
-        const pr = snap.prs[String(p.number)]
+        const pr = snap.prs[prKey(s, p)]
         prTotal++
         const state = pr?.state ?? 'OPEN'
         if (state === 'MERGED') merged++
@@ -324,9 +342,11 @@ export function mapSvg(ls: Lane[], now: number, width = 820, maxRows = 60): { so
 
   const parts: string[] = []
   parts.push(
-    `<style>text{font:12px -apple-system,system-ui,sans-serif;fill:#1f2328}.dim{fill:#6e7781}.pill{font-weight:600;fill:#fff}` +
-      `@media (prefers-color-scheme:dark){text{fill:#e6edf3}.dim{fill:#8b949e}.pill{fill:#0d1117}}</style>`,
+    `<style>text{font:12px -apple-system,system-ui,sans-serif;fill:#1f2328}.dim{fill:#6e7781}.pill{font-weight:600;fill:#fff}.bg{fill:#ffffff}.hole{fill:#ffffff}` +
+      `@media (prefers-color-scheme:dark){text{fill:#e6edf3}.dim{fill:#8b949e}.pill{fill:#0d1117}.bg{fill:#1c1c1f}.hole{fill:#1c1c1f}}</style>`,
   )
+  // The frame paints white whatever the theme, so the drawing brings its own ground.
+  parts.push(`<rect class="bg" x="0" y="0" width="${width}" height="${height}" rx="8"/>`)
 
   // Goal lines from first to last row, and detour arcs.
   shown.forEach((l, i) => {
@@ -375,10 +395,10 @@ export function mapSvg(ls: Lane[], now: number, width = 820, maxRows = 60): { so
         parts.push(`<g>${title}<circle cx="${cx}" cy="${cy}" r="7" fill="${c}"/><path d="M${cx - 3.5},${cy} l2.5,2.5 l4.5,-5" stroke="#fff" stroke-width="2" fill="none"/></g>`)
         break
       case 'pr-open':
-        parts.push(`<g>${title}<circle cx="${cx}" cy="${cy}" r="6" fill="#fff" stroke="${c}" stroke-width="2.5"/></g>`)
+        parts.push(`<g>${title}<circle cx="${cx}" cy="${cy}" r="6" class="hole" stroke="${c}" stroke-width="2.5"/></g>`)
         break
       case 'pr-closed':
-        parts.push(`<g>${title}<circle cx="${cx}" cy="${cy}" r="6" fill="#fff" stroke="#8b949e" stroke-width="2"/><path d="M${cx - 3},${cy - 3} l6,6 M${cx + 3},${cy - 3} l-6,6" stroke="#8b949e" stroke-width="1.6"/></g>`)
+        parts.push(`<g>${title}<circle cx="${cx}" cy="${cy}" r="6" class="hole" stroke="#8b949e" stroke-width="2"/><path d="M${cx - 3},${cy - 3} l6,6 M${cx + 3},${cy - 3} l-6,6" stroke="#8b949e" stroke-width="1.6"/></g>`)
         break
       case 'question':
         parts.push(`<g>${title}<rect x="${cx - 7}" y="${cy - 7}" width="14" height="14" rx="3" fill="#f97316"/><text x="${cx}" y="${cy + 4}" text-anchor="middle" class="pill" style="fill:#fff">?</text></g>`)
