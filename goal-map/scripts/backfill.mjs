@@ -94,6 +94,10 @@ files.sort((a, b) => b.mtimeMs - a.mtimeMs)
 const sessions = []
 for (const f of files.slice(0, 60)) {
   const s = await readSession(f.path)
+  // Tooling, not a person's session: the backfill's own model calls, and anything run from a temp folder.
+  // The entrypoint field cannot tell them apart; a claude -p started from the desktop app inherits it.
+  if (/^\/(private\/)?tmp\//.test(s.cwd)) continue
+  if (/^(These are the prompts a founder|Below are several Claude Code sessions)/.test(s.prompts[0]?.text ?? '')) continue
   if (s.id && s.prompts.length > 0) sessions.push(s)
 }
 process.stdout.write(JSON.stringify(sessions))
