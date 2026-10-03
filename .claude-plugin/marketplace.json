@@ -18,6 +18,11 @@
       "name": "delivery-tools",
       "source": "./delivery-tools",
       "description": "Build a designed feature into one pull request with agents: design inventory, coverage plan, build waves, per-wave audit and a readiness gate"
+    },
+    {
+      "name": "goal-map",
+      "source": "./goal-map",
+      "description": "A live map of every goal across your Claude Code sessions: which PRs landed, where you went on a detour, and what is waiting on you"
     }
   ]
 }
