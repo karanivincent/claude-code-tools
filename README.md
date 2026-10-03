@@ -80,19 +80,34 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### archive-ready `v0.2.0`
+### archive-ready `v0.3.0`
 
-A mod that draws one line above the prompt:
+A mod that draws two lines above the prompt: the session's state, then the goal it serves.
 
 ```
-✗ Not ready  ·  ◎ Goal map mod ↳ detour: pricing  ·  Context 27% (265k/1000k)
+✗ Not ready  ·  Context 27% (265k/1000k)
+◎ Goal map mod ▸ 5/7  next: you Run /goal-map-backfill 7
 ```
 
 - Ready means the session is safe to archive: no open question, nothing running, nothing
-  uncommitted or unpushed, and no unticked item in `TASKS.md`. `/archive-check` lists the reasons.
-- The goal and detour come from `goal-map`'s session file and are left out when it is not installed.
+  uncommitted or unpushed, and no unticked step under this goal's heading in `TASKS.md`.
+  `/archive-check` lists the reasons.
+- The goal and detour come from `goal-map`'s session file. The steps come from the `## <goal>`
+  heading in `TASKS.md` that matches it. Press `▸` to expand the checklist: ticks, detours nested
+  under the step they interrupted, live PR state for any `(#N)` in a step, `@me` steps marked
+  "waiting on you", and one line naming the other live goals.
+- When every step is ticked and every linked PR is merged, the bar offers `/goal-done`.
 
-### goal-map `v0.1.2`
+TASKS.md format:
+
+```
+## Goal map mod
+- [x] Build the goal-map mod (#74)
+  - [x] detour: move archive-ready into the tools repo (#76)
+- [ ] @me Run /goal-map-backfill 7 and check the map
+```
+
+### goal-map `v0.2.0`
 
 A mod (function hooks, not a skill) that keeps one map of what you are working on across every
 Claude Code session. Each session writes its own record to `~/.claude/goal-map/`; any session can
@@ -107,7 +122,7 @@ draw all of them.
 - `/goal-map` opens a pane. On desktop it is a GitKraken-style graph: one coloured column per goal,
   dashed side branches for detours, PRs as open or merged dots, and orange `?` for questions waiting
   on you. The terminal gets the same content as a text tree.
-- The "Waiting on you" tab lists these: questions sessions left you, PRs ready to merge, founder-click
+- The "Waiting on you" tab lists these: questions sessions left you, `@me` steps in each live session's `TASKS.md`, PRs ready to merge, founder-click
   PRs, CI failing on your own PRs, `needs-decision` issues, and duplicate PRs (an open PR fixing an
   issue another PR already fixed).
 - Commands: `/goal <title>` names or renames the goal, `/goal-done` closes it, and

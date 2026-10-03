@@ -162,6 +162,8 @@ export function waitingItems(input: {
   prs: Record<string, PrState>
   decisions: { number: number; title: string; url: string }[]
   now: number
+  /** Unticked @me steps per session id. */
+  mySteps?: Record<string, string[]>
 }): WaitingItem[] {
   const items: WaitingItem[] = []
   const owner = new Map<number, SessionRecord>()
@@ -175,6 +177,12 @@ export function waitingItems(input: {
     if (!s.question || s.isBackfilled) continue
     if (input.now - s.question.at > 3 * DAY) continue
     items.push({ kind: 'question', title: s.question.text, url: null, where: `${sessionLabel(s, input.goals)} · ${s.branch}` })
+  }
+
+  for (const s of input.sessions) {
+    for (const text of input.mySteps?.[s.id] ?? []) {
+      items.push({ kind: 'step', title: text, url: null, where: `${sessionLabel(s, input.goals)} · TASKS.md` })
+    }
   }
 
   const open = Object.values(input.prs).filter(p => p.state === 'OPEN')
@@ -209,7 +217,7 @@ export function waitingItems(input: {
     items.push({ kind: 'decision', title: `#${d.number} ${d.title}`, url: d.url, where: 'needs-decision' })
   }
 
-  const order: WaitingItem['kind'][] = ['question', 'founder-click', 'duplicate', 'merge', 'failing', 'decision']
+  const order: WaitingItem['kind'][] = ['question', 'step', 'founder-click', 'duplicate', 'merge', 'failing', 'decision']
   return items.sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind))
 }
 
@@ -429,4 +437,29 @@ export function statusLine(goal: Goal | null, steps: Step[], waiting: number): s
   const last = [...steps].reverse().find(s => s.kind === 'detour')
   if (isInDetour(steps) && last) return `◎ ${clip(goal.title, 30)} ↳ detour: ${clip(last.topic, 24)}${tail}`
   return `◎ ${clip(goal.title, 40)}${tail}`
+}
+
+/** The unticked `@me` steps under a goal's heading in TASKS.md (archive-ready reads the same file). */
+export function myOpenSteps(md: string, goal: string): string[] {
+  const want = goal.trim().toLowerCase()
+  const goalWords = new Set(want.split(/[^a-z0-9]+/).filter(w => w.length > 2))
+  const sections: { title: string; lines: string[] }[] = []
+  for (const line of md.split('\n')) {
+    const head = line.match(/^#{1,3}\s+(.+?)\s*$/)
+    if (head) sections.push({ title: head[1]!.trim(), lines: [] })
+    else if (sections.length === 0) sections.push({ title: '', lines: [line] })
+    else sections[sections.length - 1]!.lines.push(line)
+  }
+  const score = (title: string): number => {
+    if (title === '' && sections.length === 1) return 1
+    if (title.toLowerCase() === want) return 2
+    const w = title.toLowerCase().split(/[^a-z0-9]+/).filter(x => x.length > 2)
+    const shared = w.filter(x => goalWords.has(x)).length
+    return shared / Math.max(1, Math.min(w.length, goalWords.size))
+  }
+  const best = [...sections].sort((a, b) => score(b.title) - score(a.title))[0]
+  if (!best || score(best.title) < 0.5) return []
+  return best.lines
+    .map(l => l.match(/^\s*[-*] \[ \]\s+@me\s+(.*)$/i)?.[1]?.trim())
+    .filter((x): x is string => Boolean(x))
 }
