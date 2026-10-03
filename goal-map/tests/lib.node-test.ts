@@ -74,3 +74,10 @@ test('the map draws every live goal', () => {
   assert.match(mapSvg(ls, now).source, /^<svg/)
   assert.ok(mapText(ls, now).some(l => l.includes('Public API v1')))
 })
+
+test('@me steps come from the goal heading only', async () => {
+  const { myOpenSteps } = await import('../hooks/lib.ts')
+  const md = '## Goal map mod\n- [ ] @me Run the backfill\n- [ ] Build it\n## Public API v1\n- [ ] @me Approve step 11\n'
+  assert.deepEqual(myOpenSteps(md, 'Goal map mod'), ['Run the backfill'])
+  assert.deepEqual(myOpenSteps(md, 'Pelican pricing'), [])
+})

@@ -46,7 +46,7 @@ export type PrState = {
 }
 
 export type WaitingItem = {
-  kind: 'question' | 'merge' | 'decision' | 'founder-click' | 'failing' | 'duplicate'
+  kind: 'question' | 'step' | 'merge' | 'decision' | 'founder-click' | 'failing' | 'duplicate'
   title: string
   url: string | null
   /** The goal or session it belongs to, when known. */

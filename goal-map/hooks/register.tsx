@@ -8,6 +8,7 @@ import {
   clip,
   isInDetour,
   isTrivialPrompt,
+  myOpenSteps,
   lanes,
   mapSvg,
   mapText,
@@ -133,11 +134,23 @@ async function refresh($: Dollar): Promise<void> {
     } catch (err) {
       error = `GitHub: ${(err as Error).message}`
     }
+    const mySteps: Record<string, string[]> = {}
+    for (const s of sessions) {
+      if (s.isBackfilled || s.status === 'ended' || now - s.lastActiveAt > 3 * DAY) continue
+      const g = goals.find(x => x.id === s.goalId)
+      if (!g || g.doneAt) continue
+      try {
+        const steps = myOpenSteps(await $.fs.read(`${s.cwd}/TASKS.md`), g.title)
+        if (steps.length > 0) mySteps[s.id] = steps
+      } catch {
+        // No TASKS.md in that worktree.
+      }
+    }
     const snap: Snapshot = {
       goals,
       sessions,
       prs,
-      waiting: waitingItems({ sessions, goals, prs, decisions, now }),
+      waiting: waitingItems({ sessions, goals, prs, decisions, now, mySteps }),
       refreshedAt: now,
       error,
     }
@@ -454,7 +467,7 @@ export const register: Register = on => {
         {waiting.length === 0 && <Text dimColor>Nothing is waiting on you.</Text>}
         {waiting.slice(0, 40).map(w => (
           <Box flexDirection="column" marginBottom={1}>
-            <Text bold color={w.kind === 'question' ? 'yellow' : w.kind === 'duplicate' || w.kind === 'failing' ? 'red' : undefined}>
+            <Text bold color={w.kind === 'question' || w.kind === 'step' ? 'yellow' : w.kind === 'duplicate' || w.kind === 'failing' ? 'red' : undefined}>
               {LABEL[w.kind]} {w.url ? '' : w.title}
             </Text>
             {w.url && <Link href={w.url} label={clip(w.title, 110)} />}
@@ -510,6 +523,7 @@ export const register: Register = on => {
 
 const LABEL: Record<string, string> = {
   question: '? A session asked you:',
+  step: 'Your step:',
   'founder-click': 'Your merge:',
   duplicate: 'Duplicate?',
   merge: 'Ready to merge:',
@@ -522,6 +536,7 @@ function summary(w: { kind: string }[]): string {
   for (const x of w) counts.set(x.kind, (counts.get(x.kind) ?? 0) + 1)
   const names: Record<string, string> = {
     question: 'questions',
+    step: 'your steps',
     'founder-click': 'your merges',
     duplicate: 'duplicates',
     merge: 'ready to merge',
