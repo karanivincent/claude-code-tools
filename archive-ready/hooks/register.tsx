@@ -268,7 +268,7 @@ export const register: Register = on => {
     const toggle = p ? (
       <Button key="steps" label={`${isOpen ? '▾' : '▸'} ${p.done}/${p.total}`} onPress={() => $.state.set(EXPANDED, !isOpen)} />
     ) : null
-    const allMerged = section ? section.steps.flatMap(x => x.prs).every(n => prs[n]?.text === 'merged') : false
+    const allMerged = section ? section.steps.flatMap(x => x.prs).every(n => !prs[n] || prs[n].text === 'merged') // an issue number has no PR state : false
     const isGoalDone = p !== null && p.total > 0 && p.done === p.total && allMerged
     const next_ = p?.openDetour ? (
       <Text dimColor>  {p.openDetour.open} step{p.openDetour.open === 1 ? '' : 's'} on the detour</Text>
@@ -285,7 +285,19 @@ export const register: Register = on => {
     const state = e.props.isWorking ? (
       <Text color="cyan">Running</Text>
     ) : v === null ? null : v.isReady ? (
-      <Text color="green">✓ Ready</Text>
+      <Box>
+        <Text color="green">✓ Ready  </Text>
+        <Button
+          key="archive"
+          label="Archive"
+          variant="primary"
+          onPress={() =>
+            $.prompt.submit({
+              text: 'Archive this session now: call archive_session with session_id "self". I pressed the Archive button.',
+            })
+          }
+        />
+      </Box>
     ) : (
       <Text color="yellow">✗ Not ready</Text>
     )
