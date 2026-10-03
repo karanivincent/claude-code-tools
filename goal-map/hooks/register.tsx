@@ -14,7 +14,6 @@ import {
   parseClassification,
   prNumbersIn,
   slug,
-  statusLine,
   trailingQuestion,
   waitingItems,
 } from './lib'
@@ -155,11 +154,10 @@ async function goalOf($: Dollar): Promise<Goal | null> {
   return readJson<Goal>($, `${goalsDir()}/${me.goalId}.json`)
 }
 
+// The goal shows in archive-ready's line above the prompt, which reads our session file,
+// so this mod keeps no status line of its own.
 async function showStatus($: Dollar): Promise<void> {
-  if (!me) return
-  const goal = await goalOf($)
-  const snap = (await $.state.get(SNAPSHOT)).value ?? null
-  $.ui.status(statusLine(goal, me.steps, snap?.waiting.length ?? 0))
+  $.ui.status(undefined)
 }
 
 async function newGoal($: Dollar, title: string): Promise<Goal> {
