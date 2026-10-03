@@ -4,7 +4,8 @@ export type Step = {
   isMine: boolean
   isDetour: boolean
   depth: number
-  prs: number[]
+  /** PR references: "74", or "owner/repo#74" for another repo. */
+  prs: string[]
 }
 
 export type Section = { title: string; steps: Step[] }

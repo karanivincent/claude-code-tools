@@ -160,16 +160,18 @@ async function boardFor($: EngineInterface, cwd: string): Promise<Board> {
 }
 
 // The live state of the PRs this goal's steps name, for the expanded view.
-async function refreshPrs($: EngineInterface, cwd: string, numbers: number[]): Promise<void> {
+async function refreshPrs($: EngineInterface, cwd: string, refs: string[]): Promise<void> {
   const labels: Record<string, PrLabel> = { ...((await $.state.get(PRS)).value ?? {}) }
-  for (const n of numbers.slice(0, 10)) {
-    if (labels[String(n)]?.text === 'merged') continue
+  for (const n of refs.slice(0, 10)) {
+    if (labels[n]?.text === 'merged') continue
+    const [repo, num] = n.includes('#') ? n.split('#') : [null, n]
     try {
-      const r = await $.process.run(['gh', 'pr', 'view', String(n), '--json', 'state,isDraft,statusCheckRollup'], { cwd, timeoutMs: 15000 })
+      const args = ['gh', 'pr', 'view', num!, '--json', 'state,isDraft,statusCheckRollup', ...(repo ? ['--repo', repo] : [])]
+      const r = await $.process.run(args, { cwd, timeoutMs: 15000 })
       if (r.exitCode !== 0) continue
       const pr = JSON.parse(r.stdout) as { state: string; isDraft: boolean; statusCheckRollup?: { conclusion?: string; state?: string }[] }
       const failing = (pr.statusCheckRollup ?? []).some(c => /FAILURE|ERROR|TIMED_OUT/.test(`${c.conclusion ?? ''}${c.state ?? ''}`))
-      labels[String(n)] =
+      labels[n] =
         pr.state === 'MERGED' ? { text: 'merged', tone: 'ok' }
         : pr.state === 'CLOSED' ? { text: 'closed', tone: 'bad' }
         : failing ? { text: 'CI failing', tone: 'bad' }
@@ -266,7 +268,7 @@ export const register: Register = on => {
     const toggle = p ? (
       <Button key="steps" label={`${isOpen ? '▾' : '▸'} ${p.done}/${p.total}`} onPress={() => $.state.set(EXPANDED, !isOpen)} />
     ) : null
-    const allMerged = section ? section.steps.flatMap(x => x.prs).every(n => prs[String(n)]?.text === 'merged') : false
+    const allMerged = section ? section.steps.flatMap(x => x.prs).every(n => prs[n]?.text === 'merged') : false
     const isGoalDone = p !== null && p.total > 0 && p.done === p.total && allMerged
     const next_ = p?.openDetour ? (
       <Text dimColor>  {p.openDetour.open} step{p.openDetour.open === 1 ? '' : 's'} on the detour</Text>
@@ -313,7 +315,7 @@ export const register: Register = on => {
         {line}
         {section.steps.map((step, i) => {
           const pad = '  '.repeat(step.depth)
-          const pr = step.prs.map(n => prs[String(n)]).find(Boolean)
+          const pr = step.prs.map(n => prs[n]).find(Boolean)
           const isNext = p?.next === step
           if (step.isDetour) {
             return <Text key={`s${i}`} dimColor>{`  ${pad}┆ ↳ detour: ${step.text}`}{step.isDone ? '  ✓' : ''}</Text>
