@@ -36,7 +36,7 @@ export function parseTasks(md: string): Section[] {
       isMine,
       isDetour,
       depth: Math.floor(item[1]!.replace(/\t/g, '  ').length / 2),
-      prs: [...text.matchAll(/#(\d{1,6})\b/g)].map(m => Number(m[1])),
+      prs: [...text.matchAll(/(?:\b([\w.-]+\/[\w.-]+))?#(\d{1,6})\b/g)].map(m => (m[1] ? `${m[1]}#${m[2]}` : m[2]!)),
     })
   }
   return sections.filter(s => s.steps.length > 0)

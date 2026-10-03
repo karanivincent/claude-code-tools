@@ -17,7 +17,7 @@ test('one section per heading, with mine, detour, depth and PRs', () => {
   const s = parseTasks(MD)
   assert.deepEqual(s.map(x => x.title), ['Goal map mod', 'Public API v1'])
   const steps = s[0]!.steps
-  assert.deepEqual(steps[0]!.prs, [74])
+  assert.deepEqual(steps[0]!.prs, ['74'])
   assert.equal(steps[1]!.isDetour, true)
   assert.equal(steps[1]!.text, 'move archive-ready to the repo')
   assert.equal(steps[2]!.depth, 2)
@@ -43,4 +43,9 @@ test('progress counts, names the next step and an open detour', () => {
   assert.equal(p.total, 4)
   assert.equal(p.next?.text, 'Add it to the marketplace (#76)')
   assert.deepEqual(p.openDetour, { title: 'move archive-ready to the repo', open: 1 })
+})
+
+test('a PR in another repo keeps its repo', () => {
+  const s = parseTasks('- [x] Ship it (karanivincent/claude-code-tools#78)\n')
+  assert.deepEqual(s[0]!.steps[0]!.prs, ['karanivincent/claude-code-tools#78'])
 })

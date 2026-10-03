@@ -80,7 +80,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### archive-ready `v0.3.0`
+### archive-ready `v0.3.1`
 
 A mod that draws two lines above the prompt: the session's state, then the goal it serves.
 
@@ -94,7 +94,7 @@ A mod that draws two lines above the prompt: the session's state, then the goal 
   `/archive-check` lists the reasons.
 - The goal and detour come from `goal-map`'s session file. The steps come from the `## <goal>`
   heading in `TASKS.md` that matches it. Press `▸` to expand the checklist: ticks, detours nested
-  under the step they interrupted, live PR state for any `(#N)` in a step, `@me` steps marked
+  under the step they interrupted, live PR state for any `(#N)` or `(owner/repo#N)` in a step, `@me` steps marked
   "waiting on you", and one line naming the other live goals.
 - When every step is ticked and every linked PR is merged, the bar offers `/goal-done`.
 
