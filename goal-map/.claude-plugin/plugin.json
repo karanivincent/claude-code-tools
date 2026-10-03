@@ -1,6 +1,6 @@
 {
   "name": "goal-map",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "One map of every goal across sessions: which PRs landed, where you detoured, and what is waiting on you",
   "types": "./types/index.d.ts"
 }

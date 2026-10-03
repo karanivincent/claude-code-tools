@@ -79,7 +79,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### goal-map `v0.1.0`
+### goal-map `v0.1.1`
 
 A mod (function hooks, not a skill) that keeps one map of what you are working on across every
 Claude Code session. Each session writes its own record to `~/.claude/goal-map/`; any session can
@@ -88,7 +88,7 @@ draw all of them.
 - Each human prompt is sorted by Haiku into one of four kinds: a new goal, more of the same goal,
   a detour, or a return from a detour. A new session joins an open goal when it is the same work,
   so related sessions share one lane.
-- The status line shows the session's goal, and `↳ topic` while you are on a detour. A toast fires
+- The status line always shows the session's goal, the detour topic while you are on one, and how many things need you (`⚑ 6 need you`). A toast fires
   when a detour starts.
 - `/goal-map` opens a pane. On desktop it is a GitKraken-style graph: one coloured column per goal,
   dashed side branches for detours, PRs as open or merged dots, and orange `?` for questions waiting

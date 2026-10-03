@@ -44,6 +44,8 @@ export function classifierPrompt(input: {
   recent: Step[]
   isInDetour: boolean
   openGoals: Goal[]
+  /** When the session ran before the mod saw it: its first prompts, so the goal comes from them. */
+  sessionStart?: string
 }): string {
   const goals = input.openGoals.slice(0, 20).map(g => `- ${g.id}: ${g.title}`).join('\n') || '(none)'
   const recent = input.recent.slice(-4).map(s => `- ${s.kind}: ${s.topic}`).join('\n') || '(none)'
@@ -61,6 +63,9 @@ export function classifierPrompt(input: {
     '- Short replies ("yes", "go ahead", "continue", "merge") are always "continue" (or "back" never).',
     '- topic: 2-6 words naming what this prompt is about.',
     '',
+    ...(input.sessionStart
+      ? ['SESSION SO FAR (name the goal from this, not from a follow-up question):', clip(input.sessionStart, 1200), '']
+      : []),
     `CURRENT GOAL: ${input.current ? input.current.title : '(none)'}`,
     `IN A DETOUR NOW: ${input.isInDetour ? 'yes' : 'no'}`,
     'RECENT STEPS:',
@@ -415,4 +420,13 @@ export function mapText(ls: Lane[], now: number, perLane = 8): string[] {
     out.push('')
   }
   return out
+}
+
+/** The status line: the goal, any detour, and how much is waiting on you. */
+export function statusLine(goal: Goal | null, steps: Step[], waiting: number): string {
+  const tail = waiting > 0 ? ` · ⚑ ${waiting} need you` : ''
+  if (!goal) return `◎ No goal yet · /goal <title> names it${tail}`
+  const last = [...steps].reverse().find(s => s.kind === 'detour')
+  if (isInDetour(steps) && last) return `◎ ${clip(goal.title, 30)} ↳ detour: ${clip(last.topic, 24)}${tail}`
+  return `◎ ${clip(goal.title, 40)}${tail}`
 }

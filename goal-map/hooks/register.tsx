@@ -14,6 +14,7 @@ import {
   parseClassification,
   prNumbersIn,
   slug,
+  statusLine,
   trailingQuestion,
   waitingItems,
 } from './lib'
@@ -142,6 +143,7 @@ async function refresh($: Dollar): Promise<void> {
       error,
     }
     await $.state.set(SNAPSHOT, snap)
+    await showStatus($)
   })().finally(() => {
     refreshing = null
   })
@@ -154,10 +156,10 @@ async function goalOf($: Dollar): Promise<Goal | null> {
 }
 
 async function showStatus($: Dollar): Promise<void> {
+  if (!me) return
   const goal = await goalOf($)
-  if (!goal || !me) return $.ui.status(undefined)
-  const last = [...me.steps].reverse().find(s => s.kind === 'detour')
-  $.ui.status(isInDetour(me.steps) && last ? `◎ ${clip(goal.title, 30)} ↳ ${clip(last.topic, 24)}` : `◎ ${clip(goal.title, 40)}`)
+  const snap = (await $.state.get(SNAPSHOT)).value ?? null
+  $.ui.status(statusLine(goal, me.steps, snap?.waiting.length ?? 0))
 }
 
 async function newGoal($: Dollar, title: string): Promise<Goal> {
@@ -173,11 +175,19 @@ async function classify($: Dollar, text: string): Promise<void> {
   const { goals } = await loadAll($)
   const openGoals = goals.filter(g => !g.doneAt).sort((a, b) => b.createdAt - a.createdAt)
   const current = goals.find(g => g.id === me?.goalId) ?? null
+  let sessionStart: string | undefined
+  if (!current) {
+    const history = await $.session.messages()
+    const earlier = history
+      .filter(m => m.role === 'user' && m.text && !/^<(system-reminder|command-|task-notification|local-command)/.test(m.text))
+      .map(m => m.text.replace(/<\/?pasted_content[^>]*>/g, ''))
+    if (earlier.length > 1) sessionStart = earlier.slice(0, 3).join('\n---\n')
+  }
   const r = await $.model.complete({
     model: MODEL,
     maxTokens: 200,
     timeoutMs: 20000,
-    prompt: classifierPrompt({ prompt: text, current, recent: me.steps, isInDetour: isInDetour(me.steps), openGoals }),
+    prompt: classifierPrompt({ prompt: text, current, recent: me.steps, isInDetour: isInDetour(me.steps), openGoals, sessionStart }),
   })
   if (!r.isAnswered) return
   const c = parseClassification(r.text, Boolean(current))
