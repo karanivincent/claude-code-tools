@@ -80,7 +80,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
 
-### archive-ready `v0.3.2`
+### archive-ready `v0.3.3`
 
 A mod that draws two lines above the prompt: the session's state, then the goal it serves.
 

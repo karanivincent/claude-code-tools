@@ -268,7 +268,7 @@ export const register: Register = on => {
     const toggle = p ? (
       <Button key="steps" label={`${isOpen ? '▾' : '▸'} ${p.done}/${p.total}`} onPress={() => $.state.set(EXPANDED, !isOpen)} />
     ) : null
-    const allMerged = section ? section.steps.flatMap(x => x.prs).every(n => !prs[n] || prs[n].text === 'merged') // an issue number has no PR state : false
+    const allMerged = section ? section.steps.flatMap(x => x.prs).every(n => !prs[n] || prs[n].text === 'merged') : false // an issue number has no PR state, so it never blocks
     const isGoalDone = p !== null && p.total > 0 && p.done === p.total && allMerged
     const next_ = p?.openDetour ? (
       <Text dimColor>  {p.openDetour.open} step{p.openDetour.open === 1 ? '' : 's'} on the detour</Text>
