@@ -17,21 +17,92 @@ const UNITS = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000, w: 604_800_000 
  * day in `now.timeZone` (see zonedNow) when it is set, and the UTC day when it is not: a page reads
  * the organisation's own day, so a seed run late in the UTC evening put "today's" rows on the
  * organisation's yesterday.
- * @param {{ $rel: string, as?: string }} marker
+ * `today: true` marks a value that must fall today, before now (a request received this morning):
+ * see stampTodayMarkers. Without it a `now-80m` shot at 00:15 lands on yesterday.
+ * @param {{ $rel: string, as?: string, today?: boolean, todayBackMs?: number, todayLatestMs?: number }} marker
  * @param {Date} now
  */
 export function resolveRelative(marker, now) {
-  const m = /^\s*(now|today)(?:@(\d{1,2}):(\d{2})(?::(\d{2}))?)?((?:\s*[+-]\s*\d+\s*[smhdw])*)\s*$/.exec(String(marker.$rel));
+  const m = REL_SHAPE.exec(String(marker.$rel));
   if (!m) throw new Error(`relative time "${marker.$rel}" is not understood (now|today[@HH:MM][+-N(s|m|h|d|w)]...)`);
   const zone = now.timeZone ?? null;
   let t = now.getTime();
+  const offset = relOffset(m[5]);
   if (m[1] === 'today') {
-    const [y, mo, d] = localDate(t, zone).split('-').map(Number);
-    t = localMidnight(y, mo, d, zone);
-    if (m[2] !== undefined) t += (Number(m[2]) * 3600 + Number(m[3]) * 60 + Number(m[4] ?? 0)) * 1000;
+    const midnight = startOfLocalDay(t, zone);
+    let tod = (m[2] !== undefined ? (Number(m[2]) * 3600 + Number(m[3]) * 60 + Number(m[4] ?? 0)) * 1000 : 0) + offset;
+    if (marker.today === true) {
+      // `today@HH:MM` that must already have happened: from 00:00 to HH:MM it would be in the
+      // future, so the world's today@ values are pulled toward midnight together, the latest one
+      // landing a minute before now, in their order.
+      const limit = beforeNow(t - midnight);
+      const latest = typeof marker.todayLatestMs === 'number' ? marker.todayLatestMs : tod;
+      if (latest > limit && latest > 0) tod = (tod * limit) / latest;
+    }
+    t = midnight + tod;
+  } else if (marker.today === true && offset < 0) {
+    // `now-80m` that must fall today: at 00:15 it would be yesterday, so the world's today values
+    // are scaled toward now together, the earliest landing just after midnight, in their order.
+    const elapsed = t - startOfLocalDay(t, zone);
+    const back = -offset;
+    const most = typeof marker.todayBackMs === 'number' ? marker.todayBackMs : back;
+    t -= most >= elapsed && most > 0 ? (back * beforeNow(elapsed)) / most : back;
+  } else {
+    t += offset;
   }
-  for (const o of m[5].matchAll(/([+-])\s*(\d+)\s*([smhdw])/g)) t += (o[1] === '-' ? -1 : 1) * Number(o[2]) * UNITS[o[3]];
   return marker.as === 'date' ? localDate(t, zone) : new Date(t).toISOString();
+}
+
+/** The summed +-N(s|m|h|d|w) offsets of a $rel tail, in ms. */
+function relOffset(tail) {
+  let ms = 0;
+  for (const o of String(tail ?? '').matchAll(/([+-])\s*(\d+)\s*([smhdw])/g)) ms += (o[1] === '-' ? -1 : 1) * Number(o[2]) * UNITS[o[3]];
+  return ms;
+}
+
+/** The latest point of today's elapsed span a past value may take: a minute before now (half the span in the first two minutes). */
+function beforeNow(elapsed) {
+  return Math.max(elapsed - 60_000, elapsed / 2);
+}
+
+/** The instant the local day holding t began, in the zone (UTC when none). */
+function startOfLocalDay(t, zone) {
+  const [y, mo, d] = localDate(t, zone).split('-').map(Number);
+  return localMidnight(y, mo, d, zone);
+}
+
+const REL_SHAPE = /^\s*(now|today)(?:@(\d{1,2}):(\d{2})(?::(\d{2}))?)?((?:\s*[+-]\s*\d+\s*[smhdw])*)\s*$/;
+
+/**
+ * Stamp every `today: true` marker of one world's rows with what the world needs to keep its today
+ * values inside today in one pass: `todayBackMs`, the largest offset back from now among the
+ * `now-...` forms, and `todayLatestMs`, the latest time of day among the `today@...` forms. Both are
+ * clock-free, so the plan holds them, and every later resolution (seed, each shoot reset, checks)
+ * scales the same way. Forward offsets (`now+...`) are never scaled. Changes the markers in place.
+ * @param {{ values?: object, deferred?: object }[]} rows one world's rows
+ */
+export function stampTodayMarkers(rows) {
+  const backs = [];
+  const days = [];
+  const visit = (v) => {
+    if (Array.isArray(v)) { v.forEach(visit); return; }
+    if (!v || typeof v !== 'object') return;
+    if (typeof v.$rel === 'string') {
+      if (v.today !== true) return;
+      const m = REL_SHAPE.exec(v.$rel);
+      if (!m) return;
+      const offset = relOffset(m[5]);
+      if (m[1] === 'today') days.push([v, (m[2] !== undefined ? (Number(m[2]) * 3600 + Number(m[3]) * 60 + Number(m[4] ?? 0)) * 1000 : 0) + offset]);
+      else if (offset < 0) backs.push([v, -offset]);
+      return;
+    }
+    Object.values(v).forEach(visit);
+  };
+  for (const r of rows) { visit(r.values); visit(r.deferred); }
+  const most = Math.max(0, ...backs.map(([, b]) => b));
+  for (const [v] of backs) v.todayBackMs = most;
+  const latest = Math.max(0, ...days.map(([, d]) => d));
+  for (const [v] of days) v.todayLatestMs = latest;
 }
 
 const MINUTE_OF_DAY = /^\s*(?:(startOfDay|endOfDay|closedStart|closedEnd|openStart|openEnd)|now((?:\s*[+-]\s*\d+\s*[mh]?)*))\s*$/;

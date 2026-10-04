@@ -37,6 +37,11 @@ hand: fix the contract label and run `--from-trace` again, or add a row of your 
   addresses its reserved domain. Never a real person's name, number or address.
 - Relative dates (`{ "$rel": "now-2h" }`) for anything the page compares with today. Never an
   absolute date: the shoot seeds right before it pictures, and dates are compared by format.
+  A time that must fall today (the page shows it under today) carries `today: true`:
+  `{ "$rel": "now-80m", "today": true }`. Shot soon after midnight, the world's today values are
+  scaled toward now together and stay inside today, in order; without it `now-80m` at 00:15 is
+  yesterday. Forward offsets (`now+2h`) are never scaled; `today@HH:MM` with the flag is pulled
+  back to before now.
 - No world depends on the wall clock. A setting the page reads with the time of day (calling
   hours, opening hours) is written in the world in minutes of the day relative to the shoot,
   `{ "$minuteOfDay": "now-60" }` (`now`, `now+2h`, `now-90m`; a bare number is minutes), or as the

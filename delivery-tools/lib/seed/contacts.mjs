@@ -129,7 +129,9 @@ export function isMinuteOfDay(v) {
   return Boolean(v && typeof v === 'object' && !Array.isArray(v) && typeof v.$minuteOfDay === 'string' && Object.keys(v).every((k) => k === '$minuteOfDay' || k === 'wrap'));
 }
 
-/** A `{ "$rel": "now-2h" }` relative time marker (spec 7.4: dates relative to now). */
+const REL_KEYS = new Set(['$rel', 'as', 'today', 'todayBackMs', 'todayLatestMs']);
+
+/** A `{ "$rel": "now-2h" }` relative time marker (spec 7.4: dates relative to now), optionally `today: true`. */
 export function isRelative(v) {
-  return Boolean(v && typeof v === 'object' && !Array.isArray(v) && typeof v.$rel === 'string' && Object.keys(v).every((k) => k === '$rel' || k === 'as'));
+  return Boolean(v && typeof v === 'object' && !Array.isArray(v) && typeof v.$rel === 'string' && Object.keys(v).every((k) => REL_KEYS.has(k)));
 }
