@@ -105,6 +105,11 @@ don't write code.
   briefs/seed-writer.md). When the profile names
   `testData.timeOfDayTables`, `delivery map` refuses a clock state whose world writes no row to one
   of them.
+- `colorScheme: "dark"` (or `"light"`) marks a state the design shows in that colour scheme. The
+  shoot emulates it before the state's first step, so an app following the system theme renders it;
+  when the profile sets `ui.themeStorageKey` (the localStorage key the app keeps its theme in), the
+  shoot also writes that key, so a stored preference cannot override it. `delivery map` refuses any
+  other value.
 - `member: "hidden"` marks a button a member must not see. Add a member state for each screen a
   member can open.
 - `phone: "hidden"` marks a button the phone layout does not show (it moved into a menu), and

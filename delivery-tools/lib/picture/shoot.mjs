@@ -324,6 +324,33 @@ export function contextOptions(width, timeZone = null) {
 }
 
 /**
+ * A state's colour scheme (map `colorScheme`, "dark" or "light"): emulate prefers-color-scheme, so an
+ * app following the system (next-themes "system") renders it, and with the profile's
+ * ui.themeStorageKey also write that localStorage key before every navigation, so a preference the
+ * signed-in session stored cannot override it. A state without one goes back to no emulation and,
+ * with the key, to "system". The page is shared by a context's states, so each state sets its own;
+ * nothing is done for a page already in the wanted scheme.
+ * @param {any} page
+ * @param {'dark'|'light'|undefined} scheme
+ * @param {string|null} storageKey
+ */
+export async function applyColorScheme(page, scheme, storageKey = null) {
+  const want = scheme ?? null;
+  if ((page._deliveryScheme ?? null) === want) return;
+  page._deliveryScheme = want;
+  if (typeof page.emulateMedia === 'function') await page.emulateMedia({ colorScheme: want });
+  if (!storageKey) return;
+  const value = want ?? 'system';
+  // Init scripts run in the order added, so the latest one wins on every later navigation.
+  if (typeof page.addInitScript === 'function') {
+    await page.addInitScript(({ k, v }) => { try { window.localStorage.setItem(k, v); } catch { /* storage blocked */ } }, { k: storageKey, v: value });
+  }
+  if (typeof page.evaluate === 'function') {
+    await page.evaluate(({ k, v }) => { try { window.localStorage.setItem(k, v); } catch { /* storage blocked */ } }, { k: storageKey, v: value }).catch(() => {});
+  }
+}
+
+/**
  * Freeze the context's clock at the moment its world was seeded (R1): Date.now() and new Date()
  * return that moment, timers keep running. "2 min ago" is then two minutes before the seed, as the
  * design shows. Server-rendered dates still use the real time, which is why the world is seeded
@@ -398,6 +425,7 @@ export async function openSignedIn(browser, o, entry, user, ip, prepare) {
  * @param {number} [o.parallel] worlds shot at once (default shoot.parallelWorlds)
  * @param {string[]|null} [o.tabBar] the profile's picture.tabBar selectors: the only bottom bars hidden (W7)
  * @param {boolean} [o.keepPhoneHeader] the profile's picture.keepPhoneHeader: no top crop at phone width (W7)
+ * @param {string|null} [o.themeStorageKey] the profile's ui.themeStorageKey, written for a state's colorScheme
  * @param {object|null} [o.contract] the run's contract.json, for the datacheck (W3)
  * @param {Record<string, Record<string, string>>|null} [o.swaps] swaps.json's worlds (seed --from-trace)
  * @returns {Promise<Record<string, object>>} keyed by item key
@@ -568,6 +596,7 @@ async function shootItem(page, it, o, liveFacts = new Map()) {
       : route.continue()));
   }
   await page.setViewportSize({ width: size.width, height: size.height });
+  await applyColorScheme(page, s.colorScheme, o.themeStorageKey ?? null);
   const net = page._deliveryRequests ??= trackRequests(page);
   net.clearLimited?.();
   try {

@@ -16,6 +16,8 @@ const ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
 const STEP_KINDS = ['goto', 'click', 'type', 'open'];
 
 /** @param {{ deliveryDir: string }} paths */
+const COLOR_SCHEMES = ['dark', 'light'];
+
 export function mapPath(paths) { return join(paths.deliveryDir, MAP_FILE); }
 /** @param {{ deliveryDir: string }} paths */
 export function checklistPath(paths) { return join(paths.deliveryDir, CHECKLIST_FILE); }
@@ -175,6 +177,8 @@ export function validateMap(map, opts = {}) {
     // R12 of stable picture data: a value no seed can pin (a generated id, a random avatar) is
     // W3 (D4): a state whose look depends on the clock ("calling hours open", "overdue").
     if (s.clock !== undefined && typeof s.clock !== 'boolean') problems.push(`${where} clock must be true or false`);
+    // A state the design shows in one colour scheme: the shoot emulates it before the first step.
+    if (s.colorScheme !== undefined && !COLOR_SCHEMES.includes(s.colorScheme)) problems.push(`${where} colorScheme must be "dark" or "light"`);
     // masked by test id on both pictures, listed per state and counted in the ledger.
     if (s.mask !== undefined) {
       if (!Array.isArray(s.mask)) problems.push(`${where} mask must be a list of { "testid": ..., "why": ... }`);
