@@ -23,7 +23,8 @@ fixed, a value swapped) to re-sort a round without shooting it again. It costs s
 
 For every item of the round, each value the data contract labels data is looked for in the page's
 own text (<ITEM>.live.txt): a row value or a count exactly, a date or time by its format, a value
-the product generates by its shape. A value the page lacks is sorted by the world's rows as the
+the product generates by its shape. A phone item is checked only against the values its phone
+design render (<ID>@phone.dom.json, else .txt) shows; the desktop contract when it has none. A value the page lacks is sorted by the world's rows as the
 shoot's reset read them (seeded.json):
   data fault   the world lacks it: a seed-writer fixes the world file, then
                delivery shoot --only data-faults re-shoots the item, before any reviewer sees it
@@ -56,7 +57,7 @@ common options:
     const info = roundInfo(paths, round);
     if (!info.shoot) { ctx.out.fail('not-shot', `round ${round} has no shoot.json`); return EXIT.USAGE; }
     const dir = roundDir(paths, round);
-    const r = datacheckRound({ map, contract, shoot: info.shoot, roundDir: dir, swaps: readSwaps(paths) });
+    const r = datacheckRound({ map, contract, shoot: info.shoot, roundDir: dir, swaps: readSwaps(paths), designDir: paths.designRenders });
     const shoot = { ...info.shoot, states: { ...info.shoot.states } };
     for (const [key, res] of Object.entries(r.items)) {
       const lookup = lookupOf(res);
