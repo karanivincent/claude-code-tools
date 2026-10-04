@@ -94,7 +94,8 @@ don't write code.
   that uses it. When unsure, leave the route out: it is then always shot.
 - `clock: true` marks a state whose look depends on the time of day or the date: "calling hours
   open", "overdue", "due today". Its world's times must be relative to the shoot
-  (`{ "$rel": "today@09:00" }`, `{ "$rel": "now-2h" }`); `delivery map` refuses a fixed date or
+  (`{ "$rel": "today@09:00" }`, `{ "$rel": "now-2h" }`; a time that must fall today, because the page
+  shows it under today, carries `today: true`: `{ "$rel": "now-80m", "today": true }`); `delivery map` refuses a fixed date or
   time in that world's file. The shoot resets the world right before it pictures it, so "open now"
   is true at that moment. Mark every state whose design shows calling hours open or closed,
   "waiting until", "calling now" or anything else that follows the time of day `clock: true`, and
@@ -135,7 +136,8 @@ don't write code.
   `delivery seed --from-trace` later adds the rows the design's own values need, from the data
   contract. Fixture emails match the repo's safety file. Phone numbers use its fake range, and web
   addresses its reserved domain. Use relative dates (`{ "$rel": "now-2h" }`) for anything the page
-  compares with today. A `{ "$ref": "<key>" }` may name a row further down the file, which is how two
+  compares with today; a time that must fall today (the page shows it under today) carries
+  `today: true`. A `{ "$ref": "<key>" }` may name a row further down the file, which is how two
   tables that point at each other are seeded; that column must accept null, and a join row (no `id`
   column) must come after the rows it names.
 

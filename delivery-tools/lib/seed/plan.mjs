@@ -30,7 +30,7 @@ import { join } from 'node:path';
 import { UsageError } from '../core/exit.mjs';
 import { readJson } from '../core/fs.mjs';
 import { schemaRegistry } from '../core/schema.mjs';
-import { resolveMinuteOfDay, resolveRelative } from './evaluate.mjs';
+import { resolveMinuteOfDay, resolveRelative, stampTodayMarkers } from './evaluate.mjs';
 
 const DNS_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 /** The namespace every fixture id is derived in. */
@@ -196,7 +196,10 @@ export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safet
           if (typeof w.orgName !== 'string' || !w.orgName) { problems.push(`world ${w.id}: no orgName set (the plan or map must give every world an orgName)`); return null; }
           return w.orgName.startsWith(safety.fixtureOrgPrefix) ? w.orgName : `${safety.fixtureOrgPrefix}${w.orgName}`;
         }
-        if (typeof v.$rel === 'string') return v; // resolved when written
+        if (typeof v.$rel === 'string') {
+          if ('today' in v && v.today !== true) problems.push(`world ${w.id} ${where}: "today" on a $rel marker takes only true (the time must fall today)`);
+          return v.today === true ? { ...v } : v; // resolved when written
+        }
         if (k.includes('$minuteOfDay')) {
           const extra = k.filter((key) => key !== '$minuteOfDay' && key !== 'wrap');
           if (extra.length || typeof v.$minuteOfDay !== 'string') problems.push(`world ${w.id} ${where}: a $minuteOfDay marker takes a string and an optional "wrap": true, nothing else${extra.length ? ` (not ${extra.join(', ')})` : ''}`);
@@ -255,6 +258,8 @@ export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safet
     throw new UsageError(`the worlds cannot become a seed plan (${problems.length} problem(s))`, { failures: problems.map((m) => ({ code: 'seed-plan', message: m })) });
   }
   const staggered = staggerTies(rows);
+  // After the stagger, so the second each tie gained counts toward the world's earliest today value.
+  for (const world of worlds) stampTodayMarkers(rows.filter((r) => r.world === world.id));
   return { schemaVersion: 1, runId, project, worlds, rows, users, ...(staggered.length ? { staggered } : {}) };
 }
 
@@ -297,7 +302,7 @@ export function staggerTies(rows) {
     for (const [col, v] of Object.entries(r.values ?? {})) {
       if (!v || typeof v !== 'object' || typeof v.$rel !== 'string' || v.as === 'date') continue;
       let t;
-      try { t = new Date(resolveRelative(v, TIE_REFERENCE)).getTime(); } catch { continue; }
+      try { t = new Date(resolveRelative({ $rel: v.$rel }, TIE_REFERENCE)).getTime(); } catch { continue; }
       const k = `${r.world}\0${r.table}\0${col}\0${t}`;
       if (!groups.has(k)) groups.set(k, { world: r.world, table: r.table, column: col, list: [] });
       groups.get(k).list.push(r);
