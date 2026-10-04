@@ -360,13 +360,17 @@ export async function rebuildContractFile(paths, map, at) {
 }
 
 const MONTHS = /\b(jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|june?|july?|aug(ust)?|sept?(ember)?|oct(ober)?|nov(ember)?|dec(ember)?)\b/g;
+// am, pm, a.m., p.m., a. m. right after a number, any case (normalise lowercases first).
+const AMPM = /(\d)\s*[ap]\.?\s?m\.?(?![a-z])/g;
 const DAYS = /\b(mon(day)?|tue(s|sday)?|wed(nesday)?|thu(rs|rsday)?|fri(day)?|sat(urday)?|sun(day)?)\b/g;
 
 /**
  * A date or time text's format, without its values (R1): "Tue 14 Oct" and "Wed 3 Sep" are both
- * "D 9 M", "2 min ago" and "15 min ago" both "9 min ago". Pictures compare dates by this, never by
- * the absolute day the design happened to show.
+ * "D 9 M", "2 min ago" and "15 min ago" both "9 min ago". The am/pm marker after a number folds to one
+ * token too ("10:38 am" and "10:16 PM" are both "9:9 A"), so a shoot in the other half of the day
+ * than the design still matches. Pictures compare dates by this, never by the absolute day or time
+ * the design happened to show.
  */
 export function dateShape(text) {
-  return normalise(text).replace(MONTHS, 'M').replace(DAYS, 'D').replace(/\d+/g, '9');
+  return normalise(text).replace(MONTHS, 'M').replace(DAYS, 'D').replace(AMPM, '$1 A').replace(/\d+/g, '9');
 }

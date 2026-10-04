@@ -81,6 +81,10 @@ test('checkItem compares a date by its shape and a generated value by kind', () 
   assert.equal(check([date], ['14/10/2026']).page.length, 1);
   const time = data('2 min ago', { kind: 'time', column: 'created_at' });
   assert.equal(check([time], ['15 min ago']).page.length, 0);
+  const clock = data('10:38 am', { kind: 'time', column: 'created_at' });
+  assert.equal(check([clock], ['New orders · WooCommerce · 10:16 pm']).page.length, 0, 'the other half of the day');
+  assert.equal(check([clock], ['10:16 PM']).page.length, 0);
+  assert.equal(check([clock], ['10:16']).page.length, 1, 'a 24-hour time is a different shape');
   const num = { text: '92%', label: 'data', kind: 'generated', shape: 'number' };
   assert.equal(check([num], ['score 7']).page.length, 0);
   assert.equal(check([num], ['no digits here']).page.length, 1);
