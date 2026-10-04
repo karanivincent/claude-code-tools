@@ -115,10 +115,18 @@ export function stringLeaves(value, path = '') {
   if (typeof value === 'number' && Number.isSafeInteger(value) && Math.abs(value) >= 1e8) return [{ path, value: String(value) }];
   if (Array.isArray(value)) return value.flatMap((v, i) => stringLeaves(v, `${path}[${i}]`));
   if (value && typeof value === 'object') {
-    if (isRelative(value)) return [];
+    if (isRelative(value) || isMinuteOfDay(value)) return [];
     return Object.entries(value).flatMap(([k, v]) => stringLeaves(v, path ? `${path}.${k}` : k));
   }
   return [];
+}
+
+/**
+ * A `{ "$minuteOfDay": "now-60" }` marker: a minute of the local day (0..1440) relative to the moment
+ * the row is written, for time-of-day settings such as calling hours. See resolveMinuteOfDay.
+ */
+export function isMinuteOfDay(v) {
+  return Boolean(v && typeof v === 'object' && !Array.isArray(v) && typeof v.$minuteOfDay === 'string' && Object.keys(v).every((k) => k === '$minuteOfDay' || k === 'wrap'));
 }
 
 /** A `{ "$rel": "now-2h" }` relative time marker (spec 7.4: dates relative to now). */

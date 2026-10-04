@@ -26,7 +26,9 @@ each button's effect. The mapper agent writes it from the design renders (briefs
 This command checks the map against the design renders and the safety rules (no reach step clicks
 a metered, dialling or destructive control without an intercept), and refuses a fixed date or time
 in the world of a state marked "clock": true (one that looks as designed only at some times of
-day: its times are written relative to the shoot, {"$rel": ...}), then writes checklist.md next
+day: its times are written relative to the shoot, {"$rel": ...}), and, when the profile names
+testData.timeOfDayTables, a clock state's world that writes no row to one of them (its hours are
+written relative to the shoot, {"$minuteOfDay": "now-60"}). Then it writes checklist.md next
 to it, which builders and reviewers read. When rules.json exists, each rule is written under the
 states that show it, so builders and reviewers see it next to the picture. A valid map switches the run to picture mode: status
 then follows the picture loop.
@@ -78,7 +80,8 @@ common options:
     for (const w of map.worlds ?? []) {
       try { worldFiles[w.id] = JSON.parse(readFileSync(worldFilePath(paths, w.id), 'utf8')); } catch { worldFiles[w.id] = null; }
     }
-    const problems = [...validateMap(map, { designed }), ...clockProblems(map, worldFiles)];
+    const timeOfDayTables = (await ctx.profile().catch(() => null))?.testData?.timeOfDayTables ?? [];
+    const problems = [...validateMap(map, { designed }), ...clockProblems(map, worldFiles, { timeOfDayTables })];
     for (const p of problems) ctx.out.fail('map', p);
     if (problems.length) {
       await ctx.journal({ command: 'map', exit: EXIT.RED, counts: { problems: problems.length } });

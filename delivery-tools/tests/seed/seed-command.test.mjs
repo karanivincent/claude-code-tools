@@ -141,7 +141,7 @@ test('seed --plan: a $key that is not a placeholder is refused, never written th
   ] };
   assert.throws(() => buildSeedPlan({
     feature: 'widgets', runId: 'r-1', project: 'p', plan: validExample('plan'), safety: makeSafety(), worldFiles: { design: world },
-  }), (err) => err.exit === 2 && err.failures.some((x) => /"\$orgSlug" is not a placeholder; the world file placeholders are \$ref, \$orgName and \$rel/.test(x.message)));
+  }), (err) => err.exit === 2 && err.failures.some((x) => /"\$orgSlug" is not a placeholder; the world file placeholders are \$ref, \$orgName, \$rel and \$minuteOfDay/.test(x.message)));
 
   // The three real ones still resolve.
   const ok = buildSeedPlan({

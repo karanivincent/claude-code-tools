@@ -22,7 +22,8 @@ import { hasPhone, roundFiles } from '../picture/widths.mjs';
 import { changedSince, unchangedItems } from '../picture/changed.mjs';
 import { latestVerdicts } from '../picture/next.mjs';
 import { probeServer } from '../picture/smoke.mjs';
-import { startProdServer } from '../picture/prod-server.mjs';
+import { shootProdServer } from '../picture/prod-server.mjs';
+import { wrapHeavy } from '../core/profile.mjs';
 import { freePort } from '../capture/run.mjs';
 import { tunable } from '../retro/tunables.mjs';
 import { smokeGate } from './smoke.mjs';
@@ -79,9 +80,12 @@ options:
   --base-url <url>   the running app (a local dev server or a preview)
   --prod             instead of --base-url: build and serve a production build with the profile's
                      commands.prodServer ({port}; its own build folder, so the dev server keeps
-                     running), shoot it, and stop it. A dev server compiles each route on its first
-                     visit; a production build answers at once. A build that fails stops the shoot
-                     with its last lines, and no round is used.
+                     running), shoot it, and stop it. The build runs through commands.heavy after
+                     its build folder is removed (picture.prodDistDir, or the cd + NEXT_DIST_DIR the
+                     command names); commands.prodServerBuild, when set, builds on its own first and
+                     prodServer only serves. A dev server compiles each route on its first visit; a
+                     production build answers at once. A build that fails stops the shoot with its
+                     error lines and last lines, and no round is used.
   --round <n|work>   where the pictures go: a numbered round (default: the next one) or "work",
                      a builder's own looking, which never counts as a round
   <ITEM>             take only these: <ID> is the state at every width, <ID>@phone or
@@ -172,10 +176,15 @@ common options:
     if (values.prod) {
       if (!profile.commands?.prodServer) throw new UsageError('--prod needs the profile\'s commands.prodServer: a command that builds and serves a production build on {port} without touching the dev server\'s build folder');
       ctx.out.line('building and starting a production server (commands.prodServer) for the shoot');
-      const r = await withShootSlot(ctx, async () => startProdServer({ command: profile.commands.prodServer, port: await freePort(), cwd: ctx.repoRoot, timeoutMs: tunable('capture.prodBuildTimeoutMs') }));
+      const r = await withShootSlot(ctx, async () => shootProdServer({
+        profile, repoRoot: ctx.repoRoot, port: await freePort(), timeoutMs: tunable('capture.prodBuildTimeoutMs'),
+        wrap: (cmd) => wrapHeavy(profile, cmd), log: (l) => ctx.out.line(l),
+      }));
       if (r.failure) {
         ctx.out.fail('build-failed', `${r.failure}; nothing was pictured, and no round was used`);
-        if (r.output) ctx.out.line(r.output.split('\n').slice(-15).map((l) => `  ${l}`).join('\n'));
+        // The error lines that scrolled out of the tail come first, then the tail: a build's route
+        // list is printed after the error that broke it.
+        if (r.output) ctx.out.line(r.output.split('\n').map((l) => `  ${l}`).join('\n'));
         await ctx.journal({ command: `shoot --round ${round}`, exit: EXIT.RED, counts: { items: items.length, buildFailed: 1 } });
         return EXIT.RED;
       }
@@ -258,6 +267,8 @@ common options:
       const dirty = [...new Set(items.filter((i) => report[i.key]?.writes).map((i) => i.state.reach.world))];
       const sideways = Object.entries(report).filter(([, r]) => r.overflow).map(([key]) => key);
       ctx.out.line(`reached ${Object.keys(report).length - notReached.length} of ${Object.keys(report).length}${notReached.length ? `; not reached: ${notReached.join(', ')}` : ''}`);
+      const rateLimited = Object.entries(report).filter(([, r]) => r.rateLimited).map(([id]) => id);
+      if (rateLimited.length) ctx.out.warn(`rate limited: ${rateLimited.join(', ')} not reached because the app answered HTTP 429 (too many requests), not because of the page; wait for the limit to reset and shoot them again`);
       if (sideways.length) ctx.out.line(`scrolls sideways at phone width: ${sideways.join(', ')}`);
       if (dirty.length) ctx.out.line(resetting ? `these worlds changed: ${dirty.join(', ')} (the next shoot resets them itself)` : `these worlds changed; re-seed them before the next shoot: delivery seed ${dirty.map((w) => `--refresh ${w}`).join(' ')}`);
       const looked = Object.entries(report).filter(([, r]) => r.lookup);
@@ -274,7 +285,7 @@ common options:
       }
       ctx.out.line(`pictures: ${outDir}`);
       if (values.only !== undefined) ctx.out.line(`next: delivery review --plan --round ${round} (it reviews only the ${items.length} re-shot ${noun}(s))`);
-      ctx.out.set('shoot', { drift, round, outDir, reached: Object.keys(report).length - notReached.length, notReached, sideways, dirtyWorlds: dirty, states: Object.keys(doc.states).length, reset: resetting, reshot: values.only !== undefined, lookupDataGaps: gaps, lookupMust: musts });
+      ctx.out.set('shoot', { drift, round, outDir, reached: Object.keys(report).length - notReached.length, notReached, sideways, dirtyWorlds: dirty, states: Object.keys(doc.states).length, reset: resetting, reshot: values.only !== undefined, rateLimited, lookupDataGaps: gaps, lookupMust: musts });
       const exit = notReached.length ? EXIT.RED : EXIT.PASS;
       await ctx.journal({ command: `shoot --round ${round}`, exit, counts: { states: states.length, items: items.length, notReached: notReached.length, lookupDataGaps: gaps.length, lookupMust: musts.length } });
       return exit;

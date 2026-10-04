@@ -37,6 +37,21 @@ hand: fix the contract label and run `--from-trace` again, or add a row of your 
   addresses its reserved domain. Never a real person's name, number or address.
 - Relative dates (`{ "$rel": "now-2h" }`) for anything the page compares with today. Never an
   absolute date: the shoot seeds right before it pictures, and dates are compared by format.
+- No world depends on the wall clock. A setting the page reads with the time of day (calling
+  hours, opening hours) is written in the world in minutes of the day relative to the shoot,
+  `{ "$minuteOfDay": "now-60" }` (`now`, `now+2h`, `now-90m`; a bare number is minutes), or as the
+  whole day, `"startOfDay"` (0) and `"endOfDay"` (1440). It resolves in the profile's time zone each
+  time the world is seeded or reset, so it holds however late the shoot runs. A world with no row
+  falls back to the product's default hours and pictures "closed" in the evening. So:
+  - every world whose states show the hours, and every default world when the profile names
+    `testData.timeOfDayTables`, gets a row: open all day,
+    `"start_minute": { "$minuteOfDay": "startOfDay" }, "end_minute": { "$minuteOfDay": "endOfDay" }`,
+    with every day of the week (`"days": [0,1,2,3,4,5,6]`) so a weekend shoot is open too;
+  - a closed-hours world gets hours that ended before now,
+    `"start_minute": { "$minuteOfDay": "now-240" }, "end_minute": { "$minuteOfDay": "now-60" }`;
+    a "waiting until" world gets hours that start after now (`"now+60"` to `"now+180"`).
+  Use the table's own column names. Values are clamped to 0..1440 (`"wrap": true` takes them
+  modulo a day instead), so a closed window needs the shoot to run after 01:00 local time.
 - Write a list's rows in the order the design shows them, top first. Rows whose times tie are
   given distinct seconds in that order (newest first); an oldest-first list needs its own times.
 - The fixture users' names are the design's: set `name` on each user in the map's `worlds[].users`

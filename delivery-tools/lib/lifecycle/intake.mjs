@@ -505,14 +505,14 @@ export async function findComponentsWorldTemplate(worktree, skipFeature) {
 /**
  * A template's rows, generalised for a components run's own world: every literal (non-placeholder)
  * "slug" value becomes `delivery-comp-<feature>`, so the new world's organisation never collides
- * with the one the template came from. $ref, $orgName and $rel placeholders resolve generically for
+ * with the one the template came from. $ref, $orgName, $rel and $minuteOfDay placeholders resolve generically for
  * any world and are kept exactly as the template has them.
  * @param {object[]} templateRows
  * @param {string} feature
  */
 export function componentsWorldRows(templateRows, feature) {
   const slug = `delivery-comp-${feature}`;
-  const isPlaceholder = (v) => v && typeof v === 'object' && ('$ref' in v || '$orgName' in v || '$rel' in v);
+  const isPlaceholder = (v) => v && typeof v === 'object' && ('$ref' in v || '$orgName' in v || '$rel' in v || '$minuteOfDay' in v);
   return templateRows.map((row) => ({
     ...row,
     values: Object.fromEntries(Object.entries(row.values ?? {}).map(([col, v]) => [

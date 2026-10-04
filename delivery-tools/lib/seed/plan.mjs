@@ -14,6 +14,8 @@
 //   $ref "user:<role>"   the id of the world's fixture user in that role (plan.worlds[].users)
 //   $orgName       the world's organisation name: plan.worlds[].orgName behind safety.fixtureOrgPrefix
 //   $rel           a time relative to the moment the row is written ("today" worlds stay today)
+//   $minuteOfDay   a minute of the local day (0..1440) relative to that moment: "now-60",
+//                  "now+2h", "startOfDay", "endOfDay" (time-of-day settings such as calling hours)
 // Row keys are unique within a world; the organisation row's key is "org". A row may not set its
 // own id. References across worlds are refused: a world is its own organisation.
 //
@@ -28,7 +30,7 @@ import { join } from 'node:path';
 import { UsageError } from '../core/exit.mjs';
 import { readJson } from '../core/fs.mjs';
 import { schemaRegistry } from '../core/schema.mjs';
-import { resolveRelative } from './evaluate.mjs';
+import { resolveMinuteOfDay, resolveRelative } from './evaluate.mjs';
 
 const DNS_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 /** The namespace every fixture id is derived in. */
@@ -195,12 +197,18 @@ export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safet
           return w.orgName.startsWith(safety.fixtureOrgPrefix) ? w.orgName : `${safety.fixtureOrgPrefix}${w.orgName}`;
         }
         if (typeof v.$rel === 'string') return v; // resolved when written
+        if (k.includes('$minuteOfDay')) {
+          const extra = k.filter((key) => key !== '$minuteOfDay' && key !== 'wrap');
+          if (extra.length || typeof v.$minuteOfDay !== 'string') problems.push(`world ${w.id} ${where}: a $minuteOfDay marker takes a string and an optional "wrap": true, nothing else${extra.length ? ` (not ${extra.join(', ')})` : ''}`);
+          else try { resolveMinuteOfDay(v, new Date(0)); } catch (err) { problems.push(`world ${w.id} ${where}: ${err.message}`); }
+          return v; // resolved when written, like $rel
+        }
         // An unrecognised $key is a typo or an invented placeholder, never a value anyone meant.
         // It used to fall through and be written literally, so a world file could put
         // {"$orgSlug": true} where a slug belongs and nothing said so until the database refused
         // the insert - or, for a permissive column, did not.
         const dollar = k.filter((key) => key.startsWith('$'));
-        if (dollar.length) problems.push(`world ${w.id} ${where}: ${dollar.map((key) => `"${key}"`).join(', ')} ${dollar.length === 1 ? 'is not a' : 'are not'} placeholder${dollar.length === 1 ? '' : 's'}; the world file placeholders are $ref, $orgName and $rel`);
+        if (dollar.length) problems.push(`world ${w.id} ${where}: ${dollar.map((key) => `"${key}"`).join(', ')} ${dollar.length === 1 ? 'is not a' : 'are not'} placeholder${dollar.length === 1 ? '' : 's'}; the world file placeholders are $ref, $orgName, $rel and $minuteOfDay`);
         const out = {};
         for (const [kk, vv] of Object.entries(v)) out[kk] = resolve(vv, `${where}.${kk}`);
         return out;
@@ -215,7 +223,7 @@ export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safet
       const values = {};
       const deferred = {};
       const dollar = Object.keys(r.values).filter((col) => col.startsWith('$'));
-      if (dollar.length) problems.push(`world ${w.id} row "${r.key}": ${dollar.map((col) => `"${col}"`).join(', ')} ${dollar.length === 1 ? 'is not a' : 'are not'} placeholder${dollar.length === 1 ? '' : 's'}; the world file placeholders are $ref, $orgName and $rel`);
+      if (dollar.length) problems.push(`world ${w.id} row "${r.key}": ${dollar.map((col) => `"${col}"`).join(', ')} ${dollar.length === 1 ? 'is not a' : 'are not'} placeholder${dollar.length === 1 ? '' : 's'}; the world file placeholders are $ref, $orgName, $rel and $minuteOfDay`);
       for (const [col, v] of Object.entries(r.values)) {
         forward = false;
         const resolved = resolve(v, `row "${r.key}".${col}`);

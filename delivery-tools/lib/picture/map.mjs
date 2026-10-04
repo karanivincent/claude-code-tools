@@ -361,11 +361,18 @@ const FIXED_TIME = /^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d
  * hours open", "overdue"). Its world's times must be relative to the shoot ({"$rel": ...}), which
  * resets the world right before its shots; a fixed date or time in that world's file would make the
  * state true on one day and false the next. One problem per fixed value.
+ *
+ * Time-of-day settings are the other half: a page that decides "calling hours open" from a settings
+ * row and the real time falls back to the product's default hours when the world has no row, so the
+ * picture depends on when the shoot runs. When the profile names the tables that hold such settings
+ * (testData.timeOfDayTables), a clock state's world must write a row to one of them; its minutes are
+ * written relative to the shoot, {"$minuteOfDay": "now-60"}, or as the whole day.
  * @param {object} map
  * @param {Record<string, object|null>} worldFiles world id -> world file (null when unreadable)
+ * @param {{ timeOfDayTables?: string[] }} [opts]
  * @returns {string[]}
  */
-export function clockProblems(map, worldFiles) {
+export function clockProblems(map, worldFiles, opts = {}) {
   const out = [];
   const worlds = new Map();
   for (const s of map?.states ?? []) if (s.clock === true && s.reach?.world) worlds.set(s.reach.world, [...(worlds.get(s.reach.world) ?? []), s.id]);
@@ -374,10 +381,14 @@ export function clockProblems(map, worldFiles) {
     if (!file) continue;
     const walk = (v, path, row) => {
       if (typeof v === 'string' && FIXED_TIME.test(v.trim())) out.push(`world ${world} row "${row}" ${path} is a fixed time ("${v}"), and ${states.join(', ')} depend(s) on the clock: write it relative to the shoot, {"$rel": "now-2h"} or {"$rel": "today@09:00"}`);
-      else if (v && typeof v === 'object' && !Array.isArray(v) && !('$rel' in v)) for (const [k, x] of Object.entries(v)) walk(x, path ? `${path}.${k}` : k, row);
+      else if (v && typeof v === 'object' && !Array.isArray(v) && !('$rel' in v) && !('$minuteOfDay' in v)) for (const [k, x] of Object.entries(v)) walk(x, path ? `${path}.${k}` : k, row);
       else if (Array.isArray(v)) v.forEach((x, i) => walk(x, `${path}[${i}]`, row));
     };
     for (const r of file.rows ?? []) walk(r.values ?? {}, '', r.key);
+    const tables = opts.timeOfDayTables ?? [];
+    if (tables.length && !(file.rows ?? []).some((r) => tables.includes(r.table))) {
+      out.push(`world ${world} writes no row to ${tables.join(' or ')}, and ${states.join(', ')} depend(s) on the time of day: without one the page falls back to the product's default hours and the picture depends on when the shoot runs. Give the world its own hours relative to the shoot: open all day {"start_minute": {"$minuteOfDay": "startOfDay"}, "end_minute": {"$minuteOfDay": "endOfDay"}}, or ended an hour ago {"start_minute": {"$minuteOfDay": "now-240"}, "end_minute": {"$minuteOfDay": "now-60"}} (use the table's own column names)`);
+    }
   }
   return out;
 }
