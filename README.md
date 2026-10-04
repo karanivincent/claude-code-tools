@@ -133,7 +133,7 @@ draw all of them.
 - Commands: `/goal <title>` names or renames the goal, `/goal-done` closes it, and
   `/goal-map-backfill [days]` imports past sessions from their transcripts.
 
-### delivery-tools `v0.24.3`
+### delivery-tools `v0.24.4`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -274,7 +274,7 @@ time-of-day settings relative to the shoot (`{"$minuteOfDay": "now-60"}`, or `"s
 `commands.prodServerBuild`, `picture.prodDistDir`) and keeps the build's error lines; a page that
 answers HTTP 429 is reported as rate limited, not as a click timeout. Since 0.24.1 datacheck
 compares a clock time by its shape with the am/pm marker folded, so a shoot in the other half of
-the day than the design no longer flags "10:16 pm" against "10:38 am". Since 0.24.2 the paired tokens `"closedStart"`/`"closedEnd"` and `"openStart"`/`"openEnd"` give a calling-hours window without or around now that is valid at every minute of the day (the `now-240`..`now-60` form clamped to an empty window before 01:00). Since 0.24.3 a `$rel` time that must fall today carries `"today": true`: when the shoot runs too soon after midnight for the world's offsets, every such value in the world is scaled toward now together, so all stay inside today and in order (a `now-80m` shot at 00:15 used to land on yesterday). An export
+the day than the design no longer flags "10:16 pm" against "10:38 am". Since 0.24.2 the paired tokens `"closedStart"`/`"closedEnd"` and `"openStart"`/`"openEnd"` give a calling-hours window without or around now that is valid at every minute of the day (the `now-240`..`now-60` form clamped to an empty window before 01:00). Since 0.24.3 a `$rel` time that must fall today carries `"today": true`: when the shoot runs too soon after midnight for the world's offsets, every such value in the world is scaled toward now together, so all stay inside today and in order (a `now-80m` shot at 00:15 used to land on yesterday). Since 0.24.4 a map state may carry `"colorScheme": "dark"` (or `"light"`): the shoot emulates that scheme before the state's first step, and with the profile's `ui.themeStorageKey` also writes the app's stored theme so a saved preference cannot override it. An export
 holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run

@@ -305,6 +305,14 @@
         "prodDistDir": { "description": "The build folder commands.prodServer (or prodServerBuild) writes, relative to the repo root; delivery shoot --prod removes it before building, so an interrupted build cannot leave a partial folder. When absent it is read from the command's `cd <dir>` and NEXT_DIST_DIR=<name>.", "type": "string", "minLength": 1 }
       }
     },
+    "ui": {
+      "description": "Optional. themeStorageKey: the localStorage key the app keeps its theme preference in (next-themes' storageKey, e.g. app-theme); a shoot of a state with a colorScheme writes it before every navigation, so a stored preference cannot override the scheme.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "themeStorageKey": { "type": "string", "minLength": 1 }
+      }
+    },
     "smoke": {
       "description": "Optional (delivery smoke, the page-load gate). skeleton: the CSS selectors of the loading placeholders the app shows until its data arrives; a page still showing one 10 s after it loaded is broken. Default [aria-busy=true] and [data-skeleton].",
       "type": "object",
