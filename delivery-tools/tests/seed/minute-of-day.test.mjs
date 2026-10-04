@@ -3,7 +3,7 @@
 // the evening pictured "calling hours closed" because the worlds had no hours of their own).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { resolveMinuteOfDay, resolveValues, zonedNow } from '../../lib/seed/evaluate.mjs';
+import { minuteWindow, resolveMinuteOfDay, resolveValues, zonedNow } from '../../lib/seed/evaluate.mjs';
 import { buildSeedPlan } from '../../lib/seed/plan.mjs';
 import { clockProblems } from '../../lib/picture/map.mjs';
 import { makeSafety, validExample } from '../helpers/fixtures.mjs';
@@ -68,4 +68,34 @@ test('clockProblems: a clock state\'s world with no row in testData.timeOfDayTab
   assert.match(p[0], /"\$minuteOfDay": "startOfDay"/);
   assert.deepEqual(clockProblems(map, { w: withHours }, opts), []);
   assert.deepEqual(clockProblems(map, { w: bare }), [], 'no tables named in the profile: nothing to check');
+  assert.match(p[0], /"\$minuteOfDay": "closedStart"/, 'the hint names the clock-proof closed pair');
+});
+
+// 2026-10-05: a closed window written "now-240".."now-60" clamped to 0..0 between 00:00 and 01:00
+// and the database refused it. The paired tokens hold at every minute of the day.
+const dayStart = Date.parse('2026-10-05T00:00:00Z');
+const atMinute = (n) => new Date(dayStart + n * 60_000);
+
+test('closedStart/closedEnd: a valid window that does not contain now, at every minute 0..1439', () => {
+  for (let n = 0; n < 1440; n++) {
+    const { start_minute: s, end_minute: e } = resolveValues({ start_minute: { $minuteOfDay: 'closedStart' }, end_minute: { $minuteOfDay: 'closedEnd' } }, atMinute(n));
+    assert.ok(s >= 0 && s < e && e >= 1 && e <= 1440, `minute ${n}: [${s}, ${e}] is not a valid window`);
+    assert.ok(!(n >= s && n < e), `minute ${n}: [${s}, ${e}] contains now`);
+    assert.deepEqual(minuteWindow('closed', n), { start: s, end: e });
+  }
+});
+
+test('openStart/openEnd: a valid window that contains now, at every minute 0..1439', () => {
+  for (let n = 0; n < 1440; n++) {
+    const { start_minute: s, end_minute: e } = resolveValues({ start_minute: { $minuteOfDay: 'openStart' }, end_minute: { $minuteOfDay: 'openEnd' } }, atMinute(n));
+    assert.ok(s >= 0 && s < e && e >= 1 && e <= 1440, `minute ${n}: [${s}, ${e}] is not a valid window`);
+    assert.ok(n >= s && n < e, `minute ${n}: [${s}, ${e}] does not contain now`);
+  }
+});
+
+test('the paired tokens resolve in the profile zone and pass seed --plan', () => {
+  const early = zonedNow(new Date('2026-10-04T21:20:00Z'), 'Africa/Nairobi'); // 00:20
+  assert.deepEqual(resolveValues({ a: { $minuteOfDay: 'closedStart' }, b: { $minuteOfDay: 'closedEnd' } }, early), { a: 50, b: 1440 });
+  const sp = plan([ORG, MEMBER, { key: 'hours', table: 'org_calling_hours', values: { organization_id: { $ref: 'org' }, start_minute: { $minuteOfDay: 'closedStart' }, end_minute: { $minuteOfDay: 'closedEnd' } } }]);
+  assert.deepEqual(sp.rows.find((r) => r.table === 'org_calling_hours').values.end_minute, { $minuteOfDay: 'closedEnd' });
 });

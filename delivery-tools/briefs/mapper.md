@@ -99,7 +99,9 @@ don't write code.
   is true at that moment. Mark every state whose design shows calling hours open or closed,
   "waiting until", "calling now" or anything else that follows the time of day `clock: true`, and
   give its world its own time-of-day settings in relative minutes, never the product's default
-  hours: `{ "$minuteOfDay": "now-60" }` (see briefs/seed-writer.md). When the profile names
+  hours: `{ "$minuteOfDay": "now-60" }`, and for a closed or open window the paired tokens
+  `closedStart`/`closedEnd` or `openStart`/`openEnd`, valid at every minute of the day (see
+  briefs/seed-writer.md). When the profile names
   `testData.timeOfDayTables`, `delivery map` refuses a clock state whose world writes no row to one
   of them.
 - `member: "hidden"` marks a button a member must not see. Add a member state for each screen a

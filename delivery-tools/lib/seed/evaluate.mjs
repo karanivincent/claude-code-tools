@@ -34,7 +34,28 @@ export function resolveRelative(marker, now) {
   return marker.as === 'date' ? localDate(t, zone) : new Date(t).toISOString();
 }
 
-const MINUTE_OF_DAY = /^\s*(?:(startOfDay|endOfDay)|now((?:\s*[+-]\s*\d+\s*[mh]?)*))\s*$/;
+const MINUTE_OF_DAY = /^\s*(?:(startOfDay|endOfDay|closedStart|closedEnd|openStart|openEnd)|now((?:\s*[+-]\s*\d+\s*[mh]?)*))\s*$/;
+
+/**
+ * A calling-hours window relative to the minute of the day `n` (0..1439) that never depends on the
+ * clock: always 0 <= start < end <= 1440, at every minute of the day.
+ *   closed  a window that does NOT contain n: [0, n-30] from 01:00, [n+30, 1440] before it
+ *           (2026-10-05: "now-240".."now-60" clamped to 0..0 between 00:00 and 01:00, and the
+ *           database refused an end_minute that was not after start_minute);
+ *   open    a window that contains n (start <= n < end): [max(0, n-60), min(1440, n+60)].
+ * @param {'closed'|'open'} kind
+ * @param {number} n
+ * @returns {{ start: number, end: number }}
+ */
+export function minuteWindow(kind, n) {
+  if (kind === 'closed') return n >= 60 ? { start: 0, end: n - 30 } : { start: n + 30, end: 1440 };
+  return { start: Math.max(0, n - 60), end: Math.min(1440, n + 60) };
+}
+
+const WINDOW_TOKENS = {
+  closedStart: ['closed', 'start'], closedEnd: ['closed', 'end'],
+  openStart: ['open', 'start'], openEnd: ['open', 'end'],
+};
 
 /**
  * Resolve a minute-of-day marker: the minute of the local day (in `now.timeZone`, UTC when unset)
@@ -43,6 +64,10 @@ const MINUTE_OF_DAY = /^\s*(?:(startOfDay|endOfDay)|now((?:\s*[+-]\s*\d+\s*[mh]?
  *   "now"          the current minute of the day
  *   "now-60"       sixty minutes before it (a bare number is minutes; "now+2h" and "now-90m" work too)
  *   "startOfDay"   0, and "endOfDay" 1440: together, "open all day"
+ *   "closedStart" / "closedEnd"   a pair giving a valid window that does not contain now, at any
+ *                                 minute of the day (see minuteWindow); prefer it to now-N for closed
+ *   "openStart" / "openEnd"       a pair giving a window that contains now
+ * Every marker in one row resolves from the same `now`, so a pair always agrees.
  * The result is clamped to 0..1440, so "now-60" just after midnight is 0, not yesterday's 23:00;
  * `wrap: true` takes it modulo 1440 instead (a value that may name tomorrow's minute).
  * @param {{ $minuteOfDay: string, wrap?: boolean }} marker
@@ -51,10 +76,11 @@ const MINUTE_OF_DAY = /^\s*(?:(startOfDay|endOfDay)|now((?:\s*[+-]\s*\d+\s*[mh]?
  */
 export function resolveMinuteOfDay(marker, now) {
   const m = MINUTE_OF_DAY.exec(String(marker.$minuteOfDay));
-  if (!m) throw new Error(`minute of day "${marker.$minuteOfDay}" is not understood (now[+-N[m|h]]..., startOfDay or endOfDay)`);
+  if (!m) throw new Error(`minute of day "${marker.$minuteOfDay}" is not understood (now[+-N[m|h]]..., startOfDay, endOfDay, closedStart, closedEnd, openStart or openEnd)`);
   if (m[1] === 'startOfDay') return 0;
   if (m[1] === 'endOfDay') return 1440;
   let v = localMinute(now.getTime(), now.timeZone ?? null);
+  if (m[1]) { const [kind, side] = WINDOW_TOKENS[m[1]]; return minuteWindow(kind, v)[side]; }
   for (const o of m[2].matchAll(/([+-])\s*(\d+)\s*([mh]?)/g)) v += (o[1] === '-' ? -1 : 1) * Number(o[2]) * (o[3] === 'h' ? 60 : 1);
   if (marker.wrap === true) return ((v % 1440) + 1440) % 1440;
   return Math.min(1440, Math.max(0, v));

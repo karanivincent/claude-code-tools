@@ -47,11 +47,17 @@ hand: fix the contract label and run `--from-trace` again, or add a row of your 
     `testData.timeOfDayTables`, gets a row: open all day,
     `"start_minute": { "$minuteOfDay": "startOfDay" }, "end_minute": { "$minuteOfDay": "endOfDay" }`,
     with every day of the week (`"days": [0,1,2,3,4,5,6]`) so a weekend shoot is open too;
-  - a closed-hours world gets hours that ended before now,
-    `"start_minute": { "$minuteOfDay": "now-240" }, "end_minute": { "$minuteOfDay": "now-60" }`;
-    a "waiting until" world gets hours that start after now (`"now+60"` to `"now+180"`).
-  Use the table's own column names. Values are clamped to 0..1440 (`"wrap": true` takes them
-  modulo a day instead), so a closed window needs the shoot to run after 01:00 local time.
+  - a closed-hours world gets the paired tokens
+    `"start_minute": { "$minuteOfDay": "closedStart" }, "end_minute": { "$minuteOfDay": "closedEnd" }`:
+    always a valid window (start before end, inside 0..1440) that does not contain now, at every
+    minute of the day. Use them, not `"now-240"`..`"now-60"`: those clamp to 0..0 between 00:00 and
+    01:00 and the database refuses the row;
+  - an open-now world that must not be open all day gets `"openStart"` and `"openEnd"` (a window
+    around now, valid at every minute);
+  - a "waiting until" world gets hours that start after now (`"now+60"` to `"now+180"`), which
+    clamps late in the evening, so prefer `closedStart`/`closedEnd` when the state only needs "closed".
+  Use the table's own column names. `now±N` values are clamped to 0..1440 (`"wrap": true` takes
+  them modulo a day instead); the paired tokens never need either.
 - Write a list's rows in the order the design shows them, top first. Rows whose times tie are
   given distinct seconds in that order (newest first); an oldest-first list needs its own times.
 - The fixture users' names are the design's: set `name` on each user in the map's `worlds[].users`
