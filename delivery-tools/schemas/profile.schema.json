@@ -54,7 +54,8 @@
         },
         "validateSeedJson": { "type": "string" },
         "stagingE2e": { "description": "Optional (W8): the staging E2E run after a run's merge commit is deployed ({sha}, {pr}); delivery land runs it once per merge and fails on a non-zero exit.", "type": "string" },
-        "prodServer": { "description": "Optional (W6): builds and serves a production build on {port} in a build folder of its own, so the dev server keeps running; delivery shoot --prod uses it.", "type": "string" },
+        "prodServer": { "description": "Optional (W6): builds and serves a production build on {port} in a build folder of its own, so the dev server keeps running; delivery shoot --prod runs it through commands.heavy, after removing its build folder.", "type": "string" },
+        "prodServerBuild": { "description": "Optional: the build half of commands.prodServer. When set, delivery shoot --prod runs it to its end through commands.heavy first, and commands.prodServer then only serves (so the heavy slot is not held while the shoot runs).", "type": "string" },
         "flight": { "type": "string" },
         "tried": { "type": "string" },
         "planner": { "type": "string" },
@@ -142,7 +143,8 @@
         "mode": { "enum": ["tenant", "database", "none"] },
         "robotOrganizationId": { "$ref": "common.schema.json#/$defs/Text" },
         "orgName": { "description": "The generic organisation name a components run's own world uses (spec components-first §3); default \"Acme Store\" when absent.", "type": "string" },
-        "timeZone": { "description": "The IANA time zone the test organisations live in (e.g. Europe/Berlin). A world's relative times (today, as: date) resolve their day in it; UTC when absent.", "type": "string", "minLength": 1 }
+        "timeZone": { "description": "The IANA time zone the test organisations live in (e.g. Europe/Berlin). A world's relative times (today, as: date) resolve their day in it; UTC when absent.", "type": "string", "minLength": 1 },
+        "timeOfDayTables": { "description": "Tables that hold time-of-day settings a page reads with the real time (e.g. opening_hours). delivery map fails a state marked clock: true whose world writes no row to one of them, so no picture depends on when the shoot runs; the world writes its minutes relative to the shoot ({\"$minuteOfDay\": \"now-60\"}).", "$ref": "common.schema.json#/$defs/Strings" }
       }
     },
     "auth": {
@@ -299,7 +301,8 @@
       "additionalProperties": false,
       "properties": {
         "tabBar": { "$ref": "common.schema.json#/$defs/Strings" },
-        "keepPhoneHeader": { "type": "boolean" }
+        "keepPhoneHeader": { "type": "boolean" },
+        "prodDistDir": { "description": "The build folder commands.prodServer (or prodServerBuild) writes, relative to the repo root; delivery shoot --prod removes it before building, so an interrupted build cannot leave a partial folder. When absent it is read from the command's `cd <dir>` and NEXT_DIST_DIR=<name>.", "type": "string", "minLength": 1 }
       }
     },
     "smoke": {

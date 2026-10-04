@@ -7,7 +7,7 @@
 //   unknown  a filter reads a column the row does not set, so the database default decides.
 // All three refuse the seed. Only `now` is what a dry run "matches at its own clock".
 
-import { isRelative } from './contacts.mjs';
+import { isMinuteOfDay, isRelative } from './contacts.mjs';
 
 const UNITS = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000, w: 604_800_000 };
 
@@ -32,6 +32,39 @@ export function resolveRelative(marker, now) {
   }
   for (const o of m[5].matchAll(/([+-])\s*(\d+)\s*([smhdw])/g)) t += (o[1] === '-' ? -1 : 1) * Number(o[2]) * UNITS[o[3]];
   return marker.as === 'date' ? localDate(t, zone) : new Date(t).toISOString();
+}
+
+const MINUTE_OF_DAY = /^\s*(?:(startOfDay|endOfDay)|now((?:\s*[+-]\s*\d+\s*[mh]?)*))\s*$/;
+
+/**
+ * Resolve a minute-of-day marker: the minute of the local day (in `now.timeZone`, UTC when unset)
+ * relative to the moment the row is written, so a time-of-day setting (calling hours, opening
+ * hours) reads the same whatever the clock says when the world is seeded or reset.
+ *   "now"          the current minute of the day
+ *   "now-60"       sixty minutes before it (a bare number is minutes; "now+2h" and "now-90m" work too)
+ *   "startOfDay"   0, and "endOfDay" 1440: together, "open all day"
+ * The result is clamped to 0..1440, so "now-60" just after midnight is 0, not yesterday's 23:00;
+ * `wrap: true` takes it modulo 1440 instead (a value that may name tomorrow's minute).
+ * @param {{ $minuteOfDay: string, wrap?: boolean }} marker
+ * @param {Date} now
+ * @returns {number}
+ */
+export function resolveMinuteOfDay(marker, now) {
+  const m = MINUTE_OF_DAY.exec(String(marker.$minuteOfDay));
+  if (!m) throw new Error(`minute of day "${marker.$minuteOfDay}" is not understood (now[+-N[m|h]]..., startOfDay or endOfDay)`);
+  if (m[1] === 'startOfDay') return 0;
+  if (m[1] === 'endOfDay') return 1440;
+  let v = localMinute(now.getTime(), now.timeZone ?? null);
+  for (const o of m[2].matchAll(/([+-])\s*(\d+)\s*([mh]?)/g)) v += (o[1] === '-' ? -1 : 1) * Number(o[2]) * (o[3] === 'h' ? 60 : 1);
+  if (marker.wrap === true) return ((v % 1440) + 1440) % 1440;
+  return Math.min(1440, Math.max(0, v));
+}
+
+/** Minutes since local midnight of instant t in the zone (UTC when none). */
+function localMinute(t, zone) {
+  if (!zone) { const d = new Date(t); return d.getUTCHours() * 60 + d.getUTCMinutes(); }
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: zone, hourCycle: 'h23', hour: 'numeric', minute: 'numeric' }).formatToParts(new Date(t)).map((x) => [x.type, x.value]));
+  return Number(p.hour) * 60 + Number(p.minute);
 }
 
 /**
@@ -79,6 +112,7 @@ function localMidnight(y, mo, d, zone) {
 /** A deep copy of row values with every relative marker resolved at `now`. */
 export function resolveValues(values, now) {
   if (isRelative(values)) return resolveRelative(values, now);
+  if (isMinuteOfDay(values)) return resolveMinuteOfDay(values, now);
   if (Array.isArray(values)) return values.map((v) => resolveValues(v, now));
   if (values && typeof values === 'object') {
     const out = {};

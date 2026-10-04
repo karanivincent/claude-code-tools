@@ -186,6 +186,9 @@ is added to every prompt; put anything you would otherwise repeat to each review
    proof to get past it.
 11. **A page that scrolls sideways on a phone is always a must fix.** The shoot measures it and
    `delivery review` counts it, so it cannot be argued away as small.
+12. **No round waits for the clock.** A state that depends on the time of day carries its own
+   hours in its world (relative minute-of-day values, `{"$minuteOfDay": "now-60"}`); never
+   schedule a shoot for a time of day.
 
 ## Shipping
 

@@ -218,7 +218,7 @@ export function traceWorld({ contract, map, worldId, worldFile, safety, types = 
 /** A world file's values without markers, for the "already holds it" check. */
 function plainValues(values) {
   const out = {};
-  for (const [k, v] of Object.entries(values ?? {})) if (!(v && typeof v === 'object' && !Array.isArray(v) && ('$ref' in v || '$rel' in v || '$orgName' in v))) out[k] = v;
+  for (const [k, v] of Object.entries(values ?? {})) if (!(v && typeof v === 'object' && !Array.isArray(v) && ('$ref' in v || '$rel' in v || '$orgName' in v || '$minuteOfDay' in v))) out[k] = v;
   return out;
 }
 

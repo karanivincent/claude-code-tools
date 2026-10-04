@@ -506,12 +506,34 @@ const STREAMING = new Set(['eventsource', 'websocket']);
  */
 export function trackRequests(page) {
   const inflight = new Set();
-  if (typeof page?.on !== 'function') return { get count() { return 0; } };
+  let limited = null;
+  if (typeof page?.on !== 'function') return { get count() { return 0; }, get limited() { return null; } };
   // A stream never finishes; counting it would hold every step to the cap.
   page.on('request', (r) => { if (!STREAMING.has(r.resourceType?.())) inflight.add(r); });
   page.on('requestfinished', (r) => inflight.delete(r));
   page.on('requestfailed', (r) => inflight.delete(r));
-  return { get count() { return inflight.size; } };
+  // The last request the app refused with HTTP 429, for a "not reached" that a rate limit caused.
+  page.on('response', (r) => { try { if (r.status?.() === 429) limited = new URL(r.url()).pathname; } catch { /* no url */ } });
+  return { get count() { return inflight.size; }, get limited() { return limited; }, clearLimited() { limited = null; } };
+}
+
+/** The page's visible text, for the rate-limit check (named: test pages answer by function name). */
+function bodyText() {
+  return (document.body?.innerText ?? '').slice(0, 2000);
+}
+
+const RATE_LIMIT_TEXT = /too many requests|rate[ _-]?limit|"status"\s*:\s*429|\b429\b.*(request|limit)/i;
+
+/** Whether a page's text is a rate-limit answer (an HTTP 429 JSON body or page) rather than the app. */
+export function looksRateLimited(text) {
+  const t = String(text ?? '').trim();
+  return Boolean(t) && t.length < 2000 && RATE_LIMIT_TEXT.test(t);
+}
+
+/** The shoot's line for a state a rate limit kept it from reaching. */
+export function rateLimitProblem({ url = null, body = null } = {}) {
+  const what = url ? `${url} answered HTTP 429` : `the page answered a rate limit (${String(body).replace(/\s+/g, ' ').trim().slice(0, 120)})`;
+  return `rate limited: ${what}, so the state was not reached; that is the app refusing requests, not the page - wait for the limit to reset and shoot it again`;
 }
 
 /**
@@ -547,10 +569,14 @@ async function shootItem(page, it, o, liveFacts = new Map()) {
   }
   await page.setViewportSize({ width: size.width, height: size.height });
   const net = page._deliveryRequests ??= trackRequests(page);
+  net.clearLimited?.();
   try {
     for (const step of reachSteps(s, it.width)) {
-      if (step.goto) await page.goto(new URL(step.goto, o.baseUrl).toString(), { waitUntil: 'networkidle' });
-      else if (step.click) {
+      if (step.goto) {
+        const res = await page.goto(new URL(step.goto, o.baseUrl).toString(), { waitUntil: 'networkidle' });
+        const status = typeof res?.status === 'function' ? res.status() : null;
+        if (status === 429) throw new Error(rateLimitProblem({ url: step.goto }));
+      } else if (step.click) {
         let loc = step.click.testid ? await locateTestid(page, step.click.testid) : page.getByRole(step.click.role ?? 'button', { name: step.click.name });
         if (step.click.testid && step.click.name) loc = loc.filter({ hasText: step.click.name });
         await loc.first().click({ timeout: CLICK_TIMEOUT_MS });
@@ -567,7 +593,20 @@ async function shootItem(page, it, o, liveFacts = new Map()) {
     }
   } catch (err) {
     rec.reached = false;
-    rec.problems.push(String(err?.message ?? err).split('\n')[0]);
+    const first = String(err?.message ?? err).split('\n')[0];
+    // A rate-limited app answers a JSON body instead of the page, and the next click then times
+    // out: say it was the rate limit, not the page (2026-10-04: reported as "click timeout").
+    let problem = first;
+    if (first.startsWith('rate limited')) rec.rateLimited = true;
+    else {
+      let limited = net.limited ? rateLimitProblem({ url: net.limited }) : null;
+      if (!limited) {
+        const text = await page.evaluate(bodyText).catch(() => '');
+        if (looksRateLimited(text)) limited = rateLimitProblem({ body: text });
+      }
+      if (limited) { rec.rateLimited = true; problem = `${limited} (then: ${first})`; }
+    }
+    rec.problems.push(problem);
   }
   await page.waitForLoadState('networkidle').catch(() => {});
   await page.waitForTimeout(SETTLE_PAUSE_MS);

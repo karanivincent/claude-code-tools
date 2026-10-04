@@ -10,7 +10,7 @@ import { spawn } from 'node:child_process';
 import { plannedValues } from './plan.mjs';
 
 // Where a marker starts: values a later step turns into ids, times and names. They are skipped here.
-const MARKER_KEYS = ['$ref', '$rel', '$orgName'];
+const MARKER_KEYS = ['$ref', '$rel', '$orgName', '$minuteOfDay'];
 
 const isMarker = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v) && MARKER_KEYS.some((k) => k in v);
 
@@ -154,7 +154,7 @@ const kindOf = (v) => (Array.isArray(v) ? 'an array' : v === null ? 'null' : typ
 
 /**
  * Every world value that cannot go in its column, by the generated types. Values that are
- * markers ($ref, $rel, $orgName) are skipped: they become ids, times and names later.
+ * markers ($ref, $rel, $orgName, $minuteOfDay) are skipped: they become ids, times and names later.
  * @param {{ world: string, table: string, key?: string, values: object, deferred?: object }[]} rows seed plan rows
  * @param {ReturnType<typeof parseColumnTypes>} types
  * @returns {{ world: string, table: string, column: string|null, value: unknown, why: string }[]}

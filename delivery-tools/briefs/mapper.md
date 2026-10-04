@@ -96,7 +96,12 @@ don't write code.
   open", "overdue", "due today". Its world's times must be relative to the shoot
   (`{ "$rel": "today@09:00" }`, `{ "$rel": "now-2h" }`); `delivery map` refuses a fixed date or
   time in that world's file. The shoot resets the world right before it pictures it, so "open now"
-  is true at that moment.
+  is true at that moment. Mark every state whose design shows calling hours open or closed,
+  "waiting until", "calling now" or anything else that follows the time of day `clock: true`, and
+  give its world its own time-of-day settings in relative minutes, never the product's default
+  hours: `{ "$minuteOfDay": "now-60" }` (see briefs/seed-writer.md). When the profile names
+  `testData.timeOfDayTables`, `delivery map` refuses a clock state whose world writes no row to one
+  of them.
 - `member: "hidden"` marks a button a member must not see. Add a member state for each screen a
   member can open.
 - `phone: "hidden"` marks a button the phone layout does not show (it moved into a menu), and

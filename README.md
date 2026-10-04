@@ -133,7 +133,7 @@ draw all of them.
 - Commands: `/goal <title>` names or renames the goal, `/goal-done` closes it, and
   `/goal-map-backfill [days]` imports past sessions from their transcripts.
 
-### delivery-tools `v0.23.0`
+### delivery-tools `v0.24.0`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -266,7 +266,13 @@ refuses a function two runs redefine and ignores ids in skipped tests; land read
 (a failed Vercel build) and runs the optional `commands.stagingE2e`. A design above 120 states gets
 a proposal to split into one run per screen group, the first builder works one screen group per
 dispatch, extractors run at Sonnet medium, and `models.json` carries a recorded experiment (the
-first builder at Opus medium for one run). An export
+first builder at Opus medium for one run). Since 0.24.0 no run waits for the clock: a world writes
+time-of-day settings relative to the shoot (`{"$minuteOfDay": "now-60"}`, or `"startOfDay"` and
+`"endOfDay"` for the whole day), re-resolved at every reset, and `delivery map` refuses a
+`clock: true` state whose world writes no row to the profile's optional `testData.timeOfDayTables`;
+`shoot --prod` builds through `commands.heavy` after removing its build folder (optional
+`commands.prodServerBuild`, `picture.prodDistDir`) and keeps the build's error lines; a page that
+answers HTTP 429 is reported as rate limited, not as a click timeout. An export
 holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run

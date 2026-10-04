@@ -328,7 +328,8 @@ async function shootRepo(profile) {
 
 function withProd(prodServer) {
   const p = makeProfile();
-  p.commands = { ...p.commands };
+  // The shoot runs the build through commands.heavy; here that is a plain shell.
+  p.commands = { ...p.commands, heavy: "sh -c '{cmd}'" };
   if (prodServer) p.commands.prodServer = prodServer; else delete p.commands.prodServer;
   return p;
 }
