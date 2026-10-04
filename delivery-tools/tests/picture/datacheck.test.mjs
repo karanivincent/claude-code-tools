@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { checkItem, dataFaultItems, datacheckRound, lookupOf, writeDatacheck } from '../../lib/picture/datacheck.mjs';
+import { checkItem, dataFaultItems, datacheckRound, entriesShown, itemDesignTexts, lookupOf, writeDatacheck } from '../../lib/picture/datacheck.mjs';
 import { captureOrder, runShoot, selectStates } from '../../lib/picture/shoot.mjs';
 import { buildContract, contractSummary, decideNone, entryProblem } from '../../lib/picture/contract.mjs';
 import { clockProblems, validateMap } from '../../lib/picture/map.mjs';
@@ -204,6 +204,42 @@ test('datacheckRound looks for the swapped value of a world', () => {
     assert.deepEqual([datacheckRound({ map: widgetsMap(), contract, shoot, roundDir: d.root, swaps }).faults, datacheckRound({ map: widgetsMap(), contract, shoot, roundDir: d.root, swaps }).page], [0, 0]);
     assert.equal(datacheckRound({ map: widgetsMap(), contract, shoot, roundDir: d.root }).page, 1);
   } finally { d.cleanup(); }
+});
+
+test('checkItem with designTexts checks only the entries that render shows', () => {
+  const entries = [data('Amina Otieno'), data('Brian Mwangi'), data('Confirm delivery · answered 8:14 am', { kind: 'generated' })];
+  const r = check(entries, ['Amina Otieno'], { designTexts: ['Called Amina Otieno', 'Calls'] });
+  assert.deepEqual([r.checked, r.faults, r.page], [1, [], []], 'the detail pane and Brian are not in the phone render');
+  const all = check(entries, ['Amina Otieno'], { designTexts: null });
+  assert.equal(all.checked, 3, 'no render texts: every entry, as before');
+  assert.deepEqual(entriesShown(entries, []), [], 'an empty render shows nothing');
+});
+
+test('datacheckRound checks a phone item against its phone render only, and desktop as before', () => {
+  const d = scratch();
+  const design = scratch('datacheck-design-');
+  try {
+    const map = widgetsMap({ widths: ['desktop', 'phone'] });
+    // The phone render of WL-01 shows the list name Amina and not Brian (a hidden pane).
+    writeFileSync(join(design.root, 'WL-01@phone.dom.json'), JSON.stringify({ elements: [textEl('Widgets'), textEl('Amina Otieno')] }));
+    writeFileSync(join(d.root, 'WL-01.live.txt'), 'Widgets\n');
+    writeFileSync(join(d.root, 'WL-01@phone.live.txt'), 'Widgets\n');
+    const shoot = { states: { 'WL-01': { reached: true }, 'WL-01@phone': { reached: true } } };
+    const r = datacheckRound({ map, contract: CONTRACT, shoot, roundDir: d.root, designDir: design.root });
+    assert.equal(r.items['WL-01'].checked, 2, 'desktop: the whole contract state');
+    assert.equal(r.items['WL-01@phone'].checked, 1, 'phone: only what the phone render shows');
+    assert.deepEqual(r.items['WL-01@phone'].page.map((x) => x.text), ['Amina Otieno']);
+    // With only a .txt, it is read line by line.
+    rmSync(join(design.root, 'WL-01@phone.dom.json'));
+    writeFileSync(join(design.root, 'WL-01@phone.txt'), 'Widgets\nBrian Mwangi\n');
+    const t = datacheckRound({ map, contract: CONTRACT, shoot, roundDir: d.root, designDir: design.root });
+    assert.deepEqual(t.items['WL-01@phone'].page.map((x) => x.text), ['Brian Mwangi']);
+    // No phone render text at all: the desktop contract, as before.
+    rmSync(join(design.root, 'WL-01@phone.txt'));
+    const none = datacheckRound({ map, contract: CONTRACT, shoot, roundDir: d.root, designDir: design.root });
+    assert.equal(none.items['WL-01@phone'].checked, 2);
+    assert.equal(itemDesignTexts(map, { id: 'WL-01', width: 'desktop', state: map.states[0] }, design.root), null, 'desktop items never filter');
+  } finally { d.cleanup(); design.cleanup(); }
 });
 
 test('writeDatacheck writes the counts, the items with a miss and the sources', async () => {

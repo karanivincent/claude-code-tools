@@ -14,7 +14,7 @@ import { waitEvent } from '../retro/log.mjs';
 import { pageExtract } from '../capture/page-extract.mjs';
 import { sha256 } from '../core/hash.mjs';
 import { PIXEL_TOLERANCE, domFacts, factsAgree } from './review.mjs';
-import { checkItem, liveTextFile, lookupOf, SEEDED_FILE } from './datacheck.mjs';
+import { checkItem, itemDesignTexts, liveTextFile, lookupOf, SEEDED_FILE } from './datacheck.mjs';
 import { WIDTHS, cropFor, designFileCandidates, mapItems, overflowProblem, roundFiles } from './widths.mjs';
 
 /**
@@ -805,6 +805,7 @@ async function recordPictureFacts(browser, o, report, liveFacts, seeded = new Ma
         const r = checkItem({
           contractState: o.contract.states?.[it.id], liveLines: lFacts.text,
           rows: world?.rows ?? null, users: world?.users ?? [], now: world?.at ?? new Date(), swaps: o.swaps?.[it.state.reach?.world] ?? null,
+          designTexts: itemDesignTexts(o.map, it, o.designDir),
         });
         const lookup = lookupOf(r);
         if (lookup) rec.lookup = lookup;

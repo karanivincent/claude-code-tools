@@ -14,12 +14,17 @@
 // so a wrong AI summary still needs a reviewer's eye. Dates and times compare by format, as the
 // design's day is never the shoot's. A value seed --from-trace swapped for a safe one (a fixture
 // email, a prefixed organisation name) is looked for as the swapped value.
+//
+// A phone item is checked only against the contract texts its own phone design render shows: the
+// contract is the union of every width's texts, and a phone layout hides parts the desktop shows
+// (a list page's detail pane, a call page's list). With no phone render text, the whole state's
+// contract is used, as before.
 
 import { existsSync, readFileSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { countOf, dateShape, entryProblem, holds, initials, normalise, swapped } from './contract.mjs';
-import { mapItems } from './widths.mjs';
+import { countOf, dateShape, designTexts, entryProblem, holds, initials, normalise, swapped } from './contract.mjs';
+import { cropFor, designFileCandidates, mapItems } from './widths.mjs';
 
 /** The round's record of what each world held when it was shot. */
 export const SEEDED_FILE = 'seeded.json';
@@ -36,6 +41,36 @@ function numberForms(n) {
   const plain = String(n);
   const grouped = Number(n).toLocaleString('en-US');
   return [...new Set([plain, grouped])];
+}
+
+/**
+ * The texts an item's own design render shows, when the item is at a width other than desktop: the
+ * render's dom.json cut to the page area, or failing that its .txt (one text per line). Null for a
+ * desktop item, and for a phone item with no render text: the whole contract state is checked then.
+ * @param {object} map
+ * @param {{ id: string, width: string, state: object }} item
+ * @param {string|null|undefined} designDir
+ * @returns {string[]|null}
+ */
+export function itemDesignTexts(map, item, designDir) {
+  if (!designDir || !item || item.width === 'desktop') return null;
+  for (const file of designFileCandidates(item.state, item.width)) {
+    const base = join(designDir, file.replace(/\.png$/, ''));
+    const dom = readJson(`${base}.dom.json`);
+    if (dom && Array.isArray(dom.elements)) return designTexts(dom, cropFor(map, item.width, item.id).designLeft ?? 0);
+    if (existsSync(`${base}.txt`)) return readFileSync(`${base}.txt`, 'utf8').split('\n').map((l) => l.trim()).filter(Boolean);
+  }
+  return null;
+}
+
+/**
+ * The data entries a design render shows: an entry whose text is one of the render's texts, or
+ * inside one. `texts` null keeps every entry.
+ */
+export function entriesShown(entries, texts) {
+  if (!texts) return entries;
+  const lines = texts.map(normalise).filter(Boolean);
+  return entries.filter((e) => { const t = normalise(e.text); return Boolean(t) && lines.some((l) => l === t || l.includes(t)); });
 }
 
 /**
@@ -75,14 +110,15 @@ export function shows(e, lines, users, swaps) {
 /**
  * One item's datacheck. `rows` null means the world's rows are not known: the row rule sorts.
  * @param {{ contractState: object|null|undefined, liveLines: string[]|null, rows: object[]|null,
- *           users?: object[], now?: Date, swaps?: Record<string, string>|null }} o
+ *           users?: object[], now?: Date, swaps?: Record<string, string>|null, designTexts?: string[]|null }} o
+ *   designTexts: the item's own design render texts (a phone item); only entries it shows are checked
  * @returns {{ checked: number, faults: { text: string, why: string }[], page: { text: string, why: string }[] }}
  */
-export function checkItem({ contractState, liveLines, rows, users = [], now = new Date(), swaps = null }) {
+export function checkItem({ contractState, liveLines, rows, users = [], now = new Date(), swaps = null, designTexts: shown = null }) {
   const out = { checked: 0, faults: [], page: [] };
   if (!contractState || !liveLines) return out;
   const lines = liveLines.map(normalise).filter(Boolean);
-  const entries = (contractState.texts ?? []).filter((e) => e.label === 'data' && !entryProblem(e));
+  const entries = entriesShown((contractState.texts ?? []).filter((e) => e.label === 'data' && !entryProblem(e)), shown);
   const seen = new Map(entries.map((e) => [e, shows(e, lines, users, swaps)]));
   for (const e of entries) {
     out.checked += 1;
@@ -118,11 +154,12 @@ export function lookupOf(r) {
 
 /**
  * Datacheck every item of a round from its saved files: the live text of each item, the worlds as
- * seeded (seeded.json), the contract and the swap list. Items with no live text are skipped.
- * @param {{ map: object, contract: object|null, shoot: object, roundDir: string, swaps?: Record<string, Record<string, string>>|null }} o
+ * seeded (seeded.json), the contract and the swap list. Items with no live text are skipped. With
+ * `designDir`, a phone item is checked only against what its phone design render shows.
+ * @param {{ map: object, contract: object|null, shoot: object, roundDir: string, swaps?: Record<string, Record<string, string>>|null, designDir?: string|null }} o
  * @returns {{ items: Record<string, ReturnType<typeof checkItem>>, faults: number, page: number, checked: number }}
  */
-export function datacheckRound({ map, contract, shoot, roundDir, swaps = null }) {
+export function datacheckRound({ map, contract, shoot, roundDir, swaps = null, designDir = null }) {
   const seeded = readJson(join(roundDir, SEEDED_FILE)) ?? {};
   const items = {};
   let faults = 0;
@@ -139,6 +176,7 @@ export function datacheckRound({ map, contract, shoot, roundDir, swaps = null })
       contractState: contract?.states?.[it.id], liveLines: readFileSync(file, 'utf8').split('\n'),
       rows: w?.rows ?? null, users: w?.users ?? (map.worlds ?? []).find((x) => x.id === world)?.users ?? [],
       now: w?.at ? new Date(w.at) : new Date(rec.clock ?? rec.at ?? Date.now()), swaps: swaps?.[world] ?? null,
+      designTexts: itemDesignTexts(map, it, designDir),
     });
     items[it.key] = r;
     faults += r.faults.length;
