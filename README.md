@@ -133,7 +133,7 @@ draw all of them.
 - Commands: `/goal <title>` names or renames the goal, `/goal-done` closes it, and
   `/goal-map-backfill [days]` imports past sessions from their transcripts.
 
-### delivery-tools `v0.24.0`
+### delivery-tools `v0.24.1`
 
 Turns a design export into one pull request built by agents. Since 0.4.0 the default is
 **picture mode**: one builder agent builds the page from the design pictures, reviewer agents
@@ -272,7 +272,9 @@ time-of-day settings relative to the shoot (`{"$minuteOfDay": "now-60"}`, or `"s
 `clock: true` state whose world writes no row to the profile's optional `testData.timeOfDayTables`;
 `shoot --prod` builds through `commands.heavy` after removing its build folder (optional
 `commands.prodServerBuild`, `picture.prodDistDir`) and keeps the build's error lines; a page that
-answers HTTP 429 is reported as rate limited, not as a click timeout. An export
+answers HTTP 429 is reported as rate limited, not as a click timeout. Since 0.24.1 datacheck
+compares a clock time by its shape with the am/pm marker folded, so a shoot in the other half of
+the day than the design no longer flags "10:16 pm" against "10:38 am". An export
 holds the whole design project; a run
 builds only the screens its sentence names. A project enables it in its own
 `.claude/settings.json` and supplies a profile and a safety file; how to install it, start a run

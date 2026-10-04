@@ -205,6 +205,12 @@ test('datacheck: a date in the design\'s format is no difference; fixed and rand
   assert.equal(none.page.length, 2, 'no rows and no row keys: every miss goes to the reviewers');
   assert.equal(dateShape('Tue 14 Oct'), dateShape('wed 3 sep'));
   assert.notEqual(dateShape('Tue 14 Oct'), dateShape('14/10/2026'));
+  assert.equal(dateShape('10:38 am'), dateShape('10:16 pm'));
+  assert.equal(dateShape('10:38 AM'), dateShape('9:05 p.m.'));
+  assert.equal(dateShape('10:38am'), dateShape('10:16 P.M.'));
+  assert.equal(dateShape('Tue 14 Oct, 10:38 am'), 'D 9 M, 9:9 A');
+  assert.notEqual(dateShape('10:38 am'), dateShape('10:38'));
+  assert.equal(dateShape('I am here'), 'i am here', 'am that is not after a number is left alone');
 });
 
 test('contextOptions carries the time zone; freezeClock leaves a Playwright without a clock alone', async () => {
