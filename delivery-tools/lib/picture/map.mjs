@@ -387,7 +387,7 @@ export function clockProblems(map, worldFiles, opts = {}) {
     for (const r of file.rows ?? []) walk(r.values ?? {}, '', r.key);
     const tables = opts.timeOfDayTables ?? [];
     if (tables.length && !(file.rows ?? []).some((r) => tables.includes(r.table))) {
-      out.push(`world ${world} writes no row to ${tables.join(' or ')}, and ${states.join(', ')} depend(s) on the time of day: without one the page falls back to the product's default hours and the picture depends on when the shoot runs. Give the world its own hours relative to the shoot: open all day {"start_minute": {"$minuteOfDay": "startOfDay"}, "end_minute": {"$minuteOfDay": "endOfDay"}}, or ended an hour ago {"start_minute": {"$minuteOfDay": "now-240"}, "end_minute": {"$minuteOfDay": "now-60"}} (use the table's own column names)`);
+      out.push(`world ${world} writes no row to ${tables.join(' or ')}, and ${states.join(', ')} depend(s) on the time of day: without one the page falls back to the product's default hours and the picture depends on when the shoot runs. Give the world its own hours relative to the shoot: open all day {"start_minute": {"$minuteOfDay": "startOfDay"}, "end_minute": {"$minuteOfDay": "endOfDay"}}, or closed right now {"start_minute": {"$minuteOfDay": "closedStart"}, "end_minute": {"$minuteOfDay": "closedEnd"}} (use the table's own column names)`);
     }
   }
   return out;
