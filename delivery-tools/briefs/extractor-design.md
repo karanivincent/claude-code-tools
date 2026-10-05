@@ -101,16 +101,23 @@ dialogs several screens open) are no screen of their own: leave them out of both
 ## Part `states`
 
 Prompt lines: `Group` (the screen group), `Prefix` (the id prefix or prefixes this group owns),
-`Screens` (the design screens the group covers) and `Candidates` (explicit candidate ids, or
-`those of these screens`).
+`Screens` (the design screens the group covers) and `Candidates`: your group's list in
+`.delivery/<f>/candidate-groups.json` (the `candidates` of the group with that `slug`), explicit
+ids, or `those of these screens`.
 
 Inputs: `.delivery/<f>/candidates.json` (every place in the design a state could come from: `id`,
 `kind`, `source` as `file:line` or a shot's name, and sometimes `detail` and `values`) and the
 snapshot.
 
-**Every candidate you are given ends mapped to a state or excluded with its own reason.** When the
-prompt says `those of these screens`, claim exactly the candidates that belong to your screens and
-leave the rest for other groups.
+**Every candidate you are given ends mapped to a state or excluded with its own reason.** Claim
+exactly the ids your prompt gives you, no more. When the prompt says `those of these screens`,
+claim exactly the candidates that belong to your screens and leave the rest for other groups.
+
+The `shared` group gets what several screens show and what could not be placed. The
+`other-screens` group gets candidates that only screens without a group read. Read each one.
+Exclude it as out of scope only when it really belongs to an out-of-scope screen. Either group may
+find a candidate that is plainly one screen's. Map it anyway, to a state with your own prefix
+whose `screen` is that screen.
 
 A candidate with `screens` shows only on those screens of the prototype. One whose screens are all
 out of scope (`intent.json`) is excluded for you: leave it alone. A candidate with no `screens`

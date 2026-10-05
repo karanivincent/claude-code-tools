@@ -133,8 +133,8 @@ function phaseNext(f, phase, v) {
       return { text: `preflight is red: ${firstMessage(v)}; fix it, then ${cli} preflight`, skill };
     }
     case 'inventory': {
-      if (!f.files.candidates) return { text: `${cli} design candidates`, skill };
-      if (!f.files.inventory) return { text: `dispatch one delivery-extractor per screen group with briefs/extractor-design.md to write docs/delivery/${f.feature}/inventory.json, then ${cli} design render`, skill };
+      if (!f.files.candidates) return { text: `${cli} design candidates --groups`, skill };
+      if (!f.files.inventory) return { text: `dispatch one delivery-extractor per group in .delivery/${f.feature}/candidate-groups.json with briefs/extractor-design.md, then assemble docs/delivery/${f.feature}/inventory.json (send what .delivery/${f.feature}/unclaimed.json lists back to its group), then ${cli} design render`, skill };
       if (green) return { text: advance(f, phase), skill };
       const inv = redPart(v, ['inventory']);
       if (inv) {

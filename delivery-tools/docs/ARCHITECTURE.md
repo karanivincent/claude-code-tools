@@ -189,7 +189,9 @@ adapters/design/              C   index (getDesignAdapter), claude-design, image
 lib/design/                   C   candidates, render (also records <ID>.components.json), static
                                    server; components.mjs: readDesignComponents, componentOrder,
                                    readExportComponents (dc-import parsing); review.mjs:
-                                   reviewExport, diffExports (delivery design review)
+                                   reviewExport, diffExports (delivery design review); groups.mjs:
+                                   candidateGroups, groupOfCandidate (design candidates --groups,
+                                   read by the inventory assembler for unclaimed.json)
 lib/components/               C   map.mjs: componentsMapPath, readComponentsMap, writeComponentsMap,
                                    validateComponentsMap, refreshDesignEntries, scanBase,
                                    libraryTargets, missingFromDesignSystem, findDesignSystemManifest;

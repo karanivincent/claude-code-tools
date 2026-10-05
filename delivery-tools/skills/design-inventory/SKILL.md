@@ -33,24 +33,28 @@ Not for deciding what to build (`coverage-plan`) or for comparing a build with i
 
 ## Steps
 
-1. **Candidates.** `delivery design candidates` writes `.delivery/<f>/candidates.json`: every set
-   target and value, prop key and enum value, dialog, shot, ternary with different visible text
-   in its branches, and one `empty` candidate per list or table. A candidate the prototype shows
-   only on some screens carries them in `screens`; the command prints how many show only on
-   out-of-scope screens. When it says `intent.json` names no design screen for an entry, add that
-   entry's `designScreens` (the values it lists) before going on.
-2. **States.** Split the **in-scope** screens into groups: one per screen (a large screen by tab),
-   plus one for chrome shared by several screens (header, menus, shared dialogs). An out-of-scope
-   screen gets no group: its candidates are excluded in step 3 without anyone reading them.
-   Dispatch one extractor (agent type `delivery-tools:delivery-extractor`) per group, all in one
-   message, in the foreground, with the `states` prompt below.
+1. **Candidates.** `delivery design candidates --groups` writes `.delivery/<f>/candidates.json`:
+   every set target and value, prop key and enum value, dialog, shot, ternary with different
+   visible text in its branches, and one `empty` candidate per list or table. A candidate the
+   prototype shows only on some screens carries them in `screens`; the command prints how many
+   show only on out-of-scope screens. When it says `intent.json` names no design screen for an
+   entry, add that entry's `designScreens` (the values it lists) and run it again.
+   `--groups` also writes `.delivery/<f>/candidate-groups.json`: one group per in-scope screen,
+   one `shared` group (header, menus, dialogs several screens open, and what cannot be placed),
+   and one `other-screens` group (what only screens without a group read). A group over `--max`
+   (default 150) is split by its screen's sections, such as tabs, panels and dialogs. Each group
+   lists its candidate ids and an id prefix. Out-of-scope candidates are in no group.
+2. **States.** Dispatch one extractor (agent type `delivery-tools:delivery-extractor`) per group in
+   `candidate-groups.json`, all in one message, in the foreground, with the `states` prompt below.
+   Each gets its group's ids, and only those. Do not regroup by hand: the file is the split.
 3. **Assemble.** `node "<plugin>/skills/design-inventory/scripts/assemble-inventory.mjs"
    --feature <f>` builds `docs/delivery/<f>/inventory.json` from the group files, and writes
    nothing while a candidate is unclaimed or claimed two ways, a state id repeats, a target is
    unknown, or an `out of scope:` exclusion names a screen `intent.json` keeps in scope. It
-   excludes, itself, every unclaimed candidate that shows only on out-of-scope screens. Send each
-   unclaimed candidate that is left, by id, to the group it belongs to (the chrome group when it
-   belongs to an out-of-scope screen, which excludes it as out of scope), and run it again.
+   excludes, itself, every unclaimed candidate that shows only on out-of-scope screens. It writes
+   what is left unclaimed to `.delivery/<f>/unclaimed.json`, each id with its suggested group.
+   Send each group its ids from that file (`byGroup`), with the `states` prompt and those ids as
+   `Candidates`, and run the assembler again. Repeat until `unclaimed.json` is empty.
 4. **Render.** `delivery design render`, through the profile's heavy wrapper (it launches a
    browser). It serves the snapshot itself and writes `<ID>.png`, `<ID>.txt` and `<ID>.dom.json`
    under `.delivery/<f>/design/`; a picture-only state gets its picture. When a state fails to
@@ -72,9 +76,10 @@ Exactly these lines, filled in:
 ```
 Read <plugin>/briefs/extractor-design.md and follow it.
 Part: states
-Group: <group name>   Prefix: <one to six capitals, unique to this group>
-Screens: <the design screens this group covers>
-Candidates: <explicit ids, or "those of these screens">
+Group: <the group's "group">   Prefix: <the group's "prefix">
+Screens: <the group's "screens", or "shared parts" for shared and other-screens>
+Candidates: the ids under "<group-slug>" in .delivery/<slug>/candidate-groups.json
+            (on a resend: <the explicit ids from unclaimed.json>)
 Feature: <slug>
 Write: .delivery/<slug>/extract/<group-slug>.json
 ```

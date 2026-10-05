@@ -3,7 +3,9 @@
 // extractors' group files (.delivery/<feature>/extract/*.json). It writes nothing, and exits 1
 // with one FAIL line per problem, when a candidate is claimed by no group or claimed two different
 // ways, a state id repeats, a mapping or a control target names an unknown state, or the result
-// fails the inventory schema. Run it from the repository root, like the delivery CLI.
+// fails the inventory schema. Every run but --check also writes .delivery/<feature>/unclaimed.json:
+// the candidates no group claimed, each with the group candidate-groups.json suggests, so they can
+// be sent back to the right extractor. Run it from the repository root, like the delivery CLI.
 
 import { readFile, readdir } from 'node:fs/promises';
 import { existsSync, realpathSync } from 'node:fs';
@@ -13,11 +15,14 @@ import { validateAgainst } from '../../../lib/core/schema.mjs';
 import { canonicalJson } from '../../../lib/core/hash.mjs';
 import { writeJsonAtomic } from '../../../lib/core/fs.mjs';
 import { OUT_OF_SCOPE, scopeScreens, outOfScopeReason, checkOutOfScopeClaim } from '../../../lib/design/scope.mjs';
+import { groupOfCandidate, SHARED } from '../../../lib/design/groups.mjs';
 
 const USAGE = `usage: node <plugin>/skills/design-inventory/scripts/assemble-inventory.mjs --feature <slug> [--check] [--json]
 
 Build docs/delivery/<feature>/inventory.json from .delivery/<feature>/candidates.json and every
-group file in .delivery/<feature>/extract/. Nothing is written while any problem stands.
+group file in .delivery/<feature>/extract/. Nothing is written while any problem stands, except
+.delivery/<feature>/unclaimed.json: the unclaimed candidates, each with its suggested group from
+.delivery/<feature>/candidate-groups.json (design candidates --groups).
 
 options:
   --feature <slug>   the run (required)
@@ -41,6 +46,7 @@ const SHARED_REASON_NOTE_AT = 5;
  * whole screen left out is exactly one reason.
  * @param {{ feature: string, candidates: object, parts: { file: string, doc: object }[], previous?: object|null, intent?: object|null }} input
  * @returns {{ inventory: object|null, failures: { code: string, message: string }[], notes: string[],
+ *   unclaimed: { id: string, kind: string, source: string }[],
  *   counts: { candidates: number, mapped: number, excluded: number, outOfScope: number, states: number },
  *   diff: { added: string[], removed: string[], changed: string[] } | null }}
  */
@@ -86,6 +92,7 @@ export function assembleInventory({ feature, candidates, parts, previous = null,
   }
 
   const outCandidates = [];
+  const unclaimed = [];
   let mapped = 0, excludedCount = 0, outOfScope = 0;
   const reasonUse = new Map();
   for (const c of candidates.candidates ?? []) {
@@ -100,6 +107,7 @@ export function assembleInventory({ feature, candidates, parts, previous = null,
         continue;
       }
       fail('unclaimed', `${c.id} (${c.kind}, ${c.source}) is neither mapped nor excluded by any group`);
+      unclaimed.push({ id: c.id, kind: c.kind, source: c.source });
       continue;
     }
     if (distinct.length > 1) {
@@ -155,6 +163,7 @@ export function assembleInventory({ feature, candidates, parts, previous = null,
     inventory: failures.length === 0 ? inventory : null,
     failures,
     notes,
+    unclaimed,
     counts: { candidates: (candidates.candidates ?? []).length, mapped, excluded: excludedCount, outOfScope, states: states.length },
     diff,
   };
@@ -176,6 +185,21 @@ function parseArgs(argv) {
 
 async function readJsonFile(path) {
   return JSON.parse(await readFile(path, 'utf8'));
+}
+
+/**
+ * The unclaimed list as written to unclaimed.json (pure): each candidate with the group
+ * candidate-groups.json put it in (the shared group when it is in none), and the ids by group.
+ * @param {string} feature
+ * @param {{ id: string, kind: string, source: string }[]} unclaimed
+ * @param {object | null} groupsDoc candidate-groups.json, or null when there is none
+ */
+export function unclaimedDoc(feature, unclaimed, groupsDoc) {
+  const of = groupOfCandidate(groupsDoc);
+  const items = unclaimed.map((c) => ({ ...c, suggestedGroup: groupsDoc ? (of.get(c.id) ?? SHARED) : null }));
+  const byGroup = {};
+  for (const c of items) (byGroup[c.suggestedGroup ?? 'none'] ??= []).push(c.id);
+  return { schemaVersion: 1, feature, unclaimed: items, byGroup };
 }
 
 /**
@@ -241,16 +265,28 @@ export async function main(argv, io = {}) {
   const all = [...failures, ...res.failures];
   const ok = all.length === 0;
   if (ok && !opts.check) await writeJsonAtomic(inventoryPath, res.inventory);
+  // The work list for the next dispatch: every unclaimed candidate and the group it belongs to.
+  // Written (empty, too) on every run but --check, so an old list never outlives its problems.
+  const groupsPath = join(runDir, 'candidate-groups.json');
+  let groupsDoc = null;
+  if (existsSync(groupsPath)) { try { groupsDoc = await readJsonFile(groupsPath); } catch { groupsDoc = null; } }
+  const unclaimedPath = join(runDir, 'unclaimed.json');
+  const unclaimed = unclaimedDoc(opts.feature, res.unclaimed, groupsDoc);
+  if (!opts.check) await writeJsonAtomic(unclaimedPath, unclaimed);
 
   const summary = `${ok ? (opts.check ? 'would write' : 'wrote') : 'not written'} ${inventoryPath}: ` +
     `${res.counts.candidates} candidates (${res.counts.mapped} mapped, ${res.counts.excluded} excluded` +
     `${res.counts.outOfScope ? `, ${res.counts.outOfScope} of them on out-of-scope screens` : ''}), ${res.counts.states} states`;
   if (opts.json) {
-    print(JSON.stringify({ ok, exit: ok ? 0 : 1, failures: all, lines: [summary, ...res.notes], data: { counts: res.counts, diff: res.diff, path: inventoryPath } }));
+    print(JSON.stringify({ ok, exit: ok ? 0 : 1, failures: all, lines: [summary, ...res.notes], data: { counts: res.counts, diff: res.diff, path: inventoryPath, unclaimed: unclaimed.byGroup, unclaimedPath: opts.check ? null : unclaimedPath } }));
   } else {
     for (const f of all) print(`FAIL ${f.code} ${f.message}`);
     print(summary);
     for (const n of res.notes) print(`NOTE ${n}`);
+    if (res.unclaimed.length) {
+      const by = Object.entries(unclaimed.byGroup).map(([g, ids]) => `${g} ${ids.length}`).join(', ');
+      print(`UNCLAIMED ${res.unclaimed.length} (by group: ${by})${opts.check ? '' : `; listed in ${unclaimedPath}`}`);
+    }
     if (res.diff) {
       for (const k of ['added', 'removed', 'changed']) if (res.diff[k].length) print(`${k.toUpperCase()} ${res.diff[k].join(' ')}`);
     }

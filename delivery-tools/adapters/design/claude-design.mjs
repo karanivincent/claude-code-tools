@@ -119,13 +119,15 @@ const adapter = {
     return { copy, zip };
   },
 
+  // opts.hints: a Map to fill with each candidate's suggested screens and sections, for
+  // `design candidates --groups` (claudeDesignCandidates).
   async candidates(snapshotDir, opts = {}) {
     const dc = await findDcFile(snapshotDir, { page: opts.page ?? null });
     if (dc.error) throw new Error(dc.error);
     const text = await readFile(join(snapshotDir, dc.file), 'utf8');
     const shotsDir = join(snapshotDir, 'shots');
     const shots = (await isDir(shotsDir)) ? (await readdir(shotsDir)).filter((n) => IMAGE.test(n)).sort() : [];
-    return claudeDesignCandidates({ file: dc.file, text, shots });
+    return claudeDesignCandidates({ file: dc.file, text, shots, hints: opts.hints ?? null });
   },
 
   async screens(snapshotDir, opts = {}) {
@@ -166,19 +168,35 @@ export function claudeDesignScreens(text) {
  * Candidates from a .dc.html's text and its shot file names (pure). A candidate carries `screens`
  * when every place it comes from provably shows on those screens only (lib/design/screens.mjs);
  * one that could show anywhere else carries none.
- * @param {{ file: string, text: string, shots?: string[] }} input
+ * @param {{ file: string, text: string, shots?: string[], hints?: Map<string, { screens: string[], lines: number[], sections: object[] }>|null }} input
+ *   hints: when given, filled with each candidate's suggested screens, the template lines whose
+ *   markup shows it, and the <sc-if> sections those lines sit in (screenMap's suggest), for
+ *   grouping candidates (lib/design/groups.mjs); never used to exclude one
  * @returns {{ id: string, kind: string, source: string, detail?: string, values?: string[], screens?: string[] }[]}
  */
-export function claudeDesignCandidates({ file, text, shots = [] }) {
+export function claudeDesignCandidates({ file, text, shots = [], hints = null }) {
   const parts = splitDcHtml(text);
   const out = [];
   const ids = new Map();
+  let suggestion = null; // set before each add() that has one, when hints are wanted
   const add = (c, screens = null) => {
     const n = (ids.get(c.id) ?? 0) + 1;
     ids.set(c.id, n);
     const tagged = screens?.length ? { ...c, screens } : c;
-    out.push(n === 1 ? tagged : { ...tagged, id: `${c.id}.${n}` });
+    const id = n === 1 ? c.id : `${c.id}.${n}`;
+    out.push(n === 1 ? tagged : { ...tagged, id });
+    if (hints) {
+      const s = suggestion ?? { screens: [], lines: [] };
+      const sections = [];
+      for (const l of s.lines) {
+        const sec = map.section(l);
+        if (sec && !sections.some((x) => x.line === sec.line)) sections.push({ ...sec, screens: map.looseTemplateLine(l) ?? [] });
+      }
+      hints.set(id, { screens: s.screens, lines: s.lines, sections });
+    }
+    suggestion = null;
   };
+  const suggest = (fn) => { if (hints) suggestion = fn(); };
   const toks = parts.script ? tokenize(parts.script.text, { line: parts.script.line }) : [];
   const writes = parts.script ? stateWrites(toks, parts.script.text) : [];
   const screen = screenKey(writes);
@@ -198,6 +216,7 @@ export function claudeDesignCandidates({ file, text, shots = [] }) {
     const presets = presetTables(toks);
     for (const p of propValues(parts.props.value, { presets })) {
       if (p.preset) {
+        suggest(() => map.suggest.read(p.key));
         add({
           id: `preset:${idPart(p.key)}:${idPart(show(p.value))}`,
           kind: 'preset',
@@ -207,6 +226,7 @@ export function claudeDesignCandidates({ file, text, shots = [] }) {
         });
         continue;
       }
+      suggest(() => map.suggest.read(p.key));
       add({
         id: `prop:${idPart(p.key)}:${idPart(show(p.value))}`,
         kind: 'prop-value',
@@ -243,6 +263,23 @@ export function claudeDesignCandidates({ file, text, shots = [] }) {
       const screens = screen && t.key === screen.key
         ? (!t.computed && typeof t.value === 'string' ? [t.value] : null)
         : unionOf([...t.writes.map(writeScreens), map.readScreens(t.key)]);
+      // Suggested: where the value is read and the screens its writes switch to; failing both
+      // (read only by shared markup, say a dialog), where the writes run: the screen it opens from.
+      suggest(() => {
+        if (screen && t.key === screen.key) return { screens: screens ?? [], lines: [] };
+        const live = t.writes.filter((w) => !w.initial);
+        const to = live.flatMap((w) => {
+          const e = screen && w.entries.find((x) => x.key === screen.key);
+          return e && !e.computed ? e.literals.filter((v) => typeof v === 'string') : [];
+        });
+        const read = map.suggest.read(t.key);
+        const at = map.suggest.offsets(live.map((w) => w.at));
+        const near = [...to, ...read.screens];
+        return {
+          screens: [...new Set(near.length ? near : at.screens)].sort(),
+          lines: [...new Set([...read.lines, ...at.lines])].sort((x, y) => x - y),
+        };
+      });
       add({
         id: `${dialog ? 'dialog' : 'set'}:${idPart(t.key)}:${t.computed ? 'computed' : idPart(show(t.value))}`,
         kind: dialog ? 'dialog' : 'set-target',
@@ -257,6 +294,7 @@ export function claudeDesignCandidates({ file, text, shots = [] }) {
     for (const tern of textTernaries(toks, parts.script.text)) {
       const n = (perLine.get(tern.line) ?? 0) + 1;
       perLine.set(tern.line, n);
+      suggest(() => map.suggest.offsets([tern.at]));
       add({
         id: `ternary:${tern.line}${n > 1 ? `.${n}` : ''}`,
         kind: 'ternary',
@@ -271,6 +309,7 @@ export function claudeDesignCandidates({ file, text, shots = [] }) {
   if (parts.template) {
     const uses = new Map();
     for (const l of templateLists(parts.template.text, parts.template.line, { uses })) {
+      suggest(() => map.suggest.lines(uses.get(l.expr) ?? [l.line]));
       add({ id: `list:${idPart(l.expr)}`, kind: 'list', source: `${file}:${l.line}`, detail: `${l.expr}: the list with no items`, values: ['empty'] },
         unionOf((uses.get(l.expr) ?? [l.line]).map(map.templateLine)));
     }
