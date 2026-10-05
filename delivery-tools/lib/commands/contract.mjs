@@ -8,7 +8,7 @@ import { parseCommandArgs } from '../core/args.mjs';
 import { EXIT, UsageError } from '../core/exit.mjs';
 import { writeJsonAtomic } from '../core/fs.mjs';
 import { readMap } from '../picture/map.mjs';
-import { DECISIONS, contractPath, contractSummary, decideNone, labelsPath, readContract, rebuildContractFile } from '../picture/contract.mjs';
+import { DECISIONS, contractPath, contractSummary, contractTodoPath, decideNone, readContract, rebuildContractFile } from '../picture/contract.mjs';
 import { worldsGuardsToApprove } from '../picture/next.mjs';
 import { listRounds, roundDir } from '../picture/rounds.mjs';
 
@@ -27,8 +27,12 @@ Picture mode. Reads every state's design render (<ID>.dom.json, and <ID>@phone.d
 width), takes each text it shows in the page area, and writes docs/delivery/<feature>/contract.json:
 per state, every text with its label. The texts come from the render's DOM, never from a model.
 
-Labels come from the labeller (a delivery-extractor, Role: contract, briefs/contract-labeller.md),
-which writes docs/delivery/<feature>/contract-labels.json: "data" (a value the seeded world must
+Labels come from the labeller (a delivery-extractor, Role: contract, briefs/contract-labeller.md).
+It has no shell, so it writes batch files, docs/delivery/<feature>/contract-labels-<n>.json, and
+this command folds in contract-labels.json and every batch file, a later file winning. A label may
+be keyed by its text alone ("texts": { "<text>": { ... } }), for every state that shows it; a
+state's own entry still wins. This command writes .delivery/<feature>/contract-todo.json: each text
+still to label or fix, with its states, and the batch file to write next. Labels: "data" (a value the seeded world must
 hold, with the table and column, a count, a date or time, or a fixture user's name), "fixed" (the
 page's own words) or "random" (an id or an avatar; masked, never seeded). This command folds that
 file in. A text keeps its label across rebuilds, a text labelled fixed in one state is fixed in
@@ -73,8 +77,9 @@ common options:
     for (const x of s.invalid) ctx.out.fail('contract-label', `${x.state} "${x.text}": ${x.why}`);
     if (s.unlabelled.length) {
       const states = [...new Set(s.unlabelled.map((u) => u.state))];
-      ctx.out.fail('contract-unlabelled', `${s.unlabelled.length} text(s) in ${states.length} state(s) to label (${states.slice(0, 8).join(', ')}${states.length > 8 ? ', ...' : ''}): dispatch the labeller (Role: contract, briefs/contract-labeller.md, Write: ${rel(labelsPath(paths))}), then run this again`);
+      ctx.out.fail('contract-unlabelled', `${s.unlabelled.length} text(s) in ${states.length} state(s) to label (${states.slice(0, 8).join(', ')}${states.length > 8 ? ', ...' : ''}): dispatch the labeller (Role: contract, briefs/contract-labeller.md, Todo: ${rel(contractTodoPath(paths))}), then run this again`);
     }
+    if (s.unlabelled.length || s.invalid.length) ctx.out.line(`todo: ${rel(contractTodoPath(paths))} lists each text to label or fix, with its states, and the file the labeller writes next (${JSON.parse(readFileSync(contractTodoPath(paths), 'utf8')).write})`);
     // R12: a random value is masked by test id in the map, or it differs in every picture.
     const masked = new Set((map.states ?? []).filter((st) => st.mask?.length).map((st) => st.id));
     for (const [id, st] of Object.entries(r.contract.states)) {

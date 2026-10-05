@@ -384,7 +384,7 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   if (f.rulesProblem) return { step: 'rules', skill, text: `fix rules.json (${f.ruleProblemCount} problem(s); first: ${f.rulesProblem}), then ${cli} rules and ${cli} map` };
   if (f.checklistStale) return { step: 'map', skill, text: `${cli} map (the checklist is older than map.json)` };
   if (f.contractMissing) return { step: 'contract', skill, text: `${cli} contract: the data contract, every text each design state shows, taken from the design renders` };
-  if (f.contractTodo) return { step: 'contract', skill, text: `dispatch delivery-tools:delivery-extractor with Role: contract and briefs/contract-labeller.md (${f.contractTodo} text(s) to label or fix), then ${cli} contract` };
+  if (f.contractTodo) return { step: 'contract', skill, text: `dispatch delivery-tools:delivery-extractor with Role: contract and briefs/contract-labeller.md (${f.contractTodo} text(s) to label or fix, listed in .delivery/<f>/contract-todo.json with the batch file to write), then ${cli} contract` };
   // D6 (and A2): one list for the founder, sent once, before the build: the values the product does
   // not store, and the guards the worlds need. The run goes on while the founder answers; ready
   // stays red until every value is decided.

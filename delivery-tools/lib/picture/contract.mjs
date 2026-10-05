@@ -34,7 +34,7 @@
 // "design" (back to Claude Design). A decided one is closed; an undecided one keeps ready red.
 // Everything here is pure except the two file readers.
 
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { cropFor, designFileCandidates, mapItems } from './widths.mjs';
 import { matchesWhere } from '../seed/data.mjs';
@@ -52,6 +52,52 @@ export const SHAPES = Object.freeze(['text', 'number']);
 export function contractPath(paths) { return join(paths.deliveryDir, 'contract.json'); }
 /** docs/delivery/<feature>/contract-labels.json: the labeller's output, folded in by `delivery contract`. */
 export function labelsPath(paths) { return join(paths.deliveryDir, 'contract-labels.json'); }
+/** .delivery/<feature>/contract-todo.json: the texts still to label or fix, for the labeller. */
+export function contractTodoPath(paths) { return join(paths.runDir, 'contract-todo.json'); }
+
+const LABEL_FILE = /^contract-labels(?:-(\d+))?\.json$/;
+
+/**
+ * B6: every labeller file in the run's folder, in the order they are folded in:
+ * contract-labels.json first, then contract-labels-<n>.json by n. A later file wins.
+ * @returns {{ name: string, n: number }[]}
+ */
+export function labelFiles(paths) {
+  if (!existsSync(paths.deliveryDir)) return [];
+  return readdirSync(paths.deliveryDir)
+    .map((name) => { const m = LABEL_FILE.exec(name); return m ? { name, n: m[1] === undefined ? 0 : Number(m[1]) } : null; })
+    .filter(Boolean)
+    .sort((a, b) => a.n - b.n);
+}
+
+/** The name of the next batch file the labeller writes: contract-labels-<n>.json. */
+export function nextLabelFile(paths) {
+  const n = Math.max(0, ...labelFiles(paths).map((f) => f.n)) + 1;
+  return `contract-labels-${n}.json`;
+}
+
+/**
+ * Fold labeller files into one: per state, an entry for the same text in a later file replaces the
+ * earlier one; `texts` (labels keyed by text alone) and `inconsistent` merge key by key, later wins.
+ * @param {object[]} docs in order
+ */
+export function mergeLabels(docs) {
+  const states = {};
+  const texts = {};
+  const inconsistent = {};
+  for (const d of docs) {
+    if (!d || typeof d !== 'object') continue;
+    for (const [id, v] of Object.entries(d.states ?? {})) {
+      const list = Array.isArray(v) ? v : (v?.texts ?? []);
+      const by = new Map((states[id] ?? []).map((e) => [collapse(e.text), e]));
+      for (const e of list) if (e && typeof e.text === 'string') by.set(collapse(e.text), e);
+      states[id] = [...by.values()];
+    }
+    for (const [t, e] of Object.entries(d.texts ?? {})) if (e && typeof e === 'object') texts[collapse(t)] = e;
+    Object.assign(inconsistent, d.inconsistent ?? {});
+  }
+  return { schemaVersion: 1, states, texts, inconsistent };
+}
 
 function readJson(path) {
   if (!existsSync(path)) return null;
@@ -60,8 +106,17 @@ function readJson(path) {
 
 /** The run's contract.json, or null when there is none yet. Throws on a file that does not parse. */
 export function readContract(paths) { return readJson(contractPath(paths)); }
-/** The labeller's contract-labels.json, or null. */
-export function readLabels(paths) { return readJson(labelsPath(paths)); }
+/**
+ * The labeller's files merged (contract-labels.json, then every contract-labels-<n>.json; later
+ * wins), or null when there is none. Throws on a file that does not parse, naming it.
+ */
+export function readLabels(paths) {
+  const files = labelFiles(paths);
+  if (!files.length) return null;
+  return mergeLabels(files.map((f) => {
+    try { return readJson(join(paths.deliveryDir, f.name)); } catch (err) { throw new Error(`${f.name} does not parse: ${err.message}`); }
+  }));
+}
 
 const collapse = (t) => String(t ?? '').replace(/\s+/g, ' ').trim();
 
@@ -110,7 +165,8 @@ export function stateTexts(map, designDir) {
 
 /**
  * Build the contract from the states' texts (R11: rebuilt on every new export). A text keeps the
- * label it had; the labeller's file wins over the old contract; a text labelled "fixed" in any state
+ * label it had; the labeller's files win over the old contract (a state's own entry first, then a
+ * label keyed by the text alone, `labels.texts`); a text labelled "fixed" in any state
  * is fixed wherever else it appears ("Save" is labelled once). A new text is unlabelled (null). A
  * state's inconsistency note is kept only while its texts are unchanged: a new export may be the fix.
  * @param {{ texts: Map<string, string[]>, previous?: object|null, labels?: object|null, at: string }} o
@@ -119,6 +175,8 @@ export function stateTexts(map, designDir) {
 export function buildContract({ texts, previous = null, labels = null, at }) {
   const prevStates = previous?.states ?? {};
   const given = labels?.states ?? {};
+  // B6: labels keyed by text alone apply to every state that shows the text.
+  const byText = new Map(Object.entries(labels?.texts ?? {}).filter(([, e]) => e && typeof e === 'object').map(([t, e]) => [collapse(t), e]));
   const fixed = new Set();
   for (const src of [prevStates, given]) {
     for (const s of Object.values(src)) for (const e of (Array.isArray(s) ? s : s?.texts) ?? []) if (e?.label === 'fixed') fixed.add(e.text);
@@ -133,7 +191,8 @@ export function buildContract({ texts, previous = null, labels = null, at }) {
     const givenList = Array.isArray(given[id]) ? given[id] : (given[id]?.texts ?? []);
     const givenBy = new Map(givenList.filter((e) => e && typeof e.text === 'string').map((e) => [collapse(e.text), e]));
     const entries = list.map((text) => {
-      const e = givenBy.get(text) ?? prevBy.get(text);
+      const shared = byText.get(text);
+      const e = givenBy.get(text) ?? (shared ? { ...shared, text } : undefined) ?? prevBy.get(text);
       // The founder's decision on a "none" value is recorded in the contract itself; a labeller's
       // file written before it must not wipe it.
       const kept = prevBy.get(text);
@@ -369,8 +428,9 @@ export function contractGaps(contract, map, seedPlan, now = new Date(), swaps = 
 }
 
 /**
- * Rebuild contract.json from the run's design renders, folding in contract-labels.json, and write
- * it. Returns null when the run has no map yet (nothing to key texts by).
+ * Rebuild contract.json from the run's design renders, folding in every labeller file
+ * (contract-labels.json and contract-labels-<n>.json), and write it. Returns null when the run has
+ * no map yet (nothing to key texts by).
  * @param {import('../core/paths.mjs').FeaturePaths} paths
  * @param {object|null} map
  * @param {string} at
@@ -380,7 +440,30 @@ export async function rebuildContractFile(paths, map, at) {
   const { writeJsonAtomic } = await import('../core/fs.mjs');
   const built = buildContract({ texts: stateTexts(map, paths.designRenders), previous: readContract(paths), labels: readLabels(paths), at });
   await writeJsonAtomic(contractPath(paths), built.contract);
-  return { ...built, summary: contractSummary(built.contract) };
+  const summary = contractSummary(built.contract);
+  await writeJsonAtomic(contractTodoPath(paths), contractTodo(summary, nextLabelFile(paths), at));
+  return { ...built, summary };
+}
+
+/**
+ * B6: what the labeller still has to do, grouped by text: each unlabelled text with the states that
+ * show it, and each label that cannot be checked with why. `write` names the batch file to write,
+ * so no labeller ever rewrites an earlier one.
+ * @param {ReturnType<typeof contractSummary>} summary
+ * @param {string} write
+ * @param {string} at
+ */
+export function contractTodo(summary, write, at) {
+  const group = (list, why) => {
+    const by = new Map();
+    for (const x of list) {
+      const k = `${x.text}\0${why ? x.why : ''}`;
+      if (!by.has(k)) by.set(k, { text: x.text, states: [], ...(why ? { why: x.why } : {}) });
+      by.get(k).states.push(x.state);
+    }
+    return [...by.values()];
+  };
+  return { schemaVersion: 1, at, write, unlabelled: group(summary.unlabelled, false), invalid: group(summary.invalid, true) };
 }
 
 const MONTHS = /\b(jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|june?|july?|aug(ust)?|sept?(ember)?|oct(ober)?|nov(ember)?|dec(ember)?)\b/g;
