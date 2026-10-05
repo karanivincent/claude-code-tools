@@ -805,7 +805,7 @@ async function recordPictureFacts(browser, o, report, liveFacts, seeded = new Ma
         const r = checkItem({
           contractState: o.contract.states?.[it.id], liveLines: lFacts.text,
           rows: world?.rows ?? null, users: world?.users ?? [], now: world?.at ?? new Date(), swaps: o.swaps?.[it.state.reach?.world] ?? null,
-          designTexts: itemDesignTexts(o.map, it, o.designDir),
+          designTexts: itemDesignTexts(o.map, it, o.designDir), intercept: it.state.reach?.intercept ?? null,
         });
         const lookup = lookupOf(r);
         if (lookup) rec.lookup = lookup;

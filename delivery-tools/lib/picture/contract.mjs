@@ -310,10 +310,34 @@ export function holds(e, rows, users, now, swaps = null) {
 }
 
 /**
+ * B2: whether a state's intercept answers one data entry: the value (or the value seed --from-trace
+ * swapped in for it) appears in the intercept's body. A state whose data no fixture may hold gets
+ * it this way, so the value is held, not a gap. A fixture user's name never comes from a body.
+ * @param {object} e a data entry
+ * @param {{ body?: unknown }|null|undefined} intercept the state's reach.intercept
+ * @param {Record<string, string>|null} [swaps]
+ */
+export function interceptHolds(e, intercept, swaps = null) {
+  if (!intercept || e?.user !== undefined || intercept.body === undefined || intercept.body === null) return false;
+  let body = intercept.body;
+  if (typeof body === 'string') { try { body = JSON.parse(body); } catch { /* plain text */ } }
+  const leaves = [];
+  const walk = (v) => {
+    if (v === null || v === undefined) return;
+    if (Array.isArray(v)) v.forEach(walk);
+    else if (typeof v === 'object') Object.values(v).forEach(walk);
+    else leaves.push(normalise(v));
+  };
+  walk(body);
+  const want = [...new Set([e.value ?? e.text, swapped(e.value ?? e.text, swaps)].map(normalise).filter(Boolean))];
+  return want.some((w) => leaves.some((l) => l === w || l.includes(w)));
+}
+
+/**
  * Fix 2: each contract data value the seed plan's worlds do not hold, before anything is written.
  * Unlabelled texts and entries that cannot be checked are problems too: a value nobody sorted is a
  * value nobody seeded. A state the labeller found inconsistent is skipped (it is the design's to
- * fix), and so is a state the map no longer has.
+ * fix), and so is a state the map no longer has. A value the state's intercept body holds is held.
  * @param {object} contract
  * @param {object} map
  * @param {{ rows: object[], users: object[] }} seedPlan
@@ -338,7 +362,7 @@ export function contractGaps(contract, map, seedPlan, now = new Date(), swaps = 
       if (problem) { gaps.push({ state: id, text: e.text, why: problem }); continue; }
       const world = e.world ?? state.reach?.world;
       const r = holds(e, resolved.filter((x) => x.world === world), (seedPlan?.users ?? []).filter((u) => u.world === world), now, swaps?.[world] ?? null);
-      if (!r.ok) gaps.push({ state: id, text: e.text, why: `${r.why} (world ${world})` });
+      if (!r.ok && !interceptHolds(e, state.reach?.intercept, swaps?.[world] ?? null)) gaps.push({ state: id, text: e.text, why: `${r.why} (world ${world})` });
     }
   }
   return { gaps, unlabelled, skipped };
