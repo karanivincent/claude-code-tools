@@ -22,8 +22,8 @@ import { hasPhone, roundFiles } from '../picture/widths.mjs';
 import { changedSince, unchangedItems } from '../picture/changed.mjs';
 import { latestVerdicts } from '../picture/next.mjs';
 import { probeServer } from '../picture/smoke.mjs';
-import { shootProdServer } from '../picture/prod-server.mjs';
-import { ensureServer } from '../picture/serve.mjs';
+import { prodEnvWarning, shootProdServer } from '../picture/prod-server.mjs';
+import { ensureServer, leadingAssignments } from '../picture/serve.mjs';
 import { wrapHeavy } from '../core/profile.mjs';
 import { freePort } from '../capture/run.mjs';
 import { tunable } from '../retro/tunables.mjs';
@@ -88,7 +88,10 @@ options:
                      command names); commands.prodServerBuild, when set, builds on its own first and
                      prodServer only serves. A dev server compiles each route on its first visit; a
                      production build answers at once. A build that fails stops the shoot with its
-                     error lines and last lines, and no round is used.
+                     error lines and last lines, and no round is used. The build and the server run
+                     with NODE_ENV=production and the profile's commands.serverEnv; without
+                     serverEnv, a VAR=value the dev server command sets and prodServer lacks is
+                     named in one warning.
   --round <n|work>   where the pictures go: a numbered round (default: the next one) or "work",
                      a builder's own looking, which never counts as a round
   <ITEM>             take only these: <ID> is the state at every width, <ID>@phone or
@@ -185,6 +188,8 @@ common options:
     let prod = null;
     if (values.prod) {
       if (!profile.commands?.prodServer) throw new UsageError('--prod needs the profile\'s commands.prodServer: a command that builds and serves a production build on {port} without touching the dev server\'s build folder');
+      const envWarning = prodEnvWarning(profile, leadingAssignments);
+      if (envWarning) ctx.out.warn(envWarning);
       ctx.out.line('building and starting a production server (commands.prodServer) for the shoot');
       const r = await withShootSlot(ctx, async () => shootProdServer({
         profile, repoRoot: ctx.repoRoot, port: await freePort(), timeoutMs: tunable('capture.prodBuildTimeoutMs'),

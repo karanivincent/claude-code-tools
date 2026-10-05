@@ -8,6 +8,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { exists } from '../core/fs.mjs';
 import { validateAgainst } from '../core/schema.mjs';
+import { leadingAssignments } from '../picture/serve.mjs';
 
 export const FILL = (what) => `<fill in: ${what}>`;
 /** The slug placeholder: it must still match the owner/name pattern for the draft to validate. */
@@ -68,6 +69,10 @@ export function draftProfile({ packageJson, claudeMd, lockfiles, files, remoteUr
   const ledger = nodeScript(find(cmds, /ledger/i));
   const flight = find(cmds, /\bflight\b/);
   const tried = find(cmds, /\btried\b/)?.replace(/\s+<[^>]+>.*$/, '');
+  const devServer = scripts.dev ? `${run} dev -- --port {port}` : FILL('the dev server on {port}');
+  // A2: the variables the dev server gives itself (`VERCEL_ENV=development next dev`), so the run's
+  // served dev server and the shoot's production server get them too.
+  const serverEnv = { ...leadingAssignments(scripts.dev), ...leadingAssignments(devServer) };
 
   // A workspace has one package.json per package, and `npx <runner>` at the root resolves the
   // ROOT's copy of that runner. One consuming repo pinned vitest ^1.2.0 at the root and ^2.1.8 in
@@ -94,7 +99,8 @@ export function draftProfile({ packageJson, claudeMd, lockfiles, files, remoteUr
       unitCheck: !scripts.typecheck || workspace
         ? FILL(`typecheck, lint and the unit tests for {spec}${workspace ? ', run by the workspace package that owns {spec} and with its own test runner, not the root\'s' : ''}`)
         : `${run} typecheck && ${run} lint && npx vitest run {spec}`,
-      devServer: scripts.dev ? `${run} dev -- --port {port}` : FILL('the dev server on {port}'),
+      devServer,
+      ...(Object.keys(serverEnv).length ? { serverEnv } : {}),
       prodBuild: scripts.build ? `${run} build` : FILL('the production build'),
       prodStart: scripts.start ? `${run} start -- -p {port}` : FILL('the production server on {port}'),
       e2e: scripts.e2e ? `${run} e2e {spec}` : FILL('the e2e runner for {spec}'),
