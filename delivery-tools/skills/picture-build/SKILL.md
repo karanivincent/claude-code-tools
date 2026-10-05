@@ -13,6 +13,10 @@ page matches. Agents do that.
 `delivery <command>` means `node scripts/delivery.mjs <command>` (the repo's shim). `<plugin>` is
 this plugin's root, two directories above this skill.
 
+Run every delivery command bare, from the worktree root. No `cd … &&` in front, no `VAR=value`
+prefix, no `$(…)`. Those shapes make the harness ask for permission every time
+(`docs/OPERATING.md`, Permission prompts).
+
 ## Widths
 
 A map checks the widths it declares: `"widths": ["desktop", "phone"]` (desktop 1440 x 900, phone

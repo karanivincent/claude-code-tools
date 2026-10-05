@@ -23,6 +23,25 @@ The project also needs its own profile, `.claude/delivery-profile.json`, and saf
 file is written by the project's owner, because it names the numbers and identities no agent may
 invent. The project's `scripts/delivery.mjs` shim finds the installed plugin.
 
+### Permission prompts
+
+A run calls the CLI hundreds of times. Approve it once, in the project's `.claude/settings.json`:
+
+```json
+{ "permissions": { "allow": ["Bash(node scripts/delivery.mjs:*)"] } }
+```
+
+A broader `"Bash(node scripts/:*)"` covers it too. The rule matches the start of the command, so
+the harness still asks when the command has another shape. Three shapes do that:
+
+- a `cd … &&` in front of it;
+- an env prefix such as `VAR=value` in front of it;
+- a `$(…)` (or backticks) anywhere in it.
+
+So run `node scripts/delivery.mjs <command>` bare, from the worktree root. The CLI finds the run
+itself, and reads the profile's env files itself (`environments.envFiles`). The skills and NEXT
+lines are written in that shape.
+
 ## Start a run
 
 1. Export the design from Claude Design as a **project archive (.zip)**. A standalone HTML download
