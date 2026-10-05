@@ -75,8 +75,9 @@ map, not a world row. Never add such a row yourself.
   given distinct seconds in that order (newest first); an oldest-first list needs its own times.
 - The fixture users' names are the design's: set `name` on each user in the map's `worlds[].users`
   when the design shows the signed-in person, so "Sam Kariuki" and "SK" come from the seed.
-- A `{ "$ref": "<key>" }` may name a row further down the file; that column must accept null, and
-  a join row (no `id` column) comes after the rows it names.
+- A `{ "$ref": "<key>" }` may name a row further down the file: the seed writes each row after
+  the rows it names. Only two rows that name each other need a column that accepts null (the
+  first one in the file), and a join row (no `id` column) may not be one of them.
 - A world that reads shared rows it does not own (voices, prompt layers, plan settings) lists
   them in its world file: `"globals": [ { "table": "voices" } ]`, or with `"ids"`. The seed
   records them, and the shoot warns when one changed under the pictures.

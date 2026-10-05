@@ -19,8 +19,9 @@
 // Row keys are unique within a world; the organisation row's key is "org". A row may not set its
 // own id. References across worlds are refused: a world is its own organisation.
 //
-// Rows are written in file order, the organisation first. A $ref to a row written later (a forward
-// reference) cannot be written with its row: the row it names is not there yet, and a plain
+// Rows are written the organisation first, then in file order, except that a row comes after the
+// rows its $refs name (B4: a dependency order, dependencyOrder). A $ref to a row written later (a
+// forward reference) then exists only in a cycle: the row it names is not there yet, and a plain
 // foreign key refuses the insert. Two tables that name each other (a script's live version, a
 // version's script) need one, whichever comes first. So the column is planned as null and the
 // value kept in the row's `deferred`; seed --apply writes every row, then sets those columns.
@@ -169,13 +170,15 @@ export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safet
       users.push({ world: w.id, role: u.role, email: u.email, id, ...(u.name ? { name: u.name } : {}) });
     }
     const keys = new Map();
-    // Where each row is written: the organisation first, then the rest in file order.
-    const order = new Map();
-    file.rows.forEach((r, i) => {
+    file.rows.forEach((r) => {
       if (keys.has(r.key)) problems.push(`world ${w.id}: row key "${r.key}" is used twice`);
       keys.set(r.key, r.key === 'org' ? orgId : fixtureId(feature, w.id, r.key));
-      if (!order.has(r.key)) order.set(r.key, r.key === 'org' ? -1 : i);
     });
+    // B4: where each row is written: the organisation first, then each row after the rows its
+    // $refs name, otherwise in file order. Only a true cycle still needs a forward reference.
+    const sorted = dependencyOrder(file.rows);
+    const order = new Map();
+    sorted.forEach((r, i) => { if (!order.has(r.key)) order.set(r.key, r.key === 'org' ? -1 : i); });
     let writing = -1;
     let forward = false;
     if (!keys.has('org')) problems.push(`world ${w.id}: no row with key "org" (the world's organisation)`);
@@ -224,7 +227,7 @@ export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safet
       }
       return v;
     };
-    file.rows.forEach((r, i) => {
+    sorted.forEach((r, i) => {
       if (Object.prototype.hasOwnProperty.call(r.values, 'id')) problems.push(`world ${w.id} row "${r.key}": sets its own id; ids are derived`);
       const id = keys.get(r.key);
       const idless = Boolean(tablesWithoutId?.has(r.table));
@@ -267,6 +270,57 @@ export function buildSeedPlan({ feature, runId, project, plan, worldFiles, safet
   // After the stagger, so the second each tie gained counts toward the world's earliest today value.
   for (const world of worlds) stampTodayMarkers(rows.filter((r) => r.world === world.id));
   return { schemaVersion: 1, runId, project, worlds, rows, users, ...(staggered.length ? { staggered } : {}) };
+}
+
+/** The row keys a value names with {"$ref": "<key>"} (never a user), anywhere inside it. */
+function refsIn(v, out = new Set()) {
+  if (Array.isArray(v)) { for (const x of v) refsIn(x, out); return out; }
+  if (v && typeof v === 'object') {
+    const k = Object.keys(v);
+    if (k.length === 1 && k[0] === '$ref') { const t = String(v.$ref); if (!t.startsWith('user:')) out.add(t); return out; }
+    for (const x of Object.values(v)) refsIn(x, out);
+  }
+  return out;
+}
+
+/**
+ * B4: a world's rows in the order they can be written: the organisation first, then file order,
+ * except that a row comes after the rows its $refs name. Stable: rows that name nothing later
+ * keep their places, so a list the design shows in file order keeps that order. When rows name
+ * each other (a cycle), the one first in the file goes first, and its reference stays a forward
+ * reference that seed --apply sets afterwards.
+ * @param {{ key: string, values: object }[]} rows
+ * @returns {{ key: string, values: object }[]}
+ */
+export function dependencyOrder(rows) {
+  const byKey = new Map();
+  for (const r of rows) if (!byKey.has(r.key)) byKey.set(r.key, r);
+  const deps = new Map(rows.map((r) => [r, [...refsIn(r.values)].map((k) => byKey.get(k)).filter((d) => d && d !== r)]));
+  // Whether `from` names `to`, directly or through other rows: then the two are in a cycle.
+  const reaches = (from, to) => {
+    const seen = new Set();
+    const stack = [from];
+    while (stack.length) {
+      const x = stack.pop();
+      if (x === to) return true;
+      if (seen.has(x)) continue;
+      seen.add(x);
+      stack.push(...(deps.get(x) ?? []));
+    }
+    return false;
+  };
+  const out = [];
+  const placed = new Set();
+  const place = (r) => {
+    if (placed.has(r)) return;
+    placed.add(r);
+    for (const dep of deps.get(r) ?? []) if (!placed.has(dep) && !reaches(dep, r)) place(dep);
+    out.push(r);
+  };
+  const org = rows.filter((r) => r.key === 'org');
+  for (const r of org) { placed.add(r); out.push(r); }
+  for (const r of rows) place(r);
+  return out;
 }
 
 /**

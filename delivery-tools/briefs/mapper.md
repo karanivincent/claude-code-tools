@@ -148,9 +148,10 @@ don't write code.
   contract. Fixture emails match the repo's safety file. Phone numbers use its fake range, and web
   addresses its reserved domain. Use relative dates (`{ "$rel": "now-2h" }`) for anything the page
   compares with today; a time that must fall today (the page shows it under today) carries
-  `today: true`. A `{ "$ref": "<key>" }` may name a row further down the file, which is how two
-  tables that point at each other are seeded; that column must accept null, and a join row (no `id`
-  column) must come after the rows it names.
+  `today: true`. A `{ "$ref": "<key>" }` may name a row further down the file: the seed writes
+  each row after the rows it names. Two tables that point at each other are seeded too; the column
+  of the first one in the file must accept null, and a join row (no `id` column) may not be in such
+  a pair.
 
 ## Done
 
