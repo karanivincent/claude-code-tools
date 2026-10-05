@@ -29,8 +29,9 @@ of profile.components.baseLibraries each file imports (a trailing /* matches any
 entries are left untouched. Creates the map when it does not exist yet. A base entry whose file no
 longer exists is dropped and reported.
 
---mark-built <Name> sets a design entry's builtHash to its current design hash and its status to
-built. Refused (exit 2) when the entry has no target yet, or its target is missing on disk. May
+--mark-built <Name> sets a design entry's builtHash to its design hash in the run's own snapshot
+(when a run is resolved here and its snapshot has the component), else to the hash components.json
+records, and its status to built. Refused (exit 2) when the entry has no target yet, or its target is missing on disk. May
 be repeated.
 
 --export <dir> is a design export directory to compare the map against: its .dc.html files (is a
@@ -107,14 +108,23 @@ common options:
     }
 
     const markBuilt = values['mark-built'] ?? [];
+    // The hash a builder built against is the run's own snapshot's, when this runs inside a run:
+    // components.json may still record an older export's hash, and marking that one built would
+    // leave the component stale against the very design it was built from.
+    let snapshotHashes = null;
+    if (markBuilt.length && ctx.paths?.designSnapshot && existsSync(ctx.paths.designSnapshot)) {
+      const { components } = await readExportComponents(ctx.paths.designSnapshot);
+      snapshotHashes = new Map(components.map((c) => [c.name, c.hash]));
+    }
     for (const name of markBuilt) {
       const entry = map.components.find((c) => c.kind === 'design' && c.name === name);
       if (!entry) throw new UsageError(`no design component named "${name}"`);
       if (!entry.target) throw new UsageError(`${name} has no target yet; the mapper must set one before it can be marked built`);
       if (!existsSync(join(ctx.repoRoot, entry.target))) throw new UsageError(`${name}: target ${entry.target} does not exist on disk`);
-      entry.builtHash = entry.design.hash;
+      const fromSnapshot = snapshotHashes?.get(name) ?? null;
+      entry.builtHash = fromSnapshot ?? entry.design.hash;
       entry.status = 'built';
-      ctx.out.line(`marked ${name} built at ${entry.design.hash}`);
+      ctx.out.line(`marked ${name} built at ${entry.builtHash}${fromSnapshot ? ' (from the run\'s design snapshot)' : ''}`);
       // The builder deletes a replaced file in the same PR (briefs/builder-picture.md); once it is
       // actually gone, "open" (still to switch over) is stale — retire it instead of leaving a
       // caller-facing decision that already happened unrecorded (fix round, I14).

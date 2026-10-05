@@ -10,6 +10,7 @@ import { makeTestCtx } from '../helpers/ctx.mjs';
 import { makeTempDir } from '../helpers/tmp-repo.mjs';
 import { makeProfile } from '../helpers/fixtures.mjs';
 import { featurePaths } from '../../lib/core/paths.mjs';
+import { sha256Text } from '../../lib/design/components.mjs';
 
 const H1 = `sha256:${'1'.repeat(64)}`;
 const H2 = `sha256:${'2'.repeat(64)}`;
@@ -302,5 +303,33 @@ test('a design cycle (A uses B, B uses A) is reported as a problem, not a crash,
     assert.match(stdout.text(), /FAIL components component import cycle: A -> B -> A/);
     assert.match(stdout.text(), /design A: built/);
     assert.match(stdout.text(), /design B: built/);
+  } finally { t.cleanup(); }
+});
+
+// A page run's intake never refreshes components.json, so the map can record an older export's
+// hash. --mark-built inside a run takes the hash from the run's own snapshot instead.
+test('--mark-built inside a run takes the hash from the run\'s design snapshot, not the stale recorded one', async () => {
+  const t = makeTempDir();
+  const mapRel = 'docs/delivery/components.json';
+  try {
+    const pickerHtml = '<x-dc><div>{{ label }}</div></x-dc>';
+    write(t.dir, 'docs/design/widgets/Main.dc.html', '<x-dc><dc-import name="Picker" label="Day"></dc-import></x-dc>');
+    write(t.dir, 'docs/design/widgets/Picker.dc.html', pickerHtml);
+    write(t.dir, 'src/ui/picker.tsx', 'export const Picker = () => null;\n');
+    write(t.dir, mapRel, {
+      version: 1,
+      components: [{
+        kind: 'design', name: 'Picker', design: { file: 'Picker.dc.html', hash: H1 },
+        target: 'src/ui/picker.tsx', status: 'new', builtHash: null,
+        props: {}, owns: [], builtOn: [], replaces: [], uses: [], states: [],
+      }],
+    });
+    const profile = makeProfile({ components: { map: mapRel } });
+    const { ctx, stdout } = await makeTestCtx({ repoRoot: t.dir, feature: 'widgets', profile });
+    await command.run(ctx, ['--mark-built', 'Picker']);
+    const saved = JSON.parse(readFileSync(join(t.dir, mapRel), 'utf8'));
+    assert.equal(saved.components[0].builtHash, sha256Text(pickerHtml));
+    assert.notEqual(saved.components[0].builtHash, H1);
+    assert.match(stdout.text(), /marked Picker built at sha256:[0-9a-f]{64} \(from the run's design snapshot\)/);
   } finally { t.cleanup(); }
 });
