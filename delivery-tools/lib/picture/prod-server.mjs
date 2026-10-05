@@ -18,6 +18,34 @@ import { isAbsolute, join, relative, resolve } from 'node:path';
 import { fillCommand } from '../core/profile.mjs';
 
 const TAIL_LINES = 30;
+
+/**
+ * A2: the environment of the production build and server: the profile's commands.serverEnv, then
+ * NODE_ENV=production over everything. A NODE_ENV that .env loading put into process.env (the main
+ * checkout's development value) broke three shoot builds.
+ * @param {object|undefined} extra commands.serverEnv and the like
+ */
+export function prodEnv(extra) {
+  return { ...process.env, ...(extra ?? {}), NODE_ENV: 'production' };
+}
+
+/**
+ * A2: one warning when the dev server command gives itself variables (leading VAR=value) that the
+ * production server command does not, and the profile has no commands.serverEnv to carry them: the
+ * shoot then pictures an app configured differently from the one the builder saw (a missing
+ * VERCEL_ENV=development put a shoot on a public rate limit). Null when there is nothing to say.
+ * @param {object} profile
+ * @param {(cmd: string) => Record<string, string>} assignments
+ */
+export function prodEnvWarning(profile, assignments) {
+  const c = profile?.commands ?? {};
+  if (c.serverEnv) return null;
+  const dev = assignments(c.devServer);
+  const prodText = `${c.prodServerBuild ?? ''} ${c.prodServer ?? ''}`;
+  const missing = Object.keys(dev).filter((k) => !new RegExp(`(^|[\\s;&|])${k}=`).test(prodText));
+  if (!missing.length) return null;
+  return `the dev server command sets ${missing.map((k) => `${k}=${dev[k]}`).join(', ')}, and the production server does not: add it to the profile's commands.serverEnv, or the shoot pictures an app configured differently`;
+}
 const ERROR_LINES = 20;
 const ERROR_LINE = /\b(error|errors|failed|failure|cannot|ENOENT|EACCES|ELIFECYCLE|panic)\b|⨯|✗/i;
 
@@ -84,7 +112,7 @@ export function runBuild(o) {
   const run = o.spawnFn ?? spawn;
   const out = outputKeeper();
   return new Promise((done) => {
-    const child = run('sh', ['-c', o.command], { cwd: o.cwd, env: { ...process.env, ...(o.env ?? {}) }, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    const child = run('sh', ['-c', o.command], { cwd: o.cwd, env: prodEnv(o.env), detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
     child.stdout?.on('data', out.keep);
     child.stderr?.on('data', out.keep);
     let settled = false;
@@ -108,7 +136,7 @@ export function runBuild(o) {
  * { baseUrl, stop } once it serves, or { failure } when the command exits first or the wait times
  * out. `wrap` turns the filled command into the one run (commands.heavy). `spawnFn` and `fetchFn`
  * are injectable for tests.
- * @param {{ command: string, port: number, cwd: string, timeoutMs: number, host?: string, env?: object,
+ * @param {{ command: string, port: number, cwd: string, timeoutMs: number, host?: string, env?: object (added, then NODE_ENV=production),
  *           wrap?: (cmd: string) => string,
  *           spawnFn?: typeof spawn, fetchFn?: typeof fetch, sleep?: (ms: number) => Promise<void>, now?: () => number }} o
  * @returns {Promise<{ baseUrl: string, stop: () => Promise<void>, output: () => string } | { failure: string, output: string }>}
@@ -123,7 +151,7 @@ export async function startProdServer(o) {
   const sleep = o.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
   const now = o.now ?? (() => Date.now());
   const out = outputKeeper();
-  const child = run('sh', ['-c', cmd], { cwd: o.cwd, env: { ...process.env, ...(o.env ?? {}), PORT: String(o.port) }, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = run('sh', ['-c', cmd], { cwd: o.cwd, env: { ...prodEnv(o.env), PORT: String(o.port) }, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
   child.stdout?.on('data', out.keep);
   child.stderr?.on('data', out.keep);
   let exited = null;
@@ -163,9 +191,9 @@ export async function shootProdServer(o) {
   let cleared;
   try { cleared = await clearDistDir(o.repoRoot, distDir, o.rmFn); } catch (err) { return { failure: err.message, output: '' }; }
   if (cleared) o.log?.(`removed the previous build folder ${cleared}`);
-  const serve = { command: c.prodServer, port: o.port, cwd: o.repoRoot, timeoutMs: o.timeoutMs, spawnFn: o.spawnFn, fetchFn: o.fetchFn, sleep: o.sleep, now: o.now };
+  const serve = { command: c.prodServer, port: o.port, cwd: o.repoRoot, timeoutMs: o.timeoutMs, env: c.serverEnv, spawnFn: o.spawnFn, fetchFn: o.fetchFn, sleep: o.sleep, now: o.now };
   if (!c.prodServerBuild) return startProdServer({ ...serve, wrap: o.wrap });
-  const b = await runBuild({ command: o.wrap(c.prodServerBuild), cwd: o.repoRoot, timeoutMs: o.timeoutMs, spawnFn: o.spawnFn });
+  const b = await runBuild({ command: o.wrap(c.prodServerBuild), cwd: o.repoRoot, timeoutMs: o.timeoutMs, env: c.serverEnv, spawnFn: o.spawnFn });
   if (b.failure) return b;
   return startProdServer(serve);
 }

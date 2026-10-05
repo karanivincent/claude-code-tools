@@ -72,7 +72,7 @@ common options:
     ctx.out.line(`round ${round}: ${r.checked} traced value(s) looked for in ${Object.keys(r.items).length} item(s); ${r.faults} data fault(s) in ${doc.faults} item(s), ${r.page} value(s) the page does not show in ${doc.must} item(s)${noLive ? `; ${noLive} reached item(s) have no live text (shot before 0.19): shoot them again to check them` : ''}`);
     if (!existsSync(join(dir, 'seeded.json'))) ctx.out.line('no seeded.json in this round: misses were sorted by their traced row, not by the world');
     for (const [k, v] of Object.entries(doc.items)) for (const t of v.dataFault) ctx.out.line(`  ${k}: data fault: ${t}`);
-    if (doc.faults) ctx.out.line(`next: dispatch the seed-writer (Problem: ${relative(ctx.repoRoot, join(dir, 'datacheck.json'))}), then delivery seed --plan and --check, then delivery shoot --base-url <url> --only data-faults`);
+    if (doc.faults) ctx.out.line(`next: dispatch the seed-writer (Problem: ${relative(ctx.repoRoot, join(dir, 'datacheck.json'))}), then delivery seed --plan and --check, then delivery shoot --only data-faults`);
     ctx.out.set('datacheck', { round, checked: r.checked, faults: r.faults, page: r.page, faultItems: doc.faults, mustItems: doc.must });
     const exit = doc.faults ? EXIT.RED : EXIT.PASS;
     await ctx.journal({ command: `datacheck --round ${round}`, exit, counts: { checked: r.checked, faults: r.faults, page: r.page } });

@@ -22,7 +22,8 @@ import { hasPhone, roundFiles } from '../picture/widths.mjs';
 import { changedSince, unchangedItems } from '../picture/changed.mjs';
 import { latestVerdicts } from '../picture/next.mjs';
 import { probeServer } from '../picture/smoke.mjs';
-import { shootProdServer } from '../picture/prod-server.mjs';
+import { prodEnvWarning, shootProdServer } from '../picture/prod-server.mjs';
+import { ensureServer, leadingAssignments } from '../picture/serve.mjs';
 import { wrapHeavy } from '../core/profile.mjs';
 import { freePort } from '../capture/run.mjs';
 import { tunable } from '../retro/tunables.mjs';
@@ -33,8 +34,8 @@ export { probeServer };
 export default defineCommand({
   name: 'shoot',
   summary: 'Picture each state\'s page area on a running app, with the design cropped the same way',
-  usage: `usage: delivery shoot --base-url <url> [--round <n|work>] [--no-reset] [<ITEM>|!<ITEM>]...
-       delivery shoot --base-url <url> --only <ITEM,...|data-faults> [--round <n>]
+  usage: `usage: delivery shoot [--base-url <url> | --prod] [--round <n|work>] [--no-reset] [<ITEM>|!<ITEM>]...
+       delivery shoot [--base-url <url> | --prod] --only <ITEM,...|data-faults> [--round <n>]
 
 Picture mode's capture. For each state in map.json that the capture can reach, at each width the
 map declares (desktop 1440 x 900, phone 390 x 844): sign in as the state's fixture user (a one-time
@@ -66,8 +67,10 @@ re-shot before any reviewer looks) or holds it and the page does not show it (a 
 into shoot.json as the item's lookup and into datacheck.json; review counts them. delivery
 datacheck runs the same check again from those files.
 
-The app must already be running (start the profile's dev server in the background first, or pass
-a preview URL), or pass --prod. Worlds are shot side by side (tunables shoot.parallelWorlds), one
+With no --base-url and no --prod, the shoot pictures the run's own dev server: it runs delivery
+serve --ensure first (started detached, or restarted when it is gone or answers 500), so a builder's
+shoot --round work <ID> needs no URL. --base-url pictures another running app (a preview), and
+--prod a production build. Worlds are shot side by side (tunables shoot.parallelWorlds), one
 browser context each; a world is never in two contexts at once. Never click anything by hand to reach a state; fix the map instead.
 
 Every page loads first. Before anything is pictured, the shoot runs delivery smoke on the routes
@@ -77,7 +80,7 @@ shoot it checks again: when the server broke during the shoot, the new round's f
 so the next shoot takes the same number (a re-shoot into an existing round keeps it).
 
 options:
-  --base-url <url>   the running app (a local dev server or a preview)
+  --base-url <url>   the running app (a preview); default: the run's dev server (delivery serve)
   --prod             instead of --base-url: build and serve a production build with the profile's
                      commands.prodServer ({port}; its own build folder, so the dev server keeps
                      running), shoot it, and stop it. The build runs through commands.heavy after
@@ -85,7 +88,10 @@ options:
                      command names); commands.prodServerBuild, when set, builds on its own first and
                      prodServer only serves. A dev server compiles each route on its first visit; a
                      production build answers at once. A build that fails stops the shoot with its
-                     error lines and last lines, and no round is used.
+                     error lines and last lines, and no round is used. The build and the server run
+                     with NODE_ENV=production and the profile's commands.serverEnv; without
+                     serverEnv, a VAR=value the dev server command sets and prodServer lacks is
+                     named in one warning.
   --round <n|work>   where the pictures go: a numbered round (default: the next one) or "work",
                      a builder's own looking, which never counts as a round
   <ITEM>             take only these: <ID> is the state at every width, <ID>@phone or
@@ -116,7 +122,6 @@ common options:
     });
     let baseUrl = values['base-url'];
     if (values.prod && baseUrl) throw new UsageError('give --prod or --base-url, not both');
-    if (!baseUrl && !values.prod) throw new UsageError('--base-url is required: the running app to picture (or --prod: a production build from the profile\'s commands.prodServer)');
     if (baseUrl) { try { new URL(baseUrl); } catch { throw new UsageError(`--base-url "${baseUrl}" is not a URL`); } }
     const paths = ctx.requirePaths();
     const map = readMap(paths);
@@ -168,6 +173,14 @@ common options:
       }
     }
     const profile = await ctx.profile();
+    // A1: no --base-url and no --prod: the run's own dev server (delivery serve), started or
+    // restarted here when it is not serving, so `shoot --round work <ID>` needs nothing more.
+    if (!baseUrl && !values.prod) {
+      const served = await ensureServer(ctx, { paths, profile });
+      if (served.failure) { ctx.out.fail('server', `${served.failure}; nothing was pictured`); return EXIT.RED; }
+      baseUrl = served.url;
+      ctx.out.line(`${served.started ? 'started the run\'s dev server' : 'the run\'s dev server serves'} on ${baseUrl} (delivery serve)`);
+    }
     const db = await createDataAdapter(ctx);
     const { chromium } = await resolvePlaywright({ repoRoot: ctx.repoRoot, e2eDir: profile.paths?.e2eDir ?? null });
 
@@ -175,6 +188,8 @@ common options:
     let prod = null;
     if (values.prod) {
       if (!profile.commands?.prodServer) throw new UsageError('--prod needs the profile\'s commands.prodServer: a command that builds and serves a production build on {port} without touching the dev server\'s build folder');
+      const envWarning = prodEnvWarning(profile, leadingAssignments);
+      if (envWarning) ctx.out.warn(envWarning);
       ctx.out.line('building and starting a production server (commands.prodServer) for the shoot');
       const r = await withShootSlot(ctx, async () => shootProdServer({
         profile, repoRoot: ctx.repoRoot, port: await freePort(), timeoutMs: tunable('capture.prodBuildTimeoutMs'),

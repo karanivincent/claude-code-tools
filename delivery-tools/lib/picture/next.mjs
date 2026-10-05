@@ -22,6 +22,7 @@ import { dataFaultItems } from './datacheck.mjs';
 import { roundDecision, runDecision } from './stop.mjs';
 import { openNeeds } from '../seed/trace.mjs';
 import { tunable } from '../retro/tunables.mjs';
+import { readWaived } from './waived.mjs';
 
 /**
  * A2: every table the map's worlds write (their world files, already on disk once the mapper
@@ -232,9 +233,15 @@ export async function pictureFacts(paths, opts = {}) {
       compiled: Boolean(info.review) && mtime(join(info.dir, 'review.json')) >= newestReview,
       counts: info.review?.counts ?? null,
       compare: info.compare,
+      // A5: the shipping checks (delivery prepush --round <n>, with commands.security) not yet run
+      // for this round; NEXT asks for them before the next fixer.
+      prepushOwed: !existsSync(join(info.dir, 'prepush.json')),
     };
   });
-  const latest = [...latestVerdicts(paths).values()];
+  // A4: a waived item keeps its verdict but is not open.
+  const waived = readWaived(paths);
+  const allLatest = latestVerdicts(paths);
+  const latest = [...allLatest].filter(([k]) => !waived[k]).map(([, v]) => v);
   const count = (v) => latest.filter((s) => s.verdict === v).length;
   const desktopPictures = [...designed].filter((id) => !id.includes('@')).length;
   // Rules run straight after intake (A3), so they are read whether or not map.json exists yet;
@@ -286,13 +293,14 @@ export async function pictureFacts(paths, opts = {}) {
     phonePictures: designed.size - desktopPictures,
     phoneRenderOwed: phoneRenderOwed(map, designed),
     noun: map && hasPhone(map) ? 'item' : 'state',
-    open: latest.length ? { must: count('must'), notReached: count('not-reached'), data: count('data-fault') + count('data-gap') } : null,
+    open: allLatest.size ? { must: count('must'), notReached: count('not-reached'), data: count('data-fault') + count('data-gap') } : null,
     // W4: the stop rule over the compiled rounds' real-bug counts, shared with ready.
     decision: runDecision(paths),
     // W7: steers.md, written before round 1 (a components gallery needs none).
     steersMissing: Boolean(map) && map.kind !== 'components' && !existsSync(join(paths.deliveryDir, 'steers.md')),
-    // W6: shoot a production build when the profile can make one.
-    shootArgs: opts.profile?.commands?.prodServer ? '--prod' : '--base-url <url>',
+    // W6: shoot a production build when the profile can make one; else the run's dev server (A1:
+    // delivery serve, which the shoot ensures itself, so no URL is needed).
+    shootArgs: opts.profile?.commands?.prodServer ? '--prod' : '',
     // D13: data an agent asked for (seed --need) that no seed-writer has added yet.
     needs: openNeeds(paths).length,
     hasMap: Boolean(map),
@@ -348,6 +356,8 @@ export async function pictureFacts(paths, opts = {}) {
  */
 export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   const skill = 'picture-build';
+  // A1: `delivery shoot` with no URL pictures the run's own dev server (delivery serve --ensure).
+  const shoot = `${cli} shoot${f.shootArgs ? ` ${f.shootArgs}` : ''}`;
   // A components run that has already landed has nothing left in the picture loop; the only thing
   // still owed is syncing the design-system project with what this run built (spec §8.1).
   if (f.landedComponentsRun && f.designSyncMissing?.length) {
@@ -396,19 +406,19 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   const last = f.rounds[f.rounds.length - 1];
   // W7: how to read the design, written once before round 1, so reviewers agree between rounds.
   if (!last && f.steersMissing) return { step: 'steers', skill, text: `dispatch delivery-tools:delivery-extractor with Role: steers and briefs/steers.md (Write: docs/delivery/<f>/steers.md): phone patterns, test data and rules over the picture, for every reviewer prompt` };
-  if (!last && f.update) return { step: 'shoot', skill, text: `update run from ${f.update}: picture the page as it is before building. Start the dev server, then ${cli} shoot ${f.shootArgs ?? '--base-url <url>'} (round 1); the reviewers list what the new design changed, and the builder fixes only that` };
+  if (!last && f.update) return { step: 'shoot', skill, text: `update run from ${f.update}: picture the page as it is before building. Run ${cli} serve --ensure (the dev server, on its own; never run_in_background), then ${shoot} (round 1); the reviewers list what the new design changed, and the builder fixes only that` };
   if (!last) {
     // D10: more than one screen: the first builder is dispatched once per screen group, not once for the page.
     const groups = f.screenGroups?.length ?? 0;
     const dispatch = groups > 1
       ? `dispatch delivery-tools:picture-builder (opus, no worktree) with briefs/builder-picture.md once per screen group (${groups} groups), one after another: each dispatch has a Screens line naming one group, and the next one continues from builder-notes.md; when the last reports`
       : 'dispatch delivery-tools:picture-builder (opus, no worktree) with briefs/builder-picture.md; when it reports';
-    return { step: 'build', skill, text: `${dispatch}, start the dev server and run ${cli} shoot ${f.shootArgs ?? '--base-url <url>'} (round 1)` };
+    return { step: 'build', skill, text: `${cli} serve --ensure (the dev server, on its own; never run_in_background), then ${dispatch}, run ${shoot} (round 1)` };
   }
-  if (!last.shot) return { step: 'shoot', skill, text: `${cli} shoot ${f.shootArgs ?? '--base-url <url>'} --round ${last.round}` };
+  if (!last.shot) return { step: 'shoot', skill, text: `${shoot} --round ${last.round}` };
   // W3: data faults are fixed in the world and re-shot before any reviewer sees the round.
   if (last.dataFaults && (last.dataFixPasses ?? 0) < DATA_FIX_PASSES && !last.reviews && !last.planned) {
-    return { step: 'data-faults', skill, text: `round ${last.round}: datacheck found data faults in ${last.dataFaults} item(s) before review: dispatch the seed-writer (Problem: .delivery/<f>/rounds/${last.round}/datacheck.json), then ${cli} seed --plan and --check, then ${cli} shoot ${f.shootArgs ?? '--base-url <url>'} --only data-faults (the reviewers see the round after that)` };
+    return { step: 'data-faults', skill, text: `round ${last.round}: datacheck found data faults in ${last.dataFaults} item(s) before review: dispatch the seed-writer (Problem: .delivery/<f>/rounds/${last.round}/datacheck.json), then ${cli} seed --plan and --check, then ${shoot} --only data-faults (the reviewers see the round after that)` };
   }
   if (last.reshot) return { step: 'review', skill, text: `${cli} review --plan --round ${last.round}: ${last.reshot} item(s) were re-shot since the round was planned, and it plans just those` };
   if (last.reviews && last.pending) return { step: 'review', skill, text: `dispatch the ${last.pending} batch prompt file(s) in .delivery/<f>/rounds/${last.round}/batches.json whose review is not written yet, as written; then ${cli} review --round ${last.round}` };
@@ -421,7 +431,7 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   // A round with only data faults or gaps left is never a ship: the world is fixed, not the code.
   const dataOpen = o.data ?? ((last.counts?.dataFault ?? 0) + (last.counts?.dataGap ?? 0));
   if (!open && dataOpen) {
-    return { step: 'data-faults', skill, text: `${dataOpen} ${noun}(s) have a data fault or gap and nothing else: dispatch the seed-writer with their notes (round ${last.round}'s review.json), then ${cli} seed --plan and --check, ${cli} shoot ${f.shootArgs ?? '--base-url <url>'} --only data-faults --round ${last.round}, and review just those` };
+    return { step: 'data-faults', skill, text: `${dataOpen} ${noun}(s) have a data fault or gap and nothing else: dispatch the seed-writer with their notes (round ${last.round}'s review.json), then ${cli} seed --plan and --check, ${shoot} --only data-faults --round ${last.round}, and review just those` };
   }
   // W5: a sample found a problem in a screen: the rest of that screen is reviewed before the fix.
   if (last.heldFailed) return { step: 'review', skill, text: `${cli} review --plan --round ${last.round} --held: the sample found a problem in ${last.heldFailed} screen(s), so the items held there are reviewed too; then dispatch the batches and ${cli} review --round ${last.round}` };
@@ -429,7 +439,10 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   // falls, ship at zero, stop after rounds.stallRounds rounds with no fall or at the ceiling.
   const d = f.decision ?? roundDecision([open]);
   if (open && d.decision === 'fix') {
-    return { step: 'fix', skill, text: `fix round: send the fixer round ${last.round}'s review.json (${open} ${noun}(s) open; ${d.why}), then ${cli} shoot ${f.shootArgs ?? '--base-url <url>'} (round ${last.round + 1}; it resets the worlds itself)` };
+    // A5: the shipping checks run after each round's review, so the fixer fixes what they find in
+    // the same round instead of at ship.
+    if (last.prepushOwed) return { step: 'prepush', skill, text: `round ${last.round}: run the shipping checks before the fixer: ${cli} prepush --round ${last.round}. It also runs the profile's commands.security when set, and records rounds/${last.round}/prepush.json. The fixer fixes what it lists together with the review` };
+    return { step: 'fix', skill, text: `fix round: send the fixer round ${last.round}'s review.json and prepush.json (${open} ${noun}(s) open; ${d.why}), then ${shoot} (round ${last.round + 1}; it resets the worlds itself)` };
   }
   // W5: items held back from review while their screen's sample was clean are reviewed once
   // before anything ships, so nothing ships unreviewed.
@@ -445,7 +458,7 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
     return { step: 'components-build', skill, text: `${cli} components --mark-built ${f.componentsUnbuilt.join(' ')}, commit ${mapPathText} and push` };
   }
   if (readyOk) return { step: 'land', skill, text: `ready is green: mark the PR ready, then run ${cli} retro and commit docs/delivery/runs.jsonl in the PR (the run's line in the runs ledger; land refuses to close the epic without it); after the founder's merge, ${cli} land --epic ${epic ?? '<epic>'}${tail}` };
-  return { step: 'ship', skill, text: `ship: the full CI chain, push, ${cli} ci --pr <n>, then give the founder the preview, a sign-in link and round ${last.round}'s comparison page${tail}` };
+  return { step: 'ship', skill, text: `ship: ${cli} serve --stop, the full CI chain, push, ${cli} ci --pr <n>, then give the founder the preview, a sign-in link and round ${last.round}'s comparison page${tail}` };
 }
 
 /** Status lines for a picture-mode run. */

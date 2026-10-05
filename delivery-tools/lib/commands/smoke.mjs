@@ -9,12 +9,13 @@ import { resolvePlaywright } from '../core/playwright.mjs';
 import { createDataAdapter } from '../../adapters/data/supabase.mjs';
 import { readMap } from '../picture/map.mjs';
 import { selectStates, withShootSlot } from '../picture/shoot.mjs';
+import { ensureServer } from '../picture/serve.mjs';
 import { probeServer, runSmoke, skeletonSelector, smokeFailureLine, smokeTargets, SKELETON_WAIT_MS } from '../picture/smoke.mjs';
 
 export default defineCommand({
   name: 'smoke',
   summary: 'Open every route the map reaches, signed in, at each width; fail at the first that does not load',
-  usage: `usage: delivery smoke --base-url <url> [<ITEM>|!<ITEM>]...
+  usage: `usage: delivery smoke [--base-url <url>] [<ITEM>|!<ITEM>]...
 
 Picture mode's page-load gate. Opens each distinct route in map.json (the landing route and every
 route a state's steps go to), signed in as a fixture user who reaches it, at each width the map
@@ -31,10 +32,10 @@ delivery shoot runs this first and pictures nothing when it fails. A builder or 
 before reporting done. It reads the worlds as they are and changes no data.
 
 options:
-  --base-url <url>   the running app (a local dev server or a preview)
+  --base-url <url>   the running app (a preview); default: the run's dev server (delivery serve --ensure)
   <ITEM>             only the routes these items reach (as shoot takes them); !<ITEM> leaves one out
 
-exit: 0 every page loads; 1 a page is broken; 2 usage (no map, no --base-url)
+exit: 0 every page loads; 1 a page is broken, or the dev server could not be started; 2 usage (no map)
 
 common options:
   --feature <slug>   the run (default: the single run in this worktree)
@@ -45,15 +46,20 @@ common options:
       options: { 'base-url': { type: 'string' } },
       positionals: { max: -1 },
     });
-    const baseUrl = values['base-url'];
-    if (!baseUrl) throw new UsageError('--base-url is required: the running app to open');
-    try { new URL(baseUrl); } catch { throw new UsageError(`--base-url "${baseUrl}" is not a URL`); }
+    let baseUrl = values['base-url'];
+    if (baseUrl) { try { new URL(baseUrl); } catch { throw new UsageError(`--base-url "${baseUrl}" is not a URL`); } }
     const paths = ctx.requirePaths();
     const map = readMap(paths);
     if (!map) { ctx.out.fail('no-map', 'there is no map.json; run delivery map first'); return EXIT.USAGE; }
     const { items, unknown } = selectStates(map, positionals);
     if (unknown.length) throw new UsageError(`not states (or widths) in the map: ${unknown.join(', ')}`);
     const profile = await ctx.profile();
+    // A1: no --base-url: the run's own dev server (delivery serve --ensure).
+    if (!baseUrl) {
+      const served = await ensureServer(ctx, { paths, profile });
+      if (served.failure) { ctx.out.fail('server', served.failure); return EXIT.RED; }
+      baseUrl = served.url;
+    }
 
     const broken = await probeServer(ctx, baseUrl);
     if (broken) {

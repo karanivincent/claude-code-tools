@@ -95,7 +95,7 @@ export function selectStates(map, picks = []) {
   const all = mapItems(map);
   const hits = (pick, item) => pick.id === item.id && (pick.width === null || pick.width === item.width);
   const unknown = [...want, ...skip].filter((p) => !all.some((i) => hits(p, i))).map((p) => p.raw);
-  const items = all.filter((i) => i.state.reach && !i.state.reach.test
+  const items = all.filter((i) => i.state.reach && !i.state.reach.test && !i.state.later
     && !skip.some((p) => hits(p, i)) && (!want.length || want.some((p) => hits(p, i))));
   const states = [...new Set(items.map((i) => i.state))];
   return { items, states, unknown };

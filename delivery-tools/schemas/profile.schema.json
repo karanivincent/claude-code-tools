@@ -55,6 +55,8 @@
         "validateSeedJson": { "type": "string" },
         "stagingE2e": { "description": "Optional (W8): the staging E2E run after a run's merge commit is deployed ({sha}, {pr}); delivery land runs it once per merge and fails on a non-zero exit.", "type": "string" },
         "prodServer": { "description": "Optional (W6): builds and serves a production build on {port} in a build folder of its own, so the dev server keeps running; delivery shoot --prod runs it through commands.heavy, after removing its build folder.", "type": "string" },
+        "serverEnv": { "description": "Optional: environment variables for the run's dev server (delivery serve) and the shoot's production server, such as { \"VERCEL_ENV\": \"development\" }. delivery init drafts it from the leading VAR=value assignments of the dev server command.", "type": "object", "additionalProperties": { "type": "string" } },
+        "security": { "description": "Optional: the repo's security scan. NEXT runs it with delivery prepush --round <n> after each round's review is compiled and before the next fixer, and records the result in rounds/<n>/prepush.json.", "type": "string" },
         "prodServerBuild": { "description": "Optional: the build half of commands.prodServer. When set, delivery shoot --prod runs it to its end through commands.heavy first, and commands.prodServer then only serves (so the heavy slot is not held while the shoot runs).", "type": "string" },
         "flight": { "type": "string" },
         "tried": { "type": "string" },

@@ -193,8 +193,9 @@ test('NEXT says fix exactly when ready is red for open items; once the loop stop
       const next = pictureNext(f, { cli: 'delivery' });
       const ready = await pictureReadiness(r.paths);
       const opened = runDecision(r.paths);
-      seen.push(next.step);
-      assert.equal(next.step === 'fix', !ready.ok && /still to fix/.test(ready.detail), `${opened.why}: next ${next.step}, ready ${ready.detail}`);
+      // A5: the shipping checks (step prepush) come before every fixer, so they stand for "fix" here.
+      seen.push(next.step === 'prepush' ? 'fix' : next.step);
+      assert.equal(['fix', 'prepush'].includes(next.step), !ready.ok && /still to fix/.test(ready.detail), `${opened.why}: next ${next.step}, ready ${ready.detail}`);
       if (opened.decision === 'stop') {
         assert.equal(next.step, 'ship');
         assert.equal(ready.ok, true);

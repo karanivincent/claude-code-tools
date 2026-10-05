@@ -52,7 +52,10 @@ factual, under these headings:
 
 In a fix round, read the notes before the review, fix what the round's `review.json` lists (its
 `must fix` items; `small` ones when they are quick), and add a dated line under the headings that
-changed. Do not rebuild what already matches.
+changed. Do not rebuild what already matches. Also fix every problem the round's `prepush.json`
+lists (your prompt's `Prepush:` line): the shipping checks and the security scan, run after the
+review so they are fixed now and not at ship. A branch behind its base is the main session's to
+merge; leave that one.
 
 In an update run (the run's state names a `from` run) the page already exists and round 1 has
 already pictured it: change only what the round's review lists, and keep everything else as it is.
@@ -86,13 +89,23 @@ itself, not a product page:
 
 ## How to see your work
 
-The dev server is already running; your prompt gives its URL. Never start or stop a server.
+The run's dev server runs on its own, outside any tool call. First run
+
+    node scripts/delivery.mjs serve --ensure
+
+It starts the server when it is down, restarts it when it answers 500, and prints its URL. Run it
+again whenever a page stops answering. Never start or stop a server any other way, and never run
+`serve --stop`: the main session stops it before shipping.
 Never run the production build, or a check chain that includes one, in this worktree: it replaces
 the build folder the dev server is serving, and every page then fails until the server restarts.
 Typecheck, lint and unit tests are safe; the main session runs the full chain after it stops the
-server. To picture the live page after a change:
+server.
 
-    node scripts/delivery.mjs shoot --base-url <url> --round work <ID> [<ID> ...]
+After each fix, picture the items you fixed before you move on:
+
+    node scripts/delivery.mjs shoot --round work <ID> [<ID> ...]
+
+It needs no URL: it uses the run's dev server.
 
 It signs in as the right test user, walks to each state, and saves `<ID>.live.png` next to
 `<ID>.design.png` in `.delivery/<feature>/rounds/work/`, at every width the map declares: a phone
@@ -106,7 +119,7 @@ and never twice without saying so in your report.
 
 Every page loads. Before you report done, run
 
-    node scripts/delivery.mjs smoke --base-url <url>
+    node scripts/delivery.mjs smoke
 
 and read its output. It opens every route of the map at every width, signed in, and fails at the
 first page that answers 500 or more, shows the error overlay, or still shows a loading placeholder
