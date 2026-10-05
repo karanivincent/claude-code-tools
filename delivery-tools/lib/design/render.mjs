@@ -11,6 +11,7 @@ import { ConfigError } from '../core/exit.mjs';
 import { sha256 } from '../core/hash.mjs';
 import { startStaticServer, contentTypeFor } from './server.mjs';
 import { prepareServeDir, writePropCopy } from './serve.mjs';
+import { findDcFile } from '../../adapters/design/claude-design.mjs';
 import { vendorResolver } from './vendor.mjs';
 import { declaredProps } from './components.mjs';
 import { splitDcHtml, stateWrites } from './claude-dc.mjs';
@@ -77,10 +78,50 @@ window.__deliveryProps = function (patch) {
 };`;
 
 /**
+ * The design's reach keys (pure): its state keys, and each declared prop with the values its
+ * editor offers (null when any value goes). Read by planRenders to move a state key out of props.
+ * @param {string} html the page's .dc.html
+ * @returns {{ stateKeys: Set<string>, props: Record<string, { options: unknown[]|null }> }}
+ */
+export function designReachKeys(html) {
+  const declared = splitDcHtml(html).props?.value ?? {};
+  const props = {};
+  for (const [k, meta] of Object.entries(declared)) {
+    if (k.startsWith('$')) continue;
+    const options = Array.isArray(meta?.options) ? meta.options : meta?.editor === 'boolean' || meta?.tsType === 'boolean' ? [true, false] : null;
+    props[k] = { options };
+  }
+  return { stateKeys: designStateKeys(html), props };
+}
+
+/**
+ * Split a reach's props into the ones that stay props and the ones that are state: a key the
+ * design writes with this.set and does not declare as a prop, or declares with options that do
+ * not include the value (`screen: "round"` beside a `screen` prop of Desktop or Phone). A prop
+ * never sets the state of the same name, so a state key becomes a {set} step.
+ * @param {Record<string, unknown>|null} props
+ * @param {{ stateKeys: Set<string>, props: Record<string, { options: unknown[]|null }> }|null} design
+ * @returns {{ props: Record<string, unknown>|null, set: Record<string, unknown>|null }}
+ */
+export function splitReachProps(props, design) {
+  if (!props || !design) return { props, set: null };
+  const keep = {};
+  const set = {};
+  for (const [k, v] of Object.entries(props)) {
+    const declared = design.props[k];
+    const isState = design.stateKeys.has(k) && (!declared || (declared.options && !declared.options.includes(v)));
+    if (isState) set[k] = v; else keep[k] = v;
+  }
+  return { props: Object.keys(keep).length ? keep : null, set: Object.keys(set).length ? set : null };
+}
+
+/**
  * What to do for each state (pure).
  * @param {object} inventory
- * @param {{ states?: string[]|null, adapter: string }} opts
- * @returns {{ id: string, action: 'render'|'shot'|'skip'|'fail', why?: string, steps?: object[], props?: object|null, shot?: string }[]}
+ * @param {{ states?: string[]|null, adapter: string, width?: string, design?: ReturnType<typeof designReachKeys>|null }} opts
+ *   design: the page's reach keys; with it, a prop or preset key that is state becomes a {set} step
+ *   (the item's `moved` says which)
+ * @returns {{ id: string, action: 'render'|'shot'|'skip'|'fail', why?: string, steps?: object[], props?: object|null, shot?: string, moved?: object }[]}
  */
 export function planRenders(inventory, opts) {
   const wanted = opts.states ? new Set(opts.states) : null;
@@ -109,8 +150,13 @@ export function planRenders(inventory, opts) {
     // boots the design's own defaults, then changes the preset's props at runtime (spec 4.2 step 3)
     // so componentDidUpdate sees the change. A prop-only reach still bakes props as defaults.
     if (reach.kind === 'preset' && !props) { out.push({ id: s.id, action: 'fail', why: 'a preset state names no props to set' }); continue; }
-    const item = { id: s.id, action: 'render', steps: reach.steps ?? [], props: reach.kind === 'preset' ? null : props };
-    if (reach.kind === 'preset') item.preset = props;
+    // A key the prototype writes with this.set is state, not a prop: it is set after boot, before
+    // the reach's own steps. A component file's keys are its own, so it is left alone.
+    const split = reach.file ? { props, set: null } : splitReachProps(props, opts.design ?? null);
+    const steps = [...(split.set ? [{ set: split.set }] : []), ...(reach.steps ?? [])];
+    const item = { id: s.id, action: 'render', steps, props: reach.kind === 'preset' ? null : split.props };
+    if (reach.kind === 'preset' && split.props) item.preset = split.props;
+    if (split.set) item.moved = split.set;
     if (reach.file) item.file = reach.file;
     if (s.samePictureAs) item.samePictureAs = s.samePictureAs;
     out.push(item);
@@ -286,7 +332,8 @@ export async function runDesignStep(page, step, n) {
  *   snapshotDir, serveDir and outDir default to paths.designSnapshot, paths.designServe and
  *   paths.designRenders; `delivery design review` (plan task 8) renders a different export into its
  *   own scratch folders instead of the run's own snapshot and renders.
- * @returns {Promise<{ rendered: string[], shots: string[], skipped: { id: string, why: string }[], failed: { id: string, why: string }[], escaped: string[] }>}
+ * @returns {Promise<{ rendered: string[], shots: string[], skipped: { id: string, why: string }[], failed: { id: string, why: string }[], escaped: string[], warnings: { id: string, why: string }[], notes: { id: string, why: string }[] }>}
+ *   notes: each state whose reach set a state key as a prop, which the render set as a step instead
  */
 export async function renderDesign(ctx, opts) {
   const { paths, inventory } = opts;
@@ -294,13 +341,24 @@ export async function renderDesign(ctx, opts) {
   const snapshotDir = opts.snapshotDir ?? paths.designSnapshot;
   const serveDir = opts.serveDir ?? paths.designServe;
   const outDir = opts.outDir ?? paths.designRenders;
-  const plan = planRenders(inventory, { states: opts.states ?? null, adapter: opts.adapter, width });
+  // The page's own state keys and props, read before planning so a state key in props becomes a step.
+  let design = null;
+  if (opts.adapter !== 'image-folder') {
+    const dc = await findDcFile(snapshotDir, { page: opts.page ?? null });
+    if (!dc.error) design = designReachKeys(await readFile(join(snapshotDir, dc.file), 'utf8').catch(() => ''));
+  }
+  const plan = planRenders(inventory, { states: opts.states ?? null, adapter: opts.adapter, width, design });
   const outFile = (id, ext) => {
     paths.designRender(id, ext); // checks the id
     return join(outDir, renderFileName(id, width, ext));
   };
-  const result = { rendered: [], shots: [], skipped: [], failed: [], escaped: [], warnings: [] };
+  const result = { rendered: [], shots: [], skipped: [], failed: [], escaped: [], warnings: [], notes: [] };
   await ensureDir(outDir);
+  for (const p of plan) {
+    if (!p.moved) continue;
+    const keys = Object.keys(p.moved);
+    result.notes.push({ id: p.id, why: `${keys.map((k) => `"${k}"`).join(', ')} ${keys.length > 1 ? 'are state keys' : 'is a state key'} of the design, so the render set ${keys.length > 1 ? 'them' : 'it'} with a {"set": ${JSON.stringify(p.moved)}} step, not as a prop; put that step in the reach` });
+  }
 
   for (const p of plan) {
     if (p.action === 'skip') result.skipped.push({ id: p.id, why: p.why });
@@ -323,7 +381,7 @@ export async function renderDesign(ctx, opts) {
   const pw = await resolvePlaywright({ repoRoot: root, e2eDir: opts.e2eDir ?? null });
   // The repo's own packages answer the runtime's CDN scripts; a separate Playwright root is a fallback.
   const vendor = vendorResolver([...playwrightSearchDirs(ctx.repoRoot, opts.e2eDir ?? null), ...(opts.playwrightRoot ? [opts.playwrightRoot] : [])]);
-  const serve = await prepareServeDir(snapshotDir, serveDir);
+  const serve = await prepareServeDir(snapshotDir, serveDir, { page: opts.page ?? null });
   const server = await startStaticServer(serveDir, { port: opts.port ?? 0 });
   const escaped = new Set();
   let pageStateKeys = new Set();

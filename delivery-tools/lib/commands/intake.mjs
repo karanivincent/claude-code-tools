@@ -9,7 +9,7 @@ import { runIntake } from '../lifecycle/intake.mjs';
 export default defineCommand({
   name: "intake",
   summary: "Snapshot a design export, draft the intent, create the epic and the run",
-  usage: `usage: delivery intake <archive.zip|design-dir> [--intent "<sentence>"] [--epic N] [--brief <file>]... [--adapter claude-design|image-folder] [--from <feature>] [--components]
+  usage: `usage: delivery intake <archive.zip|design-dir> [--intent "<sentence>"] [--epic N] [--brief <file>]... [--adapter claude-design|image-folder] [--from <feature>] [--components] [--page <name>]
 
 Check and hash the export, find or create the epic by marker (or adopt --epic N), create the
 integration branch and worktree from origin/<base>, snapshot the design there under
@@ -48,6 +48,9 @@ options:
   --adapter <name>       claude-design (default) or image-folder for a folder of PNGs
   --from <feature>       an update run: start from that earlier run's map, worlds, rules and intent
   --components           a components run (see above) instead of a page run
+  --page <name>          the page to read when the export has more than one (its .dc.html name,
+                         with or without the extension); recorded in the snapshot README, so every
+                         later command and every later export of this run reads the same page
 
 exit: 0 done or already done; 1 intent.json not drafted yet (NEXT names the extractor);
       2 not a recognised export, or intent.json invalid
@@ -60,7 +63,7 @@ common options:
     const { values, positionals } = parseCommandArgs(argv, {
       options: {
         intent: { type: 'string' }, epic: { type: 'string' }, brief: { type: 'string', multiple: true },
-        adapter: { type: 'string' }, from: { type: 'string' }, components: { type: 'boolean' },
+        adapter: { type: 'string' }, from: { type: 'string' }, components: { type: 'boolean' }, page: { type: 'string' },
       },
       positionals: { min: 1, max: 1, names: ['archive'] },
     });
@@ -68,7 +71,7 @@ common options:
     const res = await runIntake(ctx, {
       source: positionals[0], sentence: values.intent ?? null, epic: intFlag(values.epic, '--epic'),
       briefs: values.brief ?? [], adapter: values.adapter ?? null, from: values.from ?? null,
-      components: Boolean(values.components),
+      components: Boolean(values.components), page: values.page ?? null,
     });
     for (const l of res.lines) ctx.out.line(l);
     for (const f of res.failures) ctx.out.fail(f.code, f.message);

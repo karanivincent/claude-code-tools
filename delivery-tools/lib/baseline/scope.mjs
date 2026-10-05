@@ -58,7 +58,9 @@ export function routeMatches(path, pattern) {
  * @param {string[]} allFiles every path at the ref
  * @param {object} profile
  * @param {object} intent
- * @returns {{ file: string, route: string, screen: string }[]}
+ * @returns {{ file: string, route: string, screen: string, tabs?: string[], tabScreens?: Record<string, string> }[]}
+ *   tabs: present when every in-scope route naming the page is written /x?tab=y; only those tabs
+ *   are the run's, and tabScreens names each one's screen
  */
 export function inScopePages(allFiles, profile, intent) {
   const out = [];
@@ -66,9 +68,22 @@ export function inScopePages(allFiles, profile, intent) {
     if (!matchesAny(file, profile.paths.appRouteGlobs)) continue;
     const route = pageRoute(file, profile.paths.appRouteGlobs);
     if (route === null) continue;
+    // Every in-scope entry naming this page: an entry written /x?tab=y keeps only that tab, and
+    // one written /x (no tab) keeps them all.
+    const hits = [];
     for (const s of intent.inScope ?? []) {
-      if ((s.routes ?? []).some((r) => routeMatches(route, r))) { out.push({ file, route: normaliseRoute(route, s.routes), screen: s.screen }); break; }
+      for (const r of s.routes ?? []) if (routeMatches(route, r)) hits.push({ s, r });
     }
+    if (!hits.length) continue;
+    const tabOf = (r) => { const q = String(r).split('?')[1]; return q ? new URLSearchParams(q).get('tab') : null; };
+    const untabbed = hits.some((h) => !tabOf(h.r));
+    const tabScreens = {};
+    for (const h of hits) { const t = tabOf(h.r); if (t && !(t in tabScreens)) tabScreens[t] = h.s.screen; }
+    const first = hits[0].s;
+    out.push({
+      file, route: normaliseRoute(route, first.routes), screen: first.screen,
+      ...(untabbed ? {} : { tabs: Object.keys(tabScreens).sort(), tabScreens }),
+    });
   }
   return out.sort((x, y) => (x.file < y.file ? -1 : 1));
 }

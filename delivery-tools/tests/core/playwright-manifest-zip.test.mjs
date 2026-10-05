@@ -21,7 +21,7 @@ function fakePackage(dir, name) {
 test('Playwright resolves from the target repo, preferring the e2e package, never imported at load', async () => {
   const t = makeTempDir();
   try {
-    await assert.rejects(resolvePlaywright({ repoRoot: t.dir }), (e) => e.exit === 2 && /Playwright not found/.test(e.message));
+    await assert.rejects(resolvePlaywright({ repoRoot: t.dir }), (e) => e.exit === 2 && /Playwright not found/.test(e.message) && /run the profile's commands\.bootstrap there first/.test(e.message));
     fakePackage(join(t.dir, 'apps', 'web'), '@playwright/test');
     const r = await resolvePlaywright({ repoRoot: t.dir, e2eDir: 'apps/web/e2e' });
     assert.equal(r.name, '@playwright/test');

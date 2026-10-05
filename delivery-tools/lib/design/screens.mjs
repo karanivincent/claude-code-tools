@@ -119,7 +119,12 @@ const size = (s) => s.end - s.start;
  * @param {{ key: string, values: string[] } | null} screen from screenKey
  */
 export function screenMap(parts, screen) {
-  const none = { key: null, values: [], templateLine: () => null, scriptOffsets: () => null, readScreens: () => null };
+  const nothing = () => ({ screens: [], lines: [] });
+  const none = {
+    key: null, values: [], templateLine: () => null, scriptOffsets: () => null, readScreens: () => null, looseTemplateLine: () => null,
+    suggest: { offsets: nothing, read: nothing, lines: (lines) => ({ screens: [], lines: [...new Set(lines)].sort((a, b) => a - b) }) },
+    section: () => null,
+  };
   if (!screen || !parts.script) return none;
   const key = screen.key;
   const src = parts.script.text;
@@ -219,7 +224,8 @@ export function screenMap(parts, screen) {
         continue;
       }
       const v = /\bvalue\s*=\s*"\{\{([\s\S]*?)\}\}"/.exec(m[1]);
-      stack.push({ from: at(m.index), to: Infinity, screens: v ? templateCondition(v[1]) : null });
+      const screens = v ? templateCondition(v[1]) : null;
+      stack.push({ from: at(m.index), to: Infinity, screens, loose: screens ?? (v ? propertyCondition(v[1]) : null), expr: v ? htmlUnescape(v[1]).trim() : '' });
     }
     for (const b of stack) blocks.push(b);
     for (const m of t.text.matchAll(/\{\{([\s\S]*?)\}\}/g)) {
@@ -254,6 +260,38 @@ export function screenMap(parts, screen) {
       return colon < 0 ? null : conditionScreens(body.slice(colon + 1), key);
     }
     return null;
+  }
+
+  /**
+   * For suggestion only: `{{ onCalls }}` where the script defines onCalls once or more as an object
+   * property or a constant (`onCalls: screen === 'calls'`), wherever that is, not only in what
+   * renderVals returns. The screens any definition allows; null when none names a screen.
+   */
+  function propertyCondition(expr) {
+    const et = tokenize(htmlUnescape(expr));
+    if (!(et.length === 1 && et[0].t === 'name')) return null;
+    const name = et[0].v;
+    const found = new Set();
+    for (let k = 1; k < toks.length - 1; k++) {
+      const t = toks[k];
+      if (t.t !== 'name' || t.v !== name) continue;
+      const prop = toks[k + 1].v === ':' && (toks[k - 1].v === '{' || toks[k - 1].v === ',');
+      const decl = toks[k + 1].v === '=' && ['const', 'let', 'var'].includes(toks[k - 1].v);
+      if (!prop && !decl) continue;
+      const end = nextTop(toks, k + 2, [',', ';']);
+      for (const x of conditionScreens(toks.slice(k + 2, end), key) ?? []) found.add(x);
+    }
+    return found.size ? [...found].sort() : null;
+  }
+
+  /** templateLine, with blocks the suggestion can place (propertyCondition) counted too. */
+  function looseTemplateLine(line) {
+    let allowed = null;
+    for (const b of blocks) {
+      if (!(b.from <= line && line <= b.to) || !b.loose) continue;
+      allowed = allowed === null ? new Set(b.loose) : new Set([...allowed].filter((x) => b.loose.includes(x)));
+    }
+    return allowed === null || allowed.size === 0 ? null : [...allowed].sort();
   }
 
   function templateLine(line) {
@@ -350,12 +388,96 @@ export function screenMap(parts, screen) {
     return sites.length ? union(sites) : null;
   }
 
+  // ---- suggestion, for grouping candidates only ---------------------------------------------------
+  // The attribution above answers "provably only these screens", so one unknown site makes the
+  // answer unknown. Grouping candidates for extractors needs a weaker answer: the template lines
+  // whose markup reads what a site feeds, and the screens those lines show on, with unknown sites
+  // simply left out. Never used to exclude anything.
+  const byName = new Map(); // name -> [token index]
+  for (let k = 0; k < all.length; k++) {
+    if (all[k].t !== 'name') continue;
+    if (!byName.has(all[k].v)) byName.set(all[k].v, []);
+    byName.get(all[k].v).push(k);
+  }
+  const looseMemo = new Map();
+  const blank = () => ({ screens: new Set(), lines: new Set() });
+  const into = (a, b) => { for (const x of b.screens) a.screens.add(x); for (const l of b.lines) a.lines.add(l); return a; };
+  const fromLines = (lines) => {
+    const r = blank();
+    for (const l of lines) { r.lines.add(l); for (const x of looseTemplateLine(l) ?? []) r.screens.add(x); }
+    return r;
+  };
+
+  function looseName(region) {
+    const id = `${region.kind}:${region.name}:${region.start}`;
+    if (looseMemo.has(id)) return looseMemo.get(id) === BUSY ? blank() : looseMemo.get(id);
+    looseMemo.set(id, BUSY);
+    let r;
+    if (region.kind === 'entry') r = fromLines(uses.get(region.name) ?? []);
+    else {
+      r = blank();
+      for (const k of byName.get(region.name) ?? []) {
+        const t = all[k];
+        if (inside(region, t.start)) continue;
+        const dotted = all[k - 1]?.v === '.' || all[k - 1]?.v === '?.';
+        if (region.kind === 'method' ? !dotted : dotted) continue;
+        if (region.kind === 'local' && !(renderBody && inRender(t.start))) continue;
+        into(r, looseOffset(t.start));
+      }
+      if (region.kind === 'method' && !entries.has(region.name)) into(r, fromLines(uses.get(region.name) ?? []));
+    }
+    looseMemo.set(id, r);
+    return r;
+  }
+
+  function looseOffset(off) {
+    const hits = regions.filter((r) => inside(r, off));
+    const smallest = (kind) => hits.filter((r) => r.kind === kind).sort((a, b) => size(a) - size(b))[0];
+    let r = blank();
+    const named = smallest('entry') ?? smallest('local');
+    if (named) r = into(blank(), looseName(named));
+    else {
+      const m = smallest('method');
+      if (m) { if (m.name !== 'renderVals') r = into(blank(), looseName(m)); }
+      else { const c = smallest('const'); if (c) r = into(blank(), looseName(c)); }
+    }
+    // an `if (screen === 'x')` block says outright where its code shows
+    const ifs = hits.filter((h) => h.kind === 'if');
+    if (ifs.length) r.screens = new Set(ifs.map((h) => h.screens).reduce((a, b) => a.filter((x) => b.includes(x))));
+    return r;
+  }
+
+  const out = (r) => ({ screens: [...r.screens].sort(), lines: [...r.lines].sort((a, b) => a - b) });
+
+  /**
+   * The outermost <sc-if> block, below the screen blocks, that holds a template line: the part of
+   * a screen a candidate belongs to (a tab, a panel, a dialog). Null outside every such block.
+   */
+  function section(line) {
+    const around = blocks.filter((b) => b.from <= line && line <= b.to).sort((a, b) => a.from - b.from || b.to - a.to);
+    let lastScreen = -1;
+    around.forEach((b, i) => { if (b.loose) lastScreen = i; });
+    const b = around[lastScreen + 1];
+    return b ? { line: b.from, label: b.expr || `line ${b.from}` } : null;
+  }
+
   return {
     key,
     values: screen.values,
     templateLine,
     scriptOffsets: (offsets) => (offsets.length ? union(offsets.map(offset)) : null),
     readScreens,
+    looseTemplateLine,
+    suggest: {
+      offsets: (offsets) => out(offsets.reduce((r, o) => into(r, looseOffset(o)), blank())),
+      read: (name) => {
+        const r = blank();
+        if (!computedRead) for (const o of propSites(name)) into(r, looseOffset(o));
+        return out(into(r, fromLines(templateReads.get(name) ?? [])));
+      },
+      lines: (lines) => out(fromLines(lines)),
+    },
+    section,
   };
 }
 

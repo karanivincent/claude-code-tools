@@ -21,6 +21,8 @@ import { inScopePages, createResolver, importClosure, apiRoutePath, routeMatches
 import { analyzeSource, analyzeApiRoute, analyzeE2e } from './analyze.mjs';
 
 export const KIND_ORDER = Object.freeze(['route', 'control', 'api-call', 'data-field', 'copy-key', 'e2e-assertion', 'open-issue']);
+/** The most capabilities a baseline can number: CAP-001 to CAP-9999 (common.schema.json CapId). */
+export const MAX_CAPABILITIES = 9999;
 const E2E_FILE = /\.(spec|e2e)\.[cm]?[jt]sx?$/;
 
 /**
@@ -114,7 +116,8 @@ export async function extractAtRef(ctx, opts) {
       }
     }
     for (const c of a.copyKeys) add('copy-key', `copy:${c.key}`, screen, file, c.line);
-    for (const t of a.tabs) for (const p of from) add('route', `route:${p.route}?tab=${t.value}`, p.screen, file, t.line);
+    // An in-scope route written /x?tab=y keeps that tab only (inScopePages sets p.tabs).
+    for (const t of a.tabs) for (const p of from) if (!p.tabs || p.tabs.includes(t.value)) add('route', `route:${p.route}?tab=${t.value}`, p.tabScreens?.[t.value] ?? p.screen, file, t.line);
     if (matchesAny(file, profile.paths.componentGlobs) || matchesAny(file, profile.paths.appRouteGlobs)) propsByFile.set(file, { props: a.props, screen });
   }
 
@@ -226,10 +229,11 @@ async function controlsFromCapture(captureDir, pages, repoRoot) {
     const page = pages.find((p) => routeMatches(urlPath, p.route));
     if (!page) continue;
     const tab = (() => { try { return new URL(dom.url, 'http://x.invalid').searchParams.get('tab'); } catch { return null; } })();
+    if (tab && page.tabs && !page.tabs.includes(tab)) continue;
     const where = `${page.route}${tab ? `?tab=${tab}` : ''}`;
     for (const el of dom.elements) {
       if (el.kind !== 'control' || !el.visible || !el.name) continue;
-      out.push({ signature: `control:${el.role ?? el.tag} "${String(el.name).replace(/\s+/g, ' ').trim()}"@${where}`, screen: page.screen, file: relative(repoRoot, path) });
+      out.push({ signature: `control:${el.role ?? el.tag} "${String(el.name).replace(/\s+/g, ' ').trim()}"@${where}`, screen: (tab && page.tabScreens?.[tab]) || page.screen, file: relative(repoRoot, path) });
     }
   }
   return out;

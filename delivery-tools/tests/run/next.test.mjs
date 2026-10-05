@@ -85,8 +85,8 @@ test('phase steps: preflight, inventory, plan', () => {
   const pf = facts('preflight');
   pf.evaluation.leaving = redV('preflight', [part('P3', 'P3: test database refused the service role', 3)], 3);
   assert.match(computeNext(pf).text, /^blocked on the founder: P3: test database refused/);
-  assert.equal(computeNext(facts('inventory', { files: { ...BASE.files, candidates: false } })).text, 'delivery design candidates');
-  assert.match(computeNext(facts('inventory', { files: { ...BASE.files, inventory: false } })).text, /^dispatch one delivery-extractor per screen group/);
+  assert.equal(computeNext(facts('inventory', { files: { ...BASE.files, candidates: false } })).text, 'delivery design candidates --groups');
+  assert.match(computeNext(facts('inventory', { files: { ...BASE.files, inventory: false } })).text, /^dispatch one delivery-extractor per group in \.delivery\/widgets\/candidate-groups\.json .*unclaimed\.json/);
   const inv = facts('inventory', { redesign: true });
   inv.evaluation.leaving = redV('inventory', [{ id: 'inventory', result: { ok: true, failures: [] } }, part('baseline', 'no baseline.json for a redesign')]);
   assert.equal(computeNext(inv).text, 'delivery baseline, then delivery capture --mode baseline');

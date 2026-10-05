@@ -136,7 +136,8 @@ test('adapters: detect, snapshot layout, and refusing what they do not read', as
     assert.deepEqual(await claudeDesign.detect(empty), { ok: true, project: 'a', exportedAt: null });
     assert.deepEqual(await findDcFile(empty), { file: 'a.dc.html', components: ['b.dc.html'] });
     writeFileSync(join(empty, 'c.dc.html'), '<x-dc></x-dc>');
-    assert.match((await claudeDesign.detect(empty)).reason, /2 of them imported by no other/);
+    // The error names both pages and how to pick one (intake --page).
+    assert.match((await claudeDesign.detect(empty)).reason, /more than one page that no other file imports \(a\.dc\.html, c\.dc\.html\); choose one with intake --page "<name>", for example --page "a"/);
     assert.deepEqual(ADAPTERS, ['claude-design', 'image-folder']);
   } finally { d.cleanup(); }
 });

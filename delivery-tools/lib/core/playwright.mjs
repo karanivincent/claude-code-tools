@@ -43,5 +43,5 @@ export async function resolvePlaywright({ repoRoot, e2eDir = null, packages = PL
       if (chromium) return { module: mod, chromium, from: path, name };
     }
   }
-  throw new ConfigError(`Playwright not found from ${dirs.join(', ')}; the target repo must install @playwright/test or playwright`);
+  throw new ConfigError(`Playwright not found from ${dirs.join(', ')}; the target repo must install @playwright/test or playwright (in a fresh worktree, run the profile's commands.bootstrap there first)`);
 }

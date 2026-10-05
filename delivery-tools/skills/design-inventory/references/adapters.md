@@ -70,7 +70,7 @@ every action; neither is ever needed.
 
 | Render error | Usual cause | Fix in the group file |
 |---|---|---|
-| a prop produced no visible change | the state needs a second value (the dialog opens only when a list is non-empty, a panel only in a mode) | add the missing values to `props` |
+| a prop produced no visible change | the key is state, not a prop (the prototype writes it with `this.set`), or the state needs a second value (the dialog opens only when a list is non-empty, a panel only in a mode) | a key the prototype writes with `this.set` goes in a `{ "set": {...} }` step; add to `props` only the values the `data-props` blob lists |
 | a click found no element | the step's label is not the rendered label, or an earlier step is missing | take the label from the parent state's `.txt`; add the missing step |
 | a timeout | an asset or font the runtime could not load, or a step that waits for something the prototype never shows | say so under `notes`; the main session looks at the served directory |
 

@@ -282,3 +282,27 @@ test('run through a symlink it still runs, rather than exiting 0 in silence', as
   assert.ok(viaLink.trim().length > 0, 'through a symlink it printed nothing at all');
   assert.equal(viaLink, viaReal, 'a symlink must not change what it does');
 });
+
+test('main writes unclaimed.json: each unclaimed candidate with the group candidate-groups.json suggests', async () => {
+  const cands = candidates([['C-001', 'set-target'], ['C-002', 'list'], ['C-003', 'ternary']]);
+  const dir = await repoWith({ cands, parts: { 'a.json': part('a', [{ id: 'C-001', mappedTo: 'WL-01' }], [state('WL-01')]) } });
+  const out = [];
+  try {
+    await writeFile(join(dir, '.delivery/widgets/candidate-groups.json'), JSON.stringify({
+      schemaVersion: 1, feature: 'widgets', screenKey: 'screen', max: 150, outOfScope: [], counts: {},
+      groups: [{ group: 'list', slug: 'list', prefix: 'LI', screens: ['list'], part: 1, parts: 1, sections: [], candidates: ['C-001', 'C-002'] }],
+    }));
+    assert.equal(await main(['--feature', 'widgets', '--check'], { cwd: dir, stdout: (s) => out.push(s) }), 1);
+    assert.equal(existsSync(join(dir, '.delivery/widgets/unclaimed.json')), false, '--check writes nothing');
+    assert.equal(await main(['--feature', 'widgets'], { cwd: dir, stdout: (s) => out.push(s) }), 1);
+    const doc = JSON.parse(await readFile(join(dir, '.delivery/widgets/unclaimed.json'), 'utf8'));
+    assert.deepEqual(doc.unclaimed.map((c) => [c.id, c.suggestedGroup]), [['C-002', 'list'], ['C-003', 'shared']]);
+    assert.deepEqual(doc.byGroup, { list: ['C-002'], shared: ['C-003'] });
+    assert.match(out.join('\n'), /UNCLAIMED 2 \(by group: list 1, shared 1\); listed in .*unclaimed\.json/);
+
+    // Once every candidate is claimed, the list is written empty, so an old one cannot linger.
+    await writeFile(join(dir, '.delivery/widgets/extract/b.json'), JSON.stringify(part('b', [{ id: 'C-002', mappedTo: 'WL-02' }, { id: 'C-003', mappedTo: 'WL-02' }], [state('WL-02')])));
+    assert.equal(await main(['--feature', 'widgets'], { cwd: dir, stdout: () => {} }), 0);
+    assert.deepEqual(JSON.parse(await readFile(join(dir, '.delivery/widgets/unclaimed.json'), 'utf8')).unclaimed, []);
+  } finally { await rm(dir, { recursive: true, force: true }); }
+});

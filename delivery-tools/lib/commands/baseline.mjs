@@ -9,7 +9,7 @@ import { readJson } from '../core/fs.mjs';
 import { recordFindings } from '../core/findings.mjs';
 import { loadState, newRunId } from '../core/state.mjs';
 import { EXIT, UsageError } from '../core/exit.mjs';
-import { extractAtRef, numberCapabilities, baselineGate, KIND_ORDER } from '../baseline/extract.mjs';
+import { extractAtRef, numberCapabilities, baselineGate, KIND_ORDER, MAX_CAPABILITIES } from '../baseline/extract.mjs';
 import { runM2, M2_SOURCE } from '../baseline/diff.mjs';
 import { refreshBaseline } from '../baseline/refresh.mjs';
 
@@ -77,7 +77,7 @@ async function extractMode(ctx, refFlag) {
   } else {
     capabilities = numberCapabilities(r.capabilities);
   }
-  if (capabilities.length > 999) throw new UsageError(`${capabilities.length} capabilities do not fit the CAP-### id format; narrow the intent's in-scope routes`);
+  if (capabilities.length > MAX_CAPABILITIES) throw new UsageError(`${capabilities.length} capabilities do not fit the CAP-#### id format; narrow the intent's in-scope routes (a route with tabs can be written /x?tab=y to keep one tab)`);
   const baseline = {
     schemaVersion: 1,
     base: { ref: refFlag ?? baseName, sha: r.sha },

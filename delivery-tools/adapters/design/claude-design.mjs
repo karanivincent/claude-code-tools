@@ -24,22 +24,51 @@ const DC_IMPORT = /<dc-import\b[^>]*\bname\s*=\s*["']([^"']+)["']/g;
 /** A copy of the page's source some Claude Design exports carry beside the page itself. */
 export const BUNDLE_SRC = '_bundle_src.dc.html';
 
+/** The snapshot README line that records the page `intake --page` chose (lib/lifecycle/intake.mjs). */
+export const PAGE_LINE = /^Page: `([^`]+\.dc\.html)`/m;
+
+/** A page name as `--page` takes it, with or without `.dc.html`, as the file name. */
+export function pageFileName(name) {
+  const n = String(name ?? '').trim();
+  return n.endsWith('.dc.html') ? n : `${n}.dc.html`;
+}
+
+/**
+ * The page a snapshot's README records (`intake --page`), or null: an export straight from Claude
+ * Design has no README, and a snapshot of a one-page export records none.
+ * @param {string} dir
+ * @returns {Promise<string|null>}
+ */
+export async function recordedPage(dir) {
+  try { return (await readFile(join(dir, 'README.md'), 'utf8')).match(PAGE_LINE)?.[1] ?? null; } catch { return null; }
+}
+
 /**
  * The page *.dc.html at the top of dir, or an error message. An export can also carry components
  * (DatePicker.dc.html beside Dashboard.dc.html) that the page pulls in with
  * <dc-import name="DatePicker">; the page is the one file no other file imports. A
  * _bundle_src.dc.html beside another page file is a second copy of the source, not a page: it is
  * left out and named in `ignored`.
- * @returns {Promise<{ file?: string, components?: string[], ignored?: string[], error?: string }>}
+ *
+ * An export with two pages that no file imports needs a choice: `opts.page` (intake's `--page`),
+ * else the page the dir's own README records (a snapshot intake took with `--page`). Then the
+ * other files that something imports are `components`, and the other unimported ones `otherPages`.
+ * @param {string} dir
+ * @param {{ page?: string|null }} [opts]
+ * @returns {Promise<{ file?: string, components?: string[], otherPages?: string[], ignored?: string[], error?: string }>}
  */
-export async function findDcFile(dir) {
+export async function findDcFile(dir, opts = {}) {
   let names;
   try { names = await readdir(dir); } catch { return { error: `${dir} is not a readable directory` }; }
   let dc = names.filter((n) => n.endsWith('.dc.html') && !n.startsWith('__delivery__'));
   if (dc.length === 0) return { error: 'no *.dc.html at the top of the export' };
-  const ignored = dc.length > 1 && dc.includes(BUNDLE_SRC) ? [BUNDLE_SRC] : [];
+  const wanted = opts.page ? pageFileName(opts.page) : await recordedPage(dir);
+  const ignored = dc.length > 1 && dc.includes(BUNDLE_SRC) && wanted !== BUNDLE_SRC ? [BUNDLE_SRC] : [];
   if (ignored.length) dc = dc.filter((n) => n !== BUNDLE_SRC);
   const note = ignored.length ? { ignored } : {};
+  if (wanted && !dc.includes(wanted)) {
+    return { error: `--page names ${wanted}, which is not at the top of the export (its pages: ${dc.join(', ')})` };
+  }
   if (dc.length === 1) return { file: dc[0], ...note };
   const imported = new Set();
   for (const n of dc) {
@@ -47,8 +76,15 @@ export async function findDcFile(dir) {
     for (const m of text.matchAll(DC_IMPORT)) if (`${m[1]}.dc.html` !== n) imported.add(`${m[1]}.dc.html`);
   }
   const pages = dc.filter((n) => !imported.has(n));
-  if (pages.length !== 1) return { error: `more than one *.dc.html (${dc.join(', ')}), and ${pages.length} of them imported by no other` };
-  return { file: pages[0], components: dc.filter((n) => n !== pages[0]), ...note };
+  if (wanted) {
+    const components = dc.filter((n) => n !== wanted && imported.has(n));
+    const otherPages = dc.filter((n) => n !== wanted && !imported.has(n));
+    return { file: wanted, ...(components.length ? { components } : {}), ...(otherPages.length ? { otherPages } : {}), ...note };
+  }
+  if (pages.length === 1) return { file: pages[0], components: dc.filter((n) => n !== pages[0]), ...note };
+  const pick = 'choose one with intake --page "<name>"';
+  if (pages.length === 0) return { error: `every *.dc.html is imported by another (${dc.join(', ')}), so none is the page; ${pick}` };
+  return { error: `more than one page that no other file imports (${pages.join(', ')}); ${pick}, for example --page "${pages[0].replace(/\.dc\.html$/, '')}"` };
 }
 
 /** Whether dir carries the runtime: support.js loose, or inside runtime.zip. */
@@ -64,12 +100,13 @@ async function hasRuntime(dir) {
 const adapter = {
   name: 'claude-design',
 
-  async detect(dir) {
-    const dc = await findDcFile(dir);
+  async detect(dir, opts = {}) {
+    const dc = await findDcFile(dir, { page: opts.page ?? null });
     if (dc.error) return { ok: false, reason: dc.error };
     if (!(await hasRuntime(dir))) return { ok: false, reason: `no ${RUNTIME_ENTRY} (or ${RUNTIME_ZIP} holding it) beside ${dc.file}` };
     const notes = (dc.ignored ?? []).map((n) => `ignored ${n}: a second copy of the page's source, not a page (the page is ${dc.file})`);
-    return { ok: true, project: dc.file.replace(/\.dc\.html$/, ''), exportedAt: null, ...(notes.length ? { notes } : {}) };
+    for (const n of dc.otherPages ?? []) notes.push(`left out ${n}: another page of the export (the page is ${dc.file})`);
+    return { ok: true, project: dc.file.replace(/\.dc\.html$/, ''), exportedAt: null, ...(opts.page ? { page: dc.file } : {}), ...(notes.length ? { notes } : {}) };
   },
 
   // Runtime scripts are zipped: a repo's security gate may refuse eval in a committed .js, and
@@ -82,17 +119,19 @@ const adapter = {
     return { copy, zip };
   },
 
-  async candidates(snapshotDir) {
-    const dc = await findDcFile(snapshotDir);
+  // opts.hints: a Map to fill with each candidate's suggested screens and sections, for
+  // `design candidates --groups` (claudeDesignCandidates).
+  async candidates(snapshotDir, opts = {}) {
+    const dc = await findDcFile(snapshotDir, { page: opts.page ?? null });
     if (dc.error) throw new Error(dc.error);
     const text = await readFile(join(snapshotDir, dc.file), 'utf8');
     const shotsDir = join(snapshotDir, 'shots');
     const shots = (await isDir(shotsDir)) ? (await readdir(shotsDir)).filter((n) => IMAGE.test(n)).sort() : [];
-    return claudeDesignCandidates({ file: dc.file, text, shots });
+    return claudeDesignCandidates({ file: dc.file, text, shots, hints: opts.hints ?? null });
   },
 
-  async screens(snapshotDir) {
-    const dc = await findDcFile(snapshotDir);
+  async screens(snapshotDir, opts = {}) {
+    const dc = await findDcFile(snapshotDir, { page: opts.page ?? null });
     if (dc.error) throw new Error(dc.error);
     return claudeDesignScreens(await readFile(join(snapshotDir, dc.file), 'utf8'));
   },
@@ -129,19 +168,35 @@ export function claudeDesignScreens(text) {
  * Candidates from a .dc.html's text and its shot file names (pure). A candidate carries `screens`
  * when every place it comes from provably shows on those screens only (lib/design/screens.mjs);
  * one that could show anywhere else carries none.
- * @param {{ file: string, text: string, shots?: string[] }} input
+ * @param {{ file: string, text: string, shots?: string[], hints?: Map<string, { screens: string[], lines: number[], sections: object[] }>|null }} input
+ *   hints: when given, filled with each candidate's suggested screens, the template lines whose
+ *   markup shows it, and the <sc-if> sections those lines sit in (screenMap's suggest), for
+ *   grouping candidates (lib/design/groups.mjs); never used to exclude one
  * @returns {{ id: string, kind: string, source: string, detail?: string, values?: string[], screens?: string[] }[]}
  */
-export function claudeDesignCandidates({ file, text, shots = [] }) {
+export function claudeDesignCandidates({ file, text, shots = [], hints = null }) {
   const parts = splitDcHtml(text);
   const out = [];
   const ids = new Map();
+  let suggestion = null; // set before each add() that has one, when hints are wanted
   const add = (c, screens = null) => {
     const n = (ids.get(c.id) ?? 0) + 1;
     ids.set(c.id, n);
     const tagged = screens?.length ? { ...c, screens } : c;
-    out.push(n === 1 ? tagged : { ...tagged, id: `${c.id}.${n}` });
+    const id = n === 1 ? c.id : `${c.id}.${n}`;
+    out.push(n === 1 ? tagged : { ...tagged, id });
+    if (hints) {
+      const s = suggestion ?? { screens: [], lines: [] };
+      const sections = [];
+      for (const l of s.lines) {
+        const sec = map.section(l);
+        if (sec && !sections.some((x) => x.line === sec.line)) sections.push({ ...sec, screens: map.looseTemplateLine(l) ?? [] });
+      }
+      hints.set(id, { screens: s.screens, lines: s.lines, sections });
+    }
+    suggestion = null;
   };
+  const suggest = (fn) => { if (hints) suggestion = fn(); };
   const toks = parts.script ? tokenize(parts.script.text, { line: parts.script.line }) : [];
   const writes = parts.script ? stateWrites(toks, parts.script.text) : [];
   const screen = screenKey(writes);
@@ -161,6 +216,7 @@ export function claudeDesignCandidates({ file, text, shots = [] }) {
     const presets = presetTables(toks);
     for (const p of propValues(parts.props.value, { presets })) {
       if (p.preset) {
+        suggest(() => map.suggest.read(p.key));
         add({
           id: `preset:${idPart(p.key)}:${idPart(show(p.value))}`,
           kind: 'preset',
@@ -170,6 +226,7 @@ export function claudeDesignCandidates({ file, text, shots = [] }) {
         });
         continue;
       }
+      suggest(() => map.suggest.read(p.key));
       add({
         id: `prop:${idPart(p.key)}:${idPart(show(p.value))}`,
         kind: 'prop-value',
@@ -206,6 +263,23 @@ export function claudeDesignCandidates({ file, text, shots = [] }) {
       const screens = screen && t.key === screen.key
         ? (!t.computed && typeof t.value === 'string' ? [t.value] : null)
         : unionOf([...t.writes.map(writeScreens), map.readScreens(t.key)]);
+      // Suggested: where the value is read and the screens its writes switch to; failing both
+      // (read only by shared markup, say a dialog), where the writes run: the screen it opens from.
+      suggest(() => {
+        if (screen && t.key === screen.key) return { screens: screens ?? [], lines: [] };
+        const live = t.writes.filter((w) => !w.initial);
+        const to = live.flatMap((w) => {
+          const e = screen && w.entries.find((x) => x.key === screen.key);
+          return e && !e.computed ? e.literals.filter((v) => typeof v === 'string') : [];
+        });
+        const read = map.suggest.read(t.key);
+        const at = map.suggest.offsets(live.map((w) => w.at));
+        const near = [...to, ...read.screens];
+        return {
+          screens: [...new Set(near.length ? near : at.screens)].sort(),
+          lines: [...new Set([...read.lines, ...at.lines])].sort((x, y) => x - y),
+        };
+      });
       add({
         id: `${dialog ? 'dialog' : 'set'}:${idPart(t.key)}:${t.computed ? 'computed' : idPart(show(t.value))}`,
         kind: dialog ? 'dialog' : 'set-target',
@@ -220,6 +294,7 @@ export function claudeDesignCandidates({ file, text, shots = [] }) {
     for (const tern of textTernaries(toks, parts.script.text)) {
       const n = (perLine.get(tern.line) ?? 0) + 1;
       perLine.set(tern.line, n);
+      suggest(() => map.suggest.offsets([tern.at]));
       add({
         id: `ternary:${tern.line}${n > 1 ? `.${n}` : ''}`,
         kind: 'ternary',
@@ -234,6 +309,7 @@ export function claudeDesignCandidates({ file, text, shots = [] }) {
   if (parts.template) {
     const uses = new Map();
     for (const l of templateLists(parts.template.text, parts.template.line, { uses })) {
+      suggest(() => map.suggest.lines(uses.get(l.expr) ?? [l.line]));
       add({ id: `list:${idPart(l.expr)}`, kind: 'list', source: `${file}:${l.line}`, detail: `${l.expr}: the list with no items`, values: ['empty'] },
         unionOf((uses.get(l.expr) ?? [l.line]).map(map.templateLine)));
     }

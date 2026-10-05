@@ -14,7 +14,7 @@ import { UsageError } from '../core/exit.mjs';
 import { ensureDir, exists, writeFileAtomic, writeJsonAtomic } from '../core/fs.mjs';
 import { readArtefact } from '../core/artefacts.mjs';
 import { stripCommonRoot } from '../lifecycle/intake.mjs';
-import { findDcFile, claudeDesignScreens } from '../../adapters/design/claude-design.mjs';
+import { findDcFile, claudeDesignScreens, recordedPage } from '../../adapters/design/claude-design.mjs';
 import { splitDcHtml } from './claude-dc.mjs';
 import { screenMap } from './screens.mjs';
 import { readExportComponents, sha256Text } from './components.mjs';
@@ -62,11 +62,13 @@ export async function unpackExport(source) {
  * whether the screen state resolves at all, since a `{main}` map cannot be compared to a per-value
  * map screen by screen.
  * @param {string} dir an export directory (already unpacked)
+ * @param {{ page?: string|null }} [opts] page: the page of an export with several; a snapshot's
+ *   README supplies its own when this is not given
  * @returns {Promise<{ components: object[], errors: string[], screens: Record<string, string>, screenKey: string|null, mainFile: string|null, mainHash: string|null }>}
  */
-export async function readExportSnapshot(dir) {
+export async function readExportSnapshot(dir, opts = {}) {
   const { components, errors } = await readExportComponents(dir);
-  const dc = await findDcFile(dir);
+  const dc = await findDcFile(dir, { page: opts.page ?? null });
   if (dc.error) return { components, errors: [...errors, dc.error], screens: {}, screenKey: null, mainFile: null, mainHash: null };
   const mainText = await readFile(join(dir, dc.file), 'utf8');
   const mainHash = sha256Text(mainText);
@@ -216,9 +218,11 @@ export async function reviewExport(ctx, { exportDir }) {
   const paths = ctx.requirePaths();
   const unpacked = await unpackExport(exportDir);
   try {
+    // A new export has no README of its own: it is read at the page the run's snapshot records.
+    const page = await recordedPage(paths.designSnapshot);
     const [before, after] = await Promise.all([
       readExportSnapshot(paths.designSnapshot),
-      readExportSnapshot(unpacked.dir),
+      readExportSnapshot(unpacked.dir, { page }),
     ]);
     const diff = diffExports(before, after);
     // Only trust a screen key when both exports resolved the same one: diffExports itself falls
@@ -252,7 +256,7 @@ export async function reviewExport(ctx, { exportDir }) {
         for (const width of WIDTHS) {
           const r = await renderDesign(ctx, {
             paths, inventory: changedInventory, adapter: 'claude-design', states: changedStates, width,
-            snapshotDir: unpacked.dir, serveDir: join(reviewDir, 'serve'), outDir: afterDir,
+            snapshotDir: unpacked.dir, serveDir: join(reviewDir, 'serve'), outDir: afterDir, page,
             e2eDir: profile?.paths?.e2eDir ?? null, playwrightRoot: ctx.env.DELIVERY_PLAYWRIGHT_ROOT || null,
           });
           rendered[width] = r.rendered;

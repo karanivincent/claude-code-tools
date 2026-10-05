@@ -197,7 +197,7 @@ export function diffCapabilities({ baseline, head, baseE2e, plan, headRef, goneO
 
   // nothing marked remove that has no base capability, and no remove row for a capability still there
   for (const row of plan?.rows ?? []) {
-    if (row.class !== 'remove' || !/^CAP-\d{3}$/.test(row.id)) continue;
+    if (row.class !== 'remove' || !/^CAP-\d{3,4}$/.test(row.id)) continue;
     if (!baseline.capabilities.some((c) => c.id === row.id)) {
       out.push(makeFinding({ source: M2_SOURCE, rule: 'remove-unknown', severity: 'P2', state: row.id, where: row.id, design: '', live: `a remove row for ${row.id}, which the baseline does not list`, evidence: 'code-read' }));
     }

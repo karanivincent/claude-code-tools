@@ -20,7 +20,7 @@ export const CUT_REASONS = Object.freeze(new Set(['money', 'dials', 'production'
 export const ADAPT_RULES = Object.freeze(new Set(['banned-word', 'product-behaviour', 'data-not-in-product', 'older-than-product']));
 /** Reach classes verified by a capture rather than a component test. */
 const CAPTURED = new Set(['seeded', 'action']);
-const CAP_ID_RE = /^CAP-\d{3}$/;
+const CAP_ID_RE = /^CAP-\d{3,4}$/;
 const STATE_ID_RE = /^(?:[A-Z]{1,6}-\d{2,3}|C-[A-Z][A-Za-z0-9]{0,40}-\d{2,3})$/;
 const MAX_SCOPE_LINES = 5;
 

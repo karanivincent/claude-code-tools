@@ -104,7 +104,10 @@ export function write(dir, files) {
 export async function ctxFor(root, { profile = testProfile(), rules = [], gh, clock, deps, feature = FEATURE, safety, json = false, env } = {}) {
   const c = clock ?? fakeClock('2026-01-15T21:00:00.000Z');
   const theGh = gh ?? createGhStub({ clock: c });
-  const res = await makeTestCtx({ repoRoot: root, feature, json, profile, safety, rules, passthrough: ['git'], gh: theGh, clock: c, env });
+  // Intake bootstraps a worktree it creates (commands.bootstrap through the heavy wrapper); a test
+  // that does not answer it itself gets a quiet success.
+  const allRules = [...rules, { match: /scripts\/bootstrap\.mjs/, result: ok('') }];
+  const res = await makeTestCtx({ repoRoot: root, feature, json, profile, safety, rules: allRules, passthrough: ['git'], gh: theGh, clock: c, env });
   if (deps) res.ctx.deps = deps;
   return res;
 }
