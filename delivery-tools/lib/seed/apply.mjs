@@ -9,21 +9,30 @@ import { resolveValues } from './evaluate.mjs';
 /**
  * @param {import('../../adapters/data/supabase.mjs').DataAdapter} db built with write 'seed-apply' or 'seed-refresh'
  * @param {object} seedPlan
- * @param {{ worlds?: string[], now: Date, users?: boolean, live?: { table: string, id: string, values: object }[] | null }} opts
+ * @param {{ worlds?: string[], now: Date, users?: boolean, live?: { table: string, id: string, values: object }[] | null,
+ *           userNameColumns?: { table: string, column: string, idColumn?: string }[] | null }} opts
  *   live: the rows the database holds now (liveWorldRows); a planned row it already holds exactly
  *   as planned, deferred columns included, is not written again. Without it every row is written.
- * @returns {Promise<{ rows: number, unchanged: number, deferred: number, users: { created: number, existing: number } }>}
+ *   userNameColumns (B5, the profile's testData.userNameColumns): where the app keeps its own copy
+ *   of a user's name. An insert trigger copies it once, so a name changed later stays old there;
+ *   each named fixture user's name is written to every one of them.
+ * @returns {Promise<{ rows: number, unchanged: number, deferred: number, users: { created: number, existing: number, named: number } }>}
  *   deferred: the rows whose forward references were set after every row was written
  */
 export async function applyRows(db, seedPlan, opts) {
   const only = opts.worlds ? new Set(opts.worlds) : null;
   const inScope = (w) => !only || only.has(w);
-  const userCounts = { created: 0, existing: 0 };
+  const userCounts = { created: 0, existing: 0, named: 0 };
   if (opts.users !== false) {
     for (const u of seedPlan.users.filter((x) => inScope(x.world))) {
       const r = await db.createUser({ id: u.id, email: u.email, ...(u.name ? { name: u.name } : {}) });
       if (r === 'created') userCounts.created++;
       else userCounts.existing++;
+      if (!u.name) continue;
+      for (const c of opts.userNameColumns ?? []) {
+        await db.updateByColumn(c.table, c.idColumn ?? 'id', u.id, { [c.column]: u.name });
+        userCounts.named++;
+      }
     }
   }
   const orgIds = new Set(seedPlan.worlds.map((w) => w.orgId));

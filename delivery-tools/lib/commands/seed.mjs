@@ -337,8 +337,9 @@ async function applyMode(ctx) {
   }
   const { createDataAdapter } = await import('../../adapters/data/supabase.mjs');
   const db = await createDataAdapter(ctx, { projectRef: seedPlan.project, write: 'seed-apply' });
-  const written = await applyRows(db, seedPlan, { now: await seedNow(ctx) });
+  const written = await applyRows(db, seedPlan, { now: await seedNow(ctx), userNameColumns: profile.testData?.userNameColumns ?? null });
   ctx.out.line(`wrote ${written.rows} row(s) and ${written.users.created} new fixture user(s) (${written.users.existing} already there) to ${seedPlan.project}${written.deferred ? `, then set the forward references of ${written.deferred} row(s)` : ''}`);
+  if (written.users.named) ctx.out.line(`wrote the fixture users' names to the app's own users table(s) (${written.users.named} column(s), testData.userNameColumns)`);
   // R7: the worlds' global dependencies as they were when seeded; shoot warns when one changed.
   if (seedPlan.worlds.some((w) => w.globals?.length)) {
     try {
