@@ -49,7 +49,8 @@ must land first.
 | 5b Data faults | a seed-writer, then this session | only when datacheck found a data fault: the seed-writer with `Problem: rounds/<n>/datacheck.json`, then `seed --plan`, `--check`, and `delivery shoot --only data-faults`; at most two passes, before any reviewer | the round's data faults fixed in the world, not in code |
 | 6 Review | one `delivery-tools:picture-reviewer` per batch (Sonnet, medium, with `delivery crop`) | `<plugin>/briefs/reviewer-picture.md` | `rounds/<n>/review-batch-<k>.md` |
 | 7 Compile | this session | `delivery review --round <n>` | `review.json`, `compare.html` |
-| 8 Fix | a fresh `delivery-tools:picture-fixer` per round (Sonnet, medium) | the round's `review.json` and `builder-notes.md` | commits; then 5 to 7 again |
+| 7b Shipping checks | this session | after each compiled round that goes to a fixer: `delivery prepush --round <n>` (also the profile's `commands.security` when set). When it says the branch is behind its base, merge the base first | `rounds/<n>/prepush.json`, so NEXT does not ask again |
+| 8 Fix | a fresh `delivery-tools:picture-fixer` per round (Sonnet, medium) | the round's `review.json`, its `prepush.json` and `builder-notes.md` | commits; then 5 to 7 again |
 | 9 Ship | this session; a `delivery-worker` with `Role: ci-fixer` per failing check | full CI chain, `delivery prepush`, push, `delivery ci --pr <n>`; a red check goes to `<plugin>/briefs/ci-fixer.md` | the preview, a sign-in link, the comparison page |
 | 10 Retro | this session | `delivery retro` once `ready` is green; commit `docs/delivery/runs.jsonl` with the run | the run's line in the ledger |
 
@@ -107,7 +108,7 @@ Feature: <slug>   Worktree: <absolute path of the run's worktree>
 <steers (delivery-extractor): Role: steers, then Read <plugin>/briefs/steers.md and follow it.   Write: docs/delivery/<f>/steers.md>
 <ci-fixer: Check: <the failing check>   Log: <the log file delivery ci wrote>   Dev server: <running at <url>, or stopped>>
 <builder: Dev server: <url>   Round: 1   Screens: <one screen group>   Components: run `delivery components --used`>
-<fixer: Dev server: <url>   Round: <n>   Components: run `delivery components --used`   Review: .delivery/<f>/rounds/<n-1>/review.json   Notes: .delivery/<f>/builder-notes.md>
+<fixer: Dev server: <url>   Round: <n>   Components: run `delivery components --used`   Review: .delivery/<f>/rounds/<n-1>/review.json   Prepush: .delivery/<f>/rounds/<n-1>/prepush.json   Notes: .delivery/<f>/builder-notes.md>
 <reviewer: Round: .delivery/<f>/rounds/<n>/   States: <ITEMS, e.g. KC-05 KC-05@phone>   Write: review-batch-<k>.md>
 ```
 

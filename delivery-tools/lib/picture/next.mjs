@@ -233,6 +233,9 @@ export async function pictureFacts(paths, opts = {}) {
       compiled: Boolean(info.review) && mtime(join(info.dir, 'review.json')) >= newestReview,
       counts: info.review?.counts ?? null,
       compare: info.compare,
+      // A5: the shipping checks (delivery prepush --round <n>, with commands.security) not yet run
+      // for this round; NEXT asks for them before the next fixer.
+      prepushOwed: !existsSync(join(info.dir, 'prepush.json')),
     };
   });
   // A4: a waived item keeps its verdict but is not open.
@@ -436,7 +439,10 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   // falls, ship at zero, stop after rounds.stallRounds rounds with no fall or at the ceiling.
   const d = f.decision ?? roundDecision([open]);
   if (open && d.decision === 'fix') {
-    return { step: 'fix', skill, text: `fix round: send the fixer round ${last.round}'s review.json (${open} ${noun}(s) open; ${d.why}), then ${shoot} (round ${last.round + 1}; it resets the worlds itself)` };
+    // A5: the shipping checks run after each round's review, so the fixer fixes what they find in
+    // the same round instead of at ship.
+    if (last.prepushOwed) return { step: 'prepush', skill, text: `round ${last.round}: run the shipping checks before the fixer: ${cli} prepush --round ${last.round}. It also runs the profile's commands.security when set, and records rounds/${last.round}/prepush.json. The fixer fixes what it lists together with the review` };
+    return { step: 'fix', skill, text: `fix round: send the fixer round ${last.round}'s review.json and prepush.json (${open} ${noun}(s) open; ${d.why}), then ${shoot} (round ${last.round + 1}; it resets the worlds itself)` };
   }
   // W5: items held back from review while their screen's sample was clean are reviewed once
   // before anything ships, so nothing ships unreviewed.

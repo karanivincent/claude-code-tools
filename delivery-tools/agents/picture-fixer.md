@@ -14,7 +14,8 @@ its worktree, the dev server's URL, the review to work from, and the round's pre
 the shipping checks found something. Read
 `<plugin>/briefs/builder-picture.md` first and follow it, as a fix round: start from
 `.delivery/<feature>/builder-notes.md`, which the first builder wrote so you don't have to
-rediscover the page, fix what the review lists, and add what you learned to the notes.
+rediscover the page, fix what the review lists and what the round's prepush.json lists, and add
+what you learned to the notes.
 
 You run in this session's own worktree, not a fresh one of your own: this run's dev server watches
 that worktree, so a change it can't see is a change nobody can picture. Never ask for or accept an

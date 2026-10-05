@@ -52,7 +52,10 @@ factual, under these headings:
 
 In a fix round, read the notes before the review, fix what the round's `review.json` lists (its
 `must fix` items; `small` ones when they are quick), and add a dated line under the headings that
-changed. Do not rebuild what already matches.
+changed. Do not rebuild what already matches. Also fix every problem the round's `prepush.json`
+lists (your prompt's `Prepush:` line): the shipping checks and the security scan, run after the
+review so they are fixed now and not at ship. A branch behind its base is the main session's to
+merge; leave that one.
 
 In an update run (the run's state names a `from` run) the page already exists and round 1 has
 already pictured it: change only what the round's review lists, and keep everything else as it is.

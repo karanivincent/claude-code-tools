@@ -171,6 +171,9 @@ carries the owner's decisions.
 - Every state that changes data is shot in its own browser context, and its world is reset right before it (desktop before phone), so a save never leaks into the next state.
 - After each shoot, datacheck looks for every contract data value in the page's text (`<ITEM>.live.txt`), and looks each miss up in the world as seeded (`seeded.json`): a data fault (the world lacks it) goes to the seed-writer and is re-shot with `shoot --only data-faults` before any reviewer; a must fix (the world holds it) goes to the fixer. `delivery datacheck` does it again from the saved files. The round's `datacheck.json` also lists traced columns no query in the code selects, which `delivery contract --questions` asks the founder about.
 
+- After a round's review is compiled and before the next fixer, NEXT asks for `delivery prepush --round <n>`: the push checks, then the profile's `commands.security` when set, recorded in `rounds/<n>/prepush.json`. The fixer fixes what it lists with the review, so nothing new turns up at ship.
+- A map state the run will not build carries `"later": "<why>"`: it is not shot, its verdict is `later`, and it is never open. An item the founder accepts as it is (a test-data gap the safety rules make on purpose) is waived with `delivery waive <ITEM> --why "<reason>"` (`.delivery/<f>/waived.json`): it keeps its verdict, is not open, and ready, `stuck.md` and the PR body show the reason.
+
 ### Test data
 
 - `delivery seed --from-trace` writes world rows from the contract: one row per `row` key, named `t-<row>`, with the design's values, relative times, enum literals, numbers and the organisation column (from `paths.databaseTypes`). Emails become fixture addresses and the organisation's name the world's; each swap is in `docs/delivery/<f>/swaps.json`. It prints what it could not infer, for a seed-writer.
