@@ -181,7 +181,9 @@ lib/baseline/                 B2  extract, diff (M2), refresh
 lib/sidefx/                   B2  derive
 lib/seed/                     B2  safety (M13), scan, plan, apply; data.mjs (A1, A2): stateDataGaps,
                                    describeWhere, tablesWithoutGuard, columnAllowList,
-                                   columnConstraintViolations, parseCheckConstraint
+                                   columnConstraintViolations, parseCheckConstraint; forbidden.mjs:
+                                   fixtureForbiddenTables, forbiddenTableProblems, forbiddenSteerLines
+                                   (tables no fixture organisation may hold, from the guard probes)
 adapters/data/supabase.mjs    B2  createDataAdapter
 adapters/design/              C   index (getDesignAdapter), claude-design, image-folder
 lib/design/                   C   candidates, render (also records <ID>.components.json), static

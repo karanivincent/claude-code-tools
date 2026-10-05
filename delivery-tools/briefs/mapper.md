@@ -84,6 +84,12 @@ don't write code.
   - A state whose render named a design-first component (its `<ID>.components.json` lists it)
     only gets a button entry for that component when the component has its own controls on that
     state (a date field's own calendar icon, say) — not for the component's whole surface.
+- Some tables can never hold test data. The safety file's guard probes name them: a plain
+  `select count(*) from <table> where organization_id = any($fixtureOrgs)` that expects 0 (a
+  line, a phone number). NEXT lists them when it dispatches you. Never write a world row to one.
+  A state that shows their data gets `reach.intercept` from the start, with the design's values
+  in its `body`. Phone number, line and calling-hours screens almost always need one. `delivery
+  map` refuses a world that writes one, and a state that shows one with no intercept.
 - `reach.writes: true` marks a state reached by saving, adding, discarding or any other click
   that changes the test data. Those states are captured last, each in its own browser, and their
   world is reset before every one of them.

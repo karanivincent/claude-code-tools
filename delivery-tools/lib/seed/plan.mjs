@@ -75,6 +75,12 @@ export const WORLD_SCHEMA = Object.freeze({
         },
       },
     },
+    // B3: seed --from-trace's hash of each t- row as it wrote it. A row that no longer matches its
+    // hash was edited by hand, and the next --from-trace keeps it.
+    traced: {
+      type: 'object',
+      additionalProperties: { type: 'string', pattern: '^[0-9a-f]{64}$' },
+    },
     rows: {
       type: 'array',
       items: {

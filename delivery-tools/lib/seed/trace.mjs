@@ -22,6 +22,8 @@ import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { entryProblem, holds, normalise } from '../picture/contract.mjs';
 import { ORG_COLUMNS } from './check.mjs';
+import { fixtureForbiddenTables } from './forbidden.mjs';
+import { hashJson } from '../core/hash.mjs';
 
 /** Row keys this command writes start with it; rows without it are a person's, and never touched. */
 export const TRACE_KEY_PREFIX = 't-';
@@ -101,11 +103,25 @@ function setPath(obj, column, value) {
 const safeKey = (row) => `${TRACE_KEY_PREFIX}${String(row).replace(/[^A-Za-z0-9._:-]/g, '-')}`.slice(0, 128);
 
 /**
+ * B3: the hash of a t- row as --from-trace wrote it (its table and values). The world file keeps
+ * one per row under `traced`; a row whose hash no longer matches was edited by hand.
+ * @param {{ table: string, values: object }} row
+ */
+export function traceRowHash(row) {
+  return hashJson({ table: row.table, values: row.values ?? {} });
+}
+
+/**
  * Build one world's rows from the contract.
  * @param {{ contract: object, map: object, worldId: string, worldFile: object|null, safety: object,
  *           types?: ReturnType<import('./validate.mjs').parseColumnTypes>|null, now?: Date }} o
  * @returns {{ rows: object[], kept: number, replaced: number, added: number, skipped: string[],
- *             swaps: Record<string, string>, userNames: Record<string, string>, needs: string[] }}
+ *             swaps: Record<string, string>, userNames: Record<string, string>, needs: string[],
+ *             traced: Record<string, string>, handEdited: string[], dropped: string[], forbidden: string[] }}
+ *   traced: the hash of every t- row as written (the world file's `traced`); handEdited: the t- rows
+ *   kept because they differ from the hash recorded when they were written; dropped: the t- rows
+ *   the contract no longer produces; forbidden: rows not written because no fixture organisation
+ *   may hold a row in their table (the state needs an intercept instead)
  */
 export function traceWorld({ contract, map, worldId, worldFile, safety, types = null, now = new Date() }) {
   const world = (map.worlds ?? []).find((w) => w.id === worldId);
@@ -160,8 +176,18 @@ export function traceWorld({ contract, map, worldId, worldFile, safety, types = 
   const personName = (g) => [...g.cols.values()].map((e) => String(e.value ?? e.text)).find((v) => users.some((u) => u.name && normalise(u.name) === normalise(v)));
   const generated = [];
   const skipped = [];
+  const forbiddenTables = new Set(fixtureForbiddenTables(safety));
+  const forbidden = [];
   for (const g of groups.values()) {
     const cols = tableTypes(g.table);
+    // B1: the safety file's probes expect no fixture row in this table. The state gets the
+    // value from an intercept, never from the world.
+    if (forbiddenTables.has(g.table)) {
+      const line = `${g.row}: ${g.table} is a table no fixture organisation may hold a row in; answer ${[...g.states].join(', ')} with an intercept (reach.intercept) instead`;
+      skipped.push(line);
+      forbidden.push(line);
+      continue;
+    }
     // A row that describes a fixture user is that user: seed --apply creates it from the map.
     const person = personName(g);
     if (person) {
@@ -200,19 +226,35 @@ export function traceWorld({ contract, map, worldId, worldFile, safety, types = 
     generated.push({ key: safeKey(g.row), table: g.table, values, entries: [...g.cols.values()] });
   }
 
+  // B3: a t- row whose values differ from the hash recorded when it was written was edited by
+  // hand. It is kept as it is, and said so. A t- row with no recorded hash (a world file from before
+  // hashes) is treated as generated, as it always was.
+  const recorded = worldFile?.traced ?? {};
+  const isHandEdit = (r) => typeof recorded[r.key] === 'string' && recorded[r.key] !== traceRowHash(r);
+  const handRows = existing.filter((r) => r.key.startsWith(TRACE_KEY_PREFIX) && isHandEdit(r));
+  const handKeys = new Set(handRows.map((r) => r.key));
   // A group the hand-written rows already hold is left alone, so a row is never written twice.
   const rowsNow = existing.filter((r) => !r.key.startsWith(TRACE_KEY_PREFIX)).map((r) => ({ table: r.table, values: plainValues(r.values) }));
-  const out = existing.filter((r) => !r.key.startsWith(TRACE_KEY_PREFIX)).map((r) => r);
+  const out = existing.filter((r) => !r.key.startsWith(TRACE_KEY_PREFIX) || handKeys.has(r.key)).map((r) => r);
   const before = new Set(existing.filter((r) => r.key.startsWith(TRACE_KEY_PREFIX)).map((r) => r.key));
+  const traced = {};
+  for (const r of handRows) traced[r.key] = recorded[r.key];
+  const handEdited = handRows.map((r) => r.key);
   let added = 0;
   let replaced = 0;
+  const produced = new Set();
   for (const g of generated) {
+    produced.add(g.key);
+    if (handKeys.has(g.key)) continue;
     const already = g.entries.every((e) => holds(e, rowsNow, users, now, swaps).ok);
     if (already) { skipped.push(`${g.key}: the world already holds it`); continue; }
-    out.push({ key: g.key, table: g.table, values: g.values });
+    const row = { key: g.key, table: g.table, values: g.values };
+    out.push(row);
+    traced[g.key] = traceRowHash(row);
     if (before.has(g.key)) replaced += 1; else added += 1;
   }
-  return { rows: out, kept: out.length - added - replaced, replaced, added, skipped, swaps, userNames, needs };
+  const dropped = [...before].filter((k) => !produced.has(k) && !handKeys.has(k));
+  return { rows: out, kept: out.length - added - replaced, replaced, added, skipped, swaps, userNames, needs, traced, handEdited, dropped, forbidden };
 }
 
 /** A world file's values without markers, for the "already holds it" check. */

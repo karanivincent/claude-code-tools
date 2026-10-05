@@ -12,6 +12,8 @@ import { likelyRetiredIds } from '../lifecycle/prepush.mjs';
 import { overlapLines } from '../lifecycle/overlap.mjs';
 import { hasPhone, mapItems, mapWidths } from '../picture/widths.mjs';
 import { readRules } from '../picture/rules.mjs';
+import { fixtureForbiddenTables, forbiddenTableProblems } from '../seed/forbidden.mjs';
+import { readContract } from '../picture/contract.mjs';
 
 export default defineCommand({
   name: 'map',
@@ -28,7 +30,10 @@ a metered, dialling or destructive control without an intercept), and refuses a 
 in the world of a state marked "clock": true (one that looks as designed only at some times of
 day: its times are written relative to the shoot, {"$rel": ...}), and, when the profile names
 testData.timeOfDayTables, a clock state's world that writes no row to one of them (its hours are
-written relative to the shoot, {"$minuteOfDay": "now-60"}). Then it writes checklist.md next
+written relative to the shoot, {"$minuteOfDay": "now-60"}). It also refuses a world that writes a
+table the safety file's probes say no fixture organisation may hold (a plain count over the table
+expecting 0), and a state that shows data from one with no reach.intercept: answer it with an
+intercept. Then it writes checklist.md next
 to it, which builders and reviewers read. When rules.json exists, each rule is written under the
 states that show it, so builders and reviewers see it next to the picture. A valid map switches the run to picture mode: status
 then follows the picture loop.
@@ -81,7 +86,7 @@ common options:
       try { worldFiles[w.id] = JSON.parse(readFileSync(worldFilePath(paths, w.id), 'utf8')); } catch { worldFiles[w.id] = null; }
     }
     const timeOfDayTables = (await ctx.profile().catch(() => null))?.testData?.timeOfDayTables ?? [];
-    const problems = [...validateMap(map, { designed }), ...clockProblems(map, worldFiles, { timeOfDayTables })];
+    const problems = [...validateMap(map, { designed }), ...clockProblems(map, worldFiles, { timeOfDayTables }), ...await forbiddenProblems(ctx, paths, map, worldFiles)];
     for (const p of problems) ctx.out.fail('map', p);
     if (problems.length) {
       await ctx.journal({ command: 'map', exit: EXIT.RED, counts: { problems: problems.length } });
@@ -117,6 +122,18 @@ common options:
     return EXIT.PASS;
   },
 });
+
+/**
+ * B1: tables the safety file's probes say no fixture organisation may hold. A world that writes
+ * one, or a state that shows one with no intercept, is a problem. No safety file: nothing to say.
+ */
+async function forbiddenProblems(ctx, paths, map, worldFiles) {
+  let tables = [];
+  try { tables = fixtureForbiddenTables((await ctx.safety()).safety); } catch { return []; }
+  let contract = null;
+  try { contract = readContract(paths); } catch { contract = null; }
+  return forbiddenTableProblems(map, worldFiles, tables, contract);
+}
 
 /** Screen and state names from the design extraction, when the run has one. */
 function extractNames(paths) {
