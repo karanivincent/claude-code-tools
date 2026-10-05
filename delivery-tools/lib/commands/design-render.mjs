@@ -120,6 +120,7 @@ common options:
     for (const s of r.skipped) ctx.out.line(`skipped ${shown(s.id)}: ${s.why}`);
     for (const f of r.failed) ctx.out.fail('render', `${shown(f.id)}: ${f.why}`);
     for (const w of r.warnings) ctx.out.warn(`${shown(w.id)}: ${w.why}`);
+    for (const n of r.notes ?? []) ctx.out.line(`note ${shown(n.id)}: ${n.why}`);
     if (r.escaped.length) ctx.out.warn(`offline: aborted requests to ${r.escaped.join(', ')}`);
     ctx.out.line(`${r.rendered.length} rendered, ${r.shots.length} pictures, ${r.skipped.length} skipped, ${r.failed.length} failed; files in ${paths.designRenders}`);
     ctx.out.set('rendered', r.rendered);
@@ -127,6 +128,7 @@ common options:
     ctx.out.set('skipped', r.skipped);
     ctx.out.set('failed', r.failed);
     ctx.out.set('warnings', r.warnings);
+    ctx.out.set('notes', r.notes ?? []);
     const exit = r.failed.length ? EXIT.RED : EXIT.PASS;
     await ctx.journal({
       command: 'design render', exit,

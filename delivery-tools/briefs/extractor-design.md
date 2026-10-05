@@ -47,6 +47,48 @@ Write `docs/delivery/<f>/intent.json` in this shape (every field required):
 Every default you choose is a proposal the founder may correct, so choose the plain reading and
 say nothing more about it.
 
+The file has exactly this shape. Use these keys and no others. `users[].can` is a list of
+strings. Each `inScope` and `outOfScope` entry names its `screen`. `widths` is an object with one
+key per in-scope screen, not a list. Intake rewrites `design` from the snapshot, so copy it from
+the README as well as you can and move on.
+
+```json
+{
+  "schemaVersion": 1,
+  "feature": "orders-page",
+  "epic": 12,
+  "sentence": "Rebuild the orders page from the new design.",
+  "design": {
+    "adapter": "claude-design",
+    "archiveSha256": "<the archive hash in the snapshot README>",
+    "treeSha256": "<the export tree hash in the snapshot README>",
+    "project": "Acme Store",
+    "exportedAt": "2026-01-14",
+    "snapshotDir": "docs/design/orders-page"
+  },
+  "job": "Shop staff see today's orders and chase the late ones.",
+  "users": [
+    { "role": "admin", "can": ["see every order", "cancel an order"] },
+    { "role": "member", "can": ["see every order"] }
+  ],
+  "inScope": [
+    { "screen": "Orders", "routes": ["/orders"], "designScreens": ["orders", "order"] }
+  ],
+  "outOfScope": [
+    { "screen": "Settings", "why": "in the export for context only", "designScreens": ["settings"], "routes": ["/settings"] }
+  ],
+  "requested": [
+    { "id": "R1-03", "text": "An empty state with one clear action", "source": "round-1-brief.md", "passWhen": "the empty list shows one button" }
+  ],
+  "widths": { "Orders": "no-break" },
+  "themes": ["light", "dark"],
+  "locales": ["en"],
+  "rollout": { "mode": "all-at-once", "why": "nobody uses the page yet" },
+  "analytics": "none",
+  "redesign": true
+}
+```
+
 **Scope is the sentence's, and the export is the whole project.** An export holds every screen
 ever designed in that project, most of them built already or meant for later runs. A screen is in
 scope only when the sentence names it or it is part of the flow the sentence names (a list and
@@ -111,6 +153,24 @@ For each state write:
   - `shot-only`: only a picture shows it (image folders, or a shot with no prototype state);
   - `unspecified`: the design does not draw it but the product needs it; set `unspecified` to
     `loading`, `empty`, `error`, `permission`, `one` or `many`.
+**State or prop.** A key the prototype writes with `this.set({...})` is state: `screen`, `tab`,
+`dlg`, a panel, a mode. It goes in a `{ "set": {...} }` step, never in `props`. A key listed in the
+`data-props` blob is a prop, and only those go in `props`. When a key is both, the value decides:
+a value the prop's options list is a prop, any other value is state. The render moves a state key
+it finds in `props` into a step and says so, but write it as a step in the first place.
+
+A prop (the `data-props` blob lists `ordersState` with its options):
+
+```json
+{ "kind": "prop", "props": { "ordersState": "A6 No orders that day" } }
+```
+
+State (the script runs `this.set({ screen: 'orders', tab: 'late' })`):
+
+```json
+{ "kind": "click-path", "steps": [{ "set": { "screen": "orders", "tab": "late" } }, { "click": "Export" }] }
+```
+
 Phone states are never reached through a prop that draws the page inside a phone frame
 (`screen: "Phone"`, `phoneWidth`, a device toggle): the frame is an iframe whose words the render
 cannot read. Write the state as the desktop one is written; `delivery design render --width phone`
