@@ -395,7 +395,7 @@ const FACTS = { designed: 4, hasMap: true, mapError: null, problemCount: 0, chec
 const nextOf = (f) => pictureNext({ ...FACTS, ...f }, { cli: 'delivery' });
 const OPEN = { round: 1, shot: true, reviews: 4, compiled: true, counts: { must: 3, notReached: 1 } };
 
-test('NEXT names --prod in every shoot line when facts.shootArgs is --prod, and --base-url <url> without it', () => {
+test('NEXT names --prod in every shoot line when facts.shootArgs is --prod, and the served dev server (no URL) without it', () => {
   const lines = (shootArgs) => {
     const f = shootArgs === undefined ? {} : { shootArgs };
     return {
@@ -414,21 +414,21 @@ test('NEXT names --prod in every shoot line when facts.shootArgs is --prod, and 
   }
   assert.equal(prod.fix.step, 'fix');
   assert.equal(prod.dataOnly.step, 'data-faults');
-  for (const shootArgs of ['--base-url <url>', undefined]) {
+  for (const shootArgs of ['', undefined]) {
     for (const [name, n] of Object.entries(lines(shootArgs))) {
-      assert.match(n.text, /delivery shoot --base-url <url>/, name);
-      assert.doesNotMatch(n.text, /--prod/, name);
+      assert.match(n.text, /delivery shoot( --|\s\(|$)/, name);
+      assert.doesNotMatch(n.text, /--prod|--base-url|shoot {2}/, name);
     }
   }
 });
 
-test('pictureFacts: shootArgs is --prod when the profile has commands.prodServer, else --base-url <url>', async () => {
+test('pictureFacts: shootArgs is --prod when the profile has commands.prodServer, else nothing (the served dev server)', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'faster-facts-'));
   try {
     const paths = featurePaths(dir, 'widgets');
     assert.equal((await pictureFacts(paths, { profile: withProd('serve {port}') })).shootArgs, '--prod');
-    assert.equal((await pictureFacts(paths, { profile: withProd(null) })).shootArgs, '--base-url <url>');
-    assert.equal((await pictureFacts(paths)).shootArgs, '--base-url <url>', 'no profile: the running app');
+    assert.equal((await pictureFacts(paths, { profile: withProd(null) })).shootArgs, '');
+    assert.equal((await pictureFacts(paths)).shootArgs, '', 'no profile: the run\'s dev server');
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

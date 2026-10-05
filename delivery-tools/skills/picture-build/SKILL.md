@@ -45,7 +45,7 @@ must land first.
 | 3 Worlds | this session, then one `delivery-worker`, `Role: seed-writer`, only for what the command lists | `delivery seed --from-trace` (world rows from the contract, safe emails and names, `swaps.json`); the seed-writer with `<plugin>/briefs/seed-writer.md` handles the lines it could not infer; `seed --plan` (column types, `validateSeedJson`), `--check` (every contract data value held, every watched table guarded); then this session runs `delivery seed --apply` | fixture worlds on the test project |
 | 3b Steers | one `delivery-extractor`, `Role: steers` | `<plugin>/briefs/steers.md`, before round 1; an update run carries the earlier run's | `steers.md`: phone patterns, test data, rules over the picture; added to every reviewer prompt |
 | 4 Build | one `delivery-tools:picture-builder` agent (Opus, high) | before dispatch: `delivery rules` must exit 0 (a non-zero exit names an owed rule; go back to step 0b); then `<plugin>/briefs/builder-picture.md`; it reports done only once `delivery smoke` passes | commits on the run's branch |
-| 5 Shoot | this session | `delivery shoot --prod` when the profile has `commands.prodServer` (a production build, built in the heavy slot, served on its own port; the dev server keeps running for the builder), else the dev server in the background and `delivery shoot --base-url <url>` (worlds are shot two at a time; it runs `delivery smoke` first and pictures nothing when a page does not load, and deletes the round's folder when the server breaks during it, so the number is reused; every width the map declares; it resets each world to its seed right before its shots and before every state that saves, and freezes the browser clock at that moment; then datacheck looks for every traced value in the page's text) | `rounds/<n>/<ITEM>.live.png`, `<ITEM>.design.png`, `<ITEM>.live.txt`, `shoot.json`, `datacheck.json` |
+| 5 Shoot | this session, with `run_in_background` | `delivery shoot --prod` when the profile has `commands.prodServer` (a production build, built in the heavy slot, served on its own port; the dev server keeps running for the builder), else `delivery shoot`, which pictures the run's dev server (it runs `delivery serve --ensure` itself) (worlds are shot two at a time; it runs `delivery smoke` first and pictures nothing when a page does not load, and deletes the round's folder when the server breaks during it, so the number is reused; every width the map declares; it resets each world to its seed right before its shots and before every state that saves, and freezes the browser clock at that moment; then datacheck looks for every traced value in the page's text) | `rounds/<n>/<ITEM>.live.png`, `<ITEM>.design.png`, `<ITEM>.live.txt`, `shoot.json`, `datacheck.json` |
 | 5b Data faults | a seed-writer, then this session | only when datacheck found a data fault: the seed-writer with `Problem: rounds/<n>/datacheck.json`, then `seed --plan`, `--check`, and `delivery shoot --only data-faults`; at most two passes, before any reviewer | the round's data faults fixed in the world, not in code |
 | 6 Review | one `delivery-tools:picture-reviewer` per batch (Sonnet, medium, with `delivery crop`) | `<plugin>/briefs/reviewer-picture.md` | `rounds/<n>/review-batch-<k>.md` |
 | 7 Compile | this session | `delivery review --round <n>` | `review.json`, `compare.html` |
@@ -111,6 +111,8 @@ Feature: <slug>   Worktree: <absolute path of the run's worktree>
 <reviewer: Round: .delivery/<f>/rounds/<n>/   States: <ITEMS, e.g. KC-05 KC-05@phone>   Write: review-batch-<k>.md>
 ```
 
+`<url>` is the one `delivery serve --ensure` printed.
+
 You do not write the reviewer prompts. `delivery review --plan --round <n>` does, and dispatch is
 copying: it writes `batches.json` and one `batch-<k>.prompt.md` per batch into the round's folder.
 Dispatch each prompt file as it is. It also leaves out what needs no reviewer: an item whose live and
@@ -151,7 +153,7 @@ is added to every prompt; put anything you would otherwise repeat to each review
    datacheck looks for every contract data value in the page's text, and looks each miss up in
    the world as seeded: the world lacks it (`data fault`) or holds it and the page doesn't show it
    (`must fix`, for the fixer). Data faults go to a seed-writer before any reviewer sees the round;
-   once `seed --plan` and `--check` pass, `delivery shoot --only data-faults --base-url <url>`
+   once `seed --plan` and `--check` pass, `delivery shoot --only data-faults`
    pictures just those items again into the same round. A round whose only open items are data
    faults or gaps never ships. `delivery datacheck` sorts a round again without shooting, after a
    contract fix. Say so in the builder's next prompt, so it doesn't chase them.
@@ -179,8 +181,12 @@ is added to every prompt; put anything you would otherwise repeat to each review
    a reach step that does, unless an intercept answers it. Never change an effect to get past it.
 8. **No browser tool, for anyone.** Pictures come only from `delivery design render` and
    `delivery shoot`.
-9. **The builder never pushes and never starts a server.** This session runs the dev server
-   (the profile's `commands.devServer`, in the background), the full CI chain, and every push.
+9. **The dev server runs on its own.** This session starts it with `delivery serve --ensure`:
+   detached, in its own process group, output in `.delivery/<f>/server.log`. Never start it with
+   `run_in_background`; a tool call's two-hour limit kills what it started. `serve --ensure` only
+   starts what is down, so the builder and the fixers run it too; nobody else starts or stops a
+   server. Every shoot runs with `run_in_background`, and so does the full CI chain. The builder
+   never pushes; this session runs the full CI chain and every push.
 10. **Every behaviour the briefs state has a proof.** The rules agent writes one rule per behaviour
    into `rules.json`: shown by a design state, proved by a test named `R<n>: ...`, or cut. A rule the
    design never drew is `owed-design`: send it with the `design-send` skill (step 0b), or have the
@@ -197,7 +203,7 @@ is added to every prompt; put anything you would otherwise repeat to each review
 
 ## Shipping
 
-1. Stop the dev server first: a production build and a dev server share the build folder.
+1. Stop the dev server first with `delivery serve --stop`: a production build and a dev server share the build folder.
 2. The full CI chain through the heavy wrapper (`commands.heavy` around `commands.gate`). If a
    package isn't installed in the worktree, install from the lockfile (`commands.bootstrap`) and
    run it again.

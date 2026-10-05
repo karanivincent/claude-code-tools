@@ -118,6 +118,7 @@ request in its report and works around it locally.
 | `lib/commands/contract.mjs` | C |
 | `lib/commands/shoot.mjs` | C |
 | `lib/commands/smoke.mjs` | C |
+| `lib/commands/serve.mjs` | C |
 | `lib/commands/datacheck.mjs` | C |
 | `lib/commands/crop.mjs` | C |
 | `lib/commands/slot.mjs` | C |
@@ -199,6 +200,8 @@ lib/components/               C   map.mjs: componentsMapPath, readComponentsMap,
                                    components check, rules 1-4); states.mjs: componentStates,
                                    galleryStates, componentsInventory (a components run's states)
 lib/capture/                  C   run, validate, spot, served-sha, job file, slots (the machine-wide slot file)
+lib/picture/                  C   picture mode; serve.mjs: ensureServer, stopServer, serverHealth, leadingAssignments
+                                   (the run's detached dev server, delivery serve); waived.mjs: item waivers
 lib/report/                   C   report (tldr), punch list
 lib/brief/                    C   brief.mjs: nextBriefPath, fillTemplate, briefProblems, packBrief,
                                    recordSent (intent/briefs/sent.json)
@@ -288,6 +291,7 @@ sidefx, seedplan, preflight, candidates) that fails its schema is exit 5: tamper
 | candidates | `.delivery/<f>/candidates.json` | candidates | design candidates (C) | inventory check (B1) |
 | inventory | `docs/delivery/<f>/inventory.json` | inventory | extractor agents | B1, C |
 | design renders | `.delivery/<f>/design/<ID>.{png,txt,dom.json}`; at phone width (`--width phone`) `<ID>@phone.{png,txt,dom.json}`; each also gets a companion `<ID>.components.json` (`{ names }`, the components that render showed) | dom (desktop only) | design render (C) | B1 (M4 to M6), auditors, shoot, ready's components check |
+| dev server | `.delivery/<f>/server.json` (`{ pid, port, url, startedAt }`) and `server.log` | (no schema; written with `writeJsonAtomic`) | serve --ensure / --stop (C) | shoot, smoke, serve --status |
 | design review | `.delivery/<f>/design-review/{review.json,compare.html,before/,after/}` | (no schema; written with `writeJsonAtomic`, not `writeArtefact`) | design review (C) | brief new --from-review |
 | baseline | `docs/delivery/<f>/baseline.json` | baseline | baseline (B2) | B1 (M1), A1 |
 | baseline at HEAD | `.delivery/<f>/baseline-head.json` | baseline | baseline --against (B2) | M2 |
