@@ -59,6 +59,12 @@ The run asks nothing in chat. It ends with one draft pull request, a preview, a 
 test user, and a comparison page showing every state three ways: the design, the first round and
 the last.
 
+An export with two pages that no file imports is refused, and the error names both. Pick one with
+`delivery intake <archive> --page "<name>"`. The snapshot README records the choice, every later
+command reads that page, and a later export of the same run keeps it. Intake runs the profile's
+`commands.bootstrap` in the worktree it creates, so packages are installed before anything
+renders; preflight P10 warns when the run worktree has no `node_modules`.
+
 ### Picture mode (the default since 0.4.0)
 
 After intake and preflight, the design's states are rendered to pictures. A mapper agent writes
@@ -152,6 +158,8 @@ carries the owner's decisions.
 - `design render` hashes every picture. Two different states with the same picture fail the render, naming both ids and the hash. If a state really shares a picture, add `"samePictureAs": "<id>"` to its inventory entry.
 - A design that reacts only when a prop changes needs `"kind": "preset"` with `props`. Render boots the design, then changes those props on the running component (not its state, which is what a `{"set": ...}` step writes), so its `componentDidUpdate` sees the change once. A `prop` reach still bakes its props in as defaults, which never triggers `componentDidUpdate`.
 - `design candidates` finds a preset table: a top-level `const T = {...}` that a method `m(arg)` indexes, called as `this.m(this.props.P)`. Each key becomes a `preset` candidate reached with `{ "P": key }`, in place of that prop's `prop-value` candidates. A `_bundle_src.dc.html` beside the page is ignored, and intake says so.
+- `design candidates --groups` writes `.delivery/<f>/candidate-groups.json`: which extractor reads which candidates, one group per in-scope screen plus `shared` and `other-screens`, split by section above `--max` (150). The assembler writes `.delivery/<f>/unclaimed.json`, each id with its group, to resend.
+- A reach that puts a state key (a key the design writes with `this.set`) in `props` renders it as a `{"set": ...}` step instead, and `design render` prints a `note` saying so. Write it as a step in the first place.
 - `design render` warns (never fails) when a state's page is mostly an iframe, whose words it cannot read (a phone view drawn in a phone frame: render it with `--width phone` instead), and when a reach sets a prop named like one of the design's state keys.
 - `delivery smoke --base-url <url>` opens every route the map reaches, signed in, at every width, and fails at the first page that answers 500 or more, shows the Next.js error overlay, serves a replaced build output, or still shows a loading placeholder 10 s after loading (the profile's `smoke.skeleton` selectors, `[aria-busy=true]` and `[data-skeleton]` by default). `shoot` runs it before it pictures anything, and again after: when the server broke during the shoot, the new round's folder is deleted, so the next shoot takes the same number. The builder and the fixer run it before they report done.
 - `shoot` scrolls a components state into view and pictures it with `locator.screenshot()`, so a page that scrolls inside `<main>` is pictured whole. Fixed bars and dev overlays are hidden at every width.
