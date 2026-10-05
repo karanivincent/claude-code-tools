@@ -17,6 +17,7 @@ import { contractSummary, readContract } from '../picture/contract.mjs';
 import { renderStuck, runDecision, stuckItems } from '../picture/stop.mjs';
 import { fixtureForbiddenTables, forbiddenSteerLines } from '../seed/forbidden.mjs';
 import { writeSteer } from '../retro/apply.mjs';
+import { sha256 } from '../core/hash.mjs';
 
 export default defineCommand({
   name: 'review',
@@ -237,21 +238,28 @@ async function planRound(ctx, paths, round, info, rounds, opts = {}) {
   await addForbiddenSteers(ctx, paths);
   const earlier = rounds.filter((n) => n < round).pop();
   const prevInfo = earlier ? roundInfo(paths, earlier) : null;
-  const prev = prevInfo?.shoot && prevInfo.review ? { round: earlier, shoot: prevInfo.shoot, review: prevInfo.review } : null;
+  const prev = prevInfo?.shoot && prevInfo.review ? { round: earlier, shoot: prevInfo.shoot, review: prevInfo.review, steersHash: prevInfo.reviewPlan?.steersHash } : null;
   // R5: after shoot --only, plan just the re-shot items, next to the round's earlier batches.
   const oldBatches = readJson(join(info.dir, 'batches.json'));
   // W5: --held plans the items held back while their screen's sample was clean.
   const heldKeys = opts.held ? heldToReview(info.reviewPlan, info.review).keys : [];
   if (opts.held && !heldKeys.length) { ctx.out.line(`round ${round}: no held item to review`); return EXIT.PASS; }
   const reshot = opts.held ? heldKeys : oldBatches ? reshotItems(info.shoot, info.reviewPlan) : [];
-  const partial = reshot.length > 0;
+  // A3: every item of the round was shot again: the old batches describe none of its pictures, so
+  // the whole round is planned afresh (old prompts deleted, new batches numbered past the old ones
+  // so no old review file stands in for a new batch), not appended to.
+  const shotKeys = Object.keys(info.shoot.states ?? {});
+  const everyReshot = !opts.held && reshot.length > 0 && shotKeys.every((k) => reshot.includes(k));
+  const partial = reshot.length > 0 && !everyReshot;
   const shoot = partial ? { ...info.shoot, states: Object.fromEntries(reshot.map((k) => [k, info.shoot.states[k]])) } : info.shoot;
-  const plan = planReview({ map, shoot, prev: opts.held ? null : prev, sample: opts.sample === false || partial ? 0 : undefined });
-  const offset = partial ? Math.max(0, ...(oldBatches.batches ?? []).map((b) => b.id)) : 0;
-  if (!partial) for (const f of readdirSync(info.dir)) if (/^batch-\d+\.prompt\.md$/.test(f)) unlinkSync(join(info.dir, f));
   const steersFile = join(paths.deliveryDir, 'steers.md');
   const steersRel = relative(ctx.repoRoot, steersFile);
   const steers = existsSync(steersFile) ? readFileSync(steersFile, 'utf8') : null;
+  // A3: the steers the reviewers were given; a label from a round with other steers is not carried.
+  const steersHash = steers ? sha256(steers) : null;
+  const plan = planReview({ map, shoot, prev: opts.held ? null : prev, steersHash, sample: opts.sample === false || partial ? 0 : undefined });
+  const offset = partial || everyReshot ? Math.max(0, ...(oldBatches?.batches ?? []).map((b) => b.id)) : 0;
+  if (!partial) for (const f of readdirSync(info.dir)) if (/^batch-\d+\.prompt\.md$/.test(f)) unlinkSync(join(info.dir, f));
   const roundRel = relative(ctx.repoRoot, info.dir);
   const batches = [];
   // D6: values the product does not store, already decided by the founder, are not differences.
@@ -289,12 +297,13 @@ async function planRound(ctx, paths, round, info, rounds, opts = {}) {
   const auto = partial ? { ...drop(info.reviewPlan?.auto), ...plan.auto } : plan.auto;
   const held = partial ? drop(info.reviewPlan?.held) : plan.held;
   const sampled = partial ? (info.reviewPlan?.sampled ?? {}) : plan.sampled;
-  await writeFile(join(info.dir, 'batches.json'), JSON.stringify({ schemaVersion: 1, round, maxItems: MAX_BATCH_ITEMS, maxParallel: MAX_PARALLEL_REVIEWERS, steers: steers ? steersRel : null, waves, batches: allBatches, ...(partial ? { reshot } : {}) }, null, 1) + '\n');
-  await writeFile(join(info.dir, 'review-plan.json'), JSON.stringify({ schemaVersion: 1, round, at: ctx.clock.now().toISOString(), batches: allBatches.length, carried, auto, ...(Object.keys(held).length ? { held, sampled } : {}) }, null, 1) + '\n');
+  await writeFile(join(info.dir, 'batches.json'), JSON.stringify({ schemaVersion: 1, round, maxItems: MAX_BATCH_ITEMS, maxParallel: MAX_PARALLEL_REVIEWERS, steers: steers ? steersRel : null, steersHash, waves, batches: allBatches, ...(partial ? { reshot } : {}) }, null, 1) + '\n');
+  await writeFile(join(info.dir, 'review-plan.json'), JSON.stringify({ schemaVersion: 1, round, at: ctx.clock.now().toISOString(), batches: allBatches.length, steersHash, carried, auto, ...(Object.keys(held).length ? { held, sampled } : {}) }, null, 1) + '\n');
   const nc = Object.keys(plan.carried).length;
   const na = Object.keys(plan.auto).length;
   const nItems = batches.reduce((n, b) => n + b.items.length, 0);
   if (partial) ctx.out.line(`round ${round}: ${reshot.length} ${opts.held ? 'held' : 're-shot'} item(s) to review${opts.held ? '' : ' again'} (${reshot.join(', ')})`);
+  if (everyReshot) ctx.out.line(`round ${round}: every item was shot again, so the whole round is planned afresh`);
   if (!partial && Object.keys(plan.held).length) ctx.out.line(`round ${round}: ${Object.keys(plan.held).length} item(s) that passed last round changed picture and are held; ${Object.keys(plan.sampled).length} sampled per screen go to a reviewer (review --plan --held reviews the rest)`);
   ctx.out.line(`round ${round}: ${nc} carried from round ${earlier ?? '-'}, ${na} matched automatically, ${nItems} item(s) for a reviewer in ${batches.length} batch(es)`);
   waves.forEach((w, i) => ctx.out.line(`  dispatch together${waves.length > 1 ? ` (wave ${i + 1} of ${waves.length})` : ''}: ${w.map((id) => `batch-${id}.prompt.md`).join(', ')}`));

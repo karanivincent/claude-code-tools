@@ -343,12 +343,16 @@ export function canAutoMatch(rec, threshold = AUTO_MATCH_MAX_DIFF) {
 
 /**
  * Which items keep an earlier round's label: both pictures hashed and unchanged since that round,
- * and that round gave the item a label a picture can carry (not "not reached").
+ * and that round gave the item a label a picture can carry (not "not reached"). A3: nothing is
+ * carried from a round whose reviewers were given other steers (steersHash, the sha256 of
+ * steers.md, null without one); a round planned before the hash was recorded (undefined) carries
+ * as before.
  * @returns {Record<string, { from: number, state: object }>}
  */
-export function carriedItems({ keys, shoot, prevShoot, prevReview, prevRound }) {
+export function carriedItems({ keys, shoot, prevShoot, prevReview, prevRound, steersHash, prevSteersHash }) {
   const out = {};
   if (!shoot || !prevShoot || !prevReview) return out;
+  if (prevSteersHash !== undefined && steersHash !== undefined && prevSteersHash !== steersHash) return out;
   for (const key of keys) {
     const now = shoot.states?.[key];
     const was = prevShoot.states?.[key];
@@ -393,12 +397,12 @@ export function packBatches(units, cap = MAX_BATCH_ITEMS) {
 /**
  * The plan for a round's review: which items keep an earlier label, which match without a
  * reviewer, and the batches of the rest.
- * @param {{ map: object, shoot: object, prev?: { round: number, shoot: object|null, review: object|null }|null, threshold?: number, cap?: number }} o
+ * @param {{ map: object, shoot: object, prev?: { round: number, shoot: object|null, review: object|null, steersHash?: string|null }|null, steersHash?: string|null, threshold?: number, cap?: number }} o
  */
-export function planReview({ map, shoot, prev = null, threshold = AUTO_MATCH_MAX_DIFF, cap = MAX_BATCH_ITEMS, sample = SAMPLE_PER_SCREEN }) {
+export function planReview({ map, shoot, prev = null, steersHash, threshold = AUTO_MATCH_MAX_DIFF, cap = MAX_BATCH_ITEMS, sample = SAMPLE_PER_SCREEN }) {
   const items = mapItems(map);
   const keys = items.filter((i) => !i.state.reach?.test && shoot.states?.[i.key]?.reached).map((i) => i.key);
-  const carried = carriedItems({ keys, shoot, prevShoot: prev?.shoot, prevReview: prev?.review, prevRound: prev?.round });
+  const carried = carriedItems({ keys, shoot, prevShoot: prev?.shoot, prevReview: prev?.review, prevRound: prev?.round, steersHash, prevSteersHash: prev?.steersHash });
   const auto = {};
   for (const key of keys) {
     if (!carried[key] && canAutoMatch(shoot.states[key], threshold)) auto[key] = { pixelDiff: shoot.states[key].pixelDiff };
