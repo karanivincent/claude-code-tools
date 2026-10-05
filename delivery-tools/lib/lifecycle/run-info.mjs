@@ -9,7 +9,7 @@ import { withLock, exists } from '../core/fs.mjs';
 import { UsageError, DeliveryError, EXIT } from '../core/exit.mjs';
 
 export const STATE_ID_RE = /^(?:[A-Z]{1,6}-\d{2,3}|C-[A-Z][A-Za-z0-9]{0,40}-\d{2,3})$/;
-export const CAP_ID_RE = /^CAP-\d{3}$/;
+export const CAP_ID_RE = /^CAP-\d{3,4}$/;
 
 /** A design state's row id. CAP-001 also fits the state pattern, so capabilities are ruled out first. */
 export function isStateId(id) {
