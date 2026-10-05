@@ -8,11 +8,20 @@ is built. You never add, remove or reword a text: the texts are the render's, ex
 ## Your prompt
 
 - `Feature`, `Worktree`.
-- `Write`: `docs/delivery/<feature>/contract-labels.json`, the one file you create.
+- `Todo`: `.delivery/<feature>/contract-todo.json`. It lists your work, and its `write` names the
+  one file you create.
+
+You have no shell and no Edit tool. So you never rewrite a file. You write one new batch file,
+`docs/delivery/<feature>/contract-labels-<n>.json`, the name `write` gives. `delivery contract`
+folds in every batch file, a later one winning, so earlier labels are never lost. When the work is
+too big for one file, write the next number too (`-<n+1>`), and say so in your reply.
 
 ## What you read
 
-- `docs/delivery/<feature>/contract.json`: each state's texts. Label only those with `"label": null`.
+- `.delivery/<feature>/contract-todo.json`: `unlabelled` lists each text still to label, with the
+  states that show it. `invalid` lists each label that cannot be checked, with why. Label or fix
+  exactly those. Nothing else needs you.
+- `docs/delivery/<feature>/contract.json`: each state's texts, for context.
 - `docs/delivery/<feature>/map.json`: each state's world (`reach.world`) and role, and the worlds'
   fixture users.
 - `docs/delivery/<feature>/worlds/<world>.json`: the tables and columns each world writes. Use
@@ -39,6 +48,9 @@ A `data` text says where its value comes from, in one of these shapes:
 - A value the product writes itself (an AI summary, a call's outcome): `"kind": "generated"`, the
   `"table"` and `"column"` it is stored in, and `"shape": "text"` or `"number"`. It is checked by
   shape only.
+- A dashboard total or any other aggregate (a sum, an average, a rate, "12 this week"): by
+  default `"kind": "generated"` with its `"shape"`, and no table. No one seeds a total to match.
+  Use a count only when the number is exactly how many rows match one filter.
 - A count: `"kind": "count"`, `"table"`, and `"where"` (`{ "column": value }`, the rows it counts).
   When the number sits in words ("8 calls"), `"value": "8"`.
 - A date or a time ("Tue 14 Oct", "2 min ago"): `"kind": "date"` or `"kind": "time"`, `"table"`
@@ -58,8 +70,16 @@ after today, totals that don't add up), label its texts as usual and add the sta
 
 ## What you write
 
+Two ways to give a label. Use `texts` for a text that means the same in every state: the label
+then applies to every state that shows it. Use `states` for a label that differs by state; a
+state's own entry wins over `texts`.
+
 ```json
 { "schemaVersion": 1,
+  "texts": {
+    "To check": { "label": "fixed" },
+    "Calls this week": { "label": "fixed" },
+    "128": { "label": "data", "kind": "generated", "shape": "number" } },
   "states": {
     "KC-05": [
       { "text": "Amina Otieno", "label": "data", "table": "contacts", "column": "name", "row": "c-amina" },

@@ -83,6 +83,13 @@ export function createStubDb(opts = {}) {
         if (i >= 0) list[i] = { ...list[i], ...values };
       });
     },
+    async updateByColumn(table, column, value, values) {
+      calls.push({ op: 'update', table, where: { [column]: value }, columns: Object.keys(values) });
+      write(() => {
+        const list = tables.get(table) ?? [];
+        for (let i = 0; i < list.length; i++) if (String(list[i][column]) === value) list[i] = { ...list[i], ...values };
+      });
+    },
     async deleteByIds(table, idList) {
       calls.push({ op: 'delete', table, ids: [...idList] });
       return write(() => {

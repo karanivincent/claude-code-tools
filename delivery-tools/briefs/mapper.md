@@ -84,6 +84,12 @@ don't write code.
   - A state whose render named a design-first component (its `<ID>.components.json` lists it)
     only gets a button entry for that component when the component has its own controls on that
     state (a date field's own calendar icon, say) — not for the component's whole surface.
+- Some tables can never hold test data. The safety file's guard probes name them: a plain
+  `select count(*) from <table> where organization_id = any($fixtureOrgs)` that expects 0 (a
+  line, a phone number). NEXT lists them when it dispatches you. Never write a world row to one.
+  A state that shows their data gets `reach.intercept` from the start, with the design's values
+  in its `body`. Phone number, line and calling-hours screens almost always need one. `delivery
+  map` refuses a world that writes one, and a state that shows one with no intercept.
 - `reach.writes: true` marks a state reached by saving, adding, discarding or any other click
   that changes the test data. Those states are captured last, each in its own browser, and their
   world is reset before every one of them.
@@ -142,9 +148,10 @@ don't write code.
   contract. Fixture emails match the repo's safety file. Phone numbers use its fake range, and web
   addresses its reserved domain. Use relative dates (`{ "$rel": "now-2h" }`) for anything the page
   compares with today; a time that must fall today (the page shows it under today) carries
-  `today: true`. A `{ "$ref": "<key>" }` may name a row further down the file, which is how two
-  tables that point at each other are seeded; that column must accept null, and a join row (no `id`
-  column) must come after the rows it names.
+  `today: true`. A `{ "$ref": "<key>" }` may name a row further down the file: the seed writes
+  each row after the rows it names. Two tables that point at each other are seeded too; the column
+  of the first one in the file must accept null, and a join row (no `id` column) may not be in such
+  a pair.
 
 ## Done
 

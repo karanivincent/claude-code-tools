@@ -16,6 +16,7 @@ import { readExportComponents } from '../design/components.mjs';
 import { parseEvent } from '../core/state.mjs';
 import { worldFilePath } from '../seed/plan.mjs';
 import { tablesWithoutGuard } from '../seed/data.mjs';
+import { fixtureForbiddenTables } from '../seed/forbidden.mjs';
 import { contractPath, contractSummary } from './contract.mjs';
 import { dataFaultItems } from './datacheck.mjs';
 import { roundDecision, runDecision } from './stop.mjs';
@@ -334,6 +335,8 @@ export async function pictureFacts(paths, opts = {}) {
     // without it, same convention as opts.profile above; then this is simply empty).
     guardsToApprove: map && opts.safety ? worldsGuardsToApprove(paths, map, opts.safety) : [],
     guardsAsked: existsSync(join(paths.deliveryDir, 'questions.json')),
+    // B1: tables the safety file's probes say no fixture organisation may hold.
+    forbiddenTables: opts.safety ? fixtureForbiddenTables(opts.safety) : [],
     seedPlanWritten: existsSync(paths.seedplan),
   };
 }
@@ -358,7 +361,10 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
     return { step: 'design-send', skill: 'design-send', text: `${f.owedDesignRules.length} rule(s) are owed to the design (${f.owedDesignRules.join(', ')}): send the design brief with design-send before picture-build starts, or have the founder cut them (proof: cut, with a Scope line) in rules.json` };
   }
   if (!f.designed) return { step: 'pictures', skill: 'design-inventory', text: `render the design's states: ${cli} design render` };
-  if (!f.hasMap && !f.mapError) return { step: 'map', skill, text: 'dispatch the mapper agent with briefs/mapper.md to write map.json from the design pictures' };
+  if (!f.hasMap && !f.mapError) {
+    const forbidden = f.forbiddenTables?.length ? `. Test data may not hold ${f.forbiddenTables.join(', ')}: a state that shows them (phone numbers, lines, calling hours) gets reach.intercept from the start` : '';
+    return { step: 'map', skill, text: `dispatch the mapper agent with briefs/mapper.md to write map.json from the design pictures${forbidden}` };
+  }
   if (f.mapError) return { step: 'map', skill, text: `fix map.json (${f.problemCount || 1} problem(s); first: ${f.mapError}), then ${cli} map` };
 
   // D10: a big design is split into one run per screen group, unless the founder keeps one run.
@@ -378,7 +384,7 @@ export function pictureNext(f, { cli, readyOk = false, epic = null }) {
   if (f.rulesProblem) return { step: 'rules', skill, text: `fix rules.json (${f.ruleProblemCount} problem(s); first: ${f.rulesProblem}), then ${cli} rules and ${cli} map` };
   if (f.checklistStale) return { step: 'map', skill, text: `${cli} map (the checklist is older than map.json)` };
   if (f.contractMissing) return { step: 'contract', skill, text: `${cli} contract: the data contract, every text each design state shows, taken from the design renders` };
-  if (f.contractTodo) return { step: 'contract', skill, text: `dispatch delivery-tools:delivery-extractor with Role: contract and briefs/contract-labeller.md (${f.contractTodo} text(s) to label or fix), then ${cli} contract` };
+  if (f.contractTodo) return { step: 'contract', skill, text: `dispatch delivery-tools:delivery-extractor with Role: contract and briefs/contract-labeller.md (${f.contractTodo} text(s) to label or fix, listed in .delivery/<f>/contract-todo.json with the batch file to write), then ${cli} contract` };
   // D6 (and A2): one list for the founder, sent once, before the build: the values the product does
   // not store, and the guards the worlds need. The run goes on while the founder answers; ready
   // stays red until every value is decided.

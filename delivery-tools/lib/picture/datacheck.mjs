@@ -23,7 +23,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { countOf, dateShape, designTexts, entryProblem, holds, initials, normalise, swapped } from './contract.mjs';
+import { countOf, dateShape, designTexts, entryProblem, holds, initials, interceptHolds, normalise, swapped } from './contract.mjs';
 import { cropFor, designFileCandidates, mapItems } from './widths.mjs';
 
 /** The round's record of what each world held when it was shot. */
@@ -112,9 +112,10 @@ export function shows(e, lines, users, swaps) {
  * @param {{ contractState: object|null|undefined, liveLines: string[]|null, rows: object[]|null,
  *           users?: object[], now?: Date, swaps?: Record<string, string>|null, designTexts?: string[]|null }} o
  *   designTexts: the item's own design render texts (a phone item); only entries it shows are checked
+ *   intercept: the state's reach.intercept; a value its body holds is held, so a miss is the page's
  * @returns {{ checked: number, faults: { text: string, why: string }[], page: { text: string, why: string }[] }}
  */
-export function checkItem({ contractState, liveLines, rows, users = [], now = new Date(), swaps = null, designTexts: shown = null }) {
+export function checkItem({ contractState, liveLines, rows, users = [], now = new Date(), swaps = null, designTexts: shown = null, intercept = null }) {
   const out = { checked: 0, faults: [], page: [] };
   if (!contractState || !liveLines) return out;
   const lines = liveLines.map(normalise).filter(Boolean);
@@ -125,6 +126,11 @@ export function checkItem({ contractState, liveLines, rows, users = [], now = ne
     if (seen.get(e)) continue;
     const kind = e.kind ?? 'value';
     const where = e.user !== undefined ? `the ${e.user} fixture user` : kind === 'count' ? `${e.table} rows` : e.column ? `${e.table}.${e.column}` : `${e.table ?? 'a generated value'}`;
+    // B2: the state's intercept answers with this value, so the page had it to show.
+    if (interceptHolds(e, intercept, swaps)) {
+      out.page.push({ text: e.text, why: `the design shows "${e.text}" and the page does not, though the state's intercept answers with it (found by datacheck)` });
+      continue;
+    }
     if (rows) {
       const r = holds(e, rows, users, now, swaps);
       if (r.ok) out.page.push({ text: e.text, why: `the design shows "${e.text}" and the page does not, though the world holds it (${where}; found by datacheck)` });
@@ -176,7 +182,7 @@ export function datacheckRound({ map, contract, shoot, roundDir, swaps = null, d
       contractState: contract?.states?.[it.id], liveLines: readFileSync(file, 'utf8').split('\n'),
       rows: w?.rows ?? null, users: w?.users ?? (map.worlds ?? []).find((x) => x.id === world)?.users ?? [],
       now: w?.at ? new Date(w.at) : new Date(rec.clock ?? rec.at ?? Date.now()), swaps: swaps?.[world] ?? null,
-      designTexts: itemDesignTexts(map, it, designDir),
+      designTexts: itemDesignTexts(map, it, designDir), intercept: it.state.reach?.intercept ?? null,
     });
     items[it.key] = r;
     faults += r.faults.length;

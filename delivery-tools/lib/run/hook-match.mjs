@@ -308,6 +308,31 @@ function scriptOnlyReads(script, opts = {}) {
   return typeof text === 'string' && !scriptWrites(text);
 }
 
+// A module inline code loads: require('x'), import('x'), import ... from 'x'.
+const MODULE_SPEC = /\b(?:require|import)\s*\(\s*(['"`])([^'"`]+)\1|\bfrom\s+(['"])([^'"]+)\3/g;
+const MODULE_EXTENSIONS = ['', '.mjs', '.js', '.cjs', '.ts', '.mts'];
+
+/**
+ * B8: whether inline code (node -e, -p) that mentions seed writes, judged like a seed-named script
+ * file: it shows a sign of writing, or it loads a seed-named module that does. A relative module
+ * is read from disk (as Node finds it, extensions tried in order); one that cannot be read, or a
+ * package, counts as writing. Read-only inline code is allowed.
+ * @param {string} code
+ * @param {{ cwd?: string, readFile?: (path: string) => string|null }} [opts]
+ */
+export function inlineCodeWrites(code, opts = {}) {
+  if (scriptWrites(code)) return true;
+  const read = opts.readFile ?? readScriptText;
+  for (const m of String(code).matchAll(MODULE_SPEC)) {
+    const spec = m[2] ?? m[4];
+    if (!SEED_NAME.test(spec)) continue;
+    if (!/^[./]/.test(spec)) return true;
+    const text = MODULE_EXTENSIONS.map((e) => read(resolve(opts.cwd ?? process.cwd(), `${spec}${e}`))).find((t) => typeof t === 'string');
+    if (typeof text !== 'string' || scriptWrites(text)) return true;
+  }
+  return false;
+}
+
 /** The delivery CLI itself: `delivery seed` is the one allowed writer of fixture rows. */
 function isDelivery(words) {
   const b = base(words[0] ?? '');
@@ -355,7 +380,7 @@ export function seedReason(words, opts = {}) {
   if (!words.length || isDelivery(words)) return null;
   const b = base(words[0]);
   if (INTERPRETERS.has(b)) {
-    if ((b === 'node' || b === 'nodejs') && words.some((w, j) => ['-e', '--eval', '-p', '--print'].includes(w) && SEED_NAME.test(words[j + 1] ?? ''))) return 'inline code that seeds';
+    if ((b === 'node' || b === 'nodejs') && words.some((w, j) => ['-e', '--eval', '-p', '--print'].includes(w) && SEED_NAME.test(words[j + 1] ?? '') && inlineCodeWrites(words[j + 1], opts))) return 'inline code that seeds';
     const script = interpreterScript(words);
     if (script && SEED_NAME.test(base(script)) && !TEST_FILE.test(script) && !scriptOnlyReads(script, opts)) return `runs ${script}`;
     return null;

@@ -17,7 +17,9 @@ import { ConfigError, DeliveryError, EXIT } from '../../lib/core/exit.mjs';
 export const WRITE_MODES = Object.freeze({
   // updateById sets the columns a row was first written without: a forward reference to a row
   // written after it. Teardown uses it to clear those columns, so the rows can then be deleted.
-  'seed-apply': ['upsert', 'updateById', 'createUser'],
+  // updateByColumn writes a fixture user's name into the app's own users table (B5:
+  // testData.userNameColumns), which the insert trigger filled once and never updates.
+  'seed-apply': ['upsert', 'updateById', 'updateByColumn', 'createUser'],
   // A refresh may also remove rows a click added to its world, but only through deleteOrgRows,
   // whose every request carries the world's organisation as a filter the database applies.
   'seed-refresh': ['upsert', 'updateById', 'deleteOrgRows'],
@@ -39,6 +41,8 @@ const ORG_FILTER_COLUMNS = Object.freeze(['organization_id', 'organisation_id', 
  *   several read-only queries in one round trip where the backend can, each answered on its own
  * @property {(table: string, rows: object[]) => Promise<void>} upsert      by primary key `id`
  * @property {(table: string, id: string, values: object) => Promise<void>} updateById   set columns of one row
+ * @property {(table: string, column: string, value: string, values: object) => Promise<void>} updateByColumn
+ *   set columns of the rows whose `column` equals `value` (an id); seed --apply only
  * @property {(table: string, ids: string[]) => Promise<number>} deleteByIds
  * @property {(table: string, ids: string[], org: { column: string, orgId: string }) => Promise<number>} deleteOrgRows
  *   delete by id, and only where the organisation column holds that organisation
@@ -140,6 +144,16 @@ function guard(backend, { projectRef, write, fixturePattern = null }) {
       if ('id' in values) throw new DeliveryError(EXIT.USAGE, `update ${table}/${id}: a row's id is derived and never updated`, { code: 'seed' });
       return backend.updateById(table, String(id), values);
     } : refuse('updateById'),
+    updateByColumn: allowed.has('updateByColumn') ? async (table, column, value, values) => {
+      assertTable(table);
+      if (!TABLE.test(String(column))) throw new DeliveryError(EXIT.USAGE, `update ${table}: "${column}" is not a column name`, { code: 'seed' });
+      if (!ID.test(String(value ?? ''))) throw new DeliveryError(EXIT.USAGE, `update ${table}: "${value}" is not an id`, { code: 'seed' });
+      if (!values || typeof values !== 'object' || Array.isArray(values) || !Object.keys(values).length || Object.keys(values).some((k) => !TABLE.test(k))) {
+        throw new DeliveryError(EXIT.USAGE, `update ${table} where ${column} = ${value}: name at least one column`, { code: 'seed' });
+      }
+      if ('id' in values) throw new DeliveryError(EXIT.USAGE, `update ${table}: a row's id is never updated`, { code: 'seed' });
+      return backend.updateByColumn(table, String(column), String(value), values);
+    } : refuse('updateByColumn'),
     deleteByIds: allowed.has('deleteByIds') ? async (table, ids) => {
       assertTable(table);
       for (const id of ids) if (!ID.test(String(id))) throw new DeliveryError(EXIT.USAGE, `delete from ${table}: "${id}" is not an id`, { code: 'seed' });
@@ -308,6 +322,15 @@ function httpBackend(env, projectRef, fetchImpl, sleep = wait) {
       }, `update ${table}/${id}`);
       if (!res.ok) await failWith(res, `update ${table}/${id}`);
     },
+    async updateByColumn(table, column, value, values) {
+      const base = rest();
+      const res = await call(`${base}/rest/v1/${table}?${column}=eq.${encodeURIComponent(value)}`, {
+        method: 'PATCH',
+        headers: restHeaders({ Prefer: 'return=minimal' }),
+        body: JSON.stringify(values),
+      }, `update ${table} where ${column} = ${value}`);
+      if (!res.ok) await failWith(res, `update ${table} where ${column} = ${value}`);
+    },
     async deleteByIds(table, ids) {
       const base = rest();
       let n = 0;
@@ -371,9 +394,11 @@ function httpBackend(env, projectRef, fetchImpl, sleep = wait) {
             // A world that gains a name for a user it already created would otherwise keep
             // rendering that user's email address where the design draws their name.
             if (name && String(u.user_metadata?.full_name ?? '') !== name) {
-              await call(`${base}/auth/v1/admin/users/${encodeURIComponent(id)}`, {
+              // B5: a refused rename used to pass in silence, and the page kept the old name.
+              const put = await call(`${base}/auth/v1/admin/users/${encodeURIComponent(id)}`, {
                 method: 'PUT', headers: restHeaders(), body: JSON.stringify({ user_metadata: { full_name: name, name } }),
               }, `name user ${email}`);
+              if (!put.ok) await failWith(put, `name user ${email}`);
             }
             return 'exists';
           }

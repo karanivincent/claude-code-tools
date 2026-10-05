@@ -23,6 +23,25 @@ The project also needs its own profile, `.claude/delivery-profile.json`, and saf
 file is written by the project's owner, because it names the numbers and identities no agent may
 invent. The project's `scripts/delivery.mjs` shim finds the installed plugin.
 
+### Permission prompts
+
+A run calls the CLI hundreds of times. Approve it once, in the project's `.claude/settings.json`:
+
+```json
+{ "permissions": { "allow": ["Bash(node scripts/delivery.mjs:*)"] } }
+```
+
+A broader `"Bash(node scripts/:*)"` covers it too. The rule matches the start of the command, so
+the harness still asks when the command has another shape. Three shapes do that:
+
+- a `cd … &&` in front of it;
+- an env prefix such as `VAR=value` in front of it;
+- a `$(…)` (or backticks) anywhere in it.
+
+So run `node scripts/delivery.mjs <command>` bare, from the worktree root. The CLI finds the run
+itself, and reads the profile's env files itself (`environments.envFiles`). The skills and NEXT
+lines are written in that shape.
+
 ## Start a run
 
 1. Export the design from Claude Design as a **project archive (.zip)**. A standalone HTML download
@@ -149,6 +168,11 @@ carries the owner's decisions.
 - `delivery seed --need "<STATE>: <what>"` answers in one line: held, or queued in `needs.json` for the seed-writer; `--need-done` closes needs.
 - `seed --plan` refuses a column a table lacks, a value of the wrong type or an enum value the database does not list. A profile may add `commands.validateSeedJson`, a script that checks Json column values with the app's own rules (stdin `{ "entries": [...] }`, stdout `{ "problems": [...] }`).
 - `seed --check` refuses a seeded table that a side-effect rule watches and no guard covers. `seed --refresh` cleans every table the world has ever seeded (the seed plan's `seededTables`), not only the ones it seeds now.
+- A fixture user's name lives in the auth user's metadata, and often in the app's own users table too, which an insert trigger fills once. Name those copies in the profile's `testData.userNameColumns` (`[{ "table", "column", "idColumn" }]`, `idColumn` default `id`), and `seed --apply` writes each named fixture user's name there, so a name changed in the map reaches the page. A refused rename now fails `seed --apply`.
+- The safety file's guard probes name the tables no fixture organisation may hold: a plain `select count(*) from <table> where organization_id = any($fixtureOrgs)` expecting 0. `delivery map` refuses a world that writes one and a state that shows one with no `reach.intercept`, `seed --from-trace` never writes them, and review planning adds a steer telling reviewers their values are data gaps. A value the state's intercept answers with counts as held, in `seed --check` and in datacheck.
+- `seed --from-trace` records a hash of each `t-` row it writes in the world file (`traced`). A `t-` row edited by hand since is kept and reported; one the contract no longer produces is reported as dropped.
+- `seed --plan` writes each world's rows after the rows their `$ref`s name (the organisation first, file order otherwise). Only two rows that name each other still need a forward reference.
+- The contract labeller has no shell, so it never rewrites a file: it writes batch files, `contract-labels-<n>.json`, and `delivery contract` folds in `contract-labels.json` and every batch file, a later one winning. A label may be keyed by its text alone (`"texts": { "<text>": { ... } }`), for every state that shows it; a state's own entry still wins. `delivery contract` writes `.delivery/<f>/contract-todo.json`: each text to label or fix, its states, and the batch file to write next. The labeller works from it.
 - A contract text labelled `none` is a value the product does not store. `delivery contract --questions` writes the one list for the founder; `delivery contract --decide build|drop|design --state <ID> [--text ...]` records each answer.
 
 ### Shipping checks

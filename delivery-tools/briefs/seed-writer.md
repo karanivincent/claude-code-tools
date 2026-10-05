@@ -10,8 +10,16 @@ Most of a world is written by a command, not by you. `delivery seed --from-trace
 every group of data values the contract gives a `row` key (keys starting `t-`), with the design's
 own names, counts, statuses and relative times, and lists what it could not infer: a value with no
 row key, a column the design does not show that the table may require, a person who is no fixture
-user, a day the design shows as a fixed date. You handle only those lines. Never edit a `t-` row by
-hand: fix the contract label and run `--from-trace` again, or add a row of your own beside it.
+user, a day the design shows as a fixed date. You handle only those lines. Prefer fixing the
+contract label and running `--from-trace` again, or adding a row of your own beside a `t-` row.
+When only a hand edit will do, edit the `t-` row. The world file keeps a hash of each `t-` row as
+written (`traced`), so the next `--from-trace` sees your edit, keeps the row and says so. Never
+touch `traced` yourself. Delete a `t-` row to have it rebuilt. A `t-` row the contract no longer
+produces is dropped, and the command says so.
+
+`--from-trace` never writes a row to a table no fixture organisation may hold (the safety file's
+probes expect none there). It lists those values instead: their state needs an intercept in the
+map, not a world row. Never add such a row yourself.
 
 ## What you have
 
@@ -67,8 +75,9 @@ hand: fix the contract label and run `--from-trace` again, or add a row of your 
   given distinct seconds in that order (newest first); an oldest-first list needs its own times.
 - The fixture users' names are the design's: set `name` on each user in the map's `worlds[].users`
   when the design shows the signed-in person, so "Sam Kariuki" and "SK" come from the seed.
-- A `{ "$ref": "<key>" }` may name a row further down the file; that column must accept null, and
-  a join row (no `id` column) comes after the rows it names.
+- A `{ "$ref": "<key>" }` may name a row further down the file: the seed writes each row after
+  the rows it names. Only two rows that name each other need a column that accepts null (the
+  first one in the file), and a join row (no `id` column) may not be one of them.
 - A world that reads shared rows it does not own (voices, prompt layers, plan settings) lists
   them in its world file: `"globals": [ { "table": "voices" } ]`, or with `"ids"`. The seed
   records them, and the shoot warns when one changed under the pictures.

@@ -13,7 +13,7 @@ import seedCommand from '../../lib/commands/seed.mjs';
 import { contractGaps } from '../../lib/picture/contract.mjs';
 import { parseColumnTypes } from '../../lib/seed/validate.mjs';
 import {
-  addNeed, answerNeed, closeNeeds, columnValueFor, needsPath, openNeeds, readNeeds, readSwaps, relativeOf, swapsPath, traceWorld,
+  addNeed, answerNeed, closeNeeds, columnValueFor, needsPath, openNeeds, readNeeds, readSwaps, relativeOf, swapsPath, traceRowHash, traceWorld,
 } from '../../lib/seed/trace.mjs';
 import { createStubDb, guardsWithFixtureTables } from './stub-db.mjs';
 import { WORKER_FILES } from '../sidefx/fixtures.mjs';
@@ -223,6 +223,33 @@ test('traceWorld: hand-written rows are kept, earlier t- rows are replaced, and 
   assert.deepEqual([again.added, again.replaced, again.kept], [0, 2, 2]);
 });
 
+test('traceWorld B3: a t- row edited by hand since it was written is kept and reported; one the contract no longer produces is reported as dropped', () => {
+  const first = trace({ worldFile: { schemaVersion: 1, world: 'design', rows: worldFileFor().rows.filter((r) => !r.key.startsWith('t-')) } });
+  assert.equal(first.traced['t-m-1'], traceRowHash(first.rows.find((r) => r.key === 't-m-1')), 'every t- row written gets its hash');
+  // The seed-writer changes one t- row by hand, and an older t- row is left over.
+  const edited = structuredClone(first.rows);
+  edited.find((r) => r.key === 't-m-1').values.extra = 'set by hand';
+  edited.push({ key: 't-m-gone', table: 'members', values: { name: 'Gone' } });
+  const traced = { ...first.traced, 't-m-gone': traceRowHash({ table: 'members', values: { name: 'Gone' } }) };
+  const again = trace({ worldFile: { schemaVersion: 1, world: 'design', traced, rows: edited } });
+  assert.deepEqual(again.handEdited, ['t-m-1']);
+  assert.equal(again.rows.find((r) => r.key === 't-m-1').values.extra, 'set by hand', 'the hand edit survives');
+  assert.equal(again.traced['t-m-1'], first.traced['t-m-1'], 'its recorded hash is kept, so it stays a hand edit');
+  assert.deepEqual(again.dropped, ['t-m-gone']);
+  assert.equal(again.rows.some((r) => r.key === 't-m-gone'), false);
+  // Unchanged rows are rebuilt as before, and nothing is reported.
+  const plain = trace({ worldFile: { schemaVersion: 1, world: 'design', traced: first.traced, rows: first.rows } });
+  assert.deepEqual([plain.handEdited, plain.dropped], [[], []]);
+});
+
+test('traceWorld B1: a row in a table no fixture organisation may hold is never written, and is listed with the intercept to use', () => {
+  const safety = makeSafety({ guards: [{ id: 'no-line', covers: ['organizations:*'], probes: [{ sql: 'select count(*) from members where organization_id = any($fixtureOrgs)', expect: 0 }] }] });
+  const r = trace({ safety });
+  assert.equal(r.rows.some((x) => x.table === 'members' && x.key.startsWith('t-')), false);
+  assert.ok(r.forbidden.some((l) => /^m-1: members is a table no fixture organisation may hold a row in; answer W-01, W-02 with an intercept/.test(l)), r.forbidden.join('\n'));
+  assert.ok(r.skipped.includes(r.forbidden[0]), 'it is in the skipped list --from-trace prints');
+});
+
 test('traceWorld: a fixture user without a name gets the design\'s, one that has a name is left alone', () => {
   const r = trace();
   assert.deepEqual(r.userNames, { member: 'Jo Wanjiru' });
@@ -430,6 +457,26 @@ test('seed --from-trace: writes the world file with t- rows, swaps.json and a fi
     assert.equal(await seedCommand.run(ctx, ['--from-trace', 'design']), 0);
     assert.equal(file('worlds/design.json').rows.filter((r) => r.key === 't-w-1').length, 1);
     assert.match(stdout.text(), /world design: 0 row\(s\) added, 1 rebuilt, 2 kept/);
+  } finally { repo.cleanup(); }
+});
+
+test('seed --from-trace B3: the world file records each t- row\'s hash, and a row edited by hand survives the next run, said so', async () => {
+  const { repo, ctx, stdout, file } = await setup();
+  delete ctx.dataBackend;
+  try {
+    assert.equal(await seedCommand.run(ctx, ['--from-trace']), 0, stdout.text());
+    const world = file('worlds/design.json');
+    assert.match(world.traced['t-w-1'], /^[0-9a-f]{64}$/);
+    world.rows.find((r) => r.key === 't-w-1').values.seats = 40;
+    world.rows.push({ key: 't-w-old', table: 'widgets', values: { state: 'idle' } });
+    world.traced['t-w-old'] = traceRowHash({ table: 'widgets', values: { state: 'idle' } });
+    writeFileSync(join(repo.dir, 'docs/delivery/widgets/worlds/design.json'), JSON.stringify(world));
+    assert.equal(await seedCommand.run(ctx, ['--from-trace']), 0, stdout.text());
+    const after = file('worlds/design.json');
+    assert.equal(after.rows.find((r) => r.key === 't-w-1').values.seats, 40, 'the hand edit is kept');
+    assert.equal(after.rows.some((r) => r.key === 't-w-old'), false);
+    assert.match(stdout.text(), /kept t-w-1: it was edited by hand/);
+    assert.match(stdout.text(), /dropped t-w-old: the contract no longer produces it/);
   } finally { repo.cleanup(); }
 });
 

@@ -227,3 +227,58 @@ test('http: a batch that fails is asked again query by query, so each failure is
     await assert.rejects(db.queryMany(['select 1', 'select 2']), (e) => e.code === 'db-access', 'missing credentials are not asked again one by one');
   } finally { none.cleanup(); }
 });
+
+// B5: renaming a fixture user.
+test('http: a refused rename of an existing fixture user fails the write instead of passing in silence', async () => {
+  const { ctx, cleanup } = await ctxWith();
+  try {
+    const email = 'delivery+widgets-design-admin@example.invalid';
+    const fetch = fetchStub((req) => {
+      if (req.method === 'POST') return { status: 422, body: { msg: 'already registered' } };
+      if (req.method === 'GET') return { status: 200, body: { id: 'u-1', email, user_metadata: { full_name: 'Old Name' } } };
+      return { status: 500, body: { msg: 'metadata update refused' } };
+    });
+    const db = await createDataAdapter(ctx, { fetch, write: 'seed-apply' });
+    await assert.rejects(db.createUser({ id: 'u-1', email, name: 'New Name' }), /name user/);
+    assert.equal(fetch.requests.at(-1).method, 'PUT');
+    const fine = fetchStub((req) => (req.method === 'POST' ? { status: 422, body: {} } : req.method === 'GET' ? { status: 200, body: { id: 'u-1', email, user_metadata: { full_name: 'Old Name' } } } : { status: 200, body: {} }));
+    const ok = await createDataAdapter(ctx, { fetch: fine, write: 'seed-apply' });
+    assert.equal(await ok.createUser({ id: 'u-1', email, name: 'New Name' }), 'exists');
+  } finally { cleanup(); }
+});
+
+test('http: updateByColumn patches the rows whose column holds the id, and only in seed --apply', async () => {
+  const { ctx, cleanup } = await ctxWith();
+  try {
+    const fetch = fetchStub(() => ({ status: 204, body: null }));
+    const db = await createDataAdapter(ctx, { fetch, write: 'seed-apply' });
+    await db.updateByColumn('profiles', 'user_id', 'u-1', { full_name: 'New Name' });
+    assert.equal(fetch.requests[0].method, 'PATCH');
+    assert.equal(fetch.requests[0].url, `https://${REF}.supabase.co/rest/v1/profiles?user_id=eq.u-1`);
+    assert.deepEqual(fetch.requests[0].body, { full_name: 'New Name' });
+    await assert.rejects(db.updateByColumn('profiles', 'user_id; drop', 'u-1', { full_name: 'x' }), (e) => e.code === 'seed');
+    await assert.rejects(db.updateByColumn('profiles', 'user_id', 'u-1', { id: 'x' }), (e) => e.code === 'seed');
+    const ro = await createDataAdapter(ctx, { fetch });
+    await assert.rejects(ro.updateByColumn('profiles', 'user_id', 'u-1', { full_name: 'x' }), (e) => e.code === 'read-only');
+  } finally { cleanup(); }
+});
+
+test('applyRows: with userNameColumns, each named fixture user\'s name is written to the app\'s own users table (stub db)', async () => {
+  const { applyRows } = await import('../../lib/seed/apply.mjs');
+  const { ctx, cleanup } = await ctxWith();
+  try {
+    // The insert trigger copied the old name once; the map now gives the user a new one.
+    const stub = createStubDb({ tables: { users: [{ id: 'u-1', full_name: 'Old Name' }, { id: 'u-2', full_name: 'Someone' }] }, users: [{ id: 'u-1', email: 'delivery+a@example.invalid' }] });
+    ctx.dataBackend = stub;
+    const db = await createDataAdapter(ctx, { write: 'seed-apply' });
+    const seedPlan = { worlds: [{ id: 'design', orgId: 'o-1' }], rows: [], users: [
+      { world: 'design', role: 'admin', id: 'u-1', email: 'delivery+a@example.invalid', name: 'New Name' },
+      { world: 'design', role: 'member', id: 'u-3', email: 'delivery+b@example.invalid' },
+    ] };
+    const r = await applyRows(db, seedPlan, { now: new Date(), userNameColumns: [{ table: 'users', column: 'full_name' }] });
+    assert.equal(r.users.named, 1, 'a user with no name is left alone');
+    assert.deepEqual(stub.tables.get('users').map((u) => u.full_name), ['New Name', 'Someone']);
+    const none = await applyRows(db, seedPlan, { now: new Date() });
+    assert.equal(none.users.named, 0, 'without userNameColumns nothing is written there');
+  } finally { cleanup(); }
+});

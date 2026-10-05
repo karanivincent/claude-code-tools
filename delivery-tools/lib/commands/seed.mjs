@@ -69,7 +69,11 @@ modes:
                      organisation, relative times ("2 min ago" is now-2m), enum literals and numbers
                      read from the database types. A row describing a fixture user is that user; a
                      row the world file already holds is left alone; hand-written rows are never
-                     touched. Emails become fixture addresses and the organisation's name the
+                     touched. The world file records a hash of each t- row it writes ("traced"): a
+                     t- row edited by hand since is kept and reported, and a t- row the contract no
+                     longer produces is reported as dropped. A row in a table the safety file's
+                     probes say no fixture organisation may hold is never written: it is listed,
+                     and its state needs an intercept. Emails become fixture addresses and the organisation's name the
                      world's, and each swap is written to docs/delivery/<feature>/swaps.json so
                      seed --check and datacheck look for the seeded value. A fixture user with no
                      name gets the design's (map.json). Prints what it could not infer, for the
@@ -333,8 +337,9 @@ async function applyMode(ctx) {
   }
   const { createDataAdapter } = await import('../../adapters/data/supabase.mjs');
   const db = await createDataAdapter(ctx, { projectRef: seedPlan.project, write: 'seed-apply' });
-  const written = await applyRows(db, seedPlan, { now: await seedNow(ctx) });
+  const written = await applyRows(db, seedPlan, { now: await seedNow(ctx), userNameColumns: profile.testData?.userNameColumns ?? null });
   ctx.out.line(`wrote ${written.rows} row(s) and ${written.users.created} new fixture user(s) (${written.users.existing} already there) to ${seedPlan.project}${written.deferred ? `, then set the forward references of ${written.deferred} row(s)` : ''}`);
+  if (written.users.named) ctx.out.line(`wrote the fixture users' names to the app's own users table(s) (${written.users.named} column(s), testData.userNameColumns)`);
   // R7: the worlds' global dependencies as they were when seeded; shoot warns when one changed.
   if (seedPlan.worlds.some((w) => w.globals?.length)) {
     try {
@@ -433,7 +438,7 @@ async function fromTraceMode(ctx, worlds) {
     let file = null;
     try { file = await readWorldFile(paths, id); } catch { file = null; }
     const r = traceWorld({ contract, map, worldId: id, worldFile: file, safety, types, now });
-    await writeJsonAtomic(worldFilePath(paths, id), { schemaVersion: 1, world: id, ...(file?.globals ? { globals: file.globals } : {}), rows: r.rows });
+    await writeJsonAtomic(worldFilePath(paths, id), { schemaVersion: 1, world: id, ...(file?.globals ? { globals: file.globals } : {}), ...(Object.keys(r.traced).length ? { traced: r.traced } : {}), rows: r.rows });
     await writeSwaps(paths, id, r.swaps);
     const w = map.worlds.find((x) => x.id === id);
     for (const [role, name] of Object.entries(r.userNames)) {
@@ -442,8 +447,10 @@ async function fromTraceMode(ctx, worlds) {
     }
     ctx.out.line(`world ${id}: ${r.added} row(s) added, ${r.replaced} rebuilt, ${r.kept} kept; ${Object.keys(r.swaps).length} value(s) swapped for safe ones`);
     for (const x of r.skipped) ctx.out.line(`  skipped ${x}`);
+    for (const k of r.handEdited) ctx.out.line(`  kept ${k}: it was edited by hand since --from-trace wrote it; delete the row to have it rebuilt`);
+    for (const k of r.dropped) ctx.out.line(`  dropped ${k}: the contract no longer produces it`);
     for (const n of r.needs) ctx.out.line(`  for the seed-writer: ${n}`);
-    summary.push({ world: id, added: r.added, replaced: r.replaced, kept: r.kept, swaps: Object.keys(r.swaps).length, needs: r.needs });
+    summary.push({ world: id, added: r.added, replaced: r.replaced, kept: r.kept, swaps: Object.keys(r.swaps).length, needs: r.needs, handEdited: r.handEdited, dropped: r.dropped, forbidden: r.forbidden.length });
   }
   if (mapChanged) await writeJsonAtomic(mapPath(paths), map);
   const needs = summary.reduce((n, x) => n + x.needs.length, 0);

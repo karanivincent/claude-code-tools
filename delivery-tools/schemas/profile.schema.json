@@ -144,7 +144,21 @@
         "robotOrganizationId": { "$ref": "common.schema.json#/$defs/Text" },
         "orgName": { "description": "The generic organisation name a components run's own world uses (spec components-first §3); default \"Acme Store\" when absent.", "type": "string" },
         "timeZone": { "description": "The IANA time zone the test organisations live in (e.g. Europe/Berlin). A world's relative times (today, as: date) resolve their day in it; UTC when absent.", "type": "string", "minLength": 1 },
-        "timeOfDayTables": { "description": "Tables that hold time-of-day settings a page reads with the real time (e.g. opening_hours). delivery map fails a state marked clock: true whose world writes no row to one of them, so no picture depends on when the shoot runs; the world writes its minutes relative to the shoot ({\"$minuteOfDay\": \"now-60\"}).", "$ref": "common.schema.json#/$defs/Strings" }
+        "timeOfDayTables": { "description": "Tables that hold time-of-day settings a page reads with the real time (e.g. opening_hours). delivery map fails a state marked clock: true whose world writes no row to one of them, so no picture depends on when the shoot runs; the world writes its minutes relative to the shoot ({\"$minuteOfDay\": \"now-60\"}).", "$ref": "common.schema.json#/$defs/Strings" },
+        "userNameColumns": {
+          "description": "Where the app keeps its own copy of a user's name, which an insert trigger fills once (e.g. a users or profiles table). seed --apply writes each named fixture user's name to every entry, so a name changed in the map reaches the page. idColumn is the column holding the auth user's id; default id.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["table", "column"],
+            "properties": {
+              "table": { "type": "string", "pattern": "^[a-z_][a-z0-9_]*$" },
+              "column": { "type": "string", "pattern": "^[a-z_][a-z0-9_]*$" },
+              "idColumn": { "type": "string", "pattern": "^[a-z_][a-z0-9_]*$" }
+            }
+          }
+        }
       }
     },
     "auth": {

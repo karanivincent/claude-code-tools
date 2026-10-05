@@ -86,8 +86,13 @@ test('a forward reference nested in a column defers the whole column; a join row
   assert.equal(script.values.settings, null);
   assert.deepEqual(script.deferred.settings, { fallback: [id('v1')], tone: 'warm' });
 
+  // B4: a join row above the row it names is simply planned after it.
   const joined = structuredClone(WORLD);
   joined.rows.splice(1, 0, { key: 'tag', table: 'script_tags', values: { organization_id: { $ref: 'org' }, script_id: { $ref: 's1' } } });
+  const sorted = plan(joined, { tablesWithoutId: new Set(['script_tags']) });
+  assert.ok(sorted.rows.findIndex((r) => r.table === 'script_tags') > sorted.rows.findIndex((r) => r.table === 'call_scripts'));
+  // Only in a cycle can a join row still name a row written after it, which it cannot set later.
+  joined.rows[3].values.tag_ref = { $ref: 'tag' };
   assert.throws(() => plan(joined, { tablesWithoutId: new Set(['script_tags']) }), (err) => err.exit === 2
     && err.failures.some((f) => /row "tag": script_id names a row written after it, and a script_tags row has no id to set it by later/.test(f.message)));
 });
@@ -168,4 +173,29 @@ test('today resolves in the organisation\'s time zone: a seed at 22:30 UTC is al
   assert.equal(resolveRelative({ $rel: 'now', as: 'date' }, east), '2026-09-29', 'now as a date is the local day too');
   assert.equal(resolveRelative({ $rel: 'today', as: 'date' }, zonedNow(at, 'America/New_York')), '2026-09-28');
   assert.throws(() => zonedNow(at, 'Mars/Olympus'), RangeError);
+});
+
+test('B4: rows are planned after the rows their $refs name, file order otherwise; only a true cycle is deferred', () => {
+  const world = {
+    schemaVersion: 1,
+    world: 'design',
+    rows: [
+      { key: 'member-admin', table: 'organization_members', values: { organization_id: { $ref: 'org' }, user_id: { $ref: 'user:admin' }, role: 'admin' } },
+      { key: 'w1', table: 'widgets', values: { organization_id: { $ref: 'org' }, contact_id: { $ref: 'c1' }, meta: { tags: [{ $ref: 'tag-1' }] } } },
+      { key: 'w2', table: 'widgets', values: { organization_id: { $ref: 'org' } } },
+      { key: 'c1', table: 'contacts', values: { organization_id: { $ref: 'org' } } },
+      { key: 'tag-1', table: 'tags', values: { organization_id: { $ref: 'org' } } },
+      { key: 'org', table: 'organizations', values: { name: { $orgName: true } } },
+    ],
+  };
+  const p = plan(world);
+  assert.deepEqual(p.rows.map((r) => r.table), ['organizations', 'organization_members', 'contacts', 'tags', 'widgets', 'widgets'], 'org first, then each row after what it names');
+  assert.deepEqual(p.rows.filter((r) => r.table === 'widgets').map((r) => r.id), [id('w1'), id('w2')], 'rows naming nothing later keep file order');
+  assert.equal(p.rows.some((r) => r.deferred), false, 'nothing is deferred without a cycle');
+  assert.equal(p.rows.find((r) => r.id === id('w1')).values.contact_id, id('c1'));
+
+  // The two scripts tables still name each other: the first in the file goes first and is deferred.
+  const cycle = plan();
+  assert.deepEqual(cycle.rows.map((r) => r.table), ['organizations', 'organization_members', 'call_scripts', 'call_script_versions']);
+  assert.ok(cycle.rows.find((r) => r.table === 'call_scripts').deferred);
 });

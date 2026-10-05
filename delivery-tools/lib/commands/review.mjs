@@ -15,6 +15,8 @@ import { FACTS_DIR, factsFile, renderFacts } from '../picture/facts.mjs';
 import { maskDom, maskTestids } from '../picture/shoot.mjs';
 import { contractSummary, readContract } from '../picture/contract.mjs';
 import { renderStuck, runDecision, stuckItems } from '../picture/stop.mjs';
+import { fixtureForbiddenTables, forbiddenSteerLines } from '../seed/forbidden.mjs';
+import { writeSteer } from '../retro/apply.mjs';
 
 export default defineCommand({
   name: 'review',
@@ -38,7 +40,8 @@ stuck item with its notes per round, for the founder. The rest are packed into b
 screen kept whole where it fits) and written to the round's folder: review-plan.json (carried and
 auto-matched items), batches.json (each batch, and the waves of at most ${MAX_PARALLEL_REVIEWERS} to dispatch
 together) and batch-<n>.prompt.md, the exact prompt for each reviewer. If docs/delivery/<feature>/steers.md
-exists, its text is added to every prompt. Each prompt also lists the data faults and must fixes
+exists, its text is added to every prompt. Before that, it gains one line per table the safety
+file's probes say no fixture organisation may hold: values from it are data gaps. Each prompt also lists the data faults and must fixes
 the shoot's datacheck already sorted by looking each traced value up in the world, and the values
 the product does not store that the founder decided, so the reviewer does not write them again.
 Dispatch each prompt file as it is, then run review without --plan.
@@ -216,10 +219,22 @@ function readJson(file) {
   try { return JSON.parse(readFileSync(file, 'utf8')); } catch { return null; }
 }
 
+/**
+ * B7: one steer per table the safety file's probes say no fixture organisation may hold: its
+ * values are test-data gaps, so reviewers mark them `data gap:`. writeSteer adds a line once.
+ * No safety file: nothing to add.
+ */
+async function addForbiddenSteers(ctx, paths) {
+  let tables = [];
+  try { tables = fixtureForbiddenTables((await ctx.safety()).safety); } catch { return; }
+  for (const line of forbiddenSteerLines(tables)) writeSteer(paths, line);
+}
+
 /** review --plan: carried and auto-matched items, then the reviewer batches with their prompts. */
 async function planRound(ctx, paths, round, info, rounds, opts = {}) {
   const map = readMap(paths);
   if (!map) { ctx.out.fail('no-map', 'there is no map.json'); return EXIT.USAGE; }
+  await addForbiddenSteers(ctx, paths);
   const earlier = rounds.filter((n) => n < round).pop();
   const prevInfo = earlier ? roundInfo(paths, earlier) : null;
   const prev = prevInfo?.shoot && prevInfo.review ? { round: earlier, shoot: prevInfo.shoot, review: prevInfo.review } : null;
