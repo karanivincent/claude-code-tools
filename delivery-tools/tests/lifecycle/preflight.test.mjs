@@ -1,7 +1,7 @@
 // Preflight (spec 4.1): repo prerequisites become wave-0 tasks, red-circle items exit 3.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { ok } from '../helpers/runner-stub.mjs';
 import { makeProfile, makeSafety } from '../helpers/fixtures.mjs';
@@ -114,4 +114,16 @@ test('P7 is not green until a playwright.config.* calls deliveryWebServer()', as
     assert.equal(p7.status, 'green');
     assert.match(p7.detail, /the capture spec, the version route and the capture's webServer are committed/);
   } finally { wired.repo.cleanup(); }
+});
+
+test('P10 warns when the run worktree has a package.json but no node_modules, and names the bootstrap command', async () => {
+  const { repo, ctx } = await setup({ files: { 'scripts/bootstrap.mjs': '// prepares a worktree\n', 'package.json': '{}\n' } });
+  try {
+    const p10 = (await runProbes(ctx)).doc.probes.find((p) => p.id === 'P10');
+    assert.equal(p10.status, 'warning');
+    assert.match(p10.detail, /the run worktree has no node_modules: run the bootstrap command there \(node scripts\/bootstrap\.mjs/);
+    mkdirSync(join(repo.worktree, 'node_modules'));
+    const again = (await runProbes(ctx)).doc.probes.find((p) => p.id === 'P10');
+    assert.equal(again.status, 'green');
+  } finally { repo.cleanup(); }
 });

@@ -245,6 +245,12 @@ const PROBE_FNS = {
     const script = scriptOf(env.profile.commands.bootstrap);
     if (!env.profile.commands.bootstrap.trim()) return task('T-bootstrap', 'no bootstrap command');
     if (script && !(await exists(join(env.ctx.repoRoot, script)))) return task('T-bootstrap', `the bootstrap command runs ${script}, which does not exist`);
+    // A run worktree intake made before it bootstrapped worktrees, or whose bootstrap failed, has
+    // no packages: the render, the build and the shoot all fail there for that reason alone.
+    const root = env.paths?.repoRoot ?? env.ctx.repoRoot;
+    if (await exists(join(root, 'package.json')) && !(await exists(join(root, 'node_modules')))) {
+      return warning(`the run worktree has no node_modules: run the bootstrap command there (${clip(env.profile.commands.bootstrap, 80)})`);
+    }
     return green(`the bootstrap command is present (${clip(env.profile.commands.bootstrap, 80)})`);
   },
   async P11(env) {

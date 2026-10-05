@@ -323,7 +323,7 @@ export async function renderDesign(ctx, opts) {
   const pw = await resolvePlaywright({ repoRoot: root, e2eDir: opts.e2eDir ?? null });
   // The repo's own packages answer the runtime's CDN scripts; a separate Playwright root is a fallback.
   const vendor = vendorResolver([...playwrightSearchDirs(ctx.repoRoot, opts.e2eDir ?? null), ...(opts.playwrightRoot ? [opts.playwrightRoot] : [])]);
-  const serve = await prepareServeDir(snapshotDir, serveDir);
+  const serve = await prepareServeDir(snapshotDir, serveDir, { page: opts.page ?? null });
   const server = await startStaticServer(serveDir, { port: opts.port ?? 0 });
   const escaped = new Set();
   let pageStateKeys = new Set();

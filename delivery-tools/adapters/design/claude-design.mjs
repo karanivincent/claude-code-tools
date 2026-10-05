@@ -24,22 +24,51 @@ const DC_IMPORT = /<dc-import\b[^>]*\bname\s*=\s*["']([^"']+)["']/g;
 /** A copy of the page's source some Claude Design exports carry beside the page itself. */
 export const BUNDLE_SRC = '_bundle_src.dc.html';
 
+/** The snapshot README line that records the page `intake --page` chose (lib/lifecycle/intake.mjs). */
+export const PAGE_LINE = /^Page: `([^`]+\.dc\.html)`/m;
+
+/** A page name as `--page` takes it, with or without `.dc.html`, as the file name. */
+export function pageFileName(name) {
+  const n = String(name ?? '').trim();
+  return n.endsWith('.dc.html') ? n : `${n}.dc.html`;
+}
+
+/**
+ * The page a snapshot's README records (`intake --page`), or null: an export straight from Claude
+ * Design has no README, and a snapshot of a one-page export records none.
+ * @param {string} dir
+ * @returns {Promise<string|null>}
+ */
+export async function recordedPage(dir) {
+  try { return (await readFile(join(dir, 'README.md'), 'utf8')).match(PAGE_LINE)?.[1] ?? null; } catch { return null; }
+}
+
 /**
  * The page *.dc.html at the top of dir, or an error message. An export can also carry components
  * (DatePicker.dc.html beside Dashboard.dc.html) that the page pulls in with
  * <dc-import name="DatePicker">; the page is the one file no other file imports. A
  * _bundle_src.dc.html beside another page file is a second copy of the source, not a page: it is
  * left out and named in `ignored`.
- * @returns {Promise<{ file?: string, components?: string[], ignored?: string[], error?: string }>}
+ *
+ * An export with two pages that no file imports needs a choice: `opts.page` (intake's `--page`),
+ * else the page the dir's own README records (a snapshot intake took with `--page`). Then the
+ * other files that something imports are `components`, and the other unimported ones `otherPages`.
+ * @param {string} dir
+ * @param {{ page?: string|null }} [opts]
+ * @returns {Promise<{ file?: string, components?: string[], otherPages?: string[], ignored?: string[], error?: string }>}
  */
-export async function findDcFile(dir) {
+export async function findDcFile(dir, opts = {}) {
   let names;
   try { names = await readdir(dir); } catch { return { error: `${dir} is not a readable directory` }; }
   let dc = names.filter((n) => n.endsWith('.dc.html') && !n.startsWith('__delivery__'));
   if (dc.length === 0) return { error: 'no *.dc.html at the top of the export' };
-  const ignored = dc.length > 1 && dc.includes(BUNDLE_SRC) ? [BUNDLE_SRC] : [];
+  const wanted = opts.page ? pageFileName(opts.page) : await recordedPage(dir);
+  const ignored = dc.length > 1 && dc.includes(BUNDLE_SRC) && wanted !== BUNDLE_SRC ? [BUNDLE_SRC] : [];
   if (ignored.length) dc = dc.filter((n) => n !== BUNDLE_SRC);
   const note = ignored.length ? { ignored } : {};
+  if (wanted && !dc.includes(wanted)) {
+    return { error: `--page names ${wanted}, which is not at the top of the export (its pages: ${dc.join(', ')})` };
+  }
   if (dc.length === 1) return { file: dc[0], ...note };
   const imported = new Set();
   for (const n of dc) {
@@ -47,8 +76,15 @@ export async function findDcFile(dir) {
     for (const m of text.matchAll(DC_IMPORT)) if (`${m[1]}.dc.html` !== n) imported.add(`${m[1]}.dc.html`);
   }
   const pages = dc.filter((n) => !imported.has(n));
-  if (pages.length !== 1) return { error: `more than one *.dc.html (${dc.join(', ')}), and ${pages.length} of them imported by no other` };
-  return { file: pages[0], components: dc.filter((n) => n !== pages[0]), ...note };
+  if (wanted) {
+    const components = dc.filter((n) => n !== wanted && imported.has(n));
+    const otherPages = dc.filter((n) => n !== wanted && !imported.has(n));
+    return { file: wanted, ...(components.length ? { components } : {}), ...(otherPages.length ? { otherPages } : {}), ...note };
+  }
+  if (pages.length === 1) return { file: pages[0], components: dc.filter((n) => n !== pages[0]), ...note };
+  const pick = 'choose one with intake --page "<name>"';
+  if (pages.length === 0) return { error: `every *.dc.html is imported by another (${dc.join(', ')}), so none is the page; ${pick}` };
+  return { error: `more than one page that no other file imports (${pages.join(', ')}); ${pick}, for example --page "${pages[0].replace(/\.dc\.html$/, '')}"` };
 }
 
 /** Whether dir carries the runtime: support.js loose, or inside runtime.zip. */
@@ -64,12 +100,13 @@ async function hasRuntime(dir) {
 const adapter = {
   name: 'claude-design',
 
-  async detect(dir) {
-    const dc = await findDcFile(dir);
+  async detect(dir, opts = {}) {
+    const dc = await findDcFile(dir, { page: opts.page ?? null });
     if (dc.error) return { ok: false, reason: dc.error };
     if (!(await hasRuntime(dir))) return { ok: false, reason: `no ${RUNTIME_ENTRY} (or ${RUNTIME_ZIP} holding it) beside ${dc.file}` };
     const notes = (dc.ignored ?? []).map((n) => `ignored ${n}: a second copy of the page's source, not a page (the page is ${dc.file})`);
-    return { ok: true, project: dc.file.replace(/\.dc\.html$/, ''), exportedAt: null, ...(notes.length ? { notes } : {}) };
+    for (const n of dc.otherPages ?? []) notes.push(`left out ${n}: another page of the export (the page is ${dc.file})`);
+    return { ok: true, project: dc.file.replace(/\.dc\.html$/, ''), exportedAt: null, ...(opts.page ? { page: dc.file } : {}), ...(notes.length ? { notes } : {}) };
   },
 
   // Runtime scripts are zipped: a repo's security gate may refuse eval in a committed .js, and
@@ -82,8 +119,8 @@ const adapter = {
     return { copy, zip };
   },
 
-  async candidates(snapshotDir) {
-    const dc = await findDcFile(snapshotDir);
+  async candidates(snapshotDir, opts = {}) {
+    const dc = await findDcFile(snapshotDir, { page: opts.page ?? null });
     if (dc.error) throw new Error(dc.error);
     const text = await readFile(join(snapshotDir, dc.file), 'utf8');
     const shotsDir = join(snapshotDir, 'shots');
@@ -91,8 +128,8 @@ const adapter = {
     return claudeDesignCandidates({ file: dc.file, text, shots });
   },
 
-  async screens(snapshotDir) {
-    const dc = await findDcFile(snapshotDir);
+  async screens(snapshotDir, opts = {}) {
+    const dc = await findDcFile(snapshotDir, { page: opts.page ?? null });
     if (dc.error) throw new Error(dc.error);
     return claudeDesignScreens(await readFile(join(snapshotDir, dc.file), 'utf8'));
   },

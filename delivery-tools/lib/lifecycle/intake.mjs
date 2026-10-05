@@ -7,9 +7,9 @@
 // intake: the first run stops with NEXT naming it; the second validates intent.json, fixes its
 // mechanical fields, renders intent.md, updates the epic and commits both.
 
-import { mkdtemp, readFile, rm, stat, copyFile, mkdir, readdir } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, stat, copyFile, mkdir, readdir, realpath } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, dirname, resolve, basename } from 'node:path';
+import { join, dirname, resolve, basename, sep } from 'node:path';
 import { readZip, writeZip } from '../core/zip.mjs';
 import { sha256, sha256Tree, listTree } from '../core/hash.mjs';
 import { featurePaths, assertFeatureSlug } from '../core/paths.mjs';
@@ -19,6 +19,7 @@ import { createState, loadState, newRunId, updateState, formatEvent } from '../c
 import { carryOver } from './update-run.mjs';
 import { validateAgainst } from '../core/schema.mjs';
 import { writeFileAtomic, writeJsonAtomic, exists, readJson } from '../core/fs.mjs';
+import { fillCommand, wrapHeavy } from '../core/profile.mjs';
 import { isoDate } from '../core/clock.mjs';
 import { gateResult } from '../core/gate.mjs';
 import { hasMarker } from '../core/markers.mjs';
@@ -33,6 +34,9 @@ import { worldFilePath } from '../seed/plan.mjs';
 
 export const README = 'README.md';
 export const RUNTIME_ZIP = 'runtime.zip';
+/** The port intake fills into commands.bootstrap's {port}: the first port a wave builder gets (wave.mjs). */
+export const BOOTSTRAP_PORT = 4100;
+const BOOTSTRAP_TIMEOUT_MS = 30 * 60_000;
 
 /** A feature slug from a design project name. */
 export function slugify(name) {
@@ -49,12 +53,15 @@ export function stripCommonRoot(entries) {
 }
 
 /** The snapshot README (machine-read by verifyIntake: the three hashes in the table). */
-export function renderSnapshotReadme({ project, adapter, exportedAt, takenOn, archiveSha256, treeSha256, snapshotSha256, zipped }) {
+export function renderSnapshotReadme({ project, adapter, exportedAt, takenOn, archiveSha256, treeSha256, snapshotSha256, zipped, page = null }) {
   return [
     `# Design snapshot: ${project}`,
     '',
     `Exported with the ${adapter} adapter${exportedAt ? ` on ${exportedAt}` : ' (export date unknown)'}; taken by \`delivery intake\` on ${takenOn}.`,
     '',
+    // Machine-read by adapters/design/claude-design.mjs (PAGE_LINE): every command that reads the
+    // snapshot opens this page, and a later intake of a new export keeps the choice.
+    ...(page ? [`Page: \`${page}\` (chosen with \`intake --page\`; the export has more than one page).`, ''] : []),
     'Do not edit anything in this directory. When the design changes, export it again and run intake',
     'with the new archive: it replaces the whole directory, so the diff shows what the designer changed.',
     ...(zipped.length ? [
@@ -160,11 +167,30 @@ async function copyInto(srcDir, rels, destDir) {
   }
 }
 
+/** Whether `inner` resolves to `outer` or to a path inside it (symlinks followed where they exist). */
+export async function isWithin(inner, outer) {
+  const real = async (p) => realpath(p).catch(() => resolve(p));
+  const a = await real(inner);
+  const b = await real(outer);
+  return a === b || a.startsWith(b.endsWith(sep) ? b : b + sep);
+}
+
 /**
  * Write the snapshot for one export into snapshotDir (replacing whatever was there).
  * @returns {Promise<{ snapshotSha256: string, zipped: string[], copied: number }>}
  */
 export async function writeSnapshot({ exportDir, snapshotDir, layout, readme }) {
+  // Intake pointed at its own snapshot (or a folder inside it): the rm below would delete the
+  // source before anything is copied from it. Copy the source somewhere safe first.
+  if (await isWithin(exportDir, snapshotDir)) {
+    const safe = await mkdtemp(join(tmpdir(), 'delivery-snapshot-src-'));
+    try {
+      await copyInto(exportDir, [...new Set([...layout.copy, ...layout.zip])], safe);
+      return await writeSnapshot({ exportDir: safe, snapshotDir, layout, readme });
+    } finally {
+      await rm(safe, { recursive: true, force: true });
+    }
+  }
   await rm(snapshotDir, { recursive: true, force: true });
   await mkdir(snapshotDir, { recursive: true });
   const zip = [...layout.zip].sort();
@@ -186,7 +212,7 @@ export async function writeSnapshot({ exportDir, snapshotDir, layout, readme }) 
  * @param {import('../core/ctx.mjs').Ctx} ctx
  * @param {{ source: string, sentence?: string|null, epic?: number|null, briefs?: string[], adapter?: string|null, from?: string|null }} o
  */
-export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic = null, briefs = [], adapter: adapterName = null, from = null, components = false }) {
+export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic = null, briefs = [], adapter: adapterName = null, from = null, components = false, page: pageFlag = null }) {
   const profile = await ctx.profile();
   if (components) {
     if (!profile.components) throw new UsageError('profile.components is not configured; add a components block (map, galleryRoute) before running --components');
@@ -200,15 +226,18 @@ export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic 
   const pack = await unpack(abs);
   try {
     const treeSha256 = await sha256Tree(pack.dir);
+    // The page of an export with several (--page), else the one this run's snapshot already
+    // records, so a new export of the same project keeps the choice without --page again.
+    const page = pageFlag ?? (components ? null : await keptPage(ctx, profile));
     let adapter;
     try {
-      adapter = await d.getDesignAdapter(pack.dir, adapterName ? { adapter: adapterName } : {});
+      adapter = await d.getDesignAdapter(pack.dir, { ...(adapterName ? { adapter: adapterName } : {}), ...(page ? { page } : {}) });
     } catch (err) {
       // The adapter names the temporary unpack directory; the founder knows the archive.
       if (err && err.exit === EXIT.USAGE && !isNotImplemented(err)) throw new UsageError(String(err.message).split(pack.dir).join(abs), { code: err.code });
       throw err;
     }
-    const found = await adapter.detect(pack.dir);
+    const found = await adapter.detect(pack.dir, page ? { page } : {});
     if (!found.ok) throw new UsageError(`not a recognised ${adapter.name} export: ${found.reason ?? 'unknown layout'}${adapter.name === 'claude-design' ? ' (for a folder of images pass --adapter image-folder)' : ''}`);
     const project = found.project || basename(abs).replace(/\.zip$/i, '');
     for (const note of found.notes ?? []) ctx.out.line(note);
@@ -260,8 +289,11 @@ export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic 
     if (!worktree) {
       branch = integrationBranch(profile, epic, feature);
       worktree = integrationWorktreePath(await primaryWorktree(ctx.git), profile, feature);
-      await ensureWorktree(ctx, { profile, branch, worktree });
+      const created = await ensureWorktree(ctx, { profile, branch, worktree });
       lines.push(`integration worktree ${worktree} on ${branch}`);
+      // A fresh worktree has no installed packages: nothing renders or builds there until the
+      // profile's bootstrap runs. A failure is reported, never fatal: intake's own work is done.
+      if (created) lines.push(await bootstrapWorktree(ctx, { profile, worktree }));
     }
     const paths = featurePaths(worktree, feature, profile.paths);
     const git = createGit(ctx.runner, { cwd: worktree });
@@ -277,7 +309,7 @@ export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic 
         exportDir: pack.dir, snapshotDir: paths.designSnapshot, layout,
         readme: ({ snapshotSha256, zipped }) => renderSnapshotReadme({
           project, adapter: adapter.name, exportedAt: found.exportedAt ?? null, takenOn: isoDate(ctx.clock),
-          archiveSha256: pack.archiveSha256, treeSha256, snapshotSha256, zipped,
+          archiveSha256: pack.archiveSha256, treeSha256, snapshotSha256, zipped, page: found.page ?? null,
         }),
       });
       lines.push(`${reexport ? 'replaced the snapshot with the new export' : 'snapshot written'}: ${repoRel(worktree, paths.designSnapshot)}/ (${snap.copied} files, ${snap.zipped.length} zipped into ${RUNTIME_ZIP})`);
@@ -380,8 +412,37 @@ export async function runIntake(ctx, { source, sentence = null, epic: adoptEpic 
   }
 }
 
+/**
+ * The page this run's existing snapshot records (`intake --page` on an earlier export), or null.
+ * Looks up the run named by --feature, else the run of the worktree this runs in.
+ */
+async function keptPage(ctx, profile) {
+  const feature = ctx.flags.feature ?? ctx.feature ?? null;
+  if (!feature) return null;
+  const run = (await discoverRuns(ctx.git, { runRoot: profile.paths.runRoot }).catch(() => [])).find((r) => r.feature === feature);
+  const root = run ? run.worktree : ctx.repoRoot;
+  const readme = join(featurePaths(root, feature, profile.paths).designSnapshot, README);
+  try { return (await readFile(readme, 'utf8')).match(/^Page: `([^`]+\.dc\.html)`/m)?.[1] ?? null; } catch { return null; }
+}
+
+/**
+ * Run commands.bootstrap in a worktree intake just created, through the heavy wrapper, with {dir}
+ * the worktree and {port} BOOTSTRAP_PORT. Returns the line to print.
+ */
+export async function bootstrapWorktree(ctx, { profile, worktree }) {
+  const template = String(profile.commands?.bootstrap ?? '').trim();
+  if (!template) return 'no bootstrap command in the profile: install the worktree\'s packages yourself before rendering or building';
+  let cmd;
+  try { cmd = wrapHeavy(profile, fillCommand(template, { dir: worktree, port: BOOTSTRAP_PORT })); } catch (err) {
+    return `bootstrap not run: ${err.message}`;
+  }
+  const r = await ctx.runner.sh(cmd, { cwd: worktree, timeoutMs: BOOTSTRAP_TIMEOUT_MS });
+  if (r.code === 0) return `bootstrapped the worktree: ${template}`;
+  return `bootstrap failed (exit ${r.code}): ${lastLine(r.stderr, r.stdout)}; run \`${template}\` in ${worktree} before rendering or building`;
+}
+
 async function ensureWorktree(ctx, { profile, branch, worktree }) {
-  if (await exists(join(worktree, '.git'))) return;
+  if (await exists(join(worktree, '.git'))) return false;
   const base = profile.repo.base;
   await ctx.git.raw(['fetch', 'origin', base]);
   const hasBranch = Boolean(await ctx.git.revParse(`refs/heads/${branch}`));
@@ -389,6 +450,7 @@ async function ensureWorktree(ctx, { profile, branch, worktree }) {
   const args = hasBranch ? ['worktree', 'add', worktree, branch] : ['worktree', 'add', '-b', branch, worktree, start];
   const r = await ctx.git.raw(args);
   if (r.code !== 0) throw new DeliveryError(EXIT.RED, `git worktree add failed: ${lastLine(r.stderr, r.stdout)}`, { code: 'git' });
+  return true;
 }
 
 async function commitIntake(git, { paths, worktree, project, feature, reexport, profile }) {

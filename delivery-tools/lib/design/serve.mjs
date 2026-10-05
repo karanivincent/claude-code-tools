@@ -18,10 +18,12 @@ export const PROP_COPY_PREFIX = '__delivery__';
  * Copy the snapshot into serveDir and unzip its runtime there. Idempotent; removes stale prop copies.
  * @param {string} snapshotDir
  * @param {string} serveDir
+ * @param {{ page?: string|null }} [opts] page: the page of an export with several (else the
+ *   snapshot README's recorded one)
  * @returns {Promise<{ dcFile: string, files: number, runtime: string[] }>}
  */
-export async function prepareServeDir(snapshotDir, serveDir) {
-  const dc = await findDcFile(snapshotDir);
+export async function prepareServeDir(snapshotDir, serveDir, opts = {}) {
+  const dc = await findDcFile(snapshotDir, { page: opts.page ?? null });
   if (dc.error) throw new UsageError(`${snapshotDir}: ${dc.error}`, { code: 'design' });
   await ensureDir(serveDir);
   for (const name of await readdir(serveDir)) {
