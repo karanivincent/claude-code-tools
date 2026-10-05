@@ -22,6 +22,7 @@ import { dataFaultItems } from './datacheck.mjs';
 import { roundDecision, runDecision } from './stop.mjs';
 import { openNeeds } from '../seed/trace.mjs';
 import { tunable } from '../retro/tunables.mjs';
+import { readWaived } from './waived.mjs';
 
 /**
  * A2: every table the map's worlds write (their world files, already on disk once the mapper
@@ -234,7 +235,10 @@ export async function pictureFacts(paths, opts = {}) {
       compare: info.compare,
     };
   });
-  const latest = [...latestVerdicts(paths).values()];
+  // A4: a waived item keeps its verdict but is not open.
+  const waived = readWaived(paths);
+  const allLatest = latestVerdicts(paths);
+  const latest = [...allLatest].filter(([k]) => !waived[k]).map(([, v]) => v);
   const count = (v) => latest.filter((s) => s.verdict === v).length;
   const desktopPictures = [...designed].filter((id) => !id.includes('@')).length;
   // Rules run straight after intake (A3), so they are read whether or not map.json exists yet;
@@ -286,7 +290,7 @@ export async function pictureFacts(paths, opts = {}) {
     phonePictures: designed.size - desktopPictures,
     phoneRenderOwed: phoneRenderOwed(map, designed),
     noun: map && hasPhone(map) ? 'item' : 'state',
-    open: latest.length ? { must: count('must'), notReached: count('not-reached'), data: count('data-fault') + count('data-gap') } : null,
+    open: allLatest.size ? { must: count('must'), notReached: count('not-reached'), data: count('data-fault') + count('data-gap') } : null,
     // W4: the stop rule over the compiled rounds' real-bug counts, shared with ready.
     decision: runDecision(paths),
     // W7: steers.md, written before round 1 (a components gallery needs none).

@@ -5,6 +5,7 @@
 // compiled count; a round the server broke during (W2) was deleted and never counts.
 
 import { listRounds, roundInfo } from './rounds.mjs';
+import { readWaived } from './waived.mjs';
 import { tunable } from '../retro/tunables.mjs';
 
 export const STALL_ROUNDS = tunable('rounds.stallRounds');
@@ -22,11 +23,13 @@ const OPEN = new Set(['must', 'not-reached']);
 export function openByRound(paths) {
   const latest = new Map();
   const out = [];
+  // A4: a waived item keeps its verdict, but it is not open.
+  const waived = readWaived(paths);
   for (const n of listRounds(paths)) {
     const info = roundInfo(paths, n);
     if (!info.shoot || !info.review) continue;
     for (const [key, s] of Object.entries(info.review.states ?? {})) if (s.verdict !== 'not-shot') latest.set(key, s.verdict);
-    const items = [...latest].filter(([, v]) => OPEN.has(v)).map(([k]) => k);
+    const items = [...latest].filter(([k, v]) => OPEN.has(v) && !waived[k]).map(([k]) => k);
     out.push({ round: n, open: items.length, items });
   }
   return out;
@@ -81,8 +84,12 @@ export function stuckItems(paths, stall = STALL_ROUNDS) {
   return out;
 }
 
-/** stuck.md: the founder's list when the loop stops, one section per stuck item. */
-export function renderStuck(items, decision) {
+/**
+ * stuck.md: the founder's list when the loop stops, one section per stuck item; then (A4) the
+ * states deferred to a later run (map `later`) and the items the founder waived, each with its reason.
+ * @param {{ deferred?: { key: string, why: string }[], waived?: Record<string, { why: string, verdict?: string|null }> }} [extra]
+ */
+export function renderStuck(items, decision, extra = {}) {
   const lines = ['# Stuck items', '', `The picture loop stopped: ${decision.why}. These items did not move.`, ''];
   for (const it of items) {
     lines.push(`## ${it.key}`, '');
@@ -94,5 +101,23 @@ export function renderStuck(items, decision) {
     const same = notes.length > 1 && notes.every((x) => x && x === notes[0]);
     lines.push('', same ? 'Why it did not move: the reviewers wrote the same problem every round, so each fix missed it.' : 'Why it did not move: the notes changed from round to round, so each fix moved the problem rather than closing it.', '');
   }
+  lines.push(...deferredLines(extra));
   return `${lines.join('\n')}\n`;
+}
+
+/** A4: the "Deferred" and "Waived" sections of stuck.md and the PR body; none when both are empty. */
+export function deferredLines({ deferred = [], waived = {} } = {}) {
+  const lines = [];
+  if (deferred.length) {
+    lines.push('## Deferred to a later run', '', 'The map marks these states `later`: this run does not build them, and they were not shot.', '');
+    for (const d of deferred) lines.push(`- ${d.key}: ${d.why}`);
+    lines.push('');
+  }
+  const w = Object.entries(waived);
+  if (w.length) {
+    lines.push('## Waived', '', 'The founder waived these items with delivery waive. Each keeps its verdict and is not open.', '');
+    for (const [key, x] of w) lines.push(`- ${key}${x.verdict ? ` (${x.verdict})` : ''}: ${x.why}`);
+    lines.push('');
+  }
+  return lines;
 }

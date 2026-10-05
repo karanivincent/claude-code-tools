@@ -113,7 +113,9 @@ export function summarise({ map, shoot, notes, pre = {} }) {
       for (const t of shot.lookup?.dataFault ?? []) if (!n.dataFault.includes(t)) n.dataFault.push(t);
     }
     let verdict;
-    if (s.reach?.test) verdict = 'test-only';
+    // A4: a state this run will not build (map `later`) is never shot and never open.
+    if (s.later) verdict = 'later';
+    else if (s.reach?.test) verdict = 'test-only';
     else if (!shot) verdict = 'not-shot';
     else if (!shot.reached) verdict = 'not-reached';
     else if (n.must.length) verdict = 'must';
@@ -127,6 +129,7 @@ export function summarise({ map, shoot, notes, pre = {} }) {
     const auto = !carried && verdict === 'match' && pre.auto?.[key];
     states[key] = {
       verdict, must: n.must, small: n.small, design: n.design, ...(n.dataGap.length ? { dataGap: n.dataGap } : {}), ...(n.dataFault.length ? { dataFault: n.dataFault } : {}),
+      ...(verdict === 'later' ? { later: s.later } : {}),
       ...(carried && !heldFrom ? { carried: { from: carried.from } } : {}), ...(heldFrom ? { held: { from: heldFrom.from } } : {}), ...(auto ? { auto: true } : {}),
     };
   }
@@ -166,7 +169,7 @@ const inline = (t) => esc(t).replace(/`([^`]+)`/g, '<code>$1</code>');
  */
 export function renderCompare(o) {
   const { counts } = o.summary;
-  const label = { match: 'matches', small: 'small differences', must: 'to fix', 'test-only': 'unit tests only', 'not-reached': 'not reached', 'not-shot': 'not pictured', 'back-to-design': 'back to design', 'data-gap': 'data gap', 'data-fault': 'data fault' };
+  const label = { match: 'matches', small: 'small differences', must: 'to fix', 'test-only': 'unit tests only', 'not-reached': 'not reached', 'not-shot': 'not pictured', 'back-to-design': 'back to design', 'data-gap': 'data gap', 'data-fault': 'data fault', later: 'later (not this run)' };
   const widthLabel = { desktop: 'Desktop', phone: 'Phone' };
   const screens = [...new Set((o.map.states ?? []).map((s) => s.screen))];
   const items = mapItems(o.map);
@@ -183,7 +186,7 @@ export function renderCompare(o) {
     if (v.auto) return 'matches (auto)';
     return label[v.verdict];
   };
-  const rank = ['must', 'not-reached', 'not-shot', 'data-fault', 'data-gap', 'small', 'back-to-design', 'test-only', 'match'];
+  const rank = ['must', 'not-reached', 'not-shot', 'data-fault', 'data-gap', 'small', 'back-to-design', 'test-only', 'later', 'match'];
   const rows = (o.map.states ?? []).map((s) => {
     const mine = items.filter((i) => i.id === s.id);
     const verdicts = mine.map((i) => o.summary.states[i.key]).filter(Boolean);
@@ -194,7 +197,7 @@ export function renderCompare(o) {
       const notes = [...v.must.map((t) => `<li class="m">${inline(t)}</li>`), ...(v.dataFault ?? []).map((t) => `<li class="g">${inline(t)}</li>`), ...(v.dataGap ?? []).map((t) => `<li class="g">${inline(t)}</li>`), ...v.small.map((t) => `<li class="s">${inline(t)}</li>`), ...(v.design ?? []).map((t) => `<li class="d">${inline(t)}</li>`)].join('');
       const trio = `<div class="trio">${fig(p.design, 'Design', it.key)}${o.beforeRound ? fig(p.before, `Round ${o.beforeRound}`, it.key) : ''}${fig(p.now, `Round ${o.round}`, it.key)}</div>`;
       const list = notes ? `<ul class="notes">${notes}</ul>` : '';
-      const note = v.carried ? `<p class="carried">Carried from round ${esc(v.carried.from)}: neither picture changed, so it was not reviewed again.</p>` : v.auto ? '<p class="carried">Matched without a reviewer: the text, test ids, buttons and pixels agree with the design.</p>' : '';
+      const note = v.later ? `<p class="carried">Later: this run does not build it (${esc(v.later)}).</p>` : v.carried ? `<p class="carried">Carried from round ${esc(v.carried.from)}: neither picture changed, so it was not reviewed again.</p>` : v.auto ? '<p class="carried">Matched without a reviewer: the text, test ids, buttons and pixels agree with the design.</p>' : '';
       if (!multi) return { pill: `<span class="pill ${v.verdict}">${esc(pillText(v))}</span>`, body: `${note}${trio}\n  ${list}` };
       const name = widthLabel[it.width] ?? it.width;
       return {

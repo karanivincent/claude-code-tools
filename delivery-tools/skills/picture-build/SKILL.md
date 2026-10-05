@@ -196,7 +196,13 @@ is added to every prompt; put anything you would otherwise repeat to each review
    proof to get past it.
 11. **A page that scrolls sideways on a phone is always a must fix.** The shoot measures it and
    `delivery review` counts it, so it cannot be argued away as small.
-12. **No round waits for the clock.** A state that depends on the time of day carries its own
+12. **A state this run does not build is `later`.** Give it `"later": "<why>"` in `map.json`
+   (it needs no reach). It is never shot, its verdict is `later`, and it is never open. An item
+   that stays open for a reason the founder accepts (a test-data gap the safety rules create on
+   purpose) is waived by him: `delivery waive <ITEM> --why "<reason>"`. It keeps its verdict and
+   is not open. `delivery review` prints both lists, `stuck.md` and `ready` show them, and the PR
+   body lists them with their reasons.
+13. **No round waits for the clock.** A state that depends on the time of day carries its own
    hours in its world (relative minute-of-day values, `{"$minuteOfDay": "now-60"}`, and for
    a closed or open window the paired `closedStart`/`closedEnd` or `openStart`/`openEnd`); never
    schedule a shoot for a time of day.
@@ -219,7 +225,8 @@ is added to every prompt; put anything you would otherwise repeat to each review
    hour; when the founder says it expired, re-seed and run it again.
 5. Publish the last round's `compare.html` with its folder as a private Artifact.
 6. Report in the founder's report format: the preview, the link, the comparison page, the counts,
-   and what is still open.
+   and what is still open. The PR body lists the deferred (`later`) states and the waived items,
+   each with its reason.
 
 ## Rationalizations
 

@@ -9,11 +9,16 @@ import { formatEvent, updateState } from '../core/state.mjs';
 import { PROBES } from '../lifecycle/preflight.mjs';
 import { dep } from '../run/compose.mjs';
 import { requireRunState } from '../run/context.mjs';
+import { readMap } from '../picture/map.mjs';
+import { mapItems } from '../picture/widths.mjs';
+import { latestVerdicts } from '../picture/next.mjs';
+import { WAIVABLE_VERDICTS, writeWaivers } from '../picture/waived.mjs';
 
 export default defineCommand({
   name: 'waive',
-  summary: "Record the founder's named waiver for a waivable probe",
+  summary: "Record the founder's named waiver for a waivable probe, or for a picture item",
   usage: `usage: delivery waive <probe> --note "<text>"
+       delivery waive <ITEM>... --why "<reason>"
 
 Record the founder's waiver for a red preflight probe that the spec lets him waive (for
 example P13, the observer user), in state.json and the journal. The phase-1 gate then
@@ -21,10 +26,17 @@ treats that probe as waived, and the final report lists every waiver first. A pr
 cannot be waived (P2, the safety file, among others) is refused, and so is a probe that is
 not red in preflight.json. Waiving the same probe again replaces the note.
 
-options:
-  --note "<text>"    required: the founder's reason, in his words
+A picture item (picture mode: <ID> is the state at every width, <ID>@phone one width) whose newest
+verdict is must fix, not reached, data fault or data gap can be waived too, for instance a test-data
+gap the safety rules create on purpose. It keeps its verdict on every page, but it is not open: the
+stop rule does not count it, ready does not wait for it, and ready and the round's stuck.md show
+its reason. The waiver is kept in .delivery/<f>/waived.json; waiving an item again replaces it.
 
-exit: 0 recorded; 2 unknown or unwaivable probe, no --note, no run, or nothing to waive
+options:
+  --note "<text>"    the founder's reason, in his words (required)
+  --why "<reason>"   the same, the usual name for a picture item
+
+exit: 0 recorded; 2 unknown or unwaivable probe or item, no reason, no run, or nothing to waive
 
 common options:
   --feature <slug>   the run (default: the single run in this worktree)
@@ -32,9 +44,12 @@ common options:
   --help             this text`,
   async run(ctx, argv) {
     const { values, positionals } = parseCommandArgs(argv, {
-      options: { note: { type: 'string' } },
-      positionals: { min: 1, max: 1, names: ['probe'] },
+      options: { note: { type: 'string' }, why: { type: 'string' } },
+      positionals: { min: 1, max: -1, names: ['probe'] },
     });
+    if (!/^P\d{1,2}$/i.test(String(positionals[0]))) return waiveItems(ctx, positionals, String(values.why ?? values.note ?? '').trim());
+    if (positionals.length > 1) throw new UsageError('waive one probe at a time');
+    if (values.note === undefined && values.why !== undefined) values.note = values.why;
     const probeId = String(positionals[0]).toUpperCase();
     const probes = dep(ctx, 'PROBES', PROBES);
     const probe = probes.find((p) => p.id === probeId);
@@ -63,3 +78,40 @@ common options:
     return 0;
   },
 });
+
+/**
+ * A4: waive picture items. Each named item (or every width of a named state) must exist in the map
+ * and have a newest verdict a waiver covers.
+ */
+async function waiveItems(ctx, picks, why) {
+  if (!why) throw new UsageError('--why "<the founder\'s reason>" is required');
+  const paths = ctx.requirePaths();
+  const map = readMap(paths);
+  if (!map) throw new UsageError(`${picks[0]} is not a preflight probe, and the run has no map.json to find a picture item in`);
+  const all = mapItems(map);
+  const latest = latestVerdicts(paths);
+  const entries = {};
+  for (const pick of picks) {
+    const at = pick.lastIndexOf('@');
+    const id = at > 0 ? pick.slice(0, at) : pick;
+    const width = at > 0 ? pick.slice(at + 1) : null;
+    const items = all.filter((i) => i.id === id && (width === null || i.width === width));
+    if (!items.length) throw new UsageError(`${pick} is neither a preflight probe nor an item of the map`);
+    for (const it of items) {
+      const v = latest.get(it.key);
+      if (!v || !WAIVABLE_VERDICTS.includes(v.verdict)) {
+        if (width === null && items.length > 1) continue;
+        throw new UsageError(`${it.key} is ${v ? v.verdict : 'not reviewed yet'}; only an item that is ${WAIVABLE_VERDICTS.join(', ')} can be waived`);
+      }
+      entries[it.key] = { why, at: ctx.clock.now().toISOString(), verdict: v.verdict, round: v.round };
+    }
+  }
+  const keys = Object.keys(entries);
+  if (!keys.length) throw new UsageError(`nothing to waive: ${picks.join(', ')} has no item that is ${WAIVABLE_VERDICTS.join(', ')}`);
+  await writeWaivers(paths, entries);
+  for (const k of keys) ctx.out.line(`waived ${k} (${entries[k].verdict}, round ${entries[k].round}): ${why}`);
+  ctx.out.line('it keeps its verdict, is not open, and ready and stuck.md show the reason');
+  ctx.out.set('waived', entries);
+  await ctx.journal({ command: `waive ${keys.join(' ')}`, exit: 0, counts: { items: keys.length } });
+  return 0;
+}

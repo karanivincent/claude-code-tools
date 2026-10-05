@@ -18,6 +18,7 @@ import { renderStuck, runDecision, stuckItems } from '../picture/stop.mjs';
 import { fixtureForbiddenTables, forbiddenSteerLines } from '../seed/forbidden.mjs';
 import { writeSteer } from '../retro/apply.mjs';
 import { sha256 } from '../core/hash.mjs';
+import { readWaived, waivedLines } from '../picture/waived.mjs';
 
 export default defineCommand({
   name: 'review',
@@ -148,9 +149,12 @@ common options:
     await writeFile(join(info.dir, 'review.json'), JSON.stringify(doc, null, 1) + '\n');
     // W4: when the stop rule stops the loop, the founder gets only the stuck items.
     const decision = runDecision(paths);
+    // A4: states this run does not build (map `later`) and items the founder waived.
+    const deferred = Object.entries(summary.states).filter(([, v]) => v.verdict === 'later').map(([key, v]) => ({ key, why: v.later }));
+    const waived = readWaived(paths);
     if (decision.decision === 'stop') {
       const stuck = stuckItems(paths);
-      await writeFile(join(info.dir, 'stuck.md'), renderStuck(stuck, decision));
+      await writeFile(join(info.dir, 'stuck.md'), renderStuck(stuck, decision, { deferred, waived }));
       ctx.out.line(`the loop stops: ${decision.why}; ${stuck.length} stuck item(s) for the founder in ${relative(ctx.repoRoot, join(info.dir, 'stuck.md'))}`);
     } else if (decision.decision === 'fix') ctx.out.line(`stop rule: another fix round (${decision.why})`);
     const heldNow = heldToReview(info.reviewPlan, doc);
@@ -168,6 +172,8 @@ common options:
       if (s.verdict === 'not-reached') ctx.out.line(`  ${id}: not reached`);
       if (s.verdict === 'back-to-design') ctx.out.line(`  ${id}: back to design`);
     }
+    if (deferred.length) ctx.out.line(`deferred to a later run (map later; list them in the PR body): ${deferred.map((d) => `${d.key} (${d.why})`).join(', ')}`);
+    if (Object.keys(waived).length) ctx.out.line(`waived (not open; list them in the PR body): ${waivedLines(waived).join('; ')}`);
     if (nCarried || nAuto) ctx.out.line(`not sent to a reviewer: ${nCarried} carried from an earlier round, ${nAuto} matched automatically`);
     ctx.out.line(`comparison page: ${join(info.dir, 'compare.html')}`);
     ctx.out.set('review', { round, before, counts: c, carried: nCarried, auto: nAuto, compare: join(info.dir, 'compare.html') });

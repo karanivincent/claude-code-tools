@@ -195,6 +195,12 @@ export function validateMap(map, opts = {}) {
       if (b.member && !['hidden', 'shown'].includes(b.member)) problems.push(`${where} button "${b.label ?? b.testid}" member must be "hidden" or "shown"`);
       if (b.phone !== undefined && !['hidden', 'shown'].includes(b.phone)) problems.push(`${where} button "${b.label ?? b.testid}" phone must be "hidden" or "shown"`);
     }
+    // A4: a shell state this run will not build. It is never shot, its verdict is `later`, it is
+    // never open, and it needs no reach.
+    if (s.later !== undefined) {
+      if (typeof s.later !== 'string' || !s.later.trim()) problems.push(`${where} later must say why this run does not build it`);
+      else if (!s.reach) continue;
+    }
     const reach = s.reach;
     if (!reach) { problems.push(`${where} has no reach`); continue; }
     if (reach.test) {
@@ -284,6 +290,7 @@ export function renderChecklist(map, { rules = null } = {}) {
   for (const s of map.states ?? []) {
     lines.push(`## ${s.id}: ${s.screen} / ${s.name}`);
     if (s.note) lines.push(s.note);
+    if (s.later) lines.push(`- Later: this run does not build it (${s.later}). It is not shot; leave it as it is`);
     if (multi && Array.isArray(s.widths) && s.widths.length) lines.push(`- Widths: ${s.widths.join(' and ')} only`);
     if (s.reach?.test) lines.push(`- Reached by: the component test ${s.reach.test} (the capture cannot reach it)`);
     else if (s.reach) lines.push(`- Reached by: ${(s.reach.steps ?? []).map(stepText).join(' then ')} (test data: ${s.reach.world}, ${s.reach.role})`);

@@ -38,6 +38,7 @@ import { EXIT_MEANING, dep, normalise } from './compose.mjs';
 import { requireRunState, trackedClean } from './context.mjs';
 import { matchesAny } from './glob.mjs';
 import { captureEvidence, readyInputs, sameSha, shortSha } from './ready.mjs';
+import { readWaived, waivedLines } from '../picture/waived.mjs';
 
 const BUILT = new Set(['keep', 'change', 'new', 'adapt']);
 const STATE_ID = /^(?:[A-Z]{1,6}-\d{2,3}|C-[A-Z][A-Za-z0-9]{0,40}-\d{2,3})$/;
@@ -335,7 +336,9 @@ export async function pictureReadiness(paths) {
   const latest = latestVerdicts(paths);
   // A run that checks the phone counts items (a state at a width); a desktop-only run, states.
   const noun = [...latest.keys()].some((k) => k.includes('@')) ? 'item' : 'state';
-  const by = (v) => [...latest].filter(([, s]) => s.verdict === v).map(([id, s]) => `${id} (round ${s.round})`);
+  // A4: an item the founder waived (delivery waive <ITEM> --why) keeps its verdict and is not open.
+  const waived = readWaived(paths);
+  const by = (v) => [...latest].filter(([id, s]) => s.verdict === v && !waived[id]).map(([id, s]) => `${id} (round ${s.round})`);
   const unreached = by('not-reached');
   if (unreached.length) return { ok: false, detail: `${unreached.length} ${noun}(s) whose newest picture was not reached: ${unreached.slice(0, 5).join(', ')}`, evidence: 'review.json' };
   // A1: a data gap is the world's problem, not the builder's, so it is never counted by the
@@ -360,10 +363,14 @@ export async function pictureReadiness(paths) {
     return { ok: false, detail: `${open.length} ${noun}(s) still to fix, and the fix rounds go on while the count falls (${d.why}): ${open.slice(0, 5).join(', ')}`, evidence: `rounds/${last}` };
   }
   // W5: an item held back from review (its screen's sample was clean) is reviewed before shipping.
-  const held = [...latest].filter(([, s]) => s.held).map(([id]) => id);
+  const held = [...latest].filter(([id, s]) => s.held && !waived[id]).map(([id]) => id);
   if (held.length) return { ok: false, detail: `${held.length} ${noun}(s) were held back from review while their screen's sample was clean; review them before shipping: delivery review --plan --round ${last} --held`, evidence: `rounds/${last}/review-plan.json` };
   const n = (v) => by(v).length;
-  const tail = open.length ? `; the loop stopped (${d.why}): ${open.length} stuck item(s) go to the founder with rounds/${last}/stuck.md` : '';
+  let tail = open.length ? `; the loop stopped (${d.why}): ${open.length} stuck item(s) go to the founder with rounds/${last}/stuck.md` : '';
+  const later = [...latest].filter(([, s]) => s.verdict === 'later').map(([id]) => id);
+  if (later.length) tail += `; ${later.length} deferred to a later run (map later): ${later.slice(0, 5).join(', ')}`;
+  const w = waivedLines(waived);
+  if (w.length) tail += `; ${w.length} waived: ${w.slice(0, 5).join('; ')}`;
   return { ok: true, detail: `${latest.size} ${noun}(s): ${n('match')} match, ${n('small')} small differences, every pictured ${noun} reached${tail}`, evidence: `rounds/${last}/review.json` };
 }
 
@@ -606,7 +613,7 @@ export async function computeReady(ctx, { pr }) {
     checks,
     counts: readyCounts(plan, findingsDoc, verdicts),
     lateChanges: late,
-    waivers: state.waivers.map((w) => `${w.probe}: ${w.note}`),
+    waivers: [...state.waivers.map((w) => `${w.probe}: ${w.note}`), ...(pictureMode ? waivedLines(readWaived(paths)) : [])],
     owedAfterMerge,
     ok,
   };
