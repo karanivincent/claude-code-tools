@@ -1,0 +1,253 @@
+<!-- Worked example: the store-screenshots explainer. Images replaced with {{IMAGE}}; embed real ones as data: URIs. -->
+<title>Store Screenshots, Automated</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&display=swap">
+<style>
+/* Layout: one column of pictures and diagrams, with a few words under each. */
+:root {
+  --bg: #f6f5f1; --surface: #ffffff; --ink: #23262b; --muted: #5d636b;
+  --line: #e2e0d8; --gold: #b0883a; --gold-soft: #f3ead6; --dark-tile: #1d1e21; --dark-ink: #ecebe6;
+  --display: 'Bricolage Grotesque', 'Avenir Next', system-ui, sans-serif;
+  --body: 'Figtree', 'Segoe UI', system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #18191b; --surface: #222326; --ink: #ecebe6; --muted: #a3a6ab;
+    --line: #34363a; --gold: #d8b061; --gold-soft: #3a3121; --dark-tile: #0f1011; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #18191b; --surface: #222326; --ink: #ecebe6; --muted: #a3a6ab;
+  --line: #34363a; --gold: #d8b061; --gold-soft: #3a3121; --dark-tile: #0f1011; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 17px/1.5 var(--body); padding-inline: 20px; padding-block: 44px 72px; }
+.wrap { max-width: 1000px; margin: 0 auto; display: flex; flex-direction: column; gap: 60px; }
+h1, h2 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.1; }
+h1 { font-size: clamp(32px, 6vw, 50px); font-weight: 700; }
+h2 { font-size: 24px; font-weight: 700; }
+p { margin: 0; }
+.eyebrow { font-size: 13px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
+header, section { display: flex; flex-direction: column; gap: 18px; }
+.muted { color: var(--muted); }
+svg.i { width: 30px; height: 30px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* Phones */
+.phones { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
+.phones figure { margin: 0; display: flex; flex-direction: column; gap: 6px; flex: 1 1 170px; min-width: 0; max-width: 260px; }
+.phones figure.wide { flex: 2 1 300px; max-width: 420px; }
+.phones img { width: 100%; display: block; border-radius: 16px; border: 1px solid var(--line); }
+.phones figure.wide img { border-radius: 10px; }
+figcaption { font-size: 13px; color: var(--muted); text-align: center; }
+
+/* Flow diagram */
+.flow { display: flex; align-items: stretch; gap: 8px; flex-wrap: wrap; }
+.node { flex: 1 1 150px; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 14px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.node .badge { width: 56px; height: 56px; border-radius: 50%; background: var(--gold-soft); color: var(--gold); display: grid; place-items: center; }
+.node b { font-weight: 600; font-size: 16px; line-height: 1.3; }
+.node small { font-size: 13px; color: var(--muted); line-height: 1.35; }
+.arrow { display: grid; place-items: center; color: var(--gold); flex: 0 0 22px; }
+.arrow svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 2; }
+@media (max-width: 700px) {
+  .flow { flex-direction: column; }
+  .node { flex-direction: row; text-align: left; flex: 0 0 auto; }
+  .node .badge { flex: 0 0 56px; }
+  .node div { display: flex; flex-direction: column; gap: 2px; }
+  .arrow { transform: rotate(90deg); flex-basis: 22px; }
+}
+
+/* Multiplication */
+.math { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 110px; }
+.tile .row { display: flex; gap: 4px; align-items: flex-end; height: 34px; }
+.tile b { font: 700 34px/1 var(--display); font-variant-numeric: tabular-nums; }
+.tile small { font-size: 13px; color: var(--muted); }
+.op { font: 500 28px/1 var(--display); color: var(--muted); }
+.tile.total { background: var(--gold); border-color: var(--gold); color: #fff; }
+.tile.total small { color: rgba(255,255,255,.85); }
+.mini { width: 13px; height: 22px; border: 1.6px solid currentColor; border-radius: 3px; color: var(--muted); }
+.mini.pad { width: 22px; height: 28px; }
+.mini.dark { background: var(--dark-tile); border-color: var(--dark-tile); }
+.mini.screen { width: 8px; height: 14px; border-radius: 2px; }
+
+/* Without / with */
+.vs { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 14px; }
+.card { border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 12px; border: 1px solid var(--line); background: var(--surface); }
+.card.with { border-color: var(--gold); }
+.card h3 { margin: 0; font: 600 13px/1 var(--body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.card.with h3 { color: var(--gold); }
+.card ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.card li { display: flex; gap: 10px; align-items: center; }
+.card li svg { width: 20px; height: 20px; flex: 0 0 20px; stroke-width: 2.2; }
+.card:not(.with) li svg { color: var(--muted); }
+.card.with li svg { color: var(--gold); }
+
+.ask { background: var(--gold-soft); border-radius: 16px; padding: 22px; display: flex; gap: 16px; align-items: center; }
+.ask .badge { flex: 0 0 52px; height: 52px; border-radius: 50%; background: var(--gold); color: #fff; display: grid; place-items: center; }
+.ask div { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+
+ol.shots { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; counter-reset: n; }
+ol.shots li { counter-increment: n; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); font-size: 15px; min-width: 0; }
+ol.shots li::before { content: counter(n); flex: 0 0 26px; height: 26px; border-radius: 50%; background: var(--gold-soft); color: var(--gold); font: 700 13px/26px var(--display); text-align: center; font-variant-numeric: tabular-nums; }
+h3.sub { margin: 6px 0 0; font: 600 13px/1 var(--body); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.faces { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
+.face { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; min-width: 0; }
+.face img { width: 140px; height: 140px; max-width: 100%; border-radius: 50%; object-fit: cover; border: 2px solid var(--gold-soft); }
+.benefits { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.benefit { margin: 0; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.benefit img { width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 12px; display: block; max-width: 100%; }
+.face figcaption, .benefit figcaption { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+.face small { color: var(--muted); font-size: 13px; }
+code { font: 12px/1.4 ui-monospace, 'SF Mono', Menlo, monospace; color: var(--muted); overflow-wrap: anywhere; }
+.where { display: flex; flex-direction: column; gap: 10px; }
+.tree { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; overflow-x: auto; }
+.tree div { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; font-size: 14px; }
+.tree .in { padding-left: 22px; }
+.tree .dir { font: 600 13px/1.4 ui-monospace, 'SF Mono', Menlo, monospace; color: var(--ink); overflow-wrap: anywhere; }
+.chips { display: flex; flex-wrap: wrap; gap: 10px; }
+.chip { display: flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-size: 15px; }
+.chip svg { width: 18px; height: 18px; color: var(--gold); }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-build" viewBox="0 0 24 24"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M10 18.5h4M9 8l2 2-2 2M13 12h2"/></symbol>
+  <symbol id="i-devices" viewBox="0 0 24 24"><rect x="2.5" y="5" width="12" height="15" rx="2"/><rect x="16" y="9" width="6" height="11" rx="1.5"/></symbol>
+  <symbol id="i-tap" viewBox="0 0 24 24"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V11m0-1.5a1.5 1.5 0 0 1 3 0V11m0-.5a1.5 1.5 0 0 1 3 0V15a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-2.7L4 15.5a1.5 1.5 0 0 1 2.5-1.7L9 16"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M3 8.5A1.5 1.5 0 0 1 4.5 7H7l1.5-2.5h7L17 7h2.5A1.5 1.5 0 0 1 21 8.5V18a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-hand" viewBox="0 0 24 24"><path d="M12 3v9m-3-7v8m6-6v7m3-4v5a7 7 0 0 1-7 7h-.5A6.5 6.5 0 0 1 5 15.5V11"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4m-5 5 5-5 5 5M4 16v3a1.5 1.5 0 0 0 1.5 1.5h13A1.5 1.5 0 0 0 20 19v-3"/></symbol>
+  <symbol id="i-tablet" viewBox="0 0 24 24"><rect x="4" y="2.5" width="16" height="19" rx="2"/><path d="M11 18.5h2"/></symbol>
+  <symbol id="i-duo" viewBox="0 0 24 24"><rect x="3" y="4" width="8" height="16" rx="1.5"/><rect x="13" y="4" width="8" height="16" rx="1.5"/></symbol>
+  <symbol id="i-pick" viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-5-5 5 5-5 5"/></symbol>
+</svg>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Mobile app · App Store &amp; Google Play</span>
+    <h1>The app takes its own store pictures</h1>
+    <p class="muted">The pictures on our app's store page are made by the computer, not by a person.</p>
+  </header>
+
+  <section aria-label="Example pictures">
+    <div class="phones">
+      <figure><img src="{{IMAGE}}" alt="Home screen"><figcaption>Home</figcaption></figure>
+      <figure><img src="{{IMAGE}}" alt="Class timetable"><figcaption>Classes</figcaption></figure>
+      <figure><img src="{{IMAGE}}" alt="Class timetable in dark mode"><figcaption>Dark mode</figcaption></figure>
+      <figure class="wide"><img src="{{IMAGE}}" alt="Appointment page on iPad"><figcaption>iPad</figcaption></figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>How it works</h2>
+    <div class="flow">
+      <div class="node"><span class="badge"><svg class="i"><use href="#i-build"/></svg></span><div><b>Makes a practice app</b><small>Real gym colours, made-up people</small></div></div>
+      <div class="arrow" aria-hidden="true"><svg><use href="#i-arrow"/></svg></div>
+      <div class="node"><span class="badge"><svg class="i"><use href="#i-devices"/></svg></span><div><b>Opens a pretend iPhone and iPad</b><small>On the computer</small></div></div>
+      <div class="arrow" aria-hidden="true"><svg><use href="#i-arrow"/></svg></div>
+      <div class="node"><span class="badge"><svg class="i"><use href="#i-tap"/></svg></span><div><b>Taps through the app</b><small>Like a person would</small></div></div>
+      <div class="arrow" aria-hidden="true"><svg><use href="#i-arrow"/></svg></div>
+      <div class="node"><span class="badge"><svg class="i"><use href="#i-camera"/></svg></span><div><b>Takes a picture of each screen</b><small>In light and dark</small></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>One run, per gym</h2>
+    <div class="math">
+      <div class="tile"><span class="row"><i class="mini screen"></i><i class="mini screen"></i><i class="mini screen"></i><i class="mini screen"></i></span><b>11</b><small>screens</small></div>
+      <span class="op">×</span>
+      <div class="tile"><span class="row"><i class="mini"></i><i class="mini pad"></i></span><b>2</b><small>iPhone, iPad</small></div>
+      <span class="op">×</span>
+      <div class="tile"><span class="row"><i class="mini"></i><i class="mini dark"></i></span><b>2</b><small>light, dark</small></div>
+      <span class="op">=</span>
+      <div class="tile total"><span class="row"><svg class="i"><use href="#i-camera"/></svg></span><b>44</b><small>pictures</small></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Why automate it</h2>
+    <div class="vs">
+      <div class="card">
+        <h3>By hand, it would take</h3>
+        <ul>
+          <li><svg class="i"><use href="#i-hand"/></svg>Several real phones and an iPad</li>
+          <li><svg class="i"><use href="#i-hand"/></svg>A new set for every gym</li>
+          <li><svg class="i"><use href="#i-hand"/></svg>Starting again after every app change</li>
+        </ul>
+      </div>
+      <div class="card with">
+        <h3>Automated</h3>
+        <ul>
+          <li><svg class="i"><use href="#i-check"/></svg>One command</li>
+          <li><svg class="i"><use href="#i-check"/></svg>Exact sizes Apple asks for</li>
+          <li><svg class="i"><use href="#i-check"/></svg>No real customer data</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Choosing the screens</h2>
+    <p class="muted">The computer follows one short list of screens. Today it has all 11.</p>
+    <ol class="shots">
+      <li>Home</li><li>Check-in</li><li>Upcoming</li><li>Appointment</li><li>Classes</li><li>Class details</li>
+      <li>Appointment types</li><li>Pick a time</li><li>Pick a trainer</li><li>Confirm booking</li><li>Account</li>
+    </ol>
+    <div class="flow">
+      <div class="node"><span class="badge"><svg class="i"><use href="#i-pick"/></svg></span><div><b>You pick</b><small>Which screens, in which order</small></div></div>
+      <div class="arrow" aria-hidden="true"><svg><use href="#i-arrow"/></svg></div>
+      <div class="node"><span class="badge"><svg class="i"><use href="#i-build"/></svg></span><div><b>We update the list</b><small>Remove, reorder or add screens</small></div></div>
+      <div class="arrow" aria-hidden="true"><svg><use href="#i-arrow"/></svg></div>
+      <div class="node"><span class="badge"><svg class="i"><use href="#i-camera"/></svg></span><div><b>It runs again</b><small>New pictures, only the chosen ones</small></div></div>
+    </div>
+    <p class="muted">Every gym gets the same list for now. A gym can get its own list later.</p>
+  </section>
+
+  <section>
+    <h2>Photos in the pictures</h2>
+    <p class="muted">Free stock photos from Unsplash. The people are made up, so no real member or trainer appears.</p>
+    <h3 class="sub">Trainers and the member</h3>
+    <div class="faces">
+      <figure class="face"><img src="{{IMAGE}}" alt="Lena Hoffmann"><figcaption><b>Lena Hoffmann</b><small>Trainer</small><code>lena.jpg</code></figcaption></figure>
+      <figure class="face"><img src="{{IMAGE}}" alt="Jonas Becker"><figcaption><b>Jonas Becker</b><small>Trainer</small><code>jonas.jpg</code></figcaption></figure>
+      <figure class="face"><img src="{{IMAGE}}" alt="Mia Wagner"><figcaption><b>Mia Wagner</b><small>Trainer</small><code>mia.jpg</code></figcaption></figure>
+      <figure class="face"><img src="{{IMAGE}}" alt="David Klein"><figcaption><b>David Klein</b><small>Trainer</small><code>david.jpg</code></figcaption></figure>
+      <figure class="face"><img src="{{IMAGE}}" alt="Anna Schmidt"><figcaption><b>Anna Schmidt</b><small>The member</small><code>anna.jpg</code></figcaption></figure>
+    </div>
+    <h3 class="sub">Appointment types</h3>
+    <div class="benefits">
+      <figure class="benefit"><img src="{{IMAGE}}" alt="Personal Training 60 Min."><figcaption><b>Personal Training 60 Min.</b><code>personal-training.jpg</code></figcaption></figure>
+      <figure class="benefit"><img src="{{IMAGE}}" alt="Body Analysis"><figcaption><b>Body Analysis</b><code>body-analysis.jpg</code></figcaption></figure>
+      <figure class="benefit"><img src="{{IMAGE}}" alt="Sports Massage"><figcaption><b>Sports Massage</b><code>massage.jpg</code></figcaption></figure>
+    </div>
+    <div class="where">
+      <h3 class="sub">Where they are kept</h3>
+      <div class="tree">
+        <div><span class="dir">store-screenshots/demo-data/images/</span><span class="muted">used for every gym</span></div>
+        <div class="in"><span class="dir">trainers/</span><span class="muted">lena, jonas, mia, david</span></div>
+        <div class="in"><span class="dir">members/</span><span class="muted">anna</span></div>
+        <div class="in"><span class="dir">benefits/</span><span class="muted">personal-training, body-analysis, massage</span></div>
+        <div><span class="dir">store-screenshots/demo-data/&lt;gym&gt;/images/</span><span class="muted">a gym's own photos, same file names, replace the stock ones</span></div>
+      </div>
+      <p class="muted">To use a gym's real trainer photos, drop them in that gym's folder with the same names. The next run picks them up.</p>
+    </div>
+  </section>
+
+  <section class="ask">
+    <span class="badge"><svg class="i"><use href="#i-pick"/></svg></span>
+    <div><h2>Your part</h2><p>Pick the pictures for the store page, and their order. Apple shows up to ten.</p></div>
+  </section>
+
+  <section>
+    <h2>Coming next</h2>
+    <div class="chips">
+      <span class="chip"><svg class="i"><use href="#i-globe"/></svg>German and English</span>
+      <span class="chip"><svg class="i"><use href="#i-upload"/></svg>Upload to the stores</span>
+      <span class="chip"><svg class="i"><use href="#i-duo"/></svg>iPhone Duo</span>
+      <span class="chip"><svg class="i"><use href="#i-tablet"/></svg>A proper iPad layout</span>
+    </div>
+  </section>
+</div>
