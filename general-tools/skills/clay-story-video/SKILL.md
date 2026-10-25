@@ -16,9 +16,9 @@ order and the rules.
    this skill where they differ. Then the README for commands, and `TASKS.md`.
 2. Another session may be live in the folder even when `git status` is clean: a recent commit, a
    linked session, or `remotion` in `ps` all mean one is. Never switch its branch. Work in a worktree
-   off the newest story branch (`git worktree add ../bible-shorts-<story> -b story/<story>
-   <newest>`, then `npm ci`). There is no remote; commit there. `TASKS.md` is gitignored, so the one
-   to keep is the main folder's.
+   off `main` (`git worktree add ../bible-shorts-<story> -b story/<story> main`, then `npm ci`) and
+   commit there. When the story ships, merge it into `main` and push: `origin` is the private GitHub
+   backup. `TASKS.md` is gitignored, so the one to keep is the main folder's.
 3. Read the ElevenLabs balance and write the number down (command under Cost).
 
 The newest story is the pattern (`gideon-battle` when this was written). Copy its shape, not Abraham's:
@@ -29,8 +29,10 @@ overwrite another story's files, and every earlier story must still render the s
 
 1. **Passage and script.** Fetch the chapter from `https://ebible.org/engbsb/<BOOK><CH>.htm`
    (`JDG07.htm`, `1SA17.htm`) and copy quotes exactly. Check each quoted line is found word for word
-   in the fetched page. Shape: a hook on frame 0, the story, one detail from the text most people
-   miss (with its verse on a chip), a question to the viewer. Only exact BSB words go in quotation
+   in the fetched page. Shape: frame 0 is a person facing the camera and the first line is a
+   contradiction the story answers later, said within three seconds ("God told this man his army
+   was too big"); then the story, one detail from the text most people miss (with its verse on a
+   chip), a question to the viewer. Only exact BSB words go in quotation
    marks. Never invent an event; an imagined feeling is said as imagined. God and the angel of the
    LORD are a voice and a light, never a person. Write `stories/<story>/script.json` (voices, then
    lines of `id`, `who`, `text`, `say` with eleven_v3 tags, `gap`) and `cuts/short.json` (line ids and
@@ -57,17 +59,23 @@ overwrite another story's files, and every earlier story must still render the s
    `scripts/contact-sheet.mjs`. Look at the contact sheet for both cuts after every round of changes,
    and re-sheet only what changed (`--only`). Touched shared code (`src/clay/`, `src/story/`,
    `src/cast/`)? Render frames of earlier stories and compare them byte for byte with frames from
-   before the change.
+   before the change. Keep every scene bright, night included: torches and moonlight, faces lit.
 6. **Mix.** Copy the last story's mix script: voices on top, music ducked under speech, effects on
    their words, `loudnorm` to −14 LUFS. Check the result reads about −14 (below). The render embeds
    the mix, so mix before the final render, or re-mux after a new mix.
-7. **Render both.** The Short is about 55 s. Three.js `fov` is vertical, so the 16:9 video keeps the
+7. **Render all three.** The Short (about 55 s), the 16:9 long video, and the full cut again at
+   1080x1920 with the portrait captions, posted as a longer Short (under three minutes): the
+   vertical 2-minute Abraham video earned the most watch time on day one. Run
+   `node scripts/brightness.mjs <file>` on each: exit 3 means relight and re-render, not ship. Three.js `fov` is vertical, so the 16:9 video keeps the
    Short's framing in its centre column and adds picture at the sides. Everything that matters
    stays in that column. Check the sides on the landscape contact sheet before rendering. Render the
    full video last. Then `ffprobe` each file for its size, 30 fps, duration and an audio stream, and
    look at frames from the start, the middle and the last second.
+   For the long video, make a thumbnail too: a still of a bright shot with a face, plus two or three
+   words, 1280x720, in `out/<story>/`. Vincent sets it in YouTube Studio.
 8. **Ready and drafts.** Write `stories/<story>/upload.json` (title, description ending with the
-   references and "Berean Standard Bible (public domain). Animated in code; voices are AI.", pinned
+   references and "Berean Standard Bible (public domain). Animated in code; voices are AI.", a title
+   that names God or the person, pinned
    comment, `format` short or video, when). Run `<story>:ready`, then `<story>:drafts`. That makes
    Publer drafts only, on Bible in Clay, logged in `stories/<story>/publer.json`.
 
@@ -79,16 +87,17 @@ file over 30 MB (`ffmpeg -i <in>.mp4 -c:v libx264 -crf 22 -c:a aac -b:a 128k -mo
 before they existed ("get it up at 8, don't wait on me") does not cover them, and neither does every
 check passing: the checks are yours, the yes is his. A missed slot costs a day. Make the drafts, send
 them, and end with one question naming the exact times ("Short at 08:00 and the full video at 08:01
-on 26 October, Nairobi time?"). On his yes, run `publer-schedule.mjs --story <story> --only <file>
+on 26 October, Nairobi time?"). Shorts go out at least three hours apart, as many a day as are
+ready; a part two waits until part one's first test is over (about four hours). On his yes, run `publer-schedule.mjs --story <story> --only <file>
 --at <iso with +03:00>` once per video. Without `--only` it puts every draft in the same minute, and
 it refuses a time under two minutes away. Check the other stories' `publer.json` files first so no
-two posts on the channel fall within a minute of each other. Never publish now. The YouTube Studio steps (playlist, pinned
+two Shorts on the channel fall within three hours of each other and no two posts within a minute. Never publish now. The YouTube Studio steps (playlist, pinned
 comment, related video, end screen) are his: list them as `@me` in `TASKS.md`.
 
 ## Cost
 
 Read the balance before the first credit is spent and after the last. Report the difference, and
-what it is out of the month's 40,000 (Starter, no overage). TeliTask's daily videos draw on the same
+what it is out of the month's 600,000 (Pro since 25 October 2026, no overage). TeliTask's daily videos draw on the same
 account, so a long session's difference can include theirs; ElevenLabs' usage page splits it by key.
 The scripts cache each request by hash, so a rerun spends nothing unless something changed. Never
 delete the caches to "start clean".
@@ -135,3 +144,6 @@ actually scheduled differs from the `when` notes or the doc's Publishing section
 | Something important at the edge of the 16:9 frame | Keep it in the centre column |
 | Music that dies 4–8 s before the end | A coda in the plan, and the 2-second loudness check |
 | A cost reported as "small" | The two balance readings and their difference |
+| Opening on someone's back | A face toward the camera on frame 0 |
+| A night scene that looks right on a laptop | `brightness.mjs`: it is too dark on a phone |
+| Two Shorts posted minutes apart | Three hours apart, so each gets its own test |
