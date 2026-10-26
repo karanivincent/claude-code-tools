@@ -59,7 +59,16 @@ overwrite another story's files, and every earlier story must still render the s
    `scripts/contact-sheet.mjs`. Look at the contact sheet for both cuts after every round of changes,
    and re-sheet only what changed (`--only`). Touched shared code (`src/clay/`, `src/story/`,
    `src/cast/`)? Render frames of earlier stories and compare them byte for byte with frames from
-   before the change. Keep every scene bright, night included: torches and moonlight, faces lit.
+   before the change (the softer face became the rig's default on 26 October 2026, so compare
+   against renders made after that). Keep every scene bright, night included: torches and moonlight,
+   faces lit.
+   **Wear the simple look** (Vincent's choice, 26 October 2026): in the composition's Scene, load
+   the sky with `useLoader(HDRLoader, staticFile(SKY_FILE))` and pass the built world through
+   `simpleLook` from `src/story/look.ts` (handmade clay, sky light, pebbles and grass, clay clouds;
+   the soft face comes from the rig). Its `clear` must cover everywhere people stand, kneel or walk;
+   `wet` is water. Night: `clouds: false`. The motion stays as simple as the story's poses make it:
+   no skeleton rig, 60 fps or motion blur (tried and rejected: the motion read worse and 10 s took
+   7 minutes).
 6. **Mix.** Copy the last story's mix script: voices on top, music ducked under speech, effects on
    their words, `loudnorm` to −14 LUFS. Check the result reads about −14 (below). The render embeds
    the mix, so mix before the final render, or re-mux after a new mix.
@@ -101,6 +110,9 @@ what it is out of the month's 600,000 (Pro since 25 October 2026, no overage). T
 account, so a long session's difference can include theirs; ElevenLabs' usage page splits it by key.
 The scripts cache each request by hash, so a rerun spends nothing unless something changed. Never
 delete the caches to "start clean".
+
+Render time counts too: Vincent wants a video cheap to make. The simple look makes a render about
+half again as long (10 s of video in 22 s against 15); anything heavier needs his say first.
 
 ```bash
 node --env-file=$HOME/.config/telitask-marketing/secrets.env --env-file=$HOME/.config/udongo-studios/secrets.env --input-type=module -e 'const r = await fetch("https://api.elevenlabs.io/v1/user/subscription", { headers: { "xi-api-key": process.env.ELEVENLABS_API_KEY } }); const j = await r.json(); console.log(`${j.character_count} of ${j.character_limit} used`)'
@@ -146,4 +158,8 @@ actually scheduled differs from the `when` notes or the doc's Publishing section
 | A cost reported as "small" | The two balance readings and their difference |
 | Opening on someone's back | A face toward the camera on frame 0 |
 | A night scene that looks right on a laptop | `brightness.mjs`: it is too dark on a phone |
+| A story without the simple look | `simpleLook` in the Scene, from the first contact sheet |
+| Shrubs and pebbles under the people | `clear` covers everywhere people stand, kneel or walk |
+| Making the motion fancier (skeleton rig, 60 fps, motion blur) | Keep the simple motion; improve the look |
+| Judging motion from still frames | Watch it, or measure it (feet sliding, frame to frame) |
 | Two Shorts posted minutes apart | Three hours apart, so each gets its own test |
