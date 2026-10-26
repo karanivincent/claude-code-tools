@@ -65,7 +65,7 @@ Agents and skills for GitHub issue workflows and SvelteKit testing.
 | `issue-workflow` | Manages GitHub Issues through full lifecycle |
 | `github-image-downloader` | Downloads images attached to GitHub issues for design review |
 
-### general-tools `v1.31.1`
+### general-tools `v1.32.0`
 
 Issue documentation workflows and non-Yond productivity skills.
 
