@@ -5,8 +5,9 @@ description: Use when making a Bible in Clay story video, the clay-toy Bible Sho
 
 # Clay story video
 
-A Bible in Clay story is two videos cut from one set of recorded lines: a 9:16 Short of about
-55 seconds and a 16:9 long video. Everything is drawn in code, so pictures are free to redo; only
+A Bible in Clay story is one video: the whole story, under three minutes, either as a 9:16 Short or
+as a 16:9 video, never both and never a 55-second cut (Vincent, 26 October 2026). Two stories go out
+a day, one in each form, and `docs/FORMAT-TEST.md` compares them. Everything is drawn in code, so pictures are free to redo; only
 voices, music and effects spend ElevenLabs credits. The project holds the how. This skill holds the
 order and the rules.
 
@@ -20,6 +21,8 @@ order and the rules.
    commit there. When the story ships, merge it into `main` and push: `origin` is the private GitHub
    backup. `TASKS.md` is gitignored, so the one to keep is the main folder's.
 3. Read the ElevenLabs balance and write the number down (command under Cost).
+4. Know the story's form before step 5. The session's brief names it; if not, read
+   `docs/FORMAT-TEST.md`: the day's other story takes the other form.
 
 The newest story is the pattern (`gideon-battle` when this was written). Copy its shape, not Abraham's:
 words in `stories/<story>/`, code in `src/stories/<story>/`, sound in `public/<story>/`. Never
@@ -35,18 +38,19 @@ overwrite another story's files, and every earlier story must still render the s
    chip), a question to the viewer. Only exact BSB words go in quotation
    marks. Never invent an event; an imagined feeling is said as imagined. God and the angel of the
    LORD are a voice and a light, never a person. Write `stories/<story>/script.json` (voices, then
-   lines of `id`, `who`, `text`, `say` with eleven_v3 tags, `gap`) and `cuts/short.json` (line ids and
-   their own gaps). Too big for one video: make parts (Gideon's were about two minutes each), and
-   open part two with a short recap.
+   lines of `id`, `who`, `text`, `say` with eleven_v3 tags, `gap`). No `cuts/short.json`: there is
+   no 55-second cut. Write for under three minutes; too big for that, make parts (Gideon's were
+   about two minutes each), and open part two with a short recap.
 2. **Voice it.** Add the story's npm scripts in the same shape as the last story's. Every one that
    calls an API passes both `--env-file`s, the channel's last. Reuse the cast's voices; a new
-   character gets one from the account's library (`GET /v1/voices` is free), tried on one line first. Run `<story>:voice`, then
-   `<story>:short:layout` (no credits). Check every line with whisper (below). On a miss, cut the
+   character gets one from the account's library (`GET /v1/voices` is free), tried on one line first. Run `<story>:voice`.
+   Check every line with whisper (below). On a miss, cut the
    line short and check again: that tells whisper's mistake from the voice's. Re-voice only the
-   voice's mistakes, with `--redo <id>`. The Short's timeline `duration` should be 50–58 s.
+   voice's mistakes, with `--redo <id>`. Read the timeline's `duration` now: it must stay under
+   180 s, so cut lines here if it runs over (Elijah's first ran 182 s).
 3. **Music in sections.** Copy the last story's sound script to `scripts/<story>-sound.mjs`, and change
    every path in it: the sound and mix scripts name their story's folders and reused effects. Cut one
-   section on each turn of the story (3–120 s each), for both cuts. Add a coda, since music fades
+   section on each turn of the story (3–120 s each). Add a coda, since music fades
    early. Reuse effects from earlier stories before making new ones. After every generation, read
    the loudness in 2-second windows (below) and look for an early fade or a hole.
 4. **Cast.** One `Character` per person in `src/cast/characters.ts`, with an entry per age and a
@@ -54,9 +58,10 @@ overwrite another story's files, and every earlier story must still render the s
    already there gets a new age, not a new character. Add the new people to `src/cast/CastSheet.tsx`,
    run `npm run cast`, then look at the sheet.
 5. **Shots.** Build world, places, props and `shots.ts` (every shot timed on the voice with `L`, `W`
-   and `before`; `FULL_EDIT` and `SHORT_EDIT`) and the composition. Register two compositions in
-   `src/Root.tsx`: full at 1920x1080 and short at 1080x1920. Add the story to the `COMP` map in
-   `scripts/contact-sheet.mjs`. Look at the contact sheet for both cuts after every round of changes,
+   and `before`; `FULL_EDIT` only) and the composition. Register one composition in `src/Root.tsx`,
+   in the story's form: 1080x1920 with the portrait captions for a Short, 1920x1080 with the `wide`
+   captions for a video. Add the story to the `COMP` map in `scripts/contact-sheet.mjs`. Look at
+   the contact sheet after every round of changes,
    and re-sheet only what changed (`--only`). Touched shared code (`src/clay/`, `src/story/`,
    `src/cast/`)? Render frames of earlier stories and compare them byte for byte with frames from
    before the change (the softer face became the rig's default on 26 October 2026, so compare
@@ -72,33 +77,33 @@ overwrite another story's files, and every earlier story must still render the s
 6. **Mix.** Copy the last story's mix script: voices on top, music ducked under speech, effects on
    their words, `loudnorm` to −14 LUFS. Check the result reads about −14 (below). The render embeds
    the mix, so mix before the final render, or re-mux after a new mix.
-7. **Render all three.** The Short (about 55 s), the 16:9 long video, and the full cut again at
-   1080x1920 with the portrait captions, posted as a longer Short (under three minutes): the
-   vertical 2-minute Abraham video earned the most watch time on day one. Run
-   `node scripts/brightness.mjs <file>` on each: exit 3 means relight and re-render, not ship. Three.js `fov` is vertical, so the 16:9 video keeps the
-   Short's framing in its centre column and adds picture at the sides. Everything that matters
-   stays in that column. Check the sides on the landscape contact sheet before rendering. Render the
-   full video last. Then `ffprobe` each file for its size, 30 fps, duration and an audio stream, and
-   look at frames from the start, the middle and the last second.
-   For the long video, make a thumbnail too: a still of a bright shot with a face, plus two or three
-   words, 1280x720, in `out/<story>/`. Vincent sets it in YouTube Studio.
+7. **Render the one video.** Only the story's form: rendering the other one costs time for a video
+   that never goes out. Run `node scripts/brightness.mjs <file>`: exit 3 means relight and
+   re-render, not ship. For a 16:9 video: Three.js `fov` is vertical, so it keeps the portrait
+   framing in its centre column and adds picture at the sides. Everything that matters stays in that
+   column; check the sides on the landscape contact sheet before rendering. Then `ffprobe` the file
+   for its size, 30 fps, a duration under 3:00 and an audio stream, and look at frames from the
+   start, the middle and the last second.
+   A 16:9 video gets a thumbnail too: a still of a bright shot with a face, plus two or three words,
+   1280x720, in `out/<story>/`. It is set in YouTube Studio once the video is live.
 8. **Ready and drafts.** Write `stories/<story>/upload.json` (title, description ending with the
    references and "Berean Standard Bible (public domain). Animated in code; voices are AI.", a title
    that names God or the person, pinned
-   comment, `format` short or video, when). Run `<story>:ready`, then `<story>:drafts`. That makes
+   comment, `format` short or video, when): one entry, the story's form. Run `<story>:ready`, then `<story>:drafts`. That makes
    Publer drafts only, on Bible in Clay, logged in `stories/<story>/publer.json`.
 
 ## Stop: Vincent's yes
 
-Send Vincent both videos with `SendUserFile`, the draft ids and the cost. Send a phone copy of any
+Send Vincent the video with `SendUserFile`, the draft id and the cost. Send a phone copy of any
 file over 30 MB (`ffmpeg -i <in>.mp4 -c:v libx264 -crf 22 -c:a aac -b:a 128k -movflags +faststart
 <in>-phone.mp4`, kept in `out/<story>/`). The Publer drafts also play on his phone. Then stop. Schedule only on his explicit yes, given after he has seen these exact videos. A yes given
 before they existed ("get it up at 8, don't wait on me") does not cover them, and neither does every
 check passing: the checks are yours, the yes is his. A missed slot costs a day. Make the drafts, send
-them, and end with one question naming the exact times ("Short at 08:00 and the full video at 08:01
-on 26 October, Nairobi time?"). Shorts go out at least three hours apart, as many a day as are
+them, and end with one question naming the exact time ("David's Short at 08:00 on 27 October,
+Nairobi time?"). The test keeps the same two times every day, one for the Short and one for the
+video; use the times in `docs/FORMAT-TEST.md`'s last rows unless he names others. Shorts go out at least three hours apart, as many a day as are
 ready; a part two waits until part one's first test is over (about four hours). On his yes, run `publer-schedule.mjs --story <story> --only <file>
---at <iso with +03:00>` once per video. Without `--only` it puts every draft in the same minute, and
+--at <iso with +03:00>`. Without `--only` it puts every draft in the same minute, and
 it refuses a time under two minutes away. Check the other stories' `publer.json` files first so no
 two Shorts on the channel fall within three hours of each other and no two posts within a minute. Never publish now. The YouTube Studio steps (playlist, pinned
 comment, related video, end screen) are his: list them as `@me` in `TASKS.md`.
@@ -139,7 +144,9 @@ ffmpeg -v info -nostats -i public/<story>/<cut>/mix.wav -af ebur128=framelog=qui
 
 ## At the end
 
-Add what this story taught to `docs/MAKING-A-STORY.md`, newest at the top of each section: the cast
+Once it is live, add its row to `docs/FORMAT-TEST.md` (day, story, form, time, link), and fill the
+48-hour columns from Studio when they come due. Add what this story taught to
+`docs/MAKING-A-STORY.md`, newest at the top of each section: the cast
 and voice ids, what broke and the fix, and the story's cost in credits. Add the story's section to
 the README, tick the main folder's `TASKS.md`, and commit on the story branch. If what Vincent
 actually scheduled differs from the `when` notes or the doc's Publishing section, fix those too.
@@ -163,3 +170,6 @@ actually scheduled differs from the `when` notes or the doc's Publishing section
 | Making the motion fancier (skeleton rig, 60 fps, motion blur) | Keep the simple motion; improve the look |
 | Judging motion from still frames | Watch it, or measure it (feet sliding, frame to frame) |
 | Two Shorts posted minutes apart | Three hours apart, so each gets its own test |
+| A 55-second cut, or the same story as a Short and a video | The whole story, once, in one form |
+| A full story over 3:00 | Count the timeline after voicing; cut lines then, or make parts |
+| Rendering both forms "to have them" | Render only the story's form |
