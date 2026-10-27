@@ -22,6 +22,7 @@ create it from `references/memory-template.md` and fill it in as you go.
 | Stage | What | Shown to the person |
 |---|---|---|
 | 1. Script | Beats with times, the words on screen, the sound, the twist, the last line | The script page |
+| 1b. Comic | The script as a comic page drawn in SVG in code: a panel per beat, caption boxes, speech bubbles. No image model, so it costs nothing | The comic, as a page he can read on his phone |
 | 2. Character sheets | One sheet per person: front, three-quarter, side, two close-ups, plain grey | The sheets |
 | 3. Keyframes | One 9:16 still per beat, each made from the sheets of the people in it | The keyframes |
 | 4. Animatic | Keyframes with slow camera moves, all text drawn in code, real voices, the ending; one full cut per music track (two or three) so the person picks the track here | A long cut and its 30 s pair, one per track |
@@ -29,6 +30,15 @@ create it from `references/memory-template.md` and fill it in as you go.
 | 6. All shots | The rest, without waiting, if the test held the look | - |
 | 7. Motion cut | The animatic with each still swapped for its clip; same words, sound and ending | Both cuts |
 | 8. Record | Credits per shot, what went wrong, the person's notes, into the memory file | - |
+
+## The comic fixes the story
+
+Before any picture is paid for, draw the script as a comic page: every beat a panel of simple SVG
+figures and places drawn in code, with caption boxes for the narration and speech bubbles for the
+lines, the cast shown once at the top. It is read in a minute, costs nothing and changes in
+seconds, so the story is rewritten here until a cold reader can retell it, not later in stills or
+motion. Only when the person approves the story from the comic do the sheets and keyframes start.
+(TeliTask's template: `content/scripts/every-order/comic.html`.)
 
 Stages 1-4 cost cents. Stages 5-7 are where the credits go, so never start 5 before 4 is approved.
 
