@@ -84,8 +84,8 @@ overwrite another story's files, and every earlier story must still render the s
    column; check the sides on the landscape contact sheet before rendering. Then `ffprobe` the file
    for its size, 30 fps, a duration under 3:00 and an audio stream, and look at frames from the
    start, the middle and the last second.
-   A 16:9 video gets a thumbnail too: a still of a bright shot with a face, plus two or three words,
-   1280x720, in `out/<story>/`. It is set in YouTube Studio once the video is live.
+   A 16:9 video gets its thumbnail and title from the `clay-thumbnails` skill: ten ideas, three
+   critics, a shortlist for Vincent, then YouTube's A/B test. Leave time for it before the yes.
 8. **Ready and drafts.** Write `stories/<story>/upload.json` (title, description ending with the
    references and "Berean Standard Bible (public domain). Animated in code; voices are AI.", a title
    that names God or the person, pinned
