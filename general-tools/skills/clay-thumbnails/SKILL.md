@@ -29,9 +29,10 @@ briefs.
 1. **A frame composition.** Give the story a `<Story>Frame` composition, copying `JerichoFrame`:
    `Scene` takes `at` (a time in the video), `cam` (`pos`, `look`, `fov`) and `shot` (a
    thumbnail-only shot). Register it at 1920x1080 and leave the captions off.
-2. **The moments menu.** List the story's 15 to 25 strongest moments with their times from the
-   contact sheet, write `stories/<story>/moments.json` (frames, and one card each with no words),
-   and run `node scripts/thumbs.mjs --story <story> --spec moments.json --out moments`.
+2. **The moments menu.** Pick the story's 15 to 25 strongest shots and write the menu at each
+   shot's middle: `node scripts/shots.mjs --story <story> --moments <Story>Frame --only a,b,c` (plain
+   `--story <story>` lists every shot's times; on `story/furnace` until that branch is merged). Times picked by eye landed in the next shot for half the
+   furnace's first menu. Then run `node scripts/thumbs.mjs --story <story> --spec moments.json --out moments`.
 3. **The idea brief.** Write `stories/<story>/thumbs/IDEA-BRIEF.md` from Jericho's. It holds every
    line with its time, what is shown and what is only said, the menu, what a card can do, the Results
    rows, and the output format. A thumbnail may never promise a scene the video does not show.
@@ -43,15 +44,21 @@ briefs.
    `stories/<story>/thumbs.json`. Frame the camera moves and stagings first, as plain frames (a spec
    with no words, `--out test`), and look before adding words: the first try is usually wrong. Then
    run `node scripts/thumbs.mjs --story <story>`. Keep the bottom-right corner empty, because
-   YouTube prints the length there.
+   YouTube prints the length there. On frames in the vivid grade keep `punch` near 0.2: more washed
+   the furnace's faces out. Inside a room there is no sky for the words: frame the people low (the
+   camera's look point above their heads) so the top third is plain wall.
 6. **Three critics**, in one message, in the background, on Sonnet: a packaging strategist, the target
    viewer (a persona built from Studio's audience: country, age, phone), and the story editor, who
    checks every card and title against the video and the BSB text. Write
    `stories/<story>/thumbs/CRITIC-BRIEF.md` and `pairs.json` (each card's words, idea and titles) from
    Jericho's. Each critic scores all ten on the rubric and returns a top three with a title and a fix.
 7. **The shortlist.** Add the three totals. The editor's honesty veto wins over any total. Take the
-   top three, apply the cheap fixes, re-render, and make a phone-feed mock (each card with the length
-   stamp and its title underneath). Send it with `SendUserFile` and end with one question.
+   best card of each of the three best ideas, not the top three totals (the furnace's first and
+   second were one picture with two captions), apply the cheap fixes, re-render, and make a
+   phone-feed mock (each card with the length stamp and its title underneath). Send it with
+   `SendUserFile` and end with one question. When Vincent turns cards down, his note is usually about
+   the picture: restage, render, and send a fresh mock. He may keep one new card and the earlier two
+   (the furnace went out with a restaged first card and the critics' second and third ideas).
 8. **The A/B test decides.** Once the video is live, open it in YouTube Studio (Claude in Chrome, the
    profile signed in to the Bible in Clay channel). Under Details, beside the thumbnail, click
    **A/B Testing**, add the three cards (and titles, if Studio offers them), and start it. It needs
@@ -67,6 +74,11 @@ briefs.
 
 - The thumbnail's moment is in the video. A thumbnail-only scene may move the camera or change a pose
   or an expression of something the video shows. It never adds a person or an event the video lacks.
+- A card need not be a frame of the video (Vincent, 27 October 2026: "it doesn't have to be exactly as
+  it is there… it can be modified a little"): stage it so the picture says the idea at a glance:
+  people rearranged so all of them show, one stepped forward, the fire hotter, less glare.
+- The picture proves the words. "THREW 3 / SAW 4" over a frame where three figures showed was turned
+  down; the four in a row, the fourth in front, went out. Write the hook so it can be the card's words.
 - Words and titles say only what the Berean text says. A detail the video stages but the text does
   not state (Rahab's stretch of wall standing) is never written as fact.
 - Zero to three words on the card, never the title's words. Titles under 50 characters, with the
@@ -86,5 +98,8 @@ briefs.
 | Adding words before the framing works | Plain frames first, then words |
 | The critics' total as the final answer | The A/B test decides; the critics only shortlist |
 | A staged scene that scored highest | Use it only if the video shows that moment |
+| A frame that does not show what its words count | Stage it so every counted person shows |
+| The top three totals as the shortlist | The best card of each of three ideas |
+| Moment times picked by eye | `scripts/shots.mjs --moments`, each at its shot's middle |
 | Stopping the A/B test after a day | Let YouTube finish; record the result |
 | A run that does not read the Results | The idea brief starts from what won before |

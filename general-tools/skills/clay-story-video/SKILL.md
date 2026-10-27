@@ -74,7 +74,12 @@ overwrite another story's files, and every earlier story must still render the s
    first-sheet faults are a prop on the line from the camera to a face (a mast, a ladder, a pillar), a
    camera inside a prop or among the dressing, a person standing in a light beam and washed white, and
    a crowd member at the lens. People aboard anything that moves stand on a group parented to it, and
-   its cameras take points in its frame, so nobody slides. Touched shared code (`src/clay/`, `src/story/`,
+   its cameras take points in its frame, so nobody slides. Frame close-ups with a camera that reads
+   where its person was placed this frame (`front(who, dist, yaw, pitch)` in
+   `src/stories/furnace/shots.ts`), so a face stays framed as people walk, sit or turn. Where the
+   words state a count ("the king saw four"), sheet that shot's first and last frames too
+   (`--at 0.1`, `--at 0.9`): people walking abreast, seen from the side, hide each other, and the
+   furnace's door shots showed two of four until they walked in single file. Touched shared code (`src/clay/`, `src/story/`,
    `src/cast/`)? Render frames of earlier stories and compare them byte for byte with frames from
    before the change (the softer face became the rig's default on 26 October 2026, so compare
    against renders made after that). Keep every scene bright, night included: torches and moonlight,
@@ -103,7 +108,7 @@ overwrite another story's files, and every earlier story must still render the s
    running: queue yours behind it (`while pgrep -f "node_modules/.bin/[r]emotion render" …`), one at a
    time, concurrency 2. Then `ffprobe` the file
    for its size, 30 fps, a duration under 3:00 and an audio stream, and look at frames from the
-   start, the middle and the last second. A fault in a few shots after the full render: render only
+   start, the middle and the last second, and at every shot whose words state a count. A fault in a few shots after the full render: render only
    their frames (`--frames=<a>-<b> --muted`) and lay them over the video while re-encoding it, as the
    furnace did (`docs/MAKING-A-STORY.md`, The pipeline), not a second full render.
    A 16:9 video gets its thumbnail and title from the `clay-thumbnails` skill: ten ideas, three
@@ -206,6 +211,7 @@ actually scheduled differs from the `when` notes or the doc's Publishing section
 | A 55-second cut, or the same story as a Short and a video | The whole story, once, in one form |
 | A full story over 3:00 | Count the timeline after voicing; cut lines then, or make parts |
 | Rendering both forms "to have them" | Render only the story's form |
+| A count in the words that the picture does not show | Sheet the shot's first and last frames; walk them in single file across the view |
 | Queuing the final render while a look question is open | Side-by-side to Vincent, his pick, then render |
 | A second full render to fix two shots | Render those frames and patch them in |
 | A phone copy at full size (57 MB) | 720x1280 at 1150 kb/s, about 25 MB |
