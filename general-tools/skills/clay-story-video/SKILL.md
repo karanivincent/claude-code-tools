@@ -17,14 +17,16 @@ order and the rules.
    this skill where they differ. Then the README for commands, and `TASKS.md`.
 2. Another session may be live in the folder even when `git status` is clean: a recent commit, a
    linked session, or `remotion` in `ps` all mean one is. Never switch its branch. Work in a worktree
-   off `main` (`git worktree add ../bible-shorts-<story> -b story/<story> main`, then `npm ci`) and
-   commit there. When the story ships, merge it into `main` and push: `origin` is the private GitHub
+   off `main` (`git worktree add ../bible-shorts-<story> -b story/<story> main`, then `npm ci`, then
+   `cp -R ../bible-shorts/node_modules/.remotion/chrome-headless-shell node_modules/.remotion/`, or the
+   first sheet stalls downloading Chrome) and commit there. When the story ships, merge it into `main` and push: `origin` is the private GitHub
    backup. `TASKS.md` is gitignored, so the one to keep is the main folder's.
 3. Read the ElevenLabs balance and write the number down (command under Cost).
 4. Know the story's form before step 5. The session's brief names it; if not, read
    `docs/FORMAT-TEST.md`: the day's other story takes the other form.
 
-The newest story is the pattern (`gideon-battle` when this was written). Copy its shape, not Abraham's:
+The newest story in the same form is the pattern (on 27 October 2026: Moses or Jonah for a Short,
+Jericho or the furnace for a 16:9 video; Jonah for anything that moves, like a ship). Copy its shape, not Abraham's:
 words in `stories/<story>/`, code in `src/stories/<story>/`, sound in `public/<story>/`. Never
 overwrite another story's files, and every earlier story must still render the same.
 
@@ -32,23 +34,29 @@ overwrite another story's files, and every earlier story must still render the s
 
 1. **Passage and script.** Fetch the chapter from `https://ebible.org/engbsb/<BOOK><CH>.htm`
    (`JDG07.htm`, `1SA17.htm`) and copy quotes exactly. Check each quoted line is found word for word
-   in the fetched page. Shape: frame 0 is a person facing the camera and the first line is a
+   in the fetched page: strip the page's verse numbers and footnote marks, split each quote on its
+   ellipses, and look for every piece (a few lines of script; a remembered wording fails it). Shape: frame 0 is a person facing the camera and the first line is a
    contradiction the story answers later, said within three seconds ("God told this man his army
    was too big"); then the story, one detail from the text most people miss (with its verse on a
    chip), a question to the viewer. Only exact BSB words go in quotation
    marks. Never invent an event; an imagined feeling is said as imagined. God and the angel of the
    LORD are a voice and a light, never a person. Write `stories/<story>/script.json` (voices, then
    lines of `id`, `who`, `text`, `say` with eleven_v3 tags, `gap`). No `cuts/short.json`: there is
-   no 55-second cut. Write for under three minutes; too big for that, make parts (Gideon's were
+   no 55-second cut. Count words as you write: about 2.6 a second with the pauses, so 400 words run
+   about 2:35. Write for under three minutes; too big for that, make parts (Gideon's were
    about two minutes each), and open part two with a short recap.
 2. **Voice it.** Add the story's npm scripts in the same shape as the last story's. Every one that
    calls an API passes both `--env-file`s, the channel's last. Reuse the cast's voices; a new
    character gets one from the account's library (`GET /v1/voices` is free), tried on one line first. Run `<story>:voice`.
    Check every line with whisper (below). On a miss, cut the
    line short and check again: that tells whisper's mistake from the voice's. Re-voice only the
-   voice's mistakes, with `--redo <id>`. Read the timeline's `duration` now: it must stay under
+   voice's mistakes, with `--redo <id>`. A delivery tag at the very start of a line can swallow
+   its first word (Jonah's "[hushed] But…" gave "But" 15 ms): when whisper misses a first word, look
+   at its time in `stories/<story>/align/<id>.json` and move the tag into the line. Read the timeline's `duration` now: it must stay under
    180 s, so cut lines here if it runs over (Elijah's first ran 182 s).
-3. **Music in sections.** Copy the last story's sound script to `scripts/<story>-sound.mjs`, and change
+3. **Music in sections.** Settle the pauses first: widen the gaps where the picture needs a beat (a
+   splash, a swallow, a landing) and run `<story>:voice` again (cached, no credits); a pause changed
+   after the music shifts every later section and the music is made twice. Copy the last story's sound script to `scripts/<story>-sound.mjs`, and change
    every path in it: the sound and mix scripts name their story's folders and reused effects. Cut one
    section on each turn of the story (3–120 s each). Add a coda, since music fades
    early. Reuse effects from earlier stories before making new ones. After every generation, read
@@ -62,7 +70,11 @@ overwrite another story's files, and every earlier story must still render the s
    in the story's form: 1080x1920 with the portrait captions for a Short, 1920x1080 with the `wide`
    captions for a video. Add the story to the `COMP` map in `scripts/contact-sheet.mjs`. Look at
    the contact sheet after every round of changes,
-   and re-sheet only what changed (`--only`). Touched shared code (`src/clay/`, `src/story/`,
+   and re-sheet only what changed (`--only`). A new world takes three or four rounds; the usual
+   first-sheet faults are a prop on the line from the camera to a face (a mast, a ladder, a pillar), a
+   camera inside a prop or among the dressing, a person standing in a light beam and washed white, and
+   a crowd member at the lens. People aboard anything that moves stand on a group parented to it, and
+   its cameras take points in its frame, so nobody slides. Touched shared code (`src/clay/`, `src/story/`,
    `src/cast/`)? Render frames of earlier stories and compare them byte for byte with frames from
    before the change (the softer face became the rig's default on 26 October 2026, so compare
    against renders made after that). Keep every scene bright, night included: torches and moonlight,
@@ -74,6 +86,12 @@ overwrite another story's files, and every earlier story must still render the s
    `wet` is water. Night: `clouds: false`. The motion stays as simple as the story's poses make it:
    no skeleton rig, 60 fps or motion blur (tried and rejected: the motion read worse and 10 s took
    7 minutes).
+   **Colour.** Vincent is testing a vivid grade (27 October 2026, chosen for Jonah and the furnace):
+   `THREE.NeutralToneMapping` in place of R3F's ACES, and a CSS `saturate(1.2)` on the 3D canvas only,
+   never the captions, in the story's own composition (`VIVID` in `src/stories/jonah/JonahStory.tsx`),
+   so no earlier story moves. Use the look the brief names. A change of look goes to Vincent as the
+   same frames side by side (`node scripts/look-compare.mjs`) before the full render, and no final
+   render is queued while that question is open. Either look keeps the opening at 120 or more.
 6. **Mix.** Copy the last story's mix script: voices on top, music ducked under speech, effects on
    their words, `loudnorm` to −14 LUFS. Check the result reads about −14 (below). The render embeds
    the mix, so mix before the final render, or re-mux after a new mix.
@@ -81,9 +99,13 @@ overwrite another story's files, and every earlier story must still render the s
    that never goes out. Run `node scripts/brightness.mjs <file>`: exit 3 means relight and
    re-render, not ship. For a 16:9 video: Three.js `fov` is vertical, so it keeps the portrait
    framing in its centre column and adds picture at the sides. Everything that matters stays in that
-   column; check the sides on the landscape contact sheet before rendering. Then `ffprobe` the file
+   column; check the sides on the landscape contact sheet before rendering. Another session's render
+   running: queue yours behind it (`while pgrep -f "node_modules/.bin/[r]emotion render" …`), one at a
+   time, concurrency 2. Then `ffprobe` the file
    for its size, 30 fps, a duration under 3:00 and an audio stream, and look at frames from the
-   start, the middle and the last second.
+   start, the middle and the last second. A fault in a few shots after the full render: render only
+   their frames (`--frames=<a>-<b> --muted`) and lay them over the video while re-encoding it, as the
+   furnace did (`docs/MAKING-A-STORY.md`, The pipeline), not a second full render.
    A 16:9 video gets its thumbnail and title from the `clay-thumbnails` skill: ten ideas, three
    critics, a shortlist for Vincent, then YouTube's A/B test. Leave time for it before the yes.
 8. **Ready and drafts.** Write `stories/<story>/upload.json` (title, description ending with the
@@ -95,8 +117,9 @@ overwrite another story's files, and every earlier story must still render the s
 ## Stop: Vincent's yes
 
 Send Vincent the video with `SendUserFile`, the draft id and the cost. Send a phone copy of any
-file over 30 MB (`ffmpeg -i <in>.mp4 -c:v libx264 -crf 22 -c:a aac -b:a 128k -movflags +faststart
-<in>-phone.mp4`, kept in `out/<story>/`). The Publer drafts also play on his phone. Then stop. Schedule only on his explicit yes, given after he has seen these exact videos. A yes given
+file over 30 MB, kept in `out/<story>/` (`ffmpeg -i <in>.mp4 -vf scale=720:1280 -c:v libx264 -b:v 1150k
+-maxrate 1500k -bufsize 3000k -preset slow -c:a aac -b:a 128k -movflags +faststart <in>-phone.mp4`:
+about 25 MB for 2:40; `-crf 22` at full size made 57 MB, too big for his phone). The Publer drafts also play on his phone. Then stop. Schedule only on his explicit yes, given after he has seen these exact videos. A yes given
 before they existed ("get it up at 8, don't wait on me") does not cover them, and neither does every
 check passing: the checks are yours, the yes is his. A missed slot costs a day. Make the drafts, send
 them, and end with one question naming the exact time ("David's Short at 08:00 on 27 October,
@@ -105,7 +128,13 @@ video; use the times in `docs/FORMAT-TEST.md`'s last rows unless he names others
 ready; a part two waits until part one's first test is over (about four hours). On his yes, run `publer-schedule.mjs --story <story> --only <file>
 --at <iso with +03:00>`. Without `--only` it puts every draft in the same minute, and
 it refuses a time under two minutes away. Check the other stories' `publer.json` files first so no
-two Shorts on the channel fall within three hours of each other and no two posts within a minute. Never publish now. The YouTube Studio steps (playlist, pinned
+two Shorts on the channel fall within three hours of each other and no two posts within a minute.
+His yes can come in the story's own session (Jonah's did, after the phone copy): schedule there, write
+the time into `publer.json` and `upload.json`'s `when`, and the session's report tells the coordinating
+session. A Publer or ElevenLabs call that fails with `fetch failed` (`ETIMEDOUT`) while curl gets
+through is Node's 250 ms connect window: the Publer scripts set 3 s since 27 October 2026; elsewhere
+run node with `--network-family-autoselection-attempt-timeout=3000`. A failed connect writes nothing:
+check `publer.json` still says draft, then run it again. Never publish now. The YouTube Studio steps (playlist, pinned
 comment, related video, end screen) are his: list them as `@me` in `TASKS.md`.
 
 ## Cost
@@ -113,7 +142,11 @@ comment, related video, end screen) are his: list them as `@me` in `TASKS.md`.
 Read the balance before the first credit is spent and after the last. Report the difference, and
 what it is out of the month's 600,000 (Pro since 25 October 2026, no overage). TeliTask's daily videos draw on the same
 account, so a long session's difference can include theirs; ElevenLabs' usage page splits it by key.
-The scripts cache each request by hash, so a rerun spends nothing unless something changed. Never
+Another session on the same key in the same hour (parallel stories): read
+`/v1/usage/character-stats?start_unix=…&end_unix=…&breakdown_type=product_type` (and `voice`), in hour
+buckets, and split what each session sent: voices by characters at a rate read from a voice only yours
+used (about 0.48 a character), music by seconds (about 15 a second), effects by seconds. Report your
+share and the hour's total. The scripts cache each request by hash, so a rerun spends nothing unless something changed. Never
 delete the caches to "start clean".
 
 Render time counts too: Vincent wants a video cheap to make. The simple look makes a render about
@@ -173,3 +206,8 @@ actually scheduled differs from the `when` notes or the doc's Publishing section
 | A 55-second cut, or the same story as a Short and a video | The whole story, once, in one form |
 | A full story over 3:00 | Count the timeline after voicing; cut lines then, or make parts |
 | Rendering both forms "to have them" | Render only the story's form |
+| Queuing the final render while a look question is open | Side-by-side to Vincent, his pick, then render |
+| A second full render to fix two shots | Render those frames and patch them in |
+| A phone copy at full size (57 MB) | 720x1280 at 1150 kb/s, about 25 MB |
+| Running a failed schedule again without looking | Check `publer.json` says draft; a failed connect wrote nothing |
+| Changing a pause after the music is made | Settle every pause before the first music request |
