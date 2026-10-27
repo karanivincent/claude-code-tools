@@ -29,9 +29,11 @@ The URLs last 24 hours. Upload all the keyframes in one go so the PUTs can run i
 | Model | Settings | Cost | Notes |
 |---|---|---|---|
 | Kling 3.0 Pro (`kling3_0`) | `mode: pro`, `sound: off`, start_image | 1.75 credits a second (8.75 for 5 s) | The default. Holds a stylised 3D face from the keyframe, acts small beats well, 1076 x 1928 at 24 fps |
+| Kling 3.0 Pro, talking | `mode: pro`, `sound: on`, start_image, the line in quotes in the prompt | 2.5 credits a second | The default for anyone who speaks: tight lip sync and acting, good Kenyan English and Swahili, the same person sounded the same across shots with no voice sample. Two speakers in one clip worked |
 | Kling 4.0 (`kling4_0`) | `mode: image-to-video`, 1080p | 12 for 6 s | As good on the test; a stronger push-in; adds sound |
 | Kling 3.0 Std | `mode: std` | 9 for 6 s | Not tried |
 | Seedance 2.0 | `mode: std`, 1080p | 72 for 6 s | Priced, not tried |
+| Seedance 2.0 fast | `mode: fast`, 720p, start_image + `audio_references` | 2.5 credits a second | Mouth follows a laid-on voice only loosely. With `generate_audio: true` its own voice syncs well and can copy a voice sample, but its Swahili was poor. Refuses lines under about 2 s |
 | Seedance 2.5 | omni_reference, 1080p | 96 for 6 s | Priced, not tried |
 
 ## Saved characters (Elements)

@@ -24,8 +24,8 @@ create it from `references/memory-template.md` and fill it in as you go.
 | 1. Script | Beats with times, the words on screen, the sound, the twist, the last line | The script page |
 | 2. Character sheets | One sheet per person: front, three-quarter, side, two close-ups, plain grey | The sheets |
 | 3. Keyframes | One 9:16 still per beat, each made from the sheets of the people in it | The keyframes |
-| 4. Animatic | Keyframes with slow camera moves, all text drawn in code, real voices, music, the ending | 45 s and 30 s cuts |
-| 5. Motion test | One shot, image to video from its keyframe, on the chosen model | The clip and its cost |
+| 4. Animatic | Keyframes with slow camera moves, all text drawn in code, real voices, the ending; one full cut per music track (two or three) so the person picks the track here | A long cut and its 30 s pair, one per track |
+| 5. Motion test | One talking shot, image to video from its keyframe, the model making the voice | The clip and its cost |
 | 6. All shots | The rest, without waiting, if the test held the look | - |
 | 7. Motion cut | The animatic with each still swapped for its clip; same words, sound and ending | Both cuts |
 | 8. Record | Credits per shot, what went wrong, the person's notes, into the memory file | - |
@@ -42,13 +42,26 @@ motion, at full size:
 - props agree from shot to shot (candle count, box colour).
 A flaw fixed in a still costs a few cents; the same flaw in motion costs a retake.
 
+## Talking shots: let the video model speak
+
+The model that makes the picture should also make the voice. Kling 3.0 with sound on, given the
+line in quotes in the prompt, moves the mouth with the words and acts each word; a voice made
+first and laid on top, or fed in as an audio reference, synced loosely (tested 2026-10-27). So:
+- write each spoken line for a person on screen. An off-screen voice-over cannot be in that
+  person's model voice: put those words in a caption or give them to someone in the shot;
+- a phone or call voice with no mouth (an assistant, a voice on speaker) stays a laid-on voice;
+- the animatic still uses made voices (cheap, and it times the cut), but motion replaces them;
+- check every talking take by transcribing its sound, and time captions from the clip's own
+  speech (silence detection, band-passed to 300-3000 Hz under engine or street noise).
+
 ## Motion on Higgsfield
 
 Connector details, the model choice and the costs are in `references/higgsfield.md`. In short:
 1. `balance` first, then price the candidates with `get_cost: true`. Stay inside the video's budget
    from the memory file; never buy credits or upgrade.
 2. Upload every keyframe once (presigned PUT, then `media_confirm`).
-3. Test one emotional close-up on one or two models. Send the person the clip and its cost.
+3. Test one emotional talking close-up on the memory file's model. Send the person the clip and its
+   cost. Skip model comparisons the memory file has already settled.
 4. Submit the rest in one `generate_video_batch`. Make each clip at least as long as its longest use
    in any cut (5 s, 6 s for the long holds).
 5. Review every take as an 8-frame contact sheet, then full-size frames at the doubtful moments.
@@ -63,7 +76,13 @@ One shot, one action, gentle and acting-led:
 > same soft stylised 3D animated look. No text, captions, subtitles, logos or watermark.
 
 Put a timed action early ("blows out the candles in the first second", "pulls the shutter down
-within two seconds") so it lands inside the part the cut uses.
+within two seconds") so it lands inside the part the cut uses. For a talking shot add the line:
+`she says, worried, in a natural Kenyan accent: "..."`. Habits that held:
+- listen, then speak: "for the first six seconds she listens in silence, mouth closed... at about
+  the seventh second she says";
+- two speakers: "first A asks..., then B answers...; only one of them speaks at a time";
+- name what must not change: "one single phone the whole time" (else a second appears), "they stay
+  outside, nobody goes inside, the door stays still" (else a door swings across the camera).
 
 ### Retake or fix in the cut
 
@@ -75,6 +94,16 @@ breaks. Fix the rest in the cut, at no cost:
 - a passing shadow or a lighting shift in a moving vehicle is life, not a fault.
 
 ## The cut
+
+The ending and the layout, settled on 2026-10-27:
+- one music track from the first frame to the last, the ending included; quieter under speech,
+  rising once nobody talks; no separate sting;
+- the closing line is a designed card, never a plain black screen: the last shot's final frame
+  softens into a warm blur and the words rise in, beat by beat, the key words in the brand colour;
+- every caption, title and card inside the platforms' safe area, at most about 12 words a frame
+  (split long lines into pieces shown one after another), and loudness levelled (about -15 LUFS)
+  because model-made voices come in softer than laid-on ones;
+- anything laid over the brand ending goes where its logo never travels, after it settles.
 
 Keep the animatic's page and timeline; only the pictures change. Cut each kept take into frames at
 the cut's frame rate, and have the page draw each shot from its clip's frame for that moment (wait
