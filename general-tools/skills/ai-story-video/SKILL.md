@@ -25,7 +25,7 @@ create it from `references/memory-template.md` and fill it in as you go.
 | 1b. Comic | The script as a comic page drawn in SVG in code: a panel per beat, caption boxes, speech bubbles. No image model, so it costs nothing | The comic, as a page he can read on his phone |
 | 2. Character sheets | One sheet per person: front, three-quarter, side, two close-ups, plain grey | The sheets |
 | 3. Keyframes | One 9:16 still per beat, each made from the sheets of the people in it | The keyframes |
-| 4. Animatic | Keyframes with slow camera moves, all text drawn in code, real voices, the ending; one full cut per music track (two or three) so the person picks the track here | A long cut and its 30 s pair, one per track |
+| 4. Animatic | Keyframes with slow camera moves, all text drawn in code, real voices, the ending; one full cut per music track (two or three) so the person picks the track here | A long cut and its 30 s pair, one per track. The 30 s cut is not only for checks: it is what goes out as Stories |
 | 5. Motion test | One talking shot, image to video from its keyframe, the model making the voice | The clip and its cost |
 | 6. All shots | The rest, without waiting, if the test held the look | - |
 | 7. Motion cut | The animatic with each still swapped for its clip; same words, sound and ending | Both cuts |
@@ -130,6 +130,14 @@ against the budget, and the cost in money (credits times the plan's price per cr
 the memory file only what the next video should start from: the person's notes, the model's
 behaviour, a quirk of the connector, a fix that worked. Keep it short; it is read at the start of
 every video.
+
+## Two cuts, two jobs
+
+Make every video in two lengths. The long cut tells the whole story and goes out as the feed post
+(Reels, TikTok, X, LinkedIn). The 30 s cut keeps the setup, the turn and the payoff, and goes out
+the same day as Stories, which take at most 60 s (Instagram and Facebook; TikTok has no Story
+through the posting tools). Write the 30 s cut so it makes sense alone: its own titles where a cut
+shot carried information.
 
 ## Never
 
