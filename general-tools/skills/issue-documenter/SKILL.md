@@ -47,6 +47,9 @@ Create well-scoped user stories with clear boundaries and testable acceptance cr
 **I want** [goal - user intent, not implementation],
 **so that** [benefit - the "why"].
 
+### Timeline and urgency
+[See Timeline and Urgency below]
+
 ### Acceptance Criteria
 - [ ] [Testable behavior]
 
@@ -68,6 +71,47 @@ Create well-scoped user stories with clear boundaries and testable acceptance cr
 **Existing Code to Use:**
 - `ComponentName` in `src/path/`
 ```
+
+### Timeline and Urgency
+
+Every issue this skill files, story or bug, carries this section so a pile of issues can be
+sorted by date months later without re-reading them. Put it right after the opening
+(the story statement, or the bug's Description).
+
+```markdown
+### Timeline and urgency
+
+| | |
+|---|---|
+| **Hard deadline** | **[Weekday YYYY-MM-DD].** [The event that sets it: a promise to a customer, a launch, a renewal. Who set it and when] |
+| **Next date after that** | [The next dated event this leads into] |
+| **What breaks if it slips** | [Concretely: who notices, what is lost] |
+
+Start no later than **[Weekday YYYY-MM-DD]**. [Why that much lead time.]
+
+### Why this exists, and what we knew when we decided
+
+Recorded [YYYY-MM-DD], so the reasoning survives.
+
+- [Fact or constraint true at decision time, with its date]
+- [What was ruled out, and why]
+```
+
+Rules:
+- **Never left out.** With no real deadline, replace the table and the start line with
+  exactly "No deadline: nothing degrades if it waits." and one line on what would make it urgent.
+- **A date-driven reason needs a date.** If the "why" is a promise, a launch, a renewal, a
+  customer's go-live or a legal or vendor cut-off, give that date as the hard deadline plus a
+  start-by date. "Soon" or "before launch" is not a date. If it is unknown, write
+  "Deadline unknown: [who to ask]".
+- **Only an external event makes a hard deadline.** A date we picked ourselves is a target;
+  it goes under "Next date after that".
+- **Absolute dates.** `Friday 2026-11-27`, never "next week". Convert relative dates against today.
+- **Bugs:** a bug hurting users now has no deadline but says so in "What breaks if it slips"
+  (who is hit, how often). Give a deadline only when an event sets one (a demo, a launch, a
+  customer's go-live).
+- **Private terms stay private.** If the repo's `CLAUDE.md` says customer names, prices or
+  terms live elsewhere, describe the customer generically and point at that file by path.
 
 ### Scope Control Rules
 
@@ -96,8 +140,11 @@ Must be: testable (yes/no), user-observable, specific, independent.
 3. **Criteria** - Write max 5 behaviors. List edge cases.
 4. **Triage** - For each edge case: handle now or defer?
 5. **Implementation** - Ask: "Technical constraints or patterns to follow?"
-6. **Size Check** - If too large, suggest child stories under same epic.
-7. **File** - Produce the complete story, then file it — see [Filing the Issue](#filing-the-issue).
+6. **Timeline** - Find the deadline and the event behind it, the start-by date, the next date
+   and what breaks if it slips; write the dated "what we knew" list. Read the request and the
+   repo's planning docs before asking. See [Timeline and Urgency](#timeline-and-urgency).
+7. **Size Check** - If too large, suggest child stories under same epic.
+8. **File** - Produce the complete story, then file it — see [Filing the Issue](#filing-the-issue).
 
 ---
 
@@ -209,6 +256,7 @@ Compile all evidence into the template. Rules:
 - Always include direct links to log sources when available
 - Keep log excerpts concise (error + 2-3 lines of context)
 - Infer severity from evidence (blocking/degraded/cosmetic)
+- Always include the Timeline and urgency section — see [Timeline and Urgency](#timeline-and-urgency)
 - NEVER suggest how to fix the bug
 
 **Multi-issue detection:** If investigation revealed a distinct secondary issue (different root area, fix scope, or severity):

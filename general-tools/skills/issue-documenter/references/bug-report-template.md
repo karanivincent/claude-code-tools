@@ -8,6 +8,10 @@ Use this exact structure when producing bug reports as GitHub issues.
 ### Description
 [1-2 sentences describing what's broken, from user perspective]
 
+### Timeline and urgency
+[Table, or "No deadline: nothing degrades if it waits." — rules in SKILL.md → Timeline and Urgency.
+"What breaks if it slips" says who the bug hits and how often.]
+
 ### Environment
 - **Where:** staging / production
 - **URL:** [page URL where bug occurs]
