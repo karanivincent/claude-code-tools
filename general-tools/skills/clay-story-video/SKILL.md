@@ -63,8 +63,12 @@ overwrite another story's files, and every earlier story must still render the s
    the loudness in 2-second windows (below) and look for an early fade or a hole.
 4. **Cast.** One `Character` per person in `src/cast/characters.ts`, with an entry per age and a
    verse comment on each. Keep a person's signature colours the same at every age. A person who is
-   already there gets a new age, not a new character. Add the new people to `src/cast/CastSheet.tsx`,
-   run `npm run cast`, then look at the sheet.
+   already there gets a new age, not a new character. Every figure in a new render wears `parts`:
+   `hands: true`, `folds: true` and a `mouth` (`lips` or `stopmotion`, mixed across the cast), and a
+   new person also gets a `cover`, `hair` or `beard` so no two in a shot share a head. A person seen in
+   an earlier video keeps their head but still takes hands, mouth and folds, in a re-cut or a second
+   Short too (Esther's rewrite reused her old cast without them). Add the new people to
+   `src/cast/CastSheet.tsx`, run `npm run cast`, then look at the sheet.
 5. **Shots.** Build world, places, props and `shots.ts` (every shot timed on the voice with `L`, `W`
    and `before`; `FULL_EDIT` only) and the composition. Register one composition in `src/Root.tsx`,
    in the story's form: 1080x1920 with the portrait captions for a Short, 1920x1080 with the `wide`
