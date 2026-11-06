@@ -1,6 +1,6 @@
 ---
 name: clay-story-video
-description: Use when making a Bible in Clay story video, the clay-toy Bible Shorts drawn in code with Three.js through Remotion in the bible-shorts project, voiced and scored on ElevenLabs and posted through Publer. Covers a new story, a part two, re-voicing or re-cutting a story, and putting one into Publer. Triggers - "the next Bible in Clay story", "make the David one", "clay story video", "Bible Short", "voice the story", "contact sheet", "Publer drafts for the story". For AI-generated video (Higgsfield), use ai-story-video instead.
+description: Use when making a Bible in Clay story video, the clay-toy Bible Shorts drawn in code with Three.js through Remotion in the bible-shorts project, voiced and scored on ElevenLabs and posted through Publer. Covers a new story, a part two, re-voicing or re-cutting a story, and putting one into Publer. Triggers - "the next Bible in Clay story", "make the David one", "clay story video", "Bible Short", "voice the story", "contact sheet", "Publer drafts for the story". This is the clay 3D look, the channel's standard. For the drawn 2D toon look use toon-story-video; for AI-generated video (Higgsfield), use ai-story-video.
 ---
 
 # Clay story video
@@ -10,6 +10,10 @@ as a 16:9 video, never both and never a 55-second cut (Vincent, 26 October 2026)
 a day, one in each form, and `docs/FORMAT-TEST.md` compares them. Everything is drawn in code, so pictures are free to redo; only
 voices, music and effects spend ElevenLabs credits. The project holds the how. This skill holds the
 order and the rules.
+
+This skill makes the clay 3D look, the channel's standard. The drawn 2D toon look has its own skill,
+`toon-story-video` (Vincent, 6 November 2026), so posting the clay way never picks up the 2D look.
+Never mix the two in one story.
 
 ## First
 
