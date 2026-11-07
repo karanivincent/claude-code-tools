@@ -128,6 +128,9 @@ with frames from before the change. A new look is a new option, never a changed 
 | A hider in plain view of the seeker | Cover between them for the whole run, shot over the hider's shoulder |
 | An empty seat with someone standing in front of it | Low, across it, nothing on the line |
 | Thin-finger hands | Mittens |
+| A beardless grown man in a long robe (reads as a woman) | A beard, or a pharaoh's plait |
+| A swing that flies through walls between far places, or a hard cut there | Tilt up to the sky at the middle of a flight over 40 m and come down on the next place: a whip, 0.25 to 0.5 s of blurred sky |
+| Trusting a render that ran overnight | Check `df` and the output file's time: a full disk fails every frame write while the old file stays |
 | Words on the ground | Words on a screen card |
 | A prop that appears only when it matters | Introduce it early |
 | A full render to find a framing fault | The contact sheet, every round |
