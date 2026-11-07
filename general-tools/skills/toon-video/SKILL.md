@@ -22,6 +22,9 @@ and effects cost money. This skill holds the craft. A project or channel can add
 3. Read the ElevenLabs balance before the first credit and after the last, and report the difference.
    Never print a key: hand secrets files to node with `--env-file`, never `cat`, `grep` or `source` them.
 4. Know the form: 9:16 (a Short, 50–65 s) or 16:9. Portrait is narrow, which drives the camera rules.
+5. The place, the look and the people come from `toon-world`: which route to build a set by (pictures then
+   3D, a picture warped by depth, or drawn in code), the look stack (background blur, ink on the world,
+   two-tone light, grade) and lit bean-head cards. Load it before the first set.
 
 ## The order
 
@@ -94,6 +97,16 @@ and effects cost money. This skill holds the craft. A project or channel can add
 
 ## The world
 
+- Build the place and its look with `toon-world`. Without its background blur, ink lines and lit cards, a
+  3D render reads as flat and the people as pasted on.
+- **Medium shots, not faces.** The person stands about half the frame high, with the whole prop beside
+  them and the room above. A face fills the frame only on an emotional turn (about 3 frames in 20).
+- **Size the hero prop against a person first.** A prop twice too big crowds every shot of the person, whatever
+  the camera does.
+- **Show how a device works before anyone reacts to it**: a see-through "what if" copy of the moving part
+  (a ball dropping from the dragon into the frog) in the first five seconds.
+- **A camera that ends high shows a count**: orbit and rise until the eight of something can be counted.
+- **A name is spoken while its person is on screen**, within about 0.2 s, or the shot loses its point.
 - One or two picture jokes that carry the story without words.
 - Facts as things in the world: a counter, a mark, a scroll, the objects themselves.
 - Light follows the story: warm firelight, blue night for danger, gold dawn for hope. Keep every face
