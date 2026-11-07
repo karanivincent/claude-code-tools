@@ -43,6 +43,9 @@ Learned from both rounds.
 
 ### What to forbid
 
+- Fine repeated detail: criss-cross braces, many rails, slats, fences, rows of poles. Ask for "a few big, simple
+  shapes" instead; the trestle picture with dozens of braces made every bridge shot crowded (train heist).
+
 - Anything that moves between pictures: people, open doors, objects that are not on the plan.
 - Props near the frame's edges or close to the camera (the lily vase, the potted plant, the near column with its
   torch). They are drawn where only one picture sees them, so they smear when projected and cannot match in a blend.

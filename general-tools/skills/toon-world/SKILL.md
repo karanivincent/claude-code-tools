@@ -43,6 +43,14 @@ Pictures, then 3D, in seven steps (detail in `references/place-from-pictures.md`
    rendering from the master's camera and comparing mean brightness with the picture.
 7. Put the look stack (section 2) over it, so the room, the props and the people read as one drawing.
 
+**Keep the place simple.** A phone frame reads a few big shapes, not many thin ones. Rows of thin repeated
+parts (bridge braces, rails, slats, fences, poles) are the worst: they fill the frame with lines pointing every way and
+make the shot feel crowded. At most one busy band in a frame, kept away from faces; the area behind a person stays
+plain. Build such a structure with fewer, thicker members than the real thing, and ask the picture for "a few big,
+simple shapes, no fine repeated detail". Ink on top of painted detail doubles the clutter: thin it there. (The train
+heist's trestle in `toon-world` style had dozens of criss-cross braces and read as noise; Vincent, 7 November 2026.)
+Check every set on the shot board before it is detailed.
+
 ## 2. The look stack (what makes 3D read as a cartoon)
 
 Composer order, every story: ink, lens blur (pre, main), bloom on light sources only, NEUTRAL tone map, grade; MSAA 4.
@@ -92,3 +100,5 @@ Every pixel size scales with output height / 1920. Files in `templates/look/`; n
 | Ink and blur in one merged effect | Ink in its own pass, before the blur |
 | `@react-three/postprocessing` 3.2 | Pin 3.0.4 |
 | Copying a reference's characters or story | Our own designs; references are for the look |
+| A set full of thin repeated parts (braces, rails, slats) | Fewer, thicker members; one busy band at most, plain behind faces |
+| Detailing a place before the owner has seen the shot board | The board first (`toon-video`, step 4), then detail only what it shows |
