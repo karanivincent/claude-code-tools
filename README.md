@@ -65,7 +65,7 @@ Agents and skills for GitHub issue workflows and SvelteKit testing.
 | `issue-workflow` | Manages GitHub Issues through full lifecycle |
 | `github-image-downloader` | Downloads images attached to GitHub issues for design review |
 
-### general-tools `v1.40.1`
+### general-tools `v1.41.0`
 
 Issue documentation workflows and non-Yond productivity skills.
 
@@ -82,10 +82,20 @@ Issue documentation workflows and non-Yond productivity skills.
 | `clay-story-video` | Makes a Bible in Clay story, drawn in code with Three.js through Remotion: one video of the whole story under three minutes, either a 9:16 Short or a 16:9 video (two stories a day, one in each form, compared in the project's `FORMAT-TEST.md`), in the simple look. Walks the passage and BSB script (hook, the detail most people miss, a closing question), ElevenLabs voices checked line by line with whisper, music in sections, the cast with ages, shots checked as contact sheets and every render against a brightness floor, a −14 LUFS mix, the ready folder and Publer drafts, with Shorts spaced three hours apart. Settles the pauses before the music, takes any change of colour look to Vincent as a side-by-side before the full render (the vivid grade test), queues renders behind other sessions, checks that every count in the words shows in the picture, patches a few faulty shots instead of re-rendering, makes a 25 MB phone copy, and splits the cost when parallel stories share a key. Reads the project's `MAKING-A-STORY.md` first and adds the story's lessons to it at the end. Reads the ElevenLabs balance before and after and reports the cost; never prints a key; never schedules or publishes without Vincent's yes on the finished videos |
 | `toon-story-video` | The Bible in Clay layer for a Short in the drawn 2D toon look: the `-2d` key with `look: toon` in the catalog, a worktree from the newest toon branch, BSB quote rules, reused 3D voice lines, the hand-back counts and the redo-draft step. The craft comes from `toon-video`; everything else follows `clay-story-video` |
 | `toon-video` | Makes a short animated video on any subject in a drawn 2D toon look (flat cards in 3D sets, Remotion and Three.js, ElevenLabs). Holds the craft: script and retell check, set lists, camera aimed at people, ground-relative cameras, swings instead of hard cuts, drawn emotion (the rage face), mitten hands, four-beat action, hiding sightlines, empty-place shots, world state by time, words on screen cards, and the pace, hard-cut, face close-up, brightness and walk checks. A toolkit reference names the helpers and gotchas |
+| `toon-replicate` | Learns the toon look by copying a reference Short shot for shot (Ricks Clips first): a breakdown agent writes a second-by-second shot list, set, sound, animator and camera agents build the copy, a critic scores it against the reference on a side-by-side sheet, and rounds repeat until it matches; lessons go to `toon-video`. Practice copies are never posted |
 | `clay-thumbnails` | Makes a Bible in Clay story's thumbnail and title: renders the story's moments in clay with the captions off, three idea agents (spectacle, curiosity, face and emotion) propose twelve ideas with titles, ten become cards (frames, splits, big words, arrows and rings, scenes staged only for the thumbnail), three critic agents (packaging strategist, target viewer on a phone, story editor checking the Bible text) score them on a researched rubric, Vincent sees a phone-feed shortlist of three different ideas (cards may be staged so the picture proves the words, as Vincent asked), and YouTube's A/B Testing picks the winner. Records each result so the next run starts from what won |
 | `in-flight` | Shows what work is actually in flight across every branch and worktree of a repo, and what each piece is waiting on — sorted into live (a session is on it now), review (open PR, with its blocker named: red CI, conflicts, changes requested, or just waiting for a merge), stalled (unmerged commits, no PR) and landed (merged, worktree still on disk). Detects squash merges by patch equivalence rather than commit count, so branches that already shipped stop reading as abandoned work; flags commits that exist on one machine only and worktrees holding undrained loose ends. Read-only, network-free, and silent when nothing is outstanding, so it suits a SessionStart hook |
 | `text-humanizer` | Removes signs of AI-generated writing from text using Wikipedia's "Signs of AI writing" patterns |
 | `custom-demo-page-builder` | Researches a prospect (light WebFetch), brainstorms a TeliTask `/for/<slug>` custom demo page around the calls that specific business actually makes or takes, applies brand voice, and seeds rows to Supabase via MCP (asks production vs staging each run, defaults to production) — including the dedicated CTA fields (phone/WhatsApp/email) and `country` (drives the AI accent). Carries no built-in wedge and never puts a price on the page; these pages are discovery instruments that ask for a correction rather than close |
+
+| Agent | Description |
+|-------|-------------|
+| `toon-breakdown` | Turns a reference video into a second-by-second shot list |
+| `toon-set-builder` | Builds the 3D sets prop for prop from the shot list |
+| `toon-animator` | Figures, poses, acting and action beats |
+| `toon-camera` | Camera angles and the swings between places, last in each round |
+| `toon-sound` | Our own narration at the reference timing, voice, music and mix |
+| `toon-critic` | Scores the copy against the reference frame by frame and names the gaps |
 
 ### archive-ready `v0.3.3`
 
