@@ -58,3 +58,9 @@ spear trail and shudder, the hit jolt, the title cards and the captions.
 - A Publer-style draft script that skips files it already drafted needs the old entry moved aside
   (`replaced`) before a redo, or the redo silently makes no new draft.
 - A hand-over-mouth pose: `armR` about `[0.35, -2.75]`; smaller angles read as a wave.
+- A grip pose drawn at 2 times hand size (the spike's cling) turns into two balls the size of the head once the figure
+  wears mittens: bring hand sizes back to 1 for mitten figures, and use a side-view grip in any shot wider than a face.
+- `Flock` (David and Jonathan 2D's sets) places sheep on David and Jonathan's ground: in another story, set each
+  sheep's height from that story's land after building it.
+- Mittens for an existing cast: add new looks with `mitts: true` (`jacobM`, `manM`, ...) instead of changing the old
+  ones, so earlier videos still render byte-identical.
