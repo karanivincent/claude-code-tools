@@ -39,13 +39,22 @@ and effects cost money. This skill holds the craft. A project or channel can add
    here, not after the music.
 3. **Retell check.** Give a fresh agent only the script (or the contact sheet) and ask it to retell the
    story. Anything it gets wrong, the viewer will too. Fix and repeat until it retells it right.
-4. **Sets.** A set list per place before any shot: 8 or more props, a full background, extras.
-   People are small inside a big place. Crowds are painted once and reused.
-5. **Shots.** Time each shot on a word of the voice. Build the camera, the acting and the action by the
+4. **Shot board, and the owner's review.** Before any set is detailed or anything moves, show the owner
+   one rough still per line: the place (its master picture, or plain blocks in code), the people as flat
+   cards where they stand, the camera's framing, and the line's words under it. Give two or three
+   framings for the hook, the turn and the payoff, labelled A, B, C. Put it on one page (an Artifact or
+   a sheet image) and wait for his picks and changes. This is where a crowded place, a wrong framing or
+   a missing beat is cheap to fix; after animation it costs a round. Nothing is animated before his yes.
+   (Vincent, 7 November 2026, after the train heist: "before any of this is animated ... I can review
+   them fast.")
+5. **Sets.** A set list per place before any shot: 8 or more props, a full background, extras.
+   People are small inside a big place. Crowds are painted once and reused. Build only what the
+   approved board shows.
+6. **Shots.** Time each shot on a word of the voice. Build the camera, the acting and the action by the
    rules below. Look at the contact sheet after every round, and re-sheet only what changed.
-6. **Music and mix.** Settle every pause first, then music in sections with a coda, then the mix:
+7. **Music and mix.** Settle every pause first, then music in sections with a coda, then the mix:
    voice on top, music ducked under speech, effects on their words, about −14 LUFS.
-7. **Render, check, hand back.** Run the checks below and give their numbers with the video. Nothing
+8. **Render, check, hand back.** Run the checks below and give their numbers with the video. Nothing
    posts without the owner's yes on the finished video; drafts only.
 
 ## Camera
@@ -151,4 +160,5 @@ with frames from before the change. A new look is a new option, never a changed 
 | Words on the ground | Words on a screen card |
 | A prop that appears only when it matters | Introduce it early |
 | A full render to find a framing fault | The contact sheet, every round |
+| Animating before the owner has seen the shots | The shot board first, his picks, then animation |
 | Posting because every check passed | Drafts; the owner's yes on the finished video |
