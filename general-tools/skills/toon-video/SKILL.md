@@ -57,6 +57,10 @@ and effects cost money. This skill holds the craft. A project or channel can add
   and a blur at the middle between far places (switch the set at the blur, so the camera never flies
   through a wall). A swing eats the start of the next shot: any shot under about 0.6 s becomes all
   flight, so time short shots on an earlier word. Aim for fewer than 10 hard cuts a video.
+- **What the hard-cut count sees** (Jacob wrestles 2D, 19 cuts down to 7): an inverted impact frame counts twice (in
+  and out), and a fast flight between far places counts several times. Show a hit with speed lines alone, and dip
+  the picture to white across a far flight (peak at its middle). A far flight eats about 0.8 s, so start it a word
+  later when the shot before carries a line that matters.
 - At least three kinds of view: from above, a map or cut-away, ground level.
 - At most one frame in four is a face close-up. The world is the star.
 - The camera shakes only on hits.
