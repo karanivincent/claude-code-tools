@@ -18,7 +18,7 @@ Status: **built** (in the kit, with a file), **blueprint** (we know how, not bui
 | Skip the expected picture on purpose (no crash at the end; the empty road is the point) | The absence carries the twist | Note it in the meaning sheet as a planned skip | blueprint | dashcam |
 | Jokes written on objects (a "days since last neck injury" counter flipping 2 to 0, a PAID stamp, plates, dash warnings) | A second layer for re-watches, readable on a phone | Canvas-painted text on props, changed on a word | built (text on props) | dashcam |
 | A state change by swap on one frame (the wrecked car becomes clean under the PAID stamp) | Faster and funnier than showing the repair | Two versions of the prop, swapped under a cover action | blueprint | dashcam |
-| Pace follows the kind of story: action near 50 big changes a minute, face-led jokes near 25 with holds up to 2.3 s | A joke needs time on a face; a machine story needs motion | Pick the target from the nearest studied reference | blueprint (rule still says 35–60) | railroads, dashcam |
+| Pace follows the kind of story: action near 50 big changes a minute, face-led jokes near 25 with holds up to 2.3 s | A joke needs time on a face; a machine story needs motion | The dynamics profile in `toon-video` ("The backbone and the dynamics") | built (the profile) | railroads, dashcam |
 
 ## Camera and joins
 
