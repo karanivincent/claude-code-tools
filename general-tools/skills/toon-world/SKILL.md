@@ -23,7 +23,7 @@ the cartoon altogether. So:
 | Places | A Higgsfield picture turned into 3D (section 1), as real and rich as the hall's, with big simple shapes | A picture shown as a whole shot; a place with no picture beside places with one |
 | Objects | 3D models (image to 3D) or code | |
 | People and animals | Flat cartoon cards in one cast style (section 3), lit by the room, with a contact shadow | A 3D model of anything alive; a realistic or painted person or animal |
-| The board | Stills built from these same parts (`toon-video`, stage 4) | Separately painted board frames: what is approved must be what moves |
+| The board | Higgsfield stills made from the place picture and the cast sheet as references (`toon-video`, stage 4) | A board still with a realistic person or a 3D animal: what is approved must be what moves |
 
 Fallbacks, in order, only when the house style cannot carry a story: the world drawn 2D in code, then a 3D world
 drawn in code with cards (the jar made with `cartoon-3d-short`). One style in a frame, always.
@@ -118,6 +118,6 @@ Every pixel size scales with output height / 1920. Files in `templates/look/`; n
 | `@react-three/postprocessing` 3.2 | Pin 3.0.4 |
 | Copying a reference's characters or story | Our own designs; references are for the look |
 | Animals or people as image-to-3D models | Cartoon cards; 3D models are for objects only |
-| A board of separately painted frames | Board stills built from the real place, props and cards |
+| A board still that drifts from the cast | Make every still with the cast sheet as a reference; redo any with a realistic or 3D character |
 | A set full of thin repeated parts (braces, rails, slats) | Fewer, thicker members; one busy band at most, plain behind faces |
 | Detailing a place before the owner has seen the shot board | The board first (`toon-video`, step 4), then detail only what it shows |

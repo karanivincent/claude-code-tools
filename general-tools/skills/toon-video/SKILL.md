@@ -45,10 +45,10 @@ and effects cost money. This skill holds the craft. A project or channel can add
      the story is fixed here.
    - b. **Cast sheet.** Every person and animal as a flat cartoon card in the story's cast style (`toon-world`).
    - c. **Place pictures.** One Higgsfield master per place, in the house style (`toon-world`).
-   - d. **Still board.** One still per line, built from the real parts: the place built in 3D from its picture, the
-     props, the cards standing where they will stand, the camera's framing and the look applied. Never a separately
-     painted frame: what he approves is what will move. Two or three framings for the hook, the turn and the payoff,
-     labelled A, B, C, on one page. A crowded place or a wrong framing is cheap to fix here.
+   - d. **Still board.** One Higgsfield still per beat (`gpt_image_2_6`, 9:16), each made with the place's master
+     picture and the cast sheet as image references, the prompt saying the people and animals stay flat 2D cartoon
+     cards exactly as on the cast sheet, lit by the place, never realistic or 3D. Check every still at full size: a
+     realistic person or a 3D animal is redone, not approved. The 3D build then follows the approved stills.
    - e. **Clips.** Build and render the video in clips of 15 to 20 seconds (about four for a minute), cut at story
      beats, and show each clip before building the next.
    (Vincent, 7 November 2026, after the train heist: "before any of this is animated ... I can review them fast.")
