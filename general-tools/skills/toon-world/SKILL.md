@@ -1,6 +1,6 @@
 ---
 name: toon-world
-description: Use when building the place, the look or the people of a toon video (flat 2D people in a 3D world, Remotion and Three.js) - a new set, background blur, ink lines on the world, a colour grade, lit character cards, bean-head characters, or a place made from AI pictures and turned into 3D. Triggers - "build the set", "make the place", "background blur", "it looks flat", "it looks pasted on", "make the world from pictures", "picture to 3D", "image to 3D props", "the cartoon-3d-short look", "toon-world". toon-video holds the story, acting and camera and sends the place and look here.
+description: Use when building the place, the look or the people of a toon video (flat 2D people in a 3D world, Remotion and Three.js) - a new set, background blur, ink lines on the world, a colour grade, lit character cards, bean-head characters, or a place made from AI pictures and turned into 3D. Triggers - "build the set", "make the place", "background blur", "it looks flat", "it looks pasted on", "make the world from pictures", "picture to 3D", "image to 3D props", "the cartoon-3d-short look", "game world", "low-poly world", "which look for this scene", "parts plan", "fire and smoke", "it looks blurry", "toon-world". toon-video holds the story, acting and camera and sends the place and look here.
 ---
 
 # Toon world (places, look and people)
@@ -11,22 +11,36 @@ cartoon, and the people. Learned on 7 November 2026 from the ancient jar practic
 `docs/practice/`) and from the `cartoon-3d-short` skill (github.com/mromidev/claude-animated-shorts, MIT), whose look
 code is in `templates/look/` with its licence.
 
-## The house style (decided 8 November 2026)
+## Looks, scene by scene (decided 8 November 2026)
 
-The reference is the ancient jar's 3D hall (bible-shorts `docs/practice/ancient-jar-hall3d.md`, record step 10):
-a room built from one Higgsfield picture, its props turned into 3D models, and flat cartoon people standing in it.
-Vincent liked it. The ox and donkey practice made its animals 3D models and its people realistic paintings, and lost
-the cartoon altogether. So:
+Vincent picks how each video is made; there is no single way in. Propose a look for each scene, say why, and let him
+choose. One video can mix looks across its scenes (a game-world canyon, a picture-room interior, a flat 2D map), but
+**one look in any single frame**, and every look keeps the same flat cartoon people.
 
-| Part | Made as | Never |
+| Look | Fits a scene that | Built from |
 |---|---|---|
-| Places | A Higgsfield picture turned into 3D (section 1), as real and rich as the hall's, with big simple shapes | A picture shown as a whole shot; a place with no picture beside places with one |
-| Objects | 3D models (image to 3D) or code | |
-| People and animals | Flat cartoon cards in one cast style (section 3), lit by the room, with a contact shadow | A 3D model of anything alive; a realistic or painted person or animal |
-| The board | Higgsfield stills made from the place picture and the cast sheet as references (`toon-video`, stage 4) | A board still with a realistic person or a 3D animal: what is approved must be what moves |
+| Picture room (the house style) | Stays in one rich room or a few, close to people | A Higgsfield picture turned into 3D (section 1), props as image-to-3D models; the ancient jar's 3D hall is the reference |
+| Game world (section 1b) | Travels far through one big place, or turns on machines and physical events | Low-poly 3D built in code with painted textures and the effects kit; the railroads practice is the reference |
+| Flat 2D place | Only needs the camera to pan, push, pull or slide in the picture's plane, never turn round something | A picture or a drawing on one or a few flat layers; cheap, fast and sharp. Breaks the moment the camera orbits, cranes over or flies through |
+| Drawn in code (3D) | A plain place the camera turns right round in, with no credits | `toon-kit.ts`, cards in a code set |
 
-Fallbacks, in order, only when the house style cannot carry a story: the world drawn 2D in code, then a 3D world
-drawn in code with cards (the jar made with `cartoon-3d-short`). One style in a frame, always.
+Rules in every look: places as rich as the reference's; no 3D model of anything alive, never a realistic or painted
+person or animal; board stills made from the real parts (`toon-video` stage d), so what is approved is what moves.
+
+### The parts plan
+
+Before building a scene, give each part of the picture its source; this is where looks mix. Vincent, 8 November
+2026: a real picture often makes the best sky, even in a code world.
+
+| Part | Usual source | Why |
+|---|---|---|
+| Sky | A Higgsfield picture on a dome | Code clouds read as pills; the railroads first sky did |
+| Far backdrop (mesas, a skyline) | A picture | It barely moves, so a picture holds |
+| Ground, walls, track | Code in a game world; a picture turned into 3D in a picture room | Code where the camera flies close or things bend |
+| Hero props | Code when it must move or break (the train); image-to-3D when it only needs to look rich (the jar) | |
+| People and animals | Flat cartoon cards | |
+| Fire, smoke, dust, water | A raymarched volume in code (`fx.ts` in the railroads practice); a Higgsfield element only if code fails | The railroads fireball cost no credits |
+| Words on screen | Code | |
 
 ## First
 
@@ -66,7 +80,33 @@ make the shot feel crowded. At most one busy band in a frame, kept away from fac
 plain. Build such a structure with fewer, thicker members than the real thing, and ask the picture for "a few big,
 simple shapes, no fine repeated detail". Ink on top of painted detail doubles the clutter: thin it there. (The train
 heist's trestle in `toon-world` style had dozens of criss-cross braces and read as noise; Vincent, 7 November 2026.)
-Check every set on the shot board before it is detailed.
+The exception: when the repeated part is the hero and the shot is close (the railroads' rails and sleepers), it
+is the subject, and it gets full detail. Check every set on the shot board before it is detailed.
+
+## 1b. The game world
+
+Learned from the railroads practice (bible-shorts branch `practice/railroads-gameworld`, code in
+`src/stories/practice-railroads/`, record in `docs/practice/railroads-gameworld-brief.md` and `out/practice/railroads/`),
+a copy of a Ricks Clips Short scored round by round against the original.
+
+- **Geometry in code, faceted.** Flat-shaded low-poly terrain and rock, repeated parts (rails, sleepers, spikes,
+  pebbles, fence posts) as instanced meshes laid along a curve, so a whole track can bend in one frame.
+- **Textures painted in code at 2048** near the camera, with mipmaps and 16× anisotropic filtering: wood grain, worn
+  edges, nails, rust and scratches, rock strata and cracks, pebbles in ten colours. Round 1 without them was 5.5 times
+  softer than the original with a third of its fine detail.
+- **People**: flat cards with flat white unlit faces and a card-shaped shadow on the ground (the original's way; in a
+  game world it reads better than room-lit cards). Front, three-quarter and side drawings swapped on one frame when
+  the camera orbits; blinks on ones; a 3D hat that can fly off a 2D head. Cards drawn at 3× resolution.
+- **The effects kit** (`fx.ts`, `track.ts`, `mechanics.ts`, `train.ts` in the practice): a heat ramp on steel in hard
+  bands that travel (purple, magenta, orange, yellow, white on the crown only); a track that snaps into an S-bend,
+  sleepers staying square; a train that follows the bent curve and falls as a chain hinged at its couplings; a
+  raymarched volume for smoke, fireball and mushroom cloud (soft spheres into a density and temperature grid, noise
+  billows, a shadow ray to the sun; leave `glslVersion` unset or it silently draws nothing); sparks, flying spikes that
+  grow from 1.5× to 3× so the swap does not jump, heat wisps, god rays, a radial flash, dust puffs.
+- **Look**: no ink lines on the world; bloom tight to hot things only; a grade per place with almost no black lift
+  and deep violet shadows; a light contrast-limited sharpen; depth of field only where the original has it; motion
+  blur (`@remotion/motion-blur`) on the fastest swing only and on the camera only, or arms double.
+- **Cost**: 0.25 to 1.2 s a frame at concurrency 2; no Higgsfield credits for the whole clip.
 
 ## 2. The look stack (what makes 3D read as a cartoon)
 
@@ -91,11 +131,15 @@ Every pixel size scales with output height / 1920. Files in `templates/look/`; n
   stick limbs about 0.055 of head width, ink-dot hands, plum outline thicker on the shadow side, 14 expressions, no
   blush, blinks every 0.5 to 2.3 s, bouncy planted walks. Give each story its own hats, clothes and props.
 - Lit cards (`cardshade.ts`): the card takes the scene's light, faces stay near white (brightness about 0.93), and a
-  soft blob shadow sits under the feet. Never emissive: that is what makes people look pasted on.
+  soft blob shadow sits under the feet. Never emissive: that is what makes people look pasted on. In a game world
+  (section 1b) the faces stay flat white instead and a card-shaped shadow on the ground ties them in.
 - Our own `spike2d` figures stay available when a story needs them; light them the same way.
 
 ## 4. Checks
 
+- `python3 scripts/measure_sharp.py ours.mp4 [reference.mp4]`: sharpness, share of fine edges, saturation and mean
+  brightness, the four numbers behind Vincent's "theirs is sharp, detailed and popping, ours is blurry". The railroads
+  original measures 1302, 16.9%, 0.43 and 133 (round 3 of the copy: 1301, 19.5%, 0.42, 131); get within reach of the reference before he sees a clip.
 - `python3 scripts/measure_look.py ours.mp4 [reference.mp4]`: median brightness, dark floor, highlights, saturation,
   lit chroma, vignette and ink share, in the targets' terms. Hit the targets for the look you chose, not for whatever
   reference you copy: a darker reference moves the targets.
@@ -121,3 +165,8 @@ Every pixel size scales with output height / 1920. Files in `templates/look/`; n
 | A board still that drifts from the cast | Make every still with the cast sheet as a reference; redo any with a realistic or 3D character |
 | A set full of thin repeated parts (braces, rails, slats) | Fewer, thicker members; one busy band at most, plain behind faces |
 | Detailing a place before the owner has seen the shot board | The board first (`toon-video`, step 4), then detail only what it shows |
+| One look forced on every scene | A look per scene, proposed with its reason; Vincent picks |
+| 3D for a scene the camera only pans or pushes across | A flat 2D place: cheaper and sharper |
+| Code clouds | A picture sky on a dome |
+| A soft, washed render (blur everywhere, lifted blacks, low-resolution textures) | `measure_sharp.py` against the reference; 2048 textures, tight bloom, blur only where the reference has it |
+| Motion blur on everything | The fastest move only, camera only |

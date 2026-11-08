@@ -40,18 +40,27 @@ and effects cost money. This skill holds the craft. A project or channel can add
    here, not after the music.
 3. **Retell check.** Give a fresh agent only the script (or the contact sheet) and ask it to retell the
    story. Anything it gets wrong, the viewer will too. Fix and repeat until it retells it right.
+   **Then the meaning sheet** (required, approved with the script and the comic): a table with one row per beat
+   giving the thing that changes, its cause, and the shot that shows the change happening. A glowing rail is a
+   state; a gap closing is a change, and the change is the shot (Vincent, 8 November 2026, railroads practice:
+   "the action of closing is the most important part"). Name the one thing the viewer must see in each second,
+   too. Every later stage is checked against this sheet, not against a reference's pictures.
 4. **The stages the owner reviews.** Nothing moves to the next stage before his yes (Vincent, 8 November 2026,
    taken from `ai-story-video`):
    - a. **Comic.** The script as one page of panels drawn in code, a panel per line, the words under it. Free;
      the story is fixed here.
    - b. **Cast sheet.** Every person and animal as a flat cartoon card in the story's cast style (`toon-world`).
-   - c. **Place pictures.** One Higgsfield master per place, in the house style (`toon-world`).
+   - c. **Looks and places.** A look proposed for each scene with its reason (picture room, game world, flat 2D
+     place, drawn in code: `toon-world` "Looks, scene by scene"), the parts plan (which part comes from code, a
+     picture, a 3D model or an effect), and one picture per place where the look uses pictures. Vincent picks; looks
+     may differ scene by scene, never within one frame.
    - d. **Still board.** One Higgsfield still per beat (`gpt_image_2_6`, 9:16), each made with the place's master
      picture and the cast sheet as image references, the prompt saying the people and animals stay flat 2D cartoon
      cards exactly as on the cast sheet, lit by the place, never realistic or 3D. Check every still at full size: a
      realistic person or a 3D animal is redone, not approved. The 3D build then follows the approved stills.
    - e. **Clips.** Build and render the video in clips of 15 to 20 seconds (about four for a minute), cut at story
-     beats, and show each clip before building the next.
+     beats, and show each clip before building the next. A clip reaches the owner only after the measured checks
+     below pass and a critic agent has scored it against the meaning sheet (and a reference when there is one).
    (Vincent, 7 November 2026, after the train heist: "before any of this is animated ... I can review them fast.")
 5. **Sets.** A set list per place before any shot: 8 or more props, a full background, extras.
    People are small inside a big place. Crowds are painted once and reused. Build only what the
@@ -79,6 +88,11 @@ and effects cost money. This skill holds the craft. A project or channel can add
   and out), and a fast flight between far places counts several times. Show a hit with speed lines alone, and dip
   the picture to white across a far flight (peak at its middle). A far flight eats about 0.8 s, so start it a word
   later when the shot before carries a line that matters.
+- **Smooth, not busy.** Big near surfaces must not sweep across the frame: a camera skimming a few centimetres
+  over a rail with a wide lens fills the frame with grain flicking past even when the overall motion matches the
+  reference (Vincent, railroads round 3). Sit a little further back, use a slightly longer lens, glide slowly with
+  long eases, and let the thing that changes (the heat travelling, the gap closing) be the motion the eye follows.
+- **One clear thing per second**, from the meaning sheet, framed big and sharp.
 - At least three kinds of view: from above, a map or cut-away, ground level.
 - At most one frame in four is a face close-up. The world is the star.
 - The camera shakes only on hits.
@@ -131,6 +145,21 @@ and effects cost money. This skill holds the craft. A project or channel can add
 - Nobody walks through solid scenery: list the solids and check the paths.
 - Captions: one word at a time, white, in the portrait safe area.
 
+## Building as a team
+
+For anything longer than a few seconds, build each clip with specialist agents that own separate files: places and
+track, effects, people and props that act (a train), sound at the same time; then the camera last, because it frames
+what the others built; then a critic that scores the clip. Resume the same agents for the next round so they keep
+their knowledge of the code. The railroads practice went from 1.2 to 1.8 out of 3 in three rounds this way, where
+one lead builder alone stopped at 1.2. Each agent writes a short report with notes for the camera.
+
+## Long videos: the series library
+
+A series builds its worlds, cast, props and effects in its first episode and keeps them in one folder every later
+clip imports. Later clips are then staging, camera and sound, not modelling. Most fixes move earlier: the meaning
+sheet and the looks are approved once, and machines run the checks before the owner sees a clip. (Rough guess, not
+measured: about 1.5M tokens for a 15-second clip once the library exists.)
+
 ## Checks before the hand-back
 
 Give the numbers with the video. The scripts named are in the toolkit project; copy them.
@@ -144,6 +173,9 @@ Give the numbers with the video. The scripts named are in the toolkit project; c
 | Walking | `node scripts/walk-check.mjs` | nobody through a solid |
 | Loudness | mix about −14 LUFS; each line audible over the music | |
 | Retell | a fresh agent retells it from the sheet | it gets the story right |
+| Sharp and popping | `python3 <toon-world>/scripts/measure_sharp.py ours.mp4 [reference.mp4]` | sharpness, fine edges, saturation and brightness within reach of the reference |
+| Meaning shown | a critic agent checks each row of the meaning sheet on the frames | every change is seen happening, big and sharp |
+| Score | a critic agent scores each second 0–3 on world, camera, people, light, story by picture, sound | rising every round; 2.5 is the aim |
 
 After any change to shared drawing code, render two frames of an earlier video and byte-compare them
 with frames from before the change. A new look is a new option, never a changed default.
@@ -168,3 +200,6 @@ with frames from before the change. A new look is a new option, never a changed 
 | A full render to find a framing fault | The contact sheet, every round |
 | Animating before the owner has seen the shots | The shot board first, his picks, then animation |
 | Posting because every check passed | Drafts; the owner's yes on the finished video |
+| Showing a state where the story needs a change (a hot rail, not the gap closing) | The meaning sheet's change, seen happening |
+| Copying a reference's pictures without its meaning | The meaning sheet first; the reference only for look and timing |
+| A camera skimming close with a wide lens | Further back, a longer lens, a slow glide |
