@@ -48,9 +48,13 @@ the same one.
    for every second, the place, the camera move, the people and what they do, every prop, crowds,
    light, on-screen words and sounds, plus the narration's beats in our own words. Read it yourself
    against `scripts/side-by-side.sh`'s sheet of the reference alone, and fix gaps before round 1.
-2. **Round N, build.** Set builder and sound in parallel (different files). Then the animator. Then the
-   camera, which goes last because it frames what the others built. Each works from `shotlist.md` and
-   the previous round's `critique.md`.
+   Then write `meaning.md` (toon-video's meaning sheet): what changes in each beat, its cause, and the shot that
+   shows it happening. Copying the pictures is not enough; the railroads copy showed a hot rail where the story
+   needed the gap closing, and Vincent caught it.
+2. **Round N, build.** Set builder, effects (a general-purpose agent owning `fx.ts`) and sound in parallel
+   (different files), plus the animator. Then the camera, which goes last because it frames what the others
+   built. Each works from `shotlist.md`, `meaning.md` and the previous round's `critique.md`; resume the same
+   agents each round so they keep their knowledge of the code. Shared wiring files take only small, marked edits.
 3. **Render and compare.** You render (the coordinator, not an agent): the contact sheet first, a full
    render once the sheet scores well. Then
    `bash <skill>/scripts/side-by-side.sh ref.mp4 ours.mp4 out/practice/<slug>/round-N/` makes a sheet
