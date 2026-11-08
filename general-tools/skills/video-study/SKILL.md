@@ -1,13 +1,15 @@
 ---
 name: video-study
-description: Use when Vincent shares a reference video (a YouTube Short, often Ricks Clips) and wants it analysed frame by frame - every shot, colour, light, effect, camera move, face, hand and walk, what is 3D and what is flat - and an answer to "could we make this with our skills, and how?". Prepares the frames, sheets, transcript and measures with one script, splits every frame across four analysis agents with a fixed brief, then writes a verdict page with a scene-by-scene build plan against the toon kit. Triggers - "analyse this video", "study this Short", "frame by frame", "can we make this", "what are we missing", "how would we make this", a YouTube Shorts link with a question about making it.
+description: Use when Vincent shares a reference video (a YouTube Short, often Ricks Clips) and wants it analysed frame by frame - every shot, colour, light, effect, camera move, face, hand and walk, what is 3D and what is flat - to learn how it is made so we can make original videos of our own. Prepares the frames, sheets, transcript and measures with one script, splits every frame across four analysis agents with a fixed brief, then writes the techniques it teaches as blueprints into the toon playbook and publishes a page of what it teaches. Triggers - "analyse this video", "study this Short", "frame by frame", "can we make this", "what are we missing", "how would we make this", a YouTube Shorts link with a question about making it.
 ---
 
 # Video study (frame by frame, against our kit)
 
-Built on 8 November 2026 from the railroads and dashcam studies of Ricks Clips Shorts. The study answers one
-question: could our toon skills make this video, and if not, what is missing? It does not copy the video; copying is
-`toon-replicate`, and making our own is `toon-video`.
+Built on 8 November 2026 from the railroads and dashcam studies of Ricks Clips Shorts. We learn from the best so we
+can make original videos of our own (Vincent: "we don't have to replicate everything ... just a blueprint of what is
+being built ... we are going to be original"). The study answers: what does this video do well, how is each piece
+made, and which of those techniques we already have or only have as a blueprint. It never aims to rebuild the
+video; a practice copy is `toon-replicate`, and only when Vincent asks for one.
 
 ## Steps
 
@@ -22,19 +24,21 @@ question: could our toon skills make this video, and if not, what is missing? It
    skills path is `~/.claude/plugins/cache/vince-tools-marketplace/general-tools/<version>/skills`). All four in one
    message. Each writes `analysis/partN.md`: shot list, meaning per beat, colour, light, effects, camera, people,
    vehicles and props, quality, what is 3D, our kit against it, and the five hardest things.
-3. **Verdict.** Read the four reports (not just their summaries) and the measures. Check two or three of their
-   claims yourself on the frames. Then publish one private Artifact page:
-   - the answer first: could we make it today (yes, mostly, or not yet), in two or three sentences;
+3. **The playbook.** Read the four reports (not just their summaries) and the measures. Check two or three of their
+   claims yourself on the frames. Then add or update rows in `toon-video/references/playbook.md` (story, camera and
+   joins, look and light, people, things that act): each technique with why it works, a blueprint of how we would
+   build it, and its status (built or blueprint). Ship that through the skills repo's usual branch and PR.
+4. **The page.** Publish one private Artifact page:
+   - what this video teaches, first, in two or three sentences;
    - `glance.jpg` and a key-moments strip;
-   - its measures beside our latest copy's (the railroads round 4 numbers are in `toon-world` section 4);
-   - a scene-by-scene build plan: for each scene the look (picture room, game world, flat 2D place, drawn in code,
-     from `toon-world` "Looks, scene by scene"), the source of each part, and whether the kit does it today
-     (yes / partly / no);
-   - the new work, ranked, each with a rough size;
-   - the skill changes it suggests, as choices for Vincent with a recommendation. He decides; never change a skill
-     from a study without his yes.
-   In chat: the link and a five-line verdict.
-4. **Record.** Add the study's one-paragraph result and the page link to `docs/STUDIES.md` in the project (newest
+   - its measures beside the other studied videos';
+   - the new techniques it added to the playbook, each with its blueprint and a rough size if we ever build it;
+   - for each scene, the look we would use for something like it (picture room, game world, flat 2D place, drawn in
+     code, from `toon-world` "Looks, scene by scene");
+   - any rule in our skills it challenges, as a choice for Vincent with a recommendation. He decides; never change
+     a skill rule from a study without his yes (new playbook rows are not rule changes).
+   In chat: the link and a five-line summary.
+5. **Record.** Add the study's one-paragraph result and the page link to `docs/STUDIES.md` in the project (newest
    first) on a `docs/studies` branch, push it and merge it through a PR. The first entry, the dashcam Short, is in
    bible-shorts.
 
@@ -51,6 +55,7 @@ question: could our toon skills make this video, and if not, what is missing? It
 |---|---|
 | Sampling frames | Every sheet, every frame; the sheets exist so nothing is skipped |
 | Describing the look without measuring it | `measures.json` beside our own numbers |
-| Listing what they do without saying whether we can | Section 11 of the brief, and the build plan per scene |
-| Copying their pictures as the plan | The meaning of each beat first; their pictures only for look and timing |
-| Changing a skill straight from a study | Choices on the page; Vincent picks |
+| Listing what they do without saying how we would build it | A blueprint per technique in the playbook |
+| Treating the study as a plan to rebuild their video | Techniques for our own stories; a practice copy only when Vincent asks |
+| Building every missing piece straight away | Blueprint now; build when one of our stories needs it |
+| Changing a skill rule straight from a study | Choices on the page; Vincent picks |

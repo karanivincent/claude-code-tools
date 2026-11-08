@@ -44,7 +44,11 @@ Report, with frame numbers as evidence:
 11. **Our kit against it**: for each place and each effect in your range, the look we would use (picture room, game
     world, flat 2D place, drawn in code) and the source of each part (code, picture, image-to-3D, effect), and say
     whether our kit already does it (yes / partly / no) and what would be new work.
-12. Hardest things to copy: the five hardest in your range, and why.
+12. Hardest things to build: the five hardest in your range, and why.
+13. **Techniques worth learning.** We study to make original videos of our own, not to rebuild this one. List the
+    techniques in your range that would lift any of our stories (a story move, a camera or join idea, a look, an
+    acting trick, an effect), each with why it works and a short blueprint of how we would build it. Check
+    {skills}/toon-video/references/playbook.md first and mark each as new or already there.
 
 Write analysis/part{N}.md. Plain English, short sentences, measured not general. Work in the foreground only, no
 background jobs, no browser, never post or upload anything, edit nothing outside the analysis folder. Final message:

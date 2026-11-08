@@ -17,6 +17,9 @@ and effects cost money. This skill holds the craft. A project or channel can add
    (`src/stories/david-jonathan-2d/` has the camera swings, sets, rage face and action beats). A new
    project copies `src/spike2d/` and the newest story's `shots.ts` helpers; it does not import across
    repos. See `references/toolkit.md` for what each helper does and the gotchas.
+   When planning a story, read `references/playbook.md`: the techniques learned from studying the best Shorts,
+   each with a blueprint and whether it is built. Pick the ones this story needs; build a blueprint-only piece
+   when the story calls for it, then mark it built there.
 2. If the project has its own making-of doc (`docs/MAKING-A-STORY.md` or similar), read it all. Its
    rules win over this skill.
 3. Read the ElevenLabs balance before the first credit and after the last, and report the difference.
