@@ -17,6 +17,9 @@ and effects cost money. This skill holds the craft. A project or channel can add
    (`src/stories/david-jonathan-2d/` has the camera swings, sets, rage face and action beats). A new
    project copies `src/spike2d/` and the newest story's `shots.ts` helpers; it does not import across
    repos. See `references/toolkit.md` for what each helper does and the gotchas.
+   When planning a story, read `references/playbook.md`: the techniques learned from studying the best Shorts,
+   each with a blueprint and whether it is built. Pick the ones this story needs; build a blueprint-only piece
+   when the story calls for it, then mark it built there.
 2. If the project has its own making-of doc (`docs/MAKING-A-STORY.md` or similar), read it all. Its
    rules win over this skill.
 3. Read the ElevenLabs balance before the first credit and after the last, and report the difference.
@@ -71,6 +74,30 @@ and effects cost money. This skill holds the craft. A project or channel can add
    voice on top, music ducked under speech, effects on their words, about −14 LUFS.
 8. **Render, check, hand back.** Run the checks below and give their numbers with the video. Nothing
    posts without the owner's yes on the finished video; drafts only.
+
+## The backbone and the dynamics
+
+Every video starts from the same backbone, so it begins from somewhere good, and then gets its own dynamics, so
+no two feel the same (Vincent, 8 November 2026: "some are slow, some are fast ... we need the backbone for
+everything, even when we are getting inspiration from them").
+
+- **The backbone (always):** a hook in the first line and a payoff that loops back to it; the meaning sheet; a look
+  per scene with its parts plan; one cast style with flat faces that carry the acting; sharp, detailed, saturated
+  pictures measured against a reference; captions one word at a time; a mix at about −14 LUFS; the owner's stages
+  and the checks below.
+- **The dynamics (chosen per video, written as a short profile at stage a, approved with the script):**
+
+  | Dial | Range seen in the studies | Pick by |
+  |---|---|---|
+  | Pace (big changes a minute) | 25 (dashcam, face-led jokes) to 50 (railroads, machines) | What carries the story: faces slower, machines and journeys faster |
+  | Longest holds | 0.5 s (railroads) to 2.3 s (dashcam, on a joke) | Hold where a face or a reveal needs reading time |
+  | Joins | almost none (railroads: journeys and dissolves) to 7 cuts plus wiper wipes (dashcam) | Journeys for one big place; cuts and world-made wipes for many places |
+  | Colour arc | by place (railroads) or with the plot (dashcam darkens as the scheme grows, clears to sun at the payoff) | Whether the mood changes over the story |
+  | Camera energy | dives and skims (railroads) or pushes and orbits that rest on faces (dashcam) | The same as pace |
+  | Voices | narration only, or spoken lines with lip sync | Whether people talk in the story |
+
+  Take the profile from the nearest studied video in `references/playbook.md` and `docs/STUDIES.md`, then change
+  what this story needs. The checks measure against the profile, not one fixed number.
 
 ## Camera
 
@@ -166,7 +193,7 @@ Give the numbers with the video. The scripts named are in the toolkit project; c
 
 | Check | How | Aim |
 |---|---|---|
-| Pace | `python3 scripts/pace.py <video>` | 35–60 big changes a minute, under 5% still |
+| Pace | `python3 scripts/pace.py <video>` | within about 10 of the video's profile (25 to 60 big changes a minute); still only where the profile holds |
 | Hard cuts | `ffmpeg -i <video> -vf "select='gt(scene,0.3)',showinfo" -f null - 2>&1 \| grep -c pts_time` | under 10 |
 | Face close-ups | `ffmpeg -i <video> -vf fps=0.4,tile=7x4 sheet.png`, count by eye | at most 1 in 4 |
 | Brightness | `node scripts/brightness.mjs <video>` | opening 120+, nothing too dark on a phone |
