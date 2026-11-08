@@ -33,7 +33,8 @@ and effects cost money. This skill holds the craft. A project or channel can add
    every person and object before it matters: if the payoff needs a stone, show the stone early. The
    hook needs its payoff soon after it. Facts you cannot show stay out; an imagined feeling is said as
    imagined.
-2. **Voice.** One voice per speaker, `say` with eleven_v3 tags, each line cached by a hash of its text
+2. **Voice.** The narrator is Laura (ElevenLabs `FGY2WhTYpPnrIDTdsKH5`, eleven_v3, stability 0.3, played
+   at about 1.2× with `atempo`), chosen on 7 November 2026 for her energy. One voice per speaker, `say` with eleven_v3 tags, each line cached by a hash of its text
    and voice, so a rerun costs nothing. Check every line with whisper. Lines reused from an earlier
    version are copied (mp3 and align files) and cost nothing. Read the total duration now and cut lines
    here, not after the music.
