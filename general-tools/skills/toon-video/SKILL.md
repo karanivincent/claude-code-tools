@@ -33,23 +33,29 @@ and effects cost money. This skill holds the craft. A project or channel can add
    every person and object before it matters: if the payoff needs a stone, show the stone early. The
    hook needs its payoff soon after it. Facts you cannot show stay out; an imagined feeling is said as
    imagined.
-2. **Voice.** One voice per speaker, `say` with eleven_v3 tags, each line cached by a hash of its text
+2. **Voice.** The narrator is Laura (ElevenLabs `FGY2WhTYpPnrIDTdsKH5`, eleven_v3, stability 0.3, played
+   at about 1.2× with `atempo`), chosen on 7 November 2026 for her energy. One voice per speaker, `say` with eleven_v3 tags, each line cached by a hash of its text
    and voice, so a rerun costs nothing. Check every line with whisper. Lines reused from an earlier
    version are copied (mp3 and align files) and cost nothing. Read the total duration now and cut lines
    here, not after the music.
 3. **Retell check.** Give a fresh agent only the script (or the contact sheet) and ask it to retell the
    story. Anything it gets wrong, the viewer will too. Fix and repeat until it retells it right.
-4. **Shot board, and the owner's review.** Before any set is detailed or anything moves, show the owner
-   one rough still per line: the place (its master picture, or plain blocks in code), the people as flat
-   cards where they stand, the camera's framing, and the line's words under it. Give two or three
-   framings for the hook, the turn and the payoff, labelled A, B, C. Put it on one page (an Artifact or
-   a sheet image) and wait for his picks and changes. This is where a crowded place, a wrong framing or
-   a missing beat is cheap to fix; after animation it costs a round. Nothing is animated before his yes.
-   (Vincent, 7 November 2026, after the train heist: "before any of this is animated ... I can review
-   them fast.")
+4. **The stages the owner reviews.** Nothing moves to the next stage before his yes (Vincent, 8 November 2026,
+   taken from `ai-story-video`):
+   - a. **Comic.** The script as one page of panels drawn in code, a panel per line, the words under it. Free;
+     the story is fixed here.
+   - b. **Cast sheet.** Every person and animal as a flat cartoon card in the story's cast style (`toon-world`).
+   - c. **Place pictures.** One Higgsfield master per place, in the house style (`toon-world`).
+   - d. **Still board.** One Higgsfield still per beat (`gpt_image_2_6`, 9:16), each made with the place's master
+     picture and the cast sheet as image references, the prompt saying the people and animals stay flat 2D cartoon
+     cards exactly as on the cast sheet, lit by the place, never realistic or 3D. Check every still at full size: a
+     realistic person or a 3D animal is redone, not approved. The 3D build then follows the approved stills.
+   - e. **Clips.** Build and render the video in clips of 15 to 20 seconds (about four for a minute), cut at story
+     beats, and show each clip before building the next.
+   (Vincent, 7 November 2026, after the train heist: "before any of this is animated ... I can review them fast.")
 5. **Sets.** A set list per place before any shot: 8 or more props, a full background, extras.
    People are small inside a big place. Crowds are painted once and reused. Build only what the
-   approved board shows.
+   approved still board shows.
 6. **Shots.** Time each shot on a word of the voice. Build the camera, the acting and the action by the
    rules below. Look at the contact sheet after every round, and re-sheet only what changed.
 7. **Music and mix.** Settle every pause first, then music in sections with a coda, then the mix:
