@@ -86,7 +86,7 @@ is the subject, and it gets full detail. Check every set on the shot board befor
 ## 1b. The game world
 
 Learned from the railroads practice (bible-shorts branch `practice/railroads-gameworld`, code in
-`src/stories/practice-railroads/`, record in `docs/practice/railroads-gameworld-brief.md` and `out/practice/railroads/`),
+`src/stories/practice-railroads/`, copied as a working kit to `templates/gameworld/` with a README, record in `docs/practice/railroads-gameworld-brief.md` and `out/practice/railroads/`),
 a copy of a Ricks Clips Short scored round by round against the original.
 
 - **Geometry in code, faceted.** Flat-shaded low-poly terrain and rock, repeated parts (rails, sleepers, spikes,
