@@ -39,17 +39,22 @@ and effects cost money. This skill holds the craft. A project or channel can add
    here, not after the music.
 3. **Retell check.** Give a fresh agent only the script (or the contact sheet) and ask it to retell the
    story. Anything it gets wrong, the viewer will too. Fix and repeat until it retells it right.
-4. **Shot board, and the owner's review.** Before any set is detailed or anything moves, show the owner
-   one rough still per line: the place (its master picture, or plain blocks in code), the people as flat
-   cards where they stand, the camera's framing, and the line's words under it. Give two or three
-   framings for the hook, the turn and the payoff, labelled A, B, C. Put it on one page (an Artifact or
-   a sheet image) and wait for his picks and changes. This is where a crowded place, a wrong framing or
-   a missing beat is cheap to fix; after animation it costs a round. Nothing is animated before his yes.
-   (Vincent, 7 November 2026, after the train heist: "before any of this is animated ... I can review
-   them fast.")
+4. **The stages the owner reviews.** Nothing moves to the next stage before his yes (Vincent, 8 November 2026,
+   taken from `ai-story-video`):
+   - a. **Comic.** The script as one page of panels drawn in code, a panel per line, the words under it. Free;
+     the story is fixed here.
+   - b. **Cast sheet.** Every person and animal as a flat cartoon card in the story's cast style (`toon-world`).
+   - c. **Place pictures.** One Higgsfield master per place, in the house style (`toon-world`).
+   - d. **Still board.** One still per line, built from the real parts: the place built in 3D from its picture, the
+     props, the cards standing where they will stand, the camera's framing and the look applied. Never a separately
+     painted frame: what he approves is what will move. Two or three framings for the hook, the turn and the payoff,
+     labelled A, B, C, on one page. A crowded place or a wrong framing is cheap to fix here.
+   - e. **Clips.** Build and render the video in clips of 15 to 20 seconds (about four for a minute), cut at story
+     beats, and show each clip before building the next.
+   (Vincent, 7 November 2026, after the train heist: "before any of this is animated ... I can review them fast.")
 5. **Sets.** A set list per place before any shot: 8 or more props, a full background, extras.
    People are small inside a big place. Crowds are painted once and reused. Build only what the
-   approved board shows.
+   approved still board shows.
 6. **Shots.** Time each shot on a word of the voice. Build the camera, the acting and the action by the
    rules below. Look at the contact sheet after every round, and re-sheet only what changed.
 7. **Music and mix.** Settle every pause first, then music in sections with a coda, then the mix:

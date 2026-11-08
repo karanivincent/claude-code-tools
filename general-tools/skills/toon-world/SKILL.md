@@ -11,6 +11,23 @@ cartoon, and the people. Learned on 7 November 2026 from the ancient jar practic
 `docs/practice/`) and from the `cartoon-3d-short` skill (github.com/mromidev/claude-animated-shorts, MIT), whose look
 code is in `templates/look/` with its licence.
 
+## The house style (decided 8 November 2026)
+
+The reference is the ancient jar's 3D hall (bible-shorts `docs/practice/ancient-jar-hall3d.md`, record step 10):
+a room built from one Higgsfield picture, its props turned into 3D models, and flat cartoon people standing in it.
+Vincent liked it. The ox and donkey practice made its animals 3D models and its people realistic paintings, and lost
+the cartoon altogether. So:
+
+| Part | Made as | Never |
+|---|---|---|
+| Places | A Higgsfield picture turned into 3D (section 1), as real and rich as the hall's, with big simple shapes | A picture shown as a whole shot; a place with no picture beside places with one |
+| Objects | 3D models (image to 3D) or code | |
+| People and animals | Flat cartoon cards in one cast style (section 3), lit by the room, with a contact shadow | A 3D model of anything alive; a realistic or painted person or animal |
+| The board | Stills built from these same parts (`toon-video`, stage 4) | Separately painted board frames: what is approved must be what moves |
+
+Fallbacks, in order, only when the house style cannot carry a story: the world drawn 2D in code, then a 3D world
+drawn in code with cards (the jar made with `cartoon-3d-short`). One style in a frame, always.
+
 ## First
 
 - Read `references/look-targets.md` (the numbers to hit) and, for a place made from pictures,
@@ -32,7 +49,7 @@ code is in `templates/look/` with its licence.
 Pictures, then 3D, in seven steps (detail in `references/place-from-pictures.md`):
 1. Write the place's numbered floor plan (width, depth, height, where the fixed things stand).
 2. Make one master wide picture with Higgsfield `gpt_image_2_6` (2k, high, 9:16) by `references/picture-rules.md`.
-   Draw it in a painted style between cartoon and photo, so flat people fit; realistic only where it must feel real.
+   As real and rich as the 3D hall's picture, warm and well lit, with big simple shapes. No people or animals in it.
 3. Fit its camera (`scripts/fit-camera-example.mjs`) and measure the plan from it (`scripts/measure.mjs`).
 4. Build the room in code to the plan and colour it by projecting the master, with a depth test; fill surfaces it never
    saw squarely with tiles cut from it (`hall3d.ts`).
@@ -95,10 +112,12 @@ Every pixel size scales with output height / 1920. Files in `templates/look/`; n
 | People as emissive cards | Lit cards with a contact shadow |
 | A flat painted backdrop as the set | Project the picture onto geometry built to its plan |
 | Generating a close-up of the place separately | Model the close object, or crop the master |
-| Photo-real room with flat cartoon people | A painted-style master, and ink plus two-tone light over the room |
+| Cards that look stuck on in a rich room | Light the cards by the room (`cardshade.ts`) with a contact shadow; never emissive |
 | Violet shadows indoors | Blue-grey indoors; violet only for sunset outdoors |
 | Ink and blur in one merged effect | Ink in its own pass, before the blur |
 | `@react-three/postprocessing` 3.2 | Pin 3.0.4 |
 | Copying a reference's characters or story | Our own designs; references are for the look |
+| Animals or people as image-to-3D models | Cartoon cards; 3D models are for objects only |
+| A board of separately painted frames | Board stills built from the real place, props and cards |
 | A set full of thin repeated parts (braces, rails, slats) | Fewer, thicker members; one busy band at most, plain behind faces |
 | Detailing a place before the owner has seen the shot board | The board first (`toon-video`, step 4), then detail only what it shows |
