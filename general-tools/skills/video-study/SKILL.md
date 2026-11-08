@@ -42,6 +42,26 @@ video; a practice copy is `toon-replicate`, and only when Vincent asks for one.
    first) on a `docs/studies` branch, push it and merge it through a PR. The first entry, the dashcam Short, is in
    bible-shorts.
 
+## Many videos: a channel survey
+
+Built on 9 November 2026 from a survey of 17 Ricks Clips Shorts over 5M views (lessons in bible-shorts
+`out/study/ricks-channel/lessons.md`, summarised in `docs/STUDIES.md`). When the question is "how does this channel
+make its hits", study many videos lightly instead of one deeply:
+
+1. List the channel's Shorts with views: `python3 -m yt_dlp --flat-playlist --playlist-end 40 --print
+   "%(id)s|%(view_count)s|%(duration)s|%(title)s" <channel-url>/shorts` into `<study>/<survey>/list.txt`. Pick the recent
+   ones over a view floor into `picked.txt`; skip videos already studied.
+2. Prepare each with `prepare.py`, two at a time (`xargs -P 2`), then `scripts/survey_sheets.py <study>/<id>`: every
+   frame, 60 to a sheet (2 s). YouTube's bot check can refuse a download after about ten in a row; retry those at
+   the end, never with browser cookies.
+3. One Opus agent per video with `references/survey-brief.md`, at most four at once. About 0.3M tokens a video
+   (against 1.1M for a four-agent study). Tell it to join sheets in pairs at half size first: an agent that opens
+   every sheet and frame one by one hits the image limit and loops for hours (two did on the first survey).
+4. One synthesis agent with `references/lessons-brief.md` reads every report and writes `lessons.md`: the backbone,
+   story shapes, the measured dials, which look for which scene, joins, teaching the mechanism, people, the ranked
+   gaps, verdicts, rules challenged (as choices for Vincent) and new playbook rows.
+5. Then steps 3 to 5 above: playbook rows, one page, and a `docs/STUDIES.md` entry.
+
 ## Rules
 
 - The video stays in `out/` (gitignored) and is never committed or posted. Their script, characters and art are
