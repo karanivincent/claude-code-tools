@@ -38,9 +38,30 @@ video; a practice copy is `toon-replicate`, and only when Vincent asks for one.
    - any rule in our skills it challenges, as a choice for Vincent with a recommendation. He decides; never change
      a skill rule from a study without his yes (new playbook rows are not rule changes).
    In chat: the link and a five-line summary.
-5. **Record.** Add the study's one-paragraph result and the page link to `docs/STUDIES.md` in the project (newest
-   first) on a `docs/studies` branch, push it and merge it through a PR. The first entry, the dashcam Short, is in
-   bible-shorts.
+5. **Observe, as data** (9 November 2026). Plain facts with no judgement, so later anyone can search many videos for
+   a pattern without watching them again ("how long do face holds last", "which joins link far places"):
+   - `python3 -I <skill>/scripts/observe_seconds.py <study>` writes `observe/seconds.jsonl`: brightness,
+     saturation, the five main colours, sharpness, motion, cuts, loudness and the narration line, each second. Free,
+     about half a minute a video.
+   - One Sonnet agent fills the shot-by-shot form in `references/observe-brief.md` into `observe/shots.json`, and
+     `scripts/check_shots.py` checks it (fields, allowed values, full coverage, no opinion words). About 0.2M tokens
+     a video. Doubt goes in each shot's `unsure`, never a guess.
+   - `scripts/query_shots.py <library-dir> [joins | field <path>]` answers across every video in the library.
+   Do this while the frames are on the machine: once the frames are gone, only the data is left.
+6. **Record, in the study library.** The written study is kept for good, so a video is never studied twice and any
+   moment can be looked up later (Vincent, 9 November 2026: "annotate them so that whenever we have something, we can
+   easily reference other videos and see how that was done"). In the project, on a `docs/studies` branch:
+   - copy the reports (`analysis/*.md`), `measures.json`, `observe/shots.json` and `observe/seconds.jsonl` to
+     `docs/studies/<channel>/<short-name>/`, with a
+     README giving the title, views, link and the `prepare.py` line that rebuilds the frames (the video and frames
+     stay out of git);
+   - add the video's timed moments to `docs/studies/<channel>/index.md` under each technique it shows (joins by
+     their names in `toon-video` references/joins.md), and a new join to that stack with where it was seen;
+   - add the one-paragraph result and the page link to `docs/STUDIES.md` (newest first);
+   then push and merge through a PR. The Ricks Clips library (20 Shorts, 7–9 November 2026) is in bible-shorts
+   `docs/studies/ricks-clips/`.
+   Before studying a video, look in the library: if it is there, read it instead of studying it again, and only
+   re-download it when a question needs frames the report does not describe.
 
 ## Many videos: a channel survey
 
@@ -60,11 +81,13 @@ make its hits", study many videos lightly instead of one deeply:
 4. One synthesis agent with `references/lessons-brief.md` reads every report and writes `lessons.md`: the backbone,
    story shapes, the measured dials, which look for which scene, joins, teaching the mechanism, people, the ranked
    gaps, verdicts, rules challenged (as choices for Vincent) and new playbook rows.
-5. Then steps 3 to 5 above: playbook rows, one page, and a `docs/STUDIES.md` entry.
+5. Then steps 3 to 6 above: playbook rows, one page, the observation data, and the library (every report, the index by technique, a
+   `docs/STUDIES.md` entry).
 
 ## Rules
 
-- The video stays in `out/` (gitignored) and is never committed or posted. Their script, characters and art are
+- The video and its frames stay in `out/` (gitignored) and are never committed or posted; the written study goes
+  into the library. Keep the library in a private repository: it describes someone else's videos. Their script, characters and art are
   theirs: the study is about how it is made.
 - Agents run in the foreground, never drive a browser, and edit only the study's `analysis/` folder.
 - Every claim in the verdict points at frames. Say "I'm not sure" where the frames do not settle it.
