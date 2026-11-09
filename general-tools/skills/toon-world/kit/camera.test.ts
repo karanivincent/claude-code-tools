@@ -1,7 +1,7 @@
 // Run: node --test general-tools/skills/toon-world/kit/camera.test.ts   (Node 22.6+ strips the types itself)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { K, path, safe, upFor, frameOn, shot, follow, onScreen, project, audit, checkMustSee, approach, turnDeg, norm, sub, dot, cross, type Subject, type V3, type Cam, type Blocker } from './camera.ts';
+import { K, path, curve, safe, upFor, frameOn, shot, follow, onScreen, project, audit, checkMustSee, checkLens, approach, matchCam, track, cardReach, turnDeg, norm, sub, dot, cross, len, type Subject, type V3, type Cam, type Blocker } from './camera.ts';
 
 const near = (a: number, b: number, tol: number, msg = '') => assert.ok(Math.abs(a - b) <= tol, `${msg} ${a} is not within ${tol} of ${b}`);
 
@@ -125,3 +125,94 @@ test('approach keeps a far destination in frame after its turn and arrives at it
   assert.ok(camAt(45).pos[1] > Math.min(start.pos[1], end.pos[1]), 'the lift raises the middle');
 });
 const len3 = (v: V3) => Math.hypot(v[0], v[1], v[2]);
+
+test('a 15 m key next to a 600 m key never flips the view (direction and distance blend apart)', () => {
+  // looking south 600 m out, then west at a flame 15 m away, then west 600 m out: 90° in all
+  const keys = [K(0, [0, 2, 0], [0, 2, 600], 45), K(11, [-2, 2, 2], [-17, 2, 2], 45), K(13, [-9, 2, -3], [-609, 2, -3], 45)];
+  // blending the look points instead (the old path) swings the view past the whole 90° in one frame
+  const ts = keys.map(k => k.f), old = (f: number): Cam => {
+    const c = (g: 'pos' | 'look', i: number) => curve(ts, keys.map(k => k[g][i]), f);
+    return { pos: [c('pos', 0), c('pos', 1), c('pos', 2)], look: [c('look', 0), c('look', 1), c('look', 2)], fov: 45 };
+  };
+  let worstOld = 0, worst = 0;
+  const d0 = norm(sub(keys[0].look, keys[0].pos)), d2 = norm(sub(keys[2].look, keys[2].pos));
+  for (let f = 0; f < 13; f++) {
+    worstOld = Math.max(worstOld, turnDeg(old(f), old(f + 1)));
+    worst = Math.max(worst, turnDeg(path(keys, f), path(keys, f + 1)));
+    for (const g of [f, f + 0.5]) {
+      const c = path(keys, g), dir = norm(sub(c.look, c.pos));
+      // never turns outside the keys' arc: within 90° of both the first and the last direction
+      assert.ok(dot(dir, d0) > -0.01 && dot(dir, d2) > -0.01, `frame ${g} outside the arc`);
+      const reach = len(sub(c.look, c.pos));
+      assert.ok(reach >= 14.9 && reach <= 600.1, `frame ${g} look distance ${reach}`);
+    }
+  }
+  assert.ok(worstOld > 90, `the old blend turned ${worstOld}° in a frame`);
+  assert.ok(worst < 15, `turned ${worst}° in one frame`);
+  near(len(sub(path(keys, 11).look, path(keys, 11).pos)), 15, 1e-6, 'the near key keeps its distance');
+});
+
+test('matchCam puts two shapes at one screen spot and size from any bearing, held through the overlap', () => {
+  const flameA: Subject = { name: 'his torch', at: [4, 2, -3], r: 0.15 };
+  const flameB: Subject = { name: 'a torch in the column', at: f => [f * 0.05, 2.1, -40 - f * 0.03], r: 0.15 };
+  const m = { size: 0.12, el: 6, at: [0.1, 0.15] as [number, number], fov: 40 };
+  const A = matchCam(flameA, m, [160, 163], 100, 124), B = matchCam(flameB, m, 20, 100, 124);
+  for (let f = 100; f <= 124; f++) {
+    const a = onScreen(path(A, f), flameA, f), b = onScreen(path(B, f), flameB, f);
+    assert.ok(a.visible && b.visible, `frame ${f}`);
+    near(a.x, b.x, 0.01, `x at ${f}`); near(a.y, b.y, 0.01, `y at ${f}`); near(a.size, b.size, 0.005, `size at ${f}`);
+    near(a.x, 0.1, 0.02); near(a.y, 0.15, 0.02);
+  }
+  assert.equal(matchCam(flameA, m, 90, 5).length, 1);
+});
+
+test('track pans from a fixed spot on a moving subject, and refuses a path that jumps', () => {
+  const walker: Subject = { name: 'walker', at: f => [f * 0.05, 1, -6], r: 0.9 };
+  const keys = track([0, 1.5, 0], walker, 0, 60, { fov: 50 });
+  for (let f = 0; f <= 60; f++) assert.ok(onScreen(path(keys, f), walker, f).visible, `frame ${f}`);
+  assert.ok(keys.every(k => k.pos[0] === 0 && k.pos[2] === 0), 'the camera stays put');
+  // handed from the landing's path to the hall's at frame 30: a pan keyed across it would whip through the gap
+  const handed: Subject = { name: 'him', at: f => (f < 30 ? [-3, 3, -5] : [2, 1, -4]) as V3, r: 0.9 };
+  assert.throws(() => track([0, 1.5, 0], handed, 28, 50), /jumps .* between frames 29 and 30/);
+  assert.doesNotThrow(() => track([0, 1.5, 0], handed, 30, 50));
+});
+
+test('cardReach aims the hand on the screen, not along the world', () => {
+  // a person at the left edge of the frame and a target farther away: on screen it lies to his right
+  const cam: Cam = { pos: [0, 1.6, 0], look: [0, 1.6, -10], fov: 50 };
+  const feet: V3 = [-1.6, 0, -4], target: V3 = [-2.6, 1.4, -14];
+  const r = cardReach(cam, feet, target);
+  assert.ok(target[0] - feet[0] < 0, 'along the world the target is to his left');
+  assert.ok(r.side > 0, `on the screen it is to his right (${r.side})`);
+  near(r.depth, 4, 1e-9);
+  // the hand reached by the offsets lands on the target's screen spot
+  const right = norm(cross(norm(sub(cam.look, cam.pos)), [0, 1, 0]));
+  const hand: V3 = [feet[0] + right[0] * r.side, feet[1] + r.up, feet[2] + right[2] * r.side];
+  const ph = project(cam, hand), pt = project(cam, target);
+  near(ph.x, pt.x, 1e-6, 'x'); near(ph.y, pt.y, 1e-6, 'y');
+});
+
+test('checkLens finds clutter at the lens between words, people included', () => {
+  const keys = [K(0, [0, 1.6, 0], [0, 1.2, -20], 45), K(60, [0, 1.6, -12], [0, 1.2, -32], 45)];
+  const camAt = (f: number) => path(keys, f);
+  const bush: Blocker = { c: [0.3, 1.0, -9], r: 0.9, name: 'a bush' };
+  const passer: Blocker = { c: f => [1.5 - f * 0.1, 1.2, -2.5], r: 0.5, name: 'a passer-by' };
+  const far: Blocker = { c: [0, 1, -60], r: 3, name: 'a far rock' };
+  const issues = checkLens(camAt, 0, 60, [bush, passer, far]);
+  assert.ok(issues.some(i => i.detail.startsWith('a bush')), 'the bush as the camera passes it');
+  assert.ok(issues.some(i => i.detail.startsWith('a passer-by')), 'a person crossing the lens');
+  assert.ok(!issues.some(i => i.detail.startsWith('a far rock')));
+  assert.ok(issues.every(i => i.kind === 'near the lens'));
+  // the must-see check, run only on a word (at frame 60, after both have passed), misses both
+  assert.equal(checkMustSee(camAt, { far: { name: 'far', at: [0, 1, -40], r: 2 } }, [{ word: 'road', f: 60, subjects: ['far'], size: 0.01, hold: 0 }], { blockers: [bush, passer] }).length, 0);
+});
+
+test('a must-see entry for words needs a tenth of the frame', () => {
+  const cam: Cam = { pos: [0, 1.5, 0], look: [0, 1.5, -10], fov: 45 };
+  const clock: Subject = { name: 'clock', at: [0, 1.5, -6], r: 0.2 };   // about 9% of the height
+  const size = onScreen(cam, clock, 0).size;
+  assert.ok(size > 0.08 && size < 0.1, `clock fills ${size}`);
+  assert.equal(checkMustSee(() => cam, { clock }, [{ word: 'half past', f: 0, subjects: ['clock'], hold: 0 }]).length, 0);
+  const words = checkMustSee(() => cam, { clock }, [{ word: 'half past', f: 0, subjects: ['clock'], hold: 0, words: true }]);
+  assert.ok(words.some(i => i.kind === 'too small'));
+});

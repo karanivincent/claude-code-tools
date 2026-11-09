@@ -18,8 +18,10 @@ used in this other video." Stories had been copying each other's code, so the vi
 one never reached the next.
 
 - **What it is.** `kit/` holds generic building blocks with settings and no look of their own. Today: `camera.ts`
-  (shots by subject, the safe camera, the turn, must-see and blocked-view checks) and `props.ts` (props with named
-  states and dials whose needle and marks share one angle); see `kit/README.md`.
+  (shots by subject, shape-matched and tracking shots, the safe camera, the turn, must-see, blocked-view and lens
+  checks, a card's reach on the screen), `props.ts` (props with named states and dials whose needle and marks share
+  one angle) and `light.ts` (the time of day on every lit material; the only kit file that touches Three.js); see
+  `kit/README.md`.
 - **How a project gets it.** `node <skill>/scripts/sync-kit.mjs <project>` writes `src/toon-kit/`. A project never
   edits those files; the sync stops if one was edited. A fix goes into `kit/` through the skills repo, then every
   project syncs.
@@ -147,6 +149,21 @@ Every pixel size scales with output height / 1920. Files in `templates/look/`; n
   props say when it is; the colours stay bright and modern, saturation about 0.50 to 0.58, no sepia, no faded or
   greyed grade, no deep blacks. A faded grade is allowed only for a marked flashback inside a story. Picture prompts
   for a period place ask for vivid modern cartoon colours too, or the picture brings the fading in.
+- **Time of day changes the whole lit world, not only the sky.** Multiply every lit material by one colour for the
+  hour with toon-kit `timeOfDay` (the video picks the colour), before people and effects go in. Show night by hue and
+  brightness and one warm light source (a torch, a lamp, a window): keep the grade's saturation at or above the day's,
+  move the shadow and middle tints toward the night hue the video picks for itself, lower the brightness through the
+  tone curve. Never show night by
+  draining saturation: that is the faded look forbidden above, arriving by the clock. Why: Gibeon r3's night camp kept
+  its day paint under a blue sky and read as late afternoon (44.5 s; moonlit ground with torch pools at frames 1335
+  and 1360); Mona Lisa r4's night preset cut saturation and a red room went plum and grey (25 s: 0.28, then 0.63
+  graded by hue).
+- **No glow at the lens, nothing see-through in front of the face.** No bloom or glow source within about 4 m of the
+  lens: lamps that follow flames take the flames at least 4 m in front of it. Nothing translucent or additive (glass
+  glare, a light pool, a halo) in front of the face a line is about: a light pool goes on the surface behind, glass
+  glare goes off in a close-up of what is behind the glass. Why: halos stacking near a moving camera, and a lamp
+  beside the lens, whited out Gibeon's lower third (torches at 45 s); a glare streak and a light pool turned the
+  Mona Lisa's face to milky cream (51 s: saturation 0.21, then 0.49 with them moved).
 - **Grade** (`grade.ts`): a tone curve, three-zone tint, lifted warm blacks and a vignette, fitted to the targets.
   Metals and gold at about 60% albedo, or they go lemon under the lit multiplier.
 - **Bloom** only on real light sources (threshold 1.0). White faces never glow.
@@ -164,6 +181,8 @@ Every pixel size scales with output height / 1920. Files in `templates/look/`; n
 
 ## 4. Checks
 
+- **Cold read** (before the shots, `toon-video` step 6): one still of every new place, prop, effect, material and
+  face to a fresh cheap agent with `references/cold-read-brief.md`; redraw whatever it misreads.
 - `python3 scripts/measure_sharp.py ours.mp4 [reference.mp4]`: sharpness, share of fine edges, saturation and mean
   brightness, the four numbers behind Vincent's "theirs is sharp, detailed and popping, ours is blurry". The railroads
   original measures 1302, 16.9%, 0.43 and 133 (round 3 of the copy: 1301, 19.5%, 0.42, 131); get within reach of the reference before he sees a clip.
@@ -195,5 +214,7 @@ Every pixel size scales with output height / 1920. Files in `templates/look/`; n
 | One look forced on every scene | A look per scene, proposed with its reason; Vincent picks |
 | 3D for a scene the camera only pans or pushes across | A flat 2D place: cheaper and sharper |
 | Code clouds | A picture sky on a dome |
+| Night as a blue sky over day-coloured ground, or as a desaturated grade | `timeOfDay` on every lit material; night by hue, brightness and one warm light |
+| A glow beside the lens, glare over a face | Glow sources 4 m or more in front of the lens; light pools behind the subject |
 | A soft, washed render (blur everywhere, lifted blacks, low-resolution textures) | `measure_sharp.py` against the reference; 2048 textures, tight bloom, blur only where the reference has it |
 | Motion blur on everything | The fastest move only, camera only |

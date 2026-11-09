@@ -69,11 +69,16 @@ and effects cost money. This skill holds the craft. A project or channel can add
 5. **Sets.** A set list per place before any shot: 8 or more props, a full background, extras.
    People are small inside a big place. Crowds are painted once and reused. Build only what the
    approved still board shows.
-6. **Shots.** Time each shot on a word of the voice. Build the camera, the acting and the action by the
+6. **Cold read** (required, before the shots). Every new place, prop, effect, material and face gets one still, shown
+   to a fresh, cheap agent that knows nothing of the story, with `toon-world/references/cold-read-brief.md`. It
+   says what the thing is, what is happening and what the face feels. Redraw anything it misreads, and read it again.
+   Why: "it reads as something else" came back in three rounds running (hail as fire, rocks as snow, fear as cheering,
+   then Gibeon r3's stones as posts), each time found only by the critic after the render.
+7. **Shots.** Time each shot on a word of the voice. Build the camera, the acting and the action by the
    rules below. Look at the contact sheet after every round, and re-sheet only what changed.
-7. **Music and mix.** Settle every pause first, then music in sections with a coda, then the mix:
+8. **Music and mix.** Settle every pause first, then music in sections with a coda, then the mix:
    voice on top, music ducked under speech, effects on their words, about −14 LUFS.
-8. **Render, check, hand back.** Run the checks below and give their numbers with the video. Nothing
+9. **Render, check, hand back.** Run the checks below and give their numbers with the video. Nothing
    posts without the owner's yes on the finished video; drafts only.
 
 ## The backbone and the dynamics
@@ -108,12 +113,25 @@ everything, even when we are getting inspiration from them").
   destination stays in sight). Keep raw keys for whip reveals and world-made joins only. Gibeon's night march (9 November 2026) used hand-typed keys that raced ahead of the column,
   so "marched all night to save them" showed an empty hillside; `follow` on the column fixed it, and the check below
   found the fault in under a second with no render.
+- **More kit shots** (1.55.0): `matchCam` holds a shape at one screen spot and size from any bearing, for a
+  shape-matched dissolve; `track` pans from a fixed spot on a moving subject (a stairwell, a hall, a corridor) and
+  refuses a subject whose path jumps; `cardReach` aims a card's hand on the screen. `path` blends the view's
+  direction and its look distance apart, so mixing near and far look points no longer flips the picture.
 - **Check the camera before any render.** Run `safe` on every camera (above the ground, outside solids, a usable up),
-  then `audit` (turns over 4° a frame outside a planned whip) and `checkMustSee` (every must-see subject in frame and
-  big enough on its word, not behind a rock, and no rock crowding the lens) over the whole film. Build the blockers
-  from the same list the scene draws its rocks and bushes from, so the check and the picture cannot disagree.
+  then `audit` (turns over 4° a frame outside a planned whip), `checkMustSee` (every must-see subject in frame and
+  big enough on its word, not behind a rock, and no rock crowding the lens) and `checkLens` (nothing within about 6 m
+  filling over 15% of the frame, on every frame, not only on words) over the whole film, every layer of a dissolve
+  included. Build the blockers from the same list the scene draws its rocks and bushes from, so the check and the
+  picture cannot disagree; people who are not the subject are blockers too. A must-see entry for something the
+  viewer must read (a clock, a calendar, a sign) says `words: true`, which asks for 10% of the frame height.
   Gibeon's `scripts/gibeon-2d-camera-check.ts` is the worked example; it found the foreground rock on the night
   march that the first subject-framed shot put in front of the column.
+- **Must-see entries start on their word.** An entry starts on its word's first frame, and a move that brings the
+  subject in lands on or before the word. Why: Gibeon r2 keyed "stood" 6 frames after the word, so the check passed
+  while the word showed rooftops (36.05 s); r3 lands the glide at frame 1076 for the word at 1082.
+- **Crowds clear the lens.** A crowd member within about 7 m of the lens leaves the picture for that frame; scenery
+  never crowds the lens. Why: rows laid out without the camera put heads cut by the bottom edge whenever a camera sat
+  inside the ranks (Gibeon r3, 46.6 to 47.3 s and 57 to 58 s; clean at frames 1413 and 1720).
 - **Props with states.** A prop whose state matters to the story (a gauge, a door, a level) is a toon-kit `states`
   prop, and a dial is drawn from `dial` so its needle and its marks share one angle. Check its state on its words in
   the same no-render check.
@@ -152,6 +170,13 @@ everything, even when we are getting inspiration from them").
 - Held poses, not a constant sway. Brows do most of the acting.
 - Cards only face the camera; a side or back view needs its own drawing. Stagger two people in depth
   rather than side by side.
+- **A card's hand reaches on the screen.** Aim a point, a reach or a hand-over with toon-kit `cardReach`, which
+  measures the target's offset on the screen at the card's depth. Why: along the world's right, a card near the
+  frame's edge points away from a farther target (Mona Lisa r4, 33.8 s: the painter's arm went off the frame).
+- **A prop passes from the world to a card on one quiet frame.** At the swap the prop keeps its screen size and
+  colour, and nothing else changes on that frame (no step, no light change); whatever the prop uncovers is keyed to
+  when the prop moves, not to the swap. Why: a step, the uncovered patch and a gilt of another colour all changed on
+  one frame and read as a cut (Mona Lisa r4, 10.25 to 10.35 s; clean after at 9.90, 10.25, 10.33 and 10.45 s).
 
 ## Action
 
@@ -179,7 +204,10 @@ everything, even when we are getting inspiration from them").
   the camera does.
 - **Show how a device works before anyone reacts to it**: a see-through "what if" copy of the moving part
   (a ball dropping from the dragon into the frog) in the first five seconds.
-- **A camera that ends high shows a count**: orbit and rise until the eight of something can be counted.
+- **A camera that ends high shows a count**: orbit and rise until the eight of something can be counted. In 9:16,
+  count from high only when the things fit in about 50 m; spread wider, have them arrive one by one in one medium
+  frame, each on a beat. Why: a portrait frame is about 26° across, so a ring 250 m wide left each of five armies a
+  speck for three rounds (Gibeon 42.3 s); counted arriving, the five read (frames 1258 to 1297).
 - **A name is spoken while its person is on screen**, within about 0.2 s, or the shot loses its point.
 - One or two picture jokes that carry the story without words.
 - Facts as things in the world: a counter, a mark, a scroll, the objects themselves.
@@ -201,7 +229,11 @@ one lead builder alone stopped at 1.2. Each agent writes a short report with not
 ## Log every step's time
 
 Vincent, 9 November 2026: "track the time it takes to build a whole story ... keep data". Every step goes into the
-project's `docs/production-log.jsonl` the moment it ends, with `scripts/production_log.py add`: the story, the stage
+project's `docs/production-log.jsonl` the moment it ends, with this skill's own `scripts/production_log.py add`. The
+tool is the skill's, not the project's: find it in the plugin cache at
+`~/.claude/plugins/cache/vince-tools-marketplace/general-tools/<version>/skills/toon-video/scripts/production_log.py`
+(newest version) and run it from there; create the log file if the project has none. Both Gibeon r3 and Mona Lisa
+r4's fix agents looked for the tool in the project, did not find it and logged nothing. Log: the story, the stage
 (study, script, voice, plan, world, people, camera, build, render, critique, fix, spike, review), the round, who did
 it, minutes and tokens. An agent's minutes and tokens are in its finish notice (`duration_ms`, `subagent_tokens`;
 a resumed agent reports its running total, so log what this run added). A render's minutes are in its output; make
@@ -245,7 +277,8 @@ Give the numbers with the video. The scripts named are in the toolkit project; c
 | Retell | a fresh agent retells it from the sheet | it gets the story right |
 | Sharp and popping | `python3 <toon-world>/scripts/measure_sharp.py ours.mp4 [reference.mp4]` | sharpness, fine edges, saturation and brightness within reach of the reference |
 | Meaning shown | a critic agent checks each row of the meaning sheet on the frames | every change is seen happening, big and sharp |
-| Camera and must-see | toon-kit `audit` and `checkMustSee` over every frame, no render | nothing under the ground or inside a solid; no turn over 4° a frame outside a planned whip; every must-see subject in frame and at least 8% of the height on its word |
+| Camera and must-see | toon-kit `audit`, `checkMustSee` and `checkLens` over every frame, no render | nothing under the ground or inside a solid; no turn over 4° a frame outside a planned whip; every must-see subject in frame and at least 8% of the height on its word (10% for words to read); nothing within 6 m of the lens filling over 15% |
+| Cold read | a fresh cheap agent names each new place, prop, effect, material and face from one still (`toon-world/references/cold-read-brief.md`) | nothing misread |
 | Score | a critic agent scores each second 0–3 on world, camera, people, light, story by picture, sound | rising every round; 2.5 is the aim |
 
 After any change to shared drawing code, render two frames of an earlier video and byte-compare them
