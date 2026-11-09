@@ -5,8 +5,9 @@ are ... we add that to our stack of transitions, and we use it when necessary, n
 plan, say what the join has to do, pick the entry that does it, and write the reason next to it in the shot list. A
 camera move whose reason you cannot say out loud is not a join; hold, dissolve or cut instead.
 
-Where an entry was seen: the short names are Ricks Clips Shorts from the channel study (index and seconds in the
-project's study library, `docs/studies/ricks-clips/index.md` in bible-shorts). New entries come from every studied
+Where an entry was seen: the short names are Ricks Clips Shorts from the channel study, with the second where it
+happens when known. Every timed moment is in the study library, `docs/studies/ricks-clips/index.md` in bible-shorts
+(154 techniques, 613 moments). New entries come from every studied
 video and from our own ideas; add a row with where it was seen or who proposed it.
 
 ## What the join has to do
@@ -42,6 +43,12 @@ video and from our own ideas; add a row with where it was seen or who proposed i
 | The one hard cut | The twist's first word; the loop back to frame 0 | Anywhere else | roller coaster | A cut on the word |
 | A wipe made by the world (a wiper, a passing train) | The world has a sweeping thing | Forced | dashcam | A pivoting mask with the blade drawn over it |
 | Split screen | One person in two places at once | Two different stories | teleporter | Two cameras into halves |
+| Through a break in the world (a hole, a tear, a crack) | Something breaks open and the story goes inside or beyond it | Nothing in the story breaks | cannonballs 2.2 s, spear and shield 37 s, ancient jar 61 s | One path through the opening as it forms; switch places inside it |
+| Dive into a machine, out in its cut-away | How a machine works matters next | The inside is not the point | cannonballs 26.6 s | Push into the opening until dark; open on a see-through model of the inside |
+| Fly past a head into the next view | From a person to what is in front of them | The person is not facing it | storm oil 59.7 s | Push past the edge of the head, dissolve under it to the view |
+| Rewind dissolve | Going back in time to replay | No clock or counter on screen | dashcam 56.2 s | A dissolve while on-screen numbers run backward |
+| Scan-bar wipe | One person shown two ways (outside, inside) in the same place | Changing places | idea zone 12.4 s, 18.6 s | A glowing bar sweeps the frame, swapping one drawing for the other |
+| Swoop from a far place back home | After a glimpse of somewhere far, back to the main place | The far place is the next stop | ancient jar 59.5 s | `approach` back to the main place's framing |
 
 ## Not acceptable
 
