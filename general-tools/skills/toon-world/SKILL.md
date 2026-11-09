@@ -11,6 +11,26 @@ cartoon, and the people. Learned on 7 November 2026 from the ancient jar practic
 `docs/practice/`) and from the `cartoon-3d-short` skill (github.com/mromidev/claude-animated-shorts, MIT), whose look
 code is in `templates/look/` with its licence.
 
+## The toon-kit: techniques, never looks (9 November 2026)
+
+Vincent, 9 November 2026: "we need reusable code that is generic for any kind of video ... not reusing code that was
+used in this other video." Stories had been copying each other's code, so the videos looked alike and a fix made in
+one never reached the next.
+
+- **What it is.** `kit/` holds generic building blocks with settings and no look of their own. Today: `camera.ts`
+  (shots by subject, the safe camera, the turn and must-see checks; see `kit/README.md`).
+- **How a project gets it.** `node <skill>/scripts/sync-kit.mjs <project>` writes `src/toon-kit/`. A project never
+  edits those files; the sync stops if one was edited. A fix goes into `kit/` through the skills repo, then every
+  project syncs.
+- **What may go in.** Only what any video could use, tuned by its settings: camera rules, effects (fire, smoke,
+  sparks, fireworks, glowing bulbs, rain), finishing tools (sharpen, grade, depth blur, ink), props with named states,
+  action blocks, checks. The test: if two videos use it, could a viewer tell they share it? If yes, it is a look, and
+  it belongs to one story.
+- **What never goes in.** People, faces, costumes, places, buildings, props, palettes, grade values. Each video
+  designs its own. `templates/` are worked examples to learn from, never a starting kit to copy whole, and a story
+  never copies another story's people or places (the Mona Lisa took the train heist's people code, and the two
+  looked alike).
+
 ## Looks, scene by scene (decided 8 November 2026)
 
 Vincent picks how each video is made; there is no single way in. Propose a look for each scene, say why, and let him
@@ -127,7 +147,8 @@ Every pixel size scales with output height / 1920. Files in `templates/look/`; n
 
 ## 3. The people
 
-- Their cast style (`toon.ts`, `cast.ts`): bean heads (height/width 0.94, tapered chin, slight tilt), 3.5 head-heights,
+- Every video designs its own cast style at stage b (see "The toon-kit" above). One worked example, from
+  `cartoon-3d-short` (`toon.ts`, `cast.ts`): bean heads (height/width 0.94, tapered chin, slight tilt), 3.5 head-heights,
   stick limbs about 0.055 of head width, ink-dot hands, plum outline thicker on the shadow side, 14 expressions, no
   blush, blinks every 0.5 to 2.3 s, bouncy planted walks. Give each story its own hats, clothes and props.
 - Lit cards (`cardshade.ts`): the card takes the scene's light, faces stay near white (brightness about 0.93), and a
