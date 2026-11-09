@@ -64,3 +64,6 @@ spear trail and shudder, the hit jolt, the title cards and the captions.
   sheep's height from that story's land after building it.
 - Mittens for an existing cast: add new looks with `mitts: true` (`jacobM`, `manM`, ...) instead of changing the old
   ones, so earlier videos still render byte-identical.
+- Facts from a primary source that will not fetch (403, paywall, a scan): save the PDF, OCR it (pymupdf then
+  tesseract) and read the key pages as images; record each claim with its page in the story's `facts.md`.
+- Higgsfield uploads: a large PNG can fail with HTTP 520; convert it to JPG and upload again.
