@@ -1,7 +1,7 @@
 // Run: node --test general-tools/skills/toon-world/kit/camera.test.ts   (Node 22.6+ strips the types itself)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { K, path, safe, upFor, frameOn, shot, follow, onScreen, project, audit, checkMustSee, turnDeg, norm, sub, dot, cross, type Subject, type V3, type Cam } from './camera.ts';
+import { K, path, safe, upFor, frameOn, shot, follow, onScreen, project, audit, checkMustSee, turnDeg, norm, sub, dot, cross, type Subject, type V3, type Cam, type Blocker } from './camera.ts';
 
 const near = (a: number, b: number, tol: number, msg = '') => assert.ok(Math.abs(a - b) <= tol, `${msg} ${a} is not within ${tol} of ${b}`);
 
@@ -91,4 +91,22 @@ test('the must-see check names what is out of frame or too small on its word', (
   assert.ok(!issues.some(i => i.detail.startsWith('"cutting"')), 'envoy and axe are both in frame');
   assert.ok(issues.some(i => i.detail === '"kings": king is out of frame'));
   assert.ok(issues.some(i => i.kind === 'too small' && i.detail.startsWith('"wood"')));
+});
+
+test('the must-see check finds a subject hidden behind a rock, and a rock crowding the lens', () => {
+  const keys = [shot(0, { subjects: [envoy], size: 0.3, az: 180, el: 5 })];
+  const camAt = (f: number) => path(keys, f);
+  const cam = camAt(0);
+  const between: V3 = [(cam.pos[0] + 2) / 2, (cam.pos[1] + 1) / 2, (cam.pos[2] - 3) / 2];
+  const rock: Blocker = { c: between, r: 0.6, name: 'a rock' };
+  const hidden = checkMustSee(camAt, { envoy }, [{ word: 'envoy', f: 0, subjects: ['envoy'], hold: 0 }], { blockers: [rock] });
+  assert.ok(hidden.some(i => i.kind === 'blocked' && i.detail === '"envoy": envoy is behind a rock'));
+  // a big rock low in the foreground, off the line of sight, still crowds the frame
+  const low: Blocker = { c: [cam.pos[0] + 0.35, cam.pos[1] - 0.9, cam.pos[2] - 2.2], r: 0.5, name: 'a boulder' };
+  const crowd = checkMustSee(camAt, { envoy }, [{ word: 'envoy', f: 0, subjects: ['envoy'], hold: 0 }], { blockers: [low] });
+  assert.ok(crowd.some(i => i.kind === 'in the way'), JSON.stringify(crowd));
+  assert.ok(!crowd.some(i => i.kind === 'blocked'));
+  // a rock behind the subject is no problem
+  const behind: Blocker = { c: [2, 1, -12], r: 1, name: 'far rock' };
+  assert.equal(checkMustSee(camAt, { envoy }, [{ word: 'envoy', f: 0, subjects: ['envoy'], hold: 0 }], { blockers: [behind] }).length, 0);
 });

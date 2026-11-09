@@ -18,7 +18,8 @@ used in this other video." Stories had been copying each other's code, so the vi
 one never reached the next.
 
 - **What it is.** `kit/` holds generic building blocks with settings and no look of their own. Today: `camera.ts`
-  (shots by subject, the safe camera, the turn and must-see checks; see `kit/README.md`).
+  (shots by subject, the safe camera, the turn, must-see and blocked-view checks) and `props.ts` (props with named
+  states and dials whose needle and marks share one angle); see `kit/README.md`.
 - **How a project gets it.** `node <skill>/scripts/sync-kit.mjs <project>` writes `src/toon-kit/`. A project never
   edits those files; the sync stops if one was edited. A fix goes into `kit/` through the skills repo, then every
   project syncs.

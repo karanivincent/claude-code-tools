@@ -110,8 +110,13 @@ everything, even when we are getting inspiration from them").
   found the fault in under a second with no render.
 - **Check the camera before any render.** Run `safe` on every camera (above the ground, outside solids, a usable up),
   then `audit` (turns over 4° a frame outside a planned whip) and `checkMustSee` (every must-see subject in frame and
-  big enough on its word) over the whole film. Gibeon's `scripts/gibeon-2d-camera-check.ts` is the worked example.
-  The check does not yet see something standing between the lens and the subject: look at the frames for that.
+  big enough on its word, not behind a rock, and no rock crowding the lens) over the whole film. Build the blockers
+  from the same list the scene draws its rocks and bushes from, so the check and the picture cannot disagree.
+  Gibeon's `scripts/gibeon-2d-camera-check.ts` is the worked example; it found the foreground rock on the night
+  march that the first subject-framed shot put in front of the column.
+- **Props with states.** A prop whose state matters to the story (a gauge, a door, a level) is a toon-kit `states`
+  prop, and a dial is drawn from `dial` so its needle and its marks share one angle. Check its state on its words in
+  the same no-render check.
 - **Aim at the people, not the place.** A 9:16 frame at a 44° field of view is only about 26° across.
   Most first-sheet faults are a person just off-frame. For two people, aim between them and keep both
   within about 10° of the centre line. Two people far apart, side-on, do not fit: shoot a diagonal from
