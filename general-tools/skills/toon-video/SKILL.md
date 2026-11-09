@@ -47,7 +47,8 @@ and effects cost money. This skill holds the craft. A project or channel can add
    giving the thing that changes, its cause, and the shot that shows the change happening. A glowing rail is a
    state; a gap closing is a change, and the change is the shot (Vincent, 8 November 2026, railroads practice:
    "the action of closing is the most important part"). Name the one thing the viewer must see in each second,
-   too. Every later stage is checked against this sheet, not against a reference's pictures.
+   too. Every later stage is checked against this sheet, not against a reference's pictures. The same list goes into
+   code as must-see entries (`MustSee`: the word, the subjects by name, the size), and the shots are written from it.
 4. **The stages the owner reviews.** Nothing moves to the next stage before his yes (Vincent, 8 November 2026,
    taken from `ai-story-video`):
    - a. **Comic.** The script as one page of panels drawn in code, a panel per line, the words under it. Free;
@@ -101,6 +102,16 @@ everything, even when we are getting inspiration from them").
 
 ## Camera
 
+- **Shots by subject** (toon-kit `camera.ts`, synced with `toon-world/scripts/sync-kit.mjs`). Write each shot from the
+  must-see list: `shot(word, { subjects, size, az, el })` for a held framing, `follow(...)` for someone moving. The
+  camera is worked out from what must be seen, so it cannot fall off the subject. Keep raw keys for whips and
+  world-made joins only. Gibeon's night march (9 November 2026) used hand-typed keys that raced ahead of the column,
+  so "marched all night to save them" showed an empty hillside; `follow` on the column fixed it, and the check below
+  found the fault in under a second with no render.
+- **Check the camera before any render.** Run `safe` on every camera (above the ground, outside solids, a usable up),
+  then `audit` (turns over 4° a frame outside a planned whip) and `checkMustSee` (every must-see subject in frame and
+  big enough on its word) over the whole film. Gibeon's `scripts/gibeon-2d-camera-check.ts` is the worked example.
+  The check does not yet see something standing between the lens and the subject: look at the frames for that.
 - **Aim at the people, not the place.** A 9:16 frame at a 44° field of view is only about 26° across.
   Most first-sheet faults are a person just off-frame. For two people, aim between them and keep both
   within about 10° of the centre line. Two people far apart, side-on, do not fit: shoot a diagonal from
@@ -180,6 +191,21 @@ what the others built; then a critic that scores the clip. Resume the same agent
 their knowledge of the code. The railroads practice went from 1.2 to 1.8 out of 3 in three rounds this way, where
 one lead builder alone stopped at 1.2. Each agent writes a short report with notes for the camera.
 
+## After every critique: fix the making
+
+The critic finds faults; the build is changed so the next video cannot make them. Before the next fix round, sort
+each finding by what in the making allowed it, and fix it at the strongest level that fits:
+
+1. **Make it impossible**: the toon-kit refuses it (the camera cannot go under the ground or lose its up).
+2. **Make the right way the easy way**: a kit block does it right (shots by subject, props with named states).
+3. **A rule with a picture**: a line here with one right and one wrong frame, for judgement calls.
+4. **A check**: only behind 1 to 3.
+
+A fix that is true of any video goes into the kit or this skill through the skills repo; one that belongs to the
+story stays in the story. Never put a look into the kit (see `toon-world` "The toon-kit"). Record each finding in
+`references/findings.md`: the fault, what allowed it, the change and its level. A kind of finding that comes back
+means its fix was too weak: move it up a level.
+
 ## Long videos: the series library
 
 A series builds its worlds, cast, props and effects in its first episode and keeps them in one folder every later
@@ -202,6 +228,7 @@ Give the numbers with the video. The scripts named are in the toolkit project; c
 | Retell | a fresh agent retells it from the sheet | it gets the story right |
 | Sharp and popping | `python3 <toon-world>/scripts/measure_sharp.py ours.mp4 [reference.mp4]` | sharpness, fine edges, saturation and brightness within reach of the reference |
 | Meaning shown | a critic agent checks each row of the meaning sheet on the frames | every change is seen happening, big and sharp |
+| Camera and must-see | toon-kit `audit` and `checkMustSee` over every frame, no render | nothing under the ground or inside a solid; no turn over 4° a frame outside a planned whip; every must-see subject in frame and at least 8% of the height on its word |
 | Score | a critic agent scores each second 0–3 on world, camera, people, light, story by picture, sound | rising every round; 2.5 is the aim |
 
 After any change to shared drawing code, render two frames of an earlier video and byte-compare them
