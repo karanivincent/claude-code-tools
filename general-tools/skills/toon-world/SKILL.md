@@ -152,7 +152,8 @@ Every pixel size scales with output height / 1920. Files in `templates/look/`; n
 - **Time of day changes the whole lit world, not only the sky.** Multiply every lit material by one colour for the
   hour with toon-kit `timeOfDay` (the video picks the colour), before people and effects go in. Show night by hue and
   brightness and one warm light source (a torch, a lamp, a window): keep the grade's saturation at or above the day's,
-  move the shadow and middle tints toward blue, lower the brightness through the tone curve. Never show night by
+  move the shadow and middle tints toward the night hue the video picks for itself, lower the brightness through the
+  tone curve. Never show night by
   draining saturation: that is the faded look forbidden above, arriving by the clock. Why: Gibeon r3's night camp kept
   its day paint under a blue sky and read as late afternoon (44.5 s; moonlit ground with torch pools at frames 1335
   and 1360); Mona Lisa r4's night preset cut saturation and a red room went plum and grey (25 s: 0.28, then 0.63
