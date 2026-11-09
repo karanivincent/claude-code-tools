@@ -1,7 +1,7 @@
 // Run: node --test general-tools/skills/toon-world/kit/camera.test.ts   (Node 22.6+ strips the types itself)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { K, path, curve, safe, upFor, frameOn, shot, follow, onScreen, project, audit, checkMustSee, checkLens, approach, matchCam, track, cardReach, turnDeg, norm, sub, dot, cross, len, type Subject, type V3, type Cam, type Blocker } from './camera.ts';
+import { K, path, curve, slerp, clamp, add, scale, safe, upFor, frameOn, shot, follow, onScreen, project, audit, checkMustSee, checkLens, approach, matchCam, track, cardReach, turnDeg, screenFix, mirrorAbout, layerRuns, motion, checkMotion, checkSky, looksClose, norm, sub, dot, cross, len, type Subject, type V3, type Cam, type Blocker, type Key } from './camera.ts';
 
 const near = (a: number, b: number, tol: number, msg = '') => assert.ok(Math.abs(a - b) <= tol, `${msg} ${a} is not within ${tol} of ${b}`);
 
@@ -215,4 +215,157 @@ test('a must-see entry for words needs a tenth of the frame', () => {
   assert.equal(checkMustSee(() => cam, { clock }, [{ word: 'half past', f: 0, subjects: ['clock'], hold: 0 }]).length, 0);
   const words = checkMustSee(() => cam, { clock }, [{ word: 'half past', f: 0, subjects: ['clock'], hold: 0, words: true }]);
   assert.ok(words.some(i => i.kind === 'too small'));
+});
+
+test('a still subject 1 m away stays on its spot while the camera moves round it (look points blend)', () => {
+  // a loaf held 1 m from the lens, framed at the right of the frame, while the camera swings 200° round it with keys
+  // spaced unevenly (Gibeon r4, frame 711: 1.55's direction blend let it drift off the frame at 23.7 s)
+  const loaf: Subject = { name: 'loaf', at: [0, 1, 0], r: 0.12 };
+  const keys = [0, 90, 200].map((az, j) => shot([0, 5, 30][j], { subjects: [loaf], size: 0.3, az, el: 15, fov: 45, at: [0.7, 0] }));
+  near(len(sub(keys[0].pos, [0, 1, 0])), 1, 0.05, 'about a metre away');
+  assert.ok(looksClose(keys[0], keys[1]) && looksClose(keys[1], keys[2]), 'neighbouring look points are close');
+  // 1.55's path, for comparison: always the view direction and the look distance blended apart
+  const ts = keys.map(k => k.f), dirsOnly = (f: number): Cam => {
+    const ch = (vs: number[]) => curve(ts, vs, f);
+    const pos: V3 = [ch(keys.map(k => k.pos[0])), ch(keys.map(k => k.pos[1])), ch(keys.map(k => k.pos[2]))];
+    const dirs = keys.map(k => norm(sub(k.look, k.pos))), reach = Math.exp(ch(keys.map(k => Math.log(len(sub(k.look, k.pos))))));
+    const A = [0]; for (let j = 1; j < keys.length; j++) A.push(A[j - 1] + Math.acos(clamp(dot(dirs[j - 1], dirs[j]), -1, 1)));
+    let i = 0; while (i < keys.length - 2 && f > ts[i + 1]) i++;
+    return { pos, look: add(pos, scale(slerp(dirs[i], dirs[i + 1], (ch(A) - A[i]) / (A[i + 1] - A[i])), reach)), fov: 45 };
+  };
+  let lostOld = false, worst = 0;
+  for (let f = 0; f <= 30; f += 0.25) {
+    if (!onScreen(dirsOnly(f), loaf, f).visible) lostOld = true;
+    const o = onScreen(path(keys, f), loaf, f);
+    assert.ok(o.visible, `frame ${f}`);
+    worst = Math.max(worst, Math.hypot(o.x - 0.7, o.y));
+  }
+  assert.ok(lostOld, 'the direction blend loses the loaf');
+  assert.ok(worst < 0.05, `the loaf strays ${worst} from its spot`);
+});
+
+test('a near key between far keys keeps both ways apart: close look points as points, far ones by direction', () => {
+  // far, then two keys on one flame 15 m away (the camera creeping), then far again
+  const keys = [K(0, [0, 2, 0], [0, 2, 600], 45), K(11, [-2, 2, 2], [-17, 2, 2], 45), K(20, [-2.5, 2, 1.5], [-17, 2.1, 2], 45), K(24, [-9, 2, -3], [-609, 2, -3], 45)];
+  assert.ok(!looksClose(keys[0], keys[1]) && looksClose(keys[1], keys[2]) && !looksClose(keys[2], keys[3]));
+  const flame: Subject = { name: 'flame', at: [-17, 2.05, 2], r: 0.3 };
+  for (let f = 11; f <= 20; f += 0.5) near(onScreen(path(keys, f), flame, f).x, 0, 0.01, `flame centred at ${f}`);
+  for (let f = 0; f < 24; f++) assert.ok(turnDeg(path(keys, f), path(keys, f + 1)) < 20, `frame ${f}`);
+});
+
+test('a subject radius may follow the frame', () => {
+  const cam: Cam = { pos: [0, 1.5, 0], look: [0, 1.5, -10], fov: 45 };
+  const board: Subject = { name: 'board', at: [0, 1.5, -6], r: f => (f < 10 ? 0.1 : 0.6) };
+  assert.ok(onScreen(cam, board, 0).size < 0.08 && onScreen(cam, board, 20).size > 0.2);
+  assert.equal(checkMustSee(() => cam, { board }, [{ word: 'day', f: 0, subjects: ['board'], hold: 0 }]).length, 1);
+  assert.equal(checkMustSee(() => cam, { board }, [{ word: 'day', f: 20, subjects: ['board'], hold: 0 }]).length, 0);
+});
+
+test('screenFix moves the aim onto where the shape is drawn, so matchCam lands it on the Match spot', () => {
+  const typed: V3 = [4, 2, -3], drawnAt: V3 = [4.3, 2.1, -2.7];   // the card draws the flame off the typed point
+  const m = { size: 0.16, el: 4, at: [0, 0.08] as [number, number], fov: 40 };
+  const cam = path(matchCam({ name: 'typed', at: typed, r: 0.25 }, m, 45, 0), 0);
+  const p = project(cam, drawnAt), measured: [number, number] = [(p.x + 1) / 2, (1 - p.y) / 2];   // read off the frame
+  assert.ok(Math.hypot(p.x - 0, p.y - 0.08) > 0.2, 'the typed aim misses');
+  const fixed: Subject = { name: 'drawn', at: add(typed, screenFix(cam, typed, measured)), r: 0.25 };
+  const again = project(path(matchCam(fixed, m, 45, 0), 0), drawnAt);
+  near(again.x, 0, 0.03, 'x'); near(again.y, 0.08, 0.03, 'y');
+});
+
+test('mirrorAbout turns the camera about a doorway so the opening keeps its place and size', () => {
+  const axis: V3 = [1.5, 0, 0], corners: V3[] = [[1.0, 0, 0], [2.0, 0, 0], [1.0, 2.2, 0], [2.0, 2.2, 0]];
+  const inside: Cam = { pos: [1.62, 1.45, -2.4], look: [1.55, 1.15, 2.3], fov: 58 };
+  const outside = mirrorAbout(inside, axis);
+  assert.ok(outside.pos[2] > 0 && inside.pos[2] < 0, 'the turned camera is on the other side');
+  const shape = (c: Cam) => corners.map(q => project(c, q)).map(q => [+q.x.toFixed(6), +q.y.toFixed(6)].join()).sort();
+  assert.deepEqual(shape(outside), shape(inside));
+  const key: Key = K(10, inside.pos, inside.look, 58);
+  assert.equal(mirrorAbout(key, axis).f, 10);
+});
+
+test('track backing along a line: a walker toward the lens grows; a camera keeping its distance is refused', () => {
+  const walker: Subject = { name: 'him', at: f => [2, 0.9, 8 - f * 0.05], r: 0.9 };   // walking toward -z, 1.5 m a second
+  // the camera backs 1 m while he walks 3 m: he grows and the place behind him falls back
+  const keys = track([2, 1.4, 4], walker, 0, 60, { to: [2, 1.4, 3], up: 0.3, fov: 58, fov1: 56 });
+  for (let f = 0; f <= 60; f++) assert.ok(onScreen(path(keys, f), walker, f).visible, `frame ${f}`);
+  const s0 = onScreen(path(keys, 0), walker, 0), s1 = onScreen(path(keys, 60), walker, 60);
+  assert.ok(s1.size > 1.5 * s0.size, `he grows from ${s0.size} to ${s1.size}`);
+  assert.deepEqual(keys[keys.length - 1].pos, [2, 1.4, 3]);
+  // backing at his own speed (3 m) keeps him 4 m away the whole walk: the frozen walker
+  assert.throws(() => track([2, 1.4, 4], walker, 0, 60, { to: [2, 1.4, 1] }), /frozen/);
+  // a fixed-spot track is unchanged
+  assert.ok(track([0, 1.5, 0], walker, 0, 30).every(k => k.pos[2] === 0));
+});
+
+test('layer runs: each layer of a dissolve is checked with its own camera, and a canvas that comes back is a new run', () => {
+  const hall: Cam = { pos: [0, 1.6, 0], look: [0, 1.6, -10], fov: 45 }, yard: Cam = { pos: [50, 1.6, 0], look: [50, 1.6, -10], fov: 45 };
+  const layersAt = (f: number) => [
+    ...(f < 20 || f >= 40 ? [{ id: 'hall', cam: hall }] : []),
+    ...(f >= 14 && f < 46 ? [{ id: 'yard', cam: yard }] : []),
+  ];
+  const runs = layerRuns(layersAt, 0, 59);
+  assert.deepEqual(runs.map(r => [r.id, r.from, r.to]), [['hall', 0, 19], ['yard', 14, 45], ['hall', 40, 59]]);
+  // a bush at the yard camera's lens, on screen only in the yard layer: found through the dissolve's frames too
+  const bush: Blocker = { c: [50.2, 1.3, -3], r: 0.9, name: 'a bush' };
+  const lens = checkLens(runs, { blockers: [bush] });
+  assert.ok(lens.length === 32 && lens.every(i => i.layer === 'yard'), JSON.stringify(lens.slice(0, 2)));
+  assert.ok(lens.some(i => i.f === 14) && lens.some(i => i.f === 45));
+  // the cut from hall to yard is not a turn: audit by runs measures turns inside a run only
+  const spin = (f: number): Cam => ({ ...hall, look: f < 20 ? hall.look : [10, 1.6, 0] });
+  assert.ok(audit(spin, 0, 30).some(i => i.kind === 'turn'));
+  assert.equal(audit(runs).length, 0);
+});
+
+test('motion per second from the camera paths, and runs of still seconds against the profile', () => {
+  // two seconds of a slow pan, three nearly still, a planned stop, then a push
+  const keys = [K(0, [0, 2, 0], [0, 2, -20], 45), K(60, [0, 2, 0], [8, 2, -20], 45, 0, true), K(150, [0, 2, 0.1], [8.1, 2, -20], 45, 0, true), K(180, [0, 2, 0.1], [8.1, 2, -20], 45, 0, true), K(210, [2, 2, -6], [8.1, 2, -20], 38)];
+  const camAt = (f: number) => path(keys, f);
+  const per = motion(camAt, 0, 210);
+  assert.equal(per.length, 7);
+  assert.ok(per[0] > 10 && per[1] > 10, `the pan: ${per.slice(0, 2)}`);
+  assert.ok(per[2] < 1 && per[3] < 1 && per[4] < 1 && per[5] < 1, `the still: ${per.slice(2, 6)}`);
+  assert.ok(per[6] > 10, `the push: ${per[6]}`);
+  const still = checkMotion(per);
+  assert.equal(still.length, 1);
+  assert.equal(still[0].kind, 'still'); assert.equal(still[0].f, 60);
+  // the profile's planned stop covers seconds 4 and 5; two still seconds are within the longest hold
+  assert.equal(checkMotion(per, { holds: [[4, 6]] }).length, 0);
+  // a dissolve between two still canvases is not a move
+  const runs = layerRuns(f => [...(f < 40 ? [{ id: 'a', cam: camAt(70) }] : []), ...(f >= 30 ? [{ id: 'b', cam: { pos: [90, 2, 0] as V3, look: [0, 0, 0] as V3, fov: 30 } }] : [])], 0, 89);
+  assert.ok(motion(runs, 0, 89).every(v => v < 1e-9));
+});
+
+test('a words subject under the caption band fails; above it passes', () => {
+  const cam: Cam = { pos: [0, 1.5, 0], look: [0, 1.5, -10], fov: 45 };
+  const captions = { top: 0.64, bottom: 0.76 };
+  const low: Subject = { name: 'slate', at: [0, 0.6, -4], r: 0.35 }, high: Subject = { name: 'slate', at: [0, 2.3, -4], r: 0.35 };
+  const entry = [{ word: 'Nobody', f: 0, subjects: ['slate'], hold: 0, words: true }];
+  const p = project(cam, low.at as V3);
+  assert.ok((1 - p.y) / 2 > 0.6 && (1 - p.y) / 2 < 0.85, `the low slate sits at ${(1 - p.y) / 2} of the height`);
+  const under = checkMustSee(() => cam, { slate: low }, entry, { captions });
+  assert.ok(under.some(i => i.kind === 'under the caption'), JSON.stringify(under));
+  assert.equal(checkMustSee(() => cam, { slate: high }, entry, { captions }).length, 0);
+  // without words: true, or without a band, the caption is not checked
+  assert.equal(checkMustSee(() => cam, { slate: low }, [{ ...entry[0], words: false }], { captions }).filter(i => i.kind === 'under the caption').length, 0);
+  assert.equal(checkMustSee(() => cam, { slate: low }, entry).filter(i => i.kind === 'under the caption').length, 0);
+});
+
+test('checkSky: a rise into empty sky fails, a close-up against the sky and a planned look at the sun do not', () => {
+  const ground = () => 0;
+  const man: Subject = { name: 'him', at: [0, 1, -6], r: 0.9 };
+  const level: Cam = { pos: [0, 1.6, 0], look: [0, 1.2, -6], fov: 45 };
+  assert.equal(checkSky(() => level, 0, 0, [man], { ground }).length, 0);
+  // risen to make room for a card: he sinks to the bottom edge under blank sky
+  const risen: Cam = { pos: [0, 1.6, 0], look: [0, 4.2, -6], fov: 45 };
+  const issues = checkSky(() => risen, 0, 0, [man], { ground });
+  assert.ok(issues.length === 1 && issues[0].kind === 'empty sky', JSON.stringify(issues));
+  // a close-up of a held thing against the sky: the subject covers the sky
+  const loaf: Subject = { name: 'loaf', at: [0, 2.2, -0.6], r: 0.35 };
+  assert.equal(checkSky(() => ({ pos: [0, 1.6, 0], look: [0, 2.2, -0.6], fov: 45 }), 0, 0, [loaf], { ground }).length, 0);
+  // without ground, the pitch test: looking 30° up with nothing whole in frame fails unless planned
+  const sun: Cam = { pos: [0, 1.6, 0], look: [0, 1.6 + Math.tan(Math.PI / 6) * 10, -10], fov: 45 };
+  assert.equal(checkSky(() => sun, 0, 4, [man]).length, 5);
+  assert.equal(checkSky(() => sun, 0, 4, [man], { planned: [[0, 4]] }).length, 0);
+  // by layer runs
+  assert.equal(checkSky([{ id: 'end', from: 0, to: 2, camAt: () => risen }], [man], { ground }).every(i => i.layer === 'end'), true);
 });

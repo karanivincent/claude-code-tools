@@ -12,6 +12,10 @@ Every new place, prop, effect (fire, smoke, hail, dust, a glow), material (stone
 scale), framed as a shot would frame it. A thing that changes (a fire catching, a door opening) gets one still of
 each state.
 
+Stills carry no captions and no labels: render them clean. A sheet tool that burns the spoken word or a frame label
+into each still tells the reader the story, and the read is worthless. Why: Gibeon r4's first batch was rendered with
+the sheet's labels and had to be redone with clean frames.
+
 ## Who reads
 
 A fresh, cheap agent (Sonnet or Haiku), one per batch of about ten stills, that has never seen the script, the plan

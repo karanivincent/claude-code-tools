@@ -6,11 +6,14 @@
 //   - shots written by subject: name what must be in frame, how big, and from where, and the camera is worked out
 //     (`frameOn`, `shot`, `follow`), so the thing a line names cannot fall out of the frame;
 //   - a safe camera: never under the ground, never inside a solid, always a usable "up" (`safe`, `upFor`);
-//   - shots that join: a shape held at one screen spot and size from any bearing through a dissolve (`matchCam`), and a
-//     pan from a fixed spot that keeps a moving subject (`track`);
+//   - shots that join: a shape held at one screen spot and size from any bearing through a dissolve (`matchCam`, aimed
+//     at where the shape is drawn with `screenFix`), the camera turned 180° about an opening for a join through a
+//     door (`mirrorAbout`), and a pan that keeps a moving subject, from a fixed spot or backing along a line (`track`);
 //   - checks: the camera's turn speed and safety over a range of frames (`audit`), whether each promised
-//     subject is in frame and big enough on its word (`checkMustSee`), and clutter at the lens on every frame
-//     (`checkLens`);
+//     subject is in frame, big enough and clear of the captions on its word (`checkMustSee`), clutter at the lens on
+//     every frame (`checkLens`), a look into empty sky (`checkSky`), each layer of a dissolve with its own camera
+//     (`layerRuns`), and how much the camera
+//     moves each second against the video's dynamics profile (`motion`, `checkMotion`);
 //   - a card's reach aimed on the screen, not along the world (`cardReach`).
 //
 // Conventions: metres, +y up, -z is north. A compass bearing is degrees clockwise from north (90 = east).
@@ -52,9 +55,11 @@ export function curve(ts: number[], vs: number[], t: number, stops?: boolean[]):
   const h = ts[i + 1] - ts[i], u = (t - ts[i]) / h, u2 = u * u, u3 = u2 * u;
   return (2 * u3 - 3 * u2 + 1) * vs[i] + (u3 - 2 * u2 + u) * h * m(i) + (-2 * u3 + 3 * u2) * vs[i + 1] + (u3 - u2) * h * m(i + 1);
 }
-/** like `curve`, for a channel that only rises (an angle turned so far): the tangents are limited so the curve never
- *  rises past a knot and comes back, which on a view would turn past a key's direction and swing back */
-function riseCurve(ts: number[], vs: number[], t: number, stops?: boolean[]): number {
+/** like `curve`, but it never runs past a knot and comes back: a knot between a rise and a fall (or a hold) gets a zero
+ *  tangent, and the others a weighted harmonic mean of the slopes either side (monotone cubic). Used for the angle a
+ *  view has turned, and for a look point: on a view, running past a key turns past its aim and swings back (Gibeon
+ *  r4: a look point arriving on a torch that then held still ran on past it by a degree and came back) */
+function monoCurve(ts: number[], vs: number[], t: number, stops?: boolean[]): number {
   const n = ts.length;
   if (t <= ts[0]) return vs[0];
   if (t >= ts[n - 1]) return vs[n - 1];
@@ -63,7 +68,7 @@ function riseCurve(ts: number[], vs: number[], t: number, stops?: boolean[]): nu
   const m = (j: number) => {
     if (j <= 0 || j >= n - 1 || stops?.[j]) return 0;
     const a = d(j - 1), b = d(j);
-    if (a <= 0 || b <= 0) return 0;
+    if (a * b <= 0) return 0;
     const h0 = ts[j] - ts[j - 1], h1 = ts[j + 1] - ts[j], w1 = 2 * h1 + h0, w2 = h1 + 2 * h0;
     return (w1 + w2) / (w1 / a + w2 / b);
   };
@@ -81,32 +86,55 @@ export function slerp(u: V3, v: V3, k: number): V3 {
   // rotate u about n: u stays square to n, so (n x u) points along the arc toward v
   return norm(add(scale(u, Math.cos(k * th)), scale(cross(n, u), Math.sin(k * th))));
 }
+/** Whether two neighbouring keys blend their look points (true) or their view directions (false). Look points closer
+ *  together than half the nearer key's look distance are blended as points: a camera moving round a still, near
+ *  subject keeps it on the same spot only that way (Gibeon r4, frame 711: blending directions let a loaf 1.3 m away
+ *  drift 10° and leave the frame at 23.7 s). Look points far apart against their distances (a flame 15 m away next to
+ *  keys looking 600 m out) blend direction and distance apart, which cannot swing the view through the camera. */
+export const NEAR_LOOKS = 0.5;
+export function looksClose(a: Key, b: Key): boolean {
+  const ra = len(sub(a.look, a.pos)), rb = len(sub(b.look, b.pos));
+  return len(sub(a.look, b.look)) <= NEAR_LOOKS * Math.min(ra, rb);
+}
 /** The camera at frame f along keys sorted by frame. Position, fov and roll run through the keys on smooth curves.
- *  The view is NOT blended through the look points: it blends the view direction (along the great circle, at a speed
- *  eased through the keys like the other channels) and, separately, the look distance. Look points at very different
- *  distances (a flame 2.6 m away next to keys looking 60 m out; Gibeon frame 1359) used to swing the blended look
- *  point through the camera and flip the picture 175° in one frame; blending direction and distance apart cannot. */
+ *  The view between two keys is blended one of two ways (`looksClose`):
+ *  - look points near each other: the look point itself runs on a smooth curve through the run of such keys, so a
+ *    still subject the camera moves round or pushes in on stays where it is in the frame;
+ *  - look points far apart against their distances: the view direction turns along the great circle (at a speed eased
+ *    through the keys like the other channels) and the look distance blends apart from it. Look points at very
+ *    different distances (a flame 2.6 m away next to keys looking 60 m out; Gibeon frame 1359) used to swing the
+ *    blended look point through the camera and flip the picture 175° in one frame; this way cannot. */
 export function path(keys: Key[], f: number): Cam {
   const n = keys.length, ts = keys.map(k => k.f), st = keys.map(k => !!k.stop);
   const ch = (vs: number[]) => curve(ts, vs, f, st);
   const pos: V3 = [ch(keys.map(k => k.pos[0])), ch(keys.map(k => k.pos[1])), ch(keys.map(k => k.pos[2]))];
+  const fov = ch(keys.map(k => k.fov)), roll = ch(keys.map(k => k.roll ?? 0));
+  if (n === 1 || f <= ts[0] || f >= ts[n - 1]) {
+    const k = f >= ts[n - 1] ? keys[n - 1] : keys[0];
+    return { pos, look: add(pos, sub(k.look, k.pos)), fov, roll };
+  }
+  let i = 0; while (f > ts[i + 1]) i++;
+  if (looksClose(keys[i], keys[i + 1])) {
+    // the run of keys joined by close look points around this span: the look point's curve uses only those keys, so a
+    // far key next to the run cannot pull a tangent through it, and it never runs past a key's look point
+    let s0 = i, s1 = i + 1;
+    while (s0 > 0 && looksClose(keys[s0 - 1], keys[s0])) s0--;
+    while (s1 < n - 1 && looksClose(keys[s1], keys[s1 + 1])) s1++;
+    const run = keys.slice(s0, s1 + 1), rt = run.map(k => k.f), rs = run.map(k => !!k.stop);
+    const lc = (j: number) => monoCurve(rt, run.map(k => k.look[j]), f, rs);
+    return { pos, look: [lc(0), lc(1), lc(2)], fov, roll };
+  }
   const dirs = keys.map(k => norm(sub(k.look, k.pos)));
   // the look distance on a log scale, so it eases evenly between 15 m and 600 m and can never reach zero
   const reach = Math.exp(ch(keys.map(k => Math.log(Math.max(1e-3, len(sub(k.look, k.pos)))))));
-  let dir: V3;
-  if (f <= ts[0]) dir = dirs[0];
-  else if (f >= ts[n - 1]) dir = dirs[n - 1];
-  else {
-    // the angle turned so far, as one channel through the keys: its curve gives the turn's speed, eased like the rest,
-    // and never runs past a key (a fast turn into a key that then holds still must stop on the key, not swing past)
-    const A = [0];
-    for (let i = 1; i < n; i++) A.push(A[i - 1] + Math.acos(clamp(dot(dirs[i - 1], dirs[i]), -1, 1)));
-    const a = riseCurve(ts, A, f, st);
-    let i = 0; while (f > ts[i + 1]) i++;
-    const span = A[i + 1] - A[i];
-    dir = span < 1e-9 ? dirs[i] : slerp(dirs[i], dirs[i + 1], (a - A[i]) / span);
-  }
-  return { pos, look: add(pos, scale(dir, reach)), fov: ch(keys.map(k => k.fov)), roll: ch(keys.map(k => k.roll ?? 0)) };
+  // the angle turned so far, as one channel through the keys: its curve gives the turn's speed, eased like the rest,
+  // and never runs past a key (a fast turn into a key that then holds still must stop on the key, not swing past)
+  const A = [0];
+  for (let j = 1; j < n; j++) A.push(A[j - 1] + Math.acos(clamp(dot(dirs[j - 1], dirs[j]), -1, 1)));
+  const a = monoCurve(ts, A, f, st);
+  const span = A[i + 1] - A[i];
+  const dir = span < 1e-9 ? dirs[i] : slerp(dirs[i], dirs[i + 1], (a - A[i]) / span);
+  return { pos, look: add(pos, scale(dir, reach)), fov, roll };
 }
 
 // ---- "up" that never fails ------------------------------------------------------------------------------------------
@@ -162,8 +190,10 @@ export function safe(c: Cam, s: Safety = {}): SafeCam {
 
 // ---- shots by subject -----------------------------------------------------------------------------------------------
 /** Something that must be seen: a point (or a path in time) and a radius that wraps it (a person about 0.9, a hand
- *  prop about 0.2). Give it the same name the plan's "must see" list uses. */
-export interface Subject { name: string; at: V3 | ((f: number) => V3); r: number }
+ *  prop about 0.2). Give it the same name the plan's "must see" list uses. The radius may follow the frame too, for a
+ *  thing that grows or is scaled to keep its screen size (a board scaled during a crane; Gibeon r4 could not write a
+ *  must-see entry for its DAY board while `r` had to be one number). */
+export interface Subject { name: string; at: V3 | ((f: number) => V3); r: number | ((f: number) => number) }
 export interface Framing {
   subjects: Subject[];
   /** how much of the frame's height the group fills: 0.15 a wide shot, 0.4 a medium, 0.8 a close-up */
@@ -180,12 +210,13 @@ export interface Framing {
   at?: [number, number];
 }
 export const posOf = (s: Subject, f: number): V3 => typeof s.at === 'function' ? s.at(f) : s.at;
+export const radOf = (s: Subject, f: number): number => typeof s.r === 'function' ? s.r(f) : s.r;
 /** the centre and radius of one sphere around every subject */
 export function enclose(subjects: Subject[], f: number): { c: V3; r: number } {
   if (!subjects.length) throw new Error('frameOn needs at least one subject');
   const ps = subjects.map(s => posOf(s, f));
   const c = scale(ps.reduce((a, p) => add(a, p), [0, 0, 0] as V3), 1 / ps.length);
-  const r = Math.max(...subjects.map((s, i) => len(sub(ps[i], c)) + s.r));
+  const r = Math.max(...subjects.map((s, i) => len(sub(ps[i], c)) + radOf(s, f)));
   return { c, r };
 }
 /** The camera that shows the subjects at `size` of the frame height, seen from bearing `az` and elevation `el`.
@@ -224,6 +255,7 @@ export function follow(fr: Framing, a: number, b: number, every = 6): Key[] {
 }
 
 // ---- shots that join --------------------------------------------------------------------------------------------------
+const smoother = (k: number) => { const c = clamp(k); return c * c * c * (c * (6 * c - 15) + 10); };
 /** How a matched shape sits in the frame: the same on both sides of a shape-matched dissolve. */
 export interface Match {
   /** share of the frame height the shape fills (its radius `r` sets the distance) */
@@ -256,28 +288,67 @@ export function matchCam(shape: Subject, m: Match, az: number | [number, number]
   }
   return out;
 }
+/** The world offset from a shape's typed point to where the shape is actually drawn, from one rendered frame: aim
+ *  `matchCam` at `at + screenFix(...)` and the drawn shape lands on the `Match` spot. A shape a card holds (a torch's
+ *  flame, a lamp) is drawn where the card's hand puts it, which moves with the camera's bearing, so a typed point
+ *  misses: Gibeon r4's flame join missed by a quarter of the frame on its first try, with the cores at (0.27, 0.44)
+ *  and (0.25, 0.52) of the frame; one correction a side put both at (0.49, 0.46). `cam` is the camera of the rendered
+ *  frame, `at` the point it was aimed at, `drawn` where the shape's centre was measured on that frame, as shares of
+ *  the width and height from the top-left corner (pixels over the frame's size). The offset lies square to the view at
+ *  the point's distance. Measure one frame per side of the join, correct once, and look again. */
+export function screenFix(cam: Cam, at: V3, drawn: [number, number], aspect = 9 / 16): V3 {
+  const p = project(cam, at, aspect), z = Math.max(0.05, p.z);
+  const up0 = cam.up ?? upFor(cam.pos, cam.look), fwd = norm(sub(cam.look, cam.pos)), right = norm(cross(fwd, up0)), camUp = cross(right, fwd);
+  const v = cam.fov * RAD, h = 2 * Math.atan(Math.tan(v / 2) * aspect);
+  const dx = (2 * drawn[0] - 1) - p.x, dy = (1 - 2 * drawn[1]) - p.y;
+  return add(scale(right, dx * Math.tan(h / 2) * z), scale(camUp, dy * Math.tan(v / 2) * z));
+}
+/** The camera (or key) turned 180° about the upright line through `axis` (an opening's centre: a door, a gate, an
+ *  arch). An opening that is symmetric about that line lands at the same place and size in the frame from the other
+ *  side, so a 6 to 8 frame dissolve from the camera on one side to its turned copy on the other is a shape-matched
+ *  join through the door, with the person on the threshold in both layers. Riding through the opening instead needed
+ *  a white wash or a dark frame to hide the change of sets (Mona Lisa r5: 0.4 s of milky cream, the palest moment in
+ *  the film; turned, the doorway held its place across 22.77 to 23.33 s at brightness 145 to 151). */
+export function mirrorAbout<T extends { pos: V3; look: V3 }>(c: T, axis: V3): T {
+  const m = (p: V3): V3 => [2 * axis[0] - p[0], p[1], 2 * axis[2] - p[2]];
+  return { ...c, pos: m(c.pos), look: m(c.look) };
+}
 /** A pan from a fixed spot whose view stays on a moving subject: the shot for a stairwell, a hall or a corridor, where
  *  `follow`'s fixed bearing would put the camera through a wall. Keys every `every` frames (default 4) from a to b.
+ *  With `to`, the camera eases from `pos` to `to` over the track instead of standing still (and the lens from `fov` to
+ *  `fov1`), looking `up` metres above the subject's centre: the shot for a walk toward or away from the lens. Back the
+ *  camera along the walk more slowly than the walker, so the walker grows (or shrinks) and the place falls behind.
+ *  `follow` holds a walker at one size from one bearing, so a walk along the lens axis kept him the same size against
+ *  a doorway that did not move and he read as frozen (Mona Lisa r5, "strolls", 23.2 to 24.0 s; with the camera backing
+ *  slower he grows and the doorway falls behind at 23.3, 23.6 and 23.9 s). It refuses a walk within 30° of the lens
+ *  axis whose distance to the camera changes by less than a tenth: that is the frozen walker again.
  *  It refuses a subject whose path jumps inside [a, b] (more than `maxStep` metres in one frame, default 0.5; a run is
  *  about 0.25): a subject handed from one path to another (the landing's copy of a person to the hall's) swings a pan
  *  keyed across the hand-over through the gap in one frame (Mona Lisa r4: the hall pan started 0.04 s before he
  *  reached the hall and turned 33° in one frame). Start the track after the jump, or end it before. */
-export function track(pos: V3, s: Subject, a: number, b: number, opts: { fov?: number; every?: number; maxStep?: number } = {}): Key[] {
-  const every = opts.every ?? 4, maxStep = opts.maxStep ?? 0.5, fov = opts.fov ?? 45;
+export function track(pos: V3, s: Subject, a: number, b: number, opts: { fov?: number; every?: number; maxStep?: number; to?: V3; fov1?: number; up?: number } = {}): Key[] {
+  const every = opts.every ?? 4, maxStep = opts.maxStep ?? 0.5, fov = opts.fov ?? 45, fov1 = opts.fov1 ?? fov, up = opts.up ?? 0;
   for (let f = a; f < b; f++) {
     const step = len(sub(posOf(s, f + 1), posOf(s, f)));
     if (step > maxStep) throw new Error(`track: ${s.name} jumps ${step.toFixed(2)} m between frames ${f} and ${f + 1}; start the track after the jump or end it before`);
   }
+  const camAt = (f: number): V3 => opts.to ? mix(pos, opts.to, smoother(b > a ? (f - a) / (b - a) : 1)) : pos;
+  if (opts.to && b > a) {
+    const walk = sub(posOf(s, b), posOf(s, a)), axis = norm(sub(posOf(s, a), camAt(a)));
+    const along = len(walk) > 1e-6 && Math.abs(dot(norm(walk), axis)) > Math.cos(30 * RAD);
+    const d0 = len(sub(posOf(s, a), camAt(a))), d1 = len(sub(posOf(s, b), camAt(b)));
+    if (along && Math.abs(d1 - d0) < 0.1 * d0) throw new Error(`track: ${s.name} walks along the lens axis but stays ${d0.toFixed(1)} to ${d1.toFixed(1)} m from the camera, so the walk reads as frozen; move the camera more slowly than the walk`);
+  }
   const out: Key[] = [];
   for (let f = a; ; f = Math.min(b, f + every)) {
-    out.push(K(f, pos, posOf(s, f), fov));
+    const k = b > a ? (f - a) / (b - a) : 1;
+    out.push(K(f, camAt(f), add(posOf(s, f), [0, up, 0]), lerp(fov, fov1, opts.to ? smoother(k) : k)));
     if (f >= b) break;
   }
   return out;
 }
 
 // ---- journeys that show where they go -------------------------------------------------------------------------------
-const smoother = (k: number) => { const c = clamp(k); return c * c * c * (c * (6 * c - 15) + 10); };
 /** A journey to a far place that keeps the destination in sight, so the viewer sees where it is and how far (Vincent,
  *  9 November 2026: "zoom out ... then zoom in directly, maybe at the horizon, and there we can find the next city").
  *  From the `start` camera the view turns onto the destination over `turn` frames (default 12), then the camera
@@ -319,9 +390,9 @@ export function project(c: Cam, p: V3, aspect = 9 / 16): { x: number; y: number;
 }
 /** whether a subject is in frame at frame f and how much of the frame's height it fills */
 export function onScreen(c: Cam, s: Subject, f: number, aspect = 9 / 16): { visible: boolean; size: number; x: number; y: number } {
-  const pr = project(c, posOf(s, f), aspect);
-  if (pr.z <= s.r * 0.5) return { visible: false, size: 0, x: pr.x, y: pr.y };
-  const size = 2 * Math.atan(s.r / pr.z) / (c.fov * RAD);
+  const pr = project(c, posOf(s, f), aspect), r = radOf(s, f);
+  if (pr.z <= r * 0.5) return { visible: false, size: 0, x: pr.x, y: pr.y };
+  const size = 2 * Math.atan(r / pr.z) / (c.fov * RAD);
   return { visible: Math.abs(pr.x) <= 1 && Math.abs(pr.y) <= 1, size, x: pr.x, y: pr.y };
 }
 
@@ -330,7 +401,9 @@ export function onScreen(c: Cam, s: Subject, f: number, aspect = 9 / 16): { visi
  *  shoulder) at the card's depth. The offsets are taken on the screen, not along the world's right: a card near the
  *  frame's edge sees a farther target on the other side of the screen from where the world's right puts it, and its
  *  arm points off the frame (Mona Lisa r4, 33.8 s: the painter at the left edge pointed away from the hooks). The
- *  story turns the metres into its drawing's units and clamps them to the arm's reach. */
+ *  story turns the metres into its drawing's units and clamps them to the arm's reach, and to the card: a hand target
+ *  past the card's edge, less the mitten's radius, is drawn with the mitten and the arm's outline cut off, a thin
+ *  coloured line with no hand (Mona Lisa r5, 33.95 s: a target at x 620 on a 600-unit card). */
 export function cardReach(c: Cam, from: V3, target: V3, aspect = 9 / 16): { side: number; up: number; depth: number } {
   const p = project(c, from, aspect), t = project(c, target, aspect);
   const v = c.fov * RAD, h = 2 * Math.atan(Math.tan(v / 2) * aspect), depth = Math.max(0.05, p.z);
@@ -344,15 +417,48 @@ export function cardReach(c: Cam, from: V3, target: V3, aspect = 9 / 16): { side
 }
 
 // ---- checks ---------------------------------------------------------------------------------------------------------
-export interface Issue { f: number; kind: 'under ground' | 'inside solid' | 'turn' | 'missing' | 'too small' | 'blocked' | 'in the way' | 'near the lens' | 'state'; detail: string }
+export interface Issue { f: number; kind: 'under ground' | 'inside solid' | 'turn' | 'missing' | 'too small' | 'blocked' | 'in the way' | 'near the lens' | 'under the caption' | 'still' | 'empty sky' | 'state'; detail: string; layer?: string }
+/** One canvas on screen over a run of frames: a dissolve shows two at once, each through its own camera, and a canvas
+ *  that leaves and comes back later is two runs. `blockers` are the solids and people of that canvas's place. */
+export interface LayerRun { id: string; from: number; to: number; camAt: (f: number) => Cam; blockers?: Blocker[] }
+/** The runs of every canvas from a to b, from the function the film draws its layers with (each layer an id and its
+ *  camera at frame f). Pass them to `audit`, `checkLens` and `motion`, so each layer of a dissolve is checked with its
+ *  own camera and a canvas that comes back later is checked again. Gibeon r4 needed a wrapper for this. */
+export function layerRuns(layersAt: (f: number) => { id: string; cam: Cam }[], a: number, b: number): LayerRun[] {
+  const open = new Map<string, LayerRun>(), out: LayerRun[] = [];
+  for (let f = a; f <= b; f++) {
+    const here = new Set<string>();
+    for (const l of layersAt(f)) {
+      here.add(l.id);
+      const r = open.get(l.id);
+      if (r) r.to = f;
+      else {
+        const run: LayerRun = { id: l.id, from: f, to: f, camAt: (g: number) => { const t = Math.min(Math.max(g, run.from), run.to); return layersAt(t).find(x => x.id === l.id)!.cam; } };
+        open.set(l.id, run); out.push(run);
+      }
+    }
+    for (const id of [...open.keys()]) if (!here.has(id)) open.delete(id);
+  }
+  return out;
+}
 /** degrees the view line turns between two cameras */
 export function turnDeg(a: Cam, b: Cam): number {
   const x = norm(sub(a.look, a.pos)), y = norm(sub(b.look, b.pos));
   return Math.acos(clamp(dot(x, y), -1, 1)) / RAD;
 }
+type AuditOptions = Safety & { maxTurn?: number; whips?: [number, number][] };
 /** Every frame from a to b: where the planned camera had to be corrected (under ground, inside a solid) and where it
- *  turns faster than `maxTurn` degrees a frame (default 4, about 120° a second at 30 fps) outside a planned whip. */
-export function audit(camAt: (f: number) => Cam, a: number, b: number, s: Safety & { maxTurn?: number; whips?: [number, number][] } = {}): Issue[] {
+ *  turns faster than `maxTurn` degrees a frame (default 4, about 120° a second at 30 fps) outside a planned whip.
+ *  Given layer runs (`layerRuns`) instead of one camera, it audits every run with its own camera; a turn is measured
+ *  only inside a run, never across a dissolve from one canvas to the other. */
+export function audit(runs: LayerRun[], s?: AuditOptions): Issue[];
+export function audit(camAt: (f: number) => Cam, a: number, b: number, s?: AuditOptions): Issue[];
+export function audit(camAt: ((f: number) => Cam) | LayerRun[], a?: number | AuditOptions, b?: number, s: AuditOptions = {}): Issue[] {
+  if (Array.isArray(camAt)) {
+    const o = (a as AuditOptions | undefined) ?? {};
+    return camAt.flatMap(r => audit(r.camAt, r.from, r.to, o).map(i => ({ ...i, layer: r.id, detail: `${r.id}: ${i.detail}` })));
+  }
+  a = a as number; b = b as number;
   const out: Issue[] = [], max = s.maxTurn ?? 4;
   let prev: Cam | null = null;
   for (let f = a; f <= b; f++) {
@@ -364,6 +470,63 @@ export function audit(camAt: (f: number) => Cam, a: number, b: number, s: Safety
       if (t > max && !whip) out.push({ f, kind: 'turn', detail: `${t.toFixed(1)}° in one frame` });
     }
     prev = c;
+  }
+  return out;
+}
+/** Every frame from a to b (or every layer run): the camera looking up into empty sky. Two tests:
+ *  - with `ground` (the terrain height at x, z, as `safe` takes it): more than `maxSky` (default 0.45) of the frame's
+ *    centre column is empty sky, its ray meeting neither the ground within `far` metres (default 3000) nor any
+ *    subject's sphere. It fails whatever else stands in the frame: a person under half a frame of blank sky is the
+ *    fault, while a close-up against the sky (the subject covers it) is not;
+ *  - always: the view points more than `maxPitch` degrees above level (default 12) while no subject is whole in the
+ *    frame (its centre in frame, at least `size` of the height, default 0.08, its top and bottom inside). Pass every
+ *    subject the film has.
+ *  A planned look at the sky (the sun the line names, a whip) is declared in `planned`, frames [from, to]. Why: the
+ *  joins stack forbids rising into empty sky, yet a fix round brought it back, the camera rising to make room for a
+ *  card, 60 to 70% of the frame blank and the person cut at the chest (Gibeon r5, 58.1 to 60.4 s), and nothing measured
+ *  it. Over every layer of Gibeon's film this finds 54 to 58% empty sky at 58.4 to 60.4 s, and otherwise only one
+ *  outgoing layer of a dissolve for 0.2 s (5.7 s): the shot before
+ *  that held him whole measures 33% (frame 1745), the opening's loaf held up against the sky 0%. A subject's sphere can
+ *  sit whole in the frame while the card it stands for is cut, which is why the sky share fails on its own. Subject
+ *  spheres are coarse: a huge one (a city wall) hides sky it does not cover. One issue a frame. */
+export interface SkyOptions { maxPitch?: number; ground?: (x: number, z: number) => number; maxSky?: number; far?: number; size?: number; aspect?: number; planned?: [number, number][] }
+export function checkSky(runs: LayerRun[], subjects: Subject[], opts?: SkyOptions): Issue[];
+export function checkSky(camAt: (f: number) => Cam, a: number, b: number, subjects: Subject[], opts?: SkyOptions): Issue[];
+export function checkSky(camAt: ((f: number) => Cam) | LayerRun[], a: number | Subject[], b?: number | SkyOptions, subjects: Subject[] = [], opts: SkyOptions = {}): Issue[] {
+  if (Array.isArray(camAt)) {
+    const subs = a as Subject[], o = (b as SkyOptions | undefined) ?? {};
+    return camAt.flatMap(r => checkSky(r.camAt, r.from, r.to, subs, o).map(i => ({ ...i, layer: r.id, detail: `${r.id}: ${i.detail}` })));
+  }
+  const f0 = a as number, f1 = b as number, out: Issue[] = [];
+  const maxPitch = opts.maxPitch ?? 12, maxSky = opts.maxSky ?? 0.45, far = opts.far ?? 3000, size = opts.size ?? 0.08, aspect = opts.aspect ?? 9 / 16;
+  for (let f = f0; f <= f1; f++) {
+    if ((opts.planned ?? []).some(([w0, w1]) => f >= w0 && f <= w1)) continue;
+    const c = camAt(f), fwd = norm(sub(c.look, c.pos)), pitch = Math.asin(clamp(fwd[1], -1, 1)) / RAD;
+    let sky = 0;
+    if (opts.ground) {
+      // the frame's centre column, 24 rows: a row is empty sky when its ray never drops below the ground within `far`
+      // and passes through no subject's sphere
+      const up0 = c.up ?? upFor(c.pos, c.look), right = norm(cross(fwd, up0)), camUp = cross(right, fwd), tv = Math.tan(c.fov * RAD / 2);
+      const rows = 24;
+      for (let r = 0; r < rows; r++) {
+        const y = 1 - (2 * r + 1) / rows, d = norm(add(fwd, scale(camUp, y * tv)));
+        const covered = subjects.some(s => { const q = sub(posOf(s, f), c.pos), t = dot(q, d); return t > 0 && len(sub(q, scale(d, t))) < radOf(s, f); });
+        if (covered) continue;
+        let hit = false;
+        for (let t = 2; t <= far && !hit; t *= 1.15) { const p = add(c.pos, scale(d, t)); if (p[1] <= opts.ground(p[0], p[2])) hit = true; }
+        if (!hit) sky++;
+      }
+      sky /= rows;
+    }
+    if (sky > maxSky) { out.push({ f, kind: 'empty sky', detail: `${(sky * 100).toFixed(0)}% of the frame is empty sky (over ${(maxSky * 100).toFixed(0)}%), looking ${pitch.toFixed(0)}° up` }); continue; }
+    if (pitch <= maxPitch) continue;
+    const whole = subjects.some(s => {
+      const o = onScreen(c, s, f, aspect);
+      if (!o.visible || o.size < size) return false;
+      const mid = (1 - o.y) / 2;
+      return mid - o.size / 2 >= 0 && mid + o.size / 2 <= 1;
+    });
+    if (!whole) out.push({ f, kind: 'empty sky', detail: `looking ${pitch.toFixed(0)}° up with no subject whole in the frame` });
   }
   return out;
 }
@@ -386,13 +549,19 @@ export interface MustSeeOptions {
   /** a blocker nearer than every subject that fills more than this share of the frame height is in the way
    *  (default 0.25: a rock taking a quarter of the frame in front of the column) */
   clutter?: number;
+  /** the caption band, as shares of the frame height from the top (where the project draws its captions, e.g.
+   *  { top: 0.64, bottom: 0.76 }). A `words: true` subject whose top or bottom edge (its centre plus or minus its
+   *  radius) falls inside the band, or that spans it, fails: the caption covers the words. Mona Lisa r4 hung a slate
+   *  at 64 to 80% of the height, the size check passed it, and the caption covered its "28" (critique r5). */
+  captions?: { top: number; bottom: number };
 }
 /** whether the straight line from the lens to a subject passes through a blocker (one that holds the lens or the
  *  subject itself does not count) */
 function hides(c: Cam, s: Subject, f: number, b: Blocker): boolean {
   const target = posOf(s, f), d = sub(target, c.pos), L = len(d), bc = blockerAt(b, f);
-  if (len(sub(c.pos, bc)) <= b.r || len(sub(target, bc)) <= b.r + s.r) return false;
-  const dir = scale(d, 1 / L), t = clamp(dot(sub(bc, c.pos), dir), 0, Math.max(0, L - s.r));
+  const sr = radOf(s, f);
+  if (len(sub(c.pos, bc)) <= b.r || len(sub(target, bc)) <= b.r + sr) return false;
+  const dir = scale(d, 1 / L), t = clamp(dot(sub(bc, c.pos), dir), 0, Math.max(0, L - sr));
   return len(sub(bc, add(c.pos, scale(dir, t)))) < b.r;
 }
 /** Checks each promise from its word for `hold` frames (default 6, a fifth of a second): every subject in frame, big
@@ -407,11 +576,16 @@ export function checkMustSee(camAt: (f: number) => Cam, subjects: Record<string,
         const s = subjects[name];
         if (!s) { out.push({ f, kind: 'missing', detail: `"${p.word}": no subject named ${name}` }); continue; }
         const o = onScreen(c, s, f, aspect);
-        nearest = Math.min(nearest, project(c, posOf(s, f), aspect).z - s.r);
+        nearest = Math.min(nearest, project(c, posOf(s, f), aspect).z - radOf(s, f));
         if (!o.visible) { out.push({ f, kind: 'missing', detail: `"${p.word}": ${name} is out of frame` }); continue; }
         if (o.size < (p.size ?? (p.words ? WORDS_SIZE : MUST_SEE_SIZE))) out.push({ f, kind: 'too small', detail: `"${p.word}": ${name} fills ${(o.size * 100).toFixed(0)}% of the height` });
         const b = blockers.find(bl => hides(c, s, f, bl));
         if (b) out.push({ f, kind: 'blocked', detail: `"${p.word}": ${name} is behind ${b.name ?? 'a blocker'}` });
+        if (p.words && opts.captions) {
+          // edges as shares of the height from the top: y runs from 1 (top) to -1 (bottom) in project()
+          const half = o.size * 0.5, top = (1 - o.y) / 2 - half, bottom = (1 - o.y) / 2 + half, band = opts.captions;
+          if (bottom > band.top && top < band.bottom) out.push({ f, kind: 'under the caption', detail: `"${p.word}": ${name} spans ${(top * 100).toFixed(0)}% to ${(bottom * 100).toFixed(0)}% of the height, across the caption band (${(band.top * 100).toFixed(0)}% to ${(band.bottom * 100).toFixed(0)}%)` });
+        }
       }
       for (const b of blockers) {
         const bc = blockerAt(b, f);
@@ -430,8 +604,18 @@ export function checkMustSee(camAt: (f: number) => Cam, subjects: Record<string,
  *  a person) within `near` metres of the lens (default 6) that fills more than `size` of the frame height (default
  *  0.15). `checkMustSee` looks only on each word and its hold, so a rock that crosses the lens between two words
  *  passes it (Gibeon r3: a rock across the lens at 45.4 to 46.2 s; run on every frame, this found a bush 5.4 m away
- *  filling 17% at 45.8 s). Pass the camera of each layer that is on screen, dissolves included. One issue a frame. */
-export function checkLens(camAt: (f: number) => Cam, a: number, b: number, blockers: Blocker[], opts: { near?: number; size?: number; aspect?: number } = {}): Issue[] {
+ *  filling 17% at 45.8 s). One issue a frame. Pass layer runs (`layerRuns`) to check every layer of a dissolve with its
+ *  own camera and blockers: `checkLens(runs, { blockers })`. */
+type LensOptions = { near?: number; size?: number; aspect?: number };
+export function checkLens(runs: LayerRun[], opts?: LensOptions & { blockers?: Blocker[] }): Issue[];
+export function checkLens(camAt: (f: number) => Cam, a: number, b: number, blockers: Blocker[], opts?: LensOptions): Issue[];
+export function checkLens(camAt: ((f: number) => Cam) | LayerRun[], a?: number | (LensOptions & { blockers?: Blocker[] }), b?: number, blockers: Blocker[] = [], opts: LensOptions = {}): Issue[] {
+  if (Array.isArray(camAt)) {
+    // every layer of every frame, each with its own camera and its own place's blockers (or the shared list)
+    const o = (a as (LensOptions & { blockers?: Blocker[] }) | undefined) ?? {};
+    return camAt.flatMap(r => checkLens(r.camAt, r.from, r.to, r.blockers ?? o.blockers ?? [], o).map(i => ({ ...i, layer: r.id, detail: `${r.id}: ${i.detail}` })));
+  }
+  a = a as number; b = b as number;
   const out: Issue[] = [], near = opts.near ?? 6, size = opts.size ?? 0.15, aspect = opts.aspect ?? 9 / 16;
   for (let f = a; f <= b; f++) {
     const c = camAt(f);
@@ -445,5 +629,41 @@ export function checkLens(camAt: (f: number) => Cam, a: number, b: number, block
       }
     }
   }
+  return out;
+}
+
+// ---- how much the camera moves --------------------------------------------------------------------------------------
+/** How much the camera moves in each second from a to b, from the camera paths alone (no render): the turn, the zoom
+ *  (change of fov) and the move over the look distance, all in degrees, summed over the second's frames. Given layer
+ *  runs, each frame counts its liveliest layer, and a dissolve from one canvas to another is never a move. Gibeon r4:
+ *  the critic's stillest stretch (48 to 50 s) measured 5, 4 and 9 here before the fix and 22, 119 and 51 after, while
+ *  its one planned stop stayed at 2. Element k of the result is the second starting at frame a + k * fps. */
+export function motion(camAt: ((f: number) => Cam) | LayerRun[], a: number, b: number, fps = 30): number[] {
+  const runs: LayerRun[] = Array.isArray(camAt) ? camAt : [{ id: 'camera', from: a, to: b, camAt }];
+  const step = (c0: Cam, c1: Cam) => turnDeg(c0, c1) + Math.abs(c1.fov - c0.fov) + Math.atan(len(sub(c1.pos, c0.pos)) / Math.max(0.1, len(sub(c0.look, c0.pos)))) / RAD;
+  const out: number[] = [];
+  for (let f = a + 1; f <= b; f++) {
+    let m = 0;
+    for (const r of runs) if (f - 1 >= r.from && f <= r.to) m = Math.max(m, step(r.camAt(f - 1), r.camAt(f)));
+    const k = Math.floor((f - a - 1) / fps);
+    out[k] = (out[k] ?? 0) + m;
+  }
+  return out;
+}
+/** Seconds the camera barely moves, against the video's dynamics profile: a run of more seconds than the profile's
+ *  longest hold (default 2) under `min` (default 10, from Gibeon r4: the critic's stillest seconds measured 4 to 9, a
+ *  lively stretch 20 and more) is flagged, except inside a planned hold (`holds`, seconds [from, to]: a stop the
+ *  profile wants). Run it where the profile asks for pace; a face-led profile with long holds sets a longer
+ *  `longestHold` and lists its holds. `from` is the frame `motion` started at (its `a`), `fps` its rate. */
+export function checkMotion(perSecond: number[], opts: { min?: number; longestHold?: number; holds?: [number, number][]; from?: number; fps?: number } = {}): Issue[] {
+  const min = opts.min ?? 10, longest = opts.longestHold ?? 2, from = opts.from ?? 0, fps = opts.fps ?? 30, start = from / fps, out: Issue[] = [];
+  const held = (t: number) => (opts.holds ?? []).some(([h0, h1]) => t >= h0 && t < h1);
+  let run: number[] = [];
+  const close = () => {
+    if (run.length > longest) out.push({ f: from + run[0] * fps, kind: 'still', detail: `${run.length} seconds from ${start + run[0]} s under ${min} (${run.map(k => perSecond[k].toFixed(0)).join(', ')})` });
+    run = [];
+  };
+  perSecond.forEach((v, k) => { if (v < min && !held(start + k)) run.push(k); else close(); });
+  close();
   return out;
 }
