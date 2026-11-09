@@ -5,6 +5,11 @@ very interesting to see it").
     python3 production_log.py add <log> --story S --stage STAGE --step "what was done" [--round N]
                                   [--by "opus agent"] [--minutes M] [--tokens T] [--at ISO] [--note "..."]
     python3 production_log.py report <log> [--story S]
+    python3 production_log.py rounds <log> [--story S]
+
+A critique row carries --score (the critic's average, 0-3). `rounds` lists each story's critiques in order with the
+score, the change from the round before, and the agent hours and calendar hours spent up to that point, so the cost of
+each step up is plain.
 
 <log> is the project's docs/production-log.jsonl, one JSON line per step. Stages:
   study     studying a reference video          script    choosing the story, writing the script
@@ -29,6 +34,8 @@ STAGES = ['study', 'script', 'voice', 'plan', 'world', 'people', 'camera', 'buil
 def add(a):
     row = {'at': a.at or datetime.now(timezone.utc).isoformat(timespec='minutes'), 'story': a.story, 'stage': a.stage,
            'round': a.round, 'step': a.step, 'by': a.by, 'minutes': a.minutes, 'tokens': a.tokens}
+    if a.score is not None:
+        row['score'] = a.score
     if a.note:
         row['note'] = a.note
     with open(a.log, 'a') as f:
@@ -75,6 +82,27 @@ def report(a):
             print(f'{st:10s} {n:4d} {m / n:8.1f} {fmt_t(t / n):>8s}')
 
 
+def rounds(a):
+    rows = sorted((json.loads(l) for l in open(a.log) if l.strip()), key=lambda r: r['at'])
+    stories = [a.story] if a.story else sorted({r['story'] for r in rows if r['stage'] == 'critique' and 'score' in r})
+    for story in stories:
+        rs = [r for r in rows if r['story'] == story]
+        if not rs:
+            continue
+        t0, mins, prev = datetime.fromisoformat(rs[0]['at']), 0.0, None
+        print(f'\n## {story}')
+        print(f'{"critique":>8s} {"score":>5s} {"gain":>6s} {"agent h":>7s} {"calendar h":>10s}  at')
+        n = 0
+        for r in rs:
+            mins += r.get('minutes') or 0
+            if r['stage'] == 'critique' and 'score' in r:
+                n += 1
+                gain = '' if prev is None else f'{r["score"] - prev:+.2f}'
+                cal = (datetime.fromisoformat(r['at']) - t0).total_seconds() / 3600
+                print(f'{n:8d} {r["score"]:5.2f} {gain:>6s} {mins / 60:7.1f} {cal:10.1f}  {r["at"][:16]}')
+                prev = r['score']
+
+
 def main():
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest='cmd', required=True)
@@ -83,11 +111,13 @@ def main():
     pa.add_argument('--stage', required=True, choices=STAGES); pa.add_argument('--step', required=True)
     pa.add_argument('--round', type=int); pa.add_argument('--by', default='coordinator')
     pa.add_argument('--minutes', type=float); pa.add_argument('--tokens', type=int)
-    pa.add_argument('--at'); pa.add_argument('--note')
+    pa.add_argument('--at'); pa.add_argument('--note'); pa.add_argument('--score', type=float)
     pr = sub.add_parser('report')
     pr.add_argument('log'); pr.add_argument('--story')
+    pd = sub.add_parser('rounds')
+    pd.add_argument('log'); pd.add_argument('--story')
     a = p.parse_args()
-    add(a) if a.cmd == 'add' else report(a)
+    {'add': add, 'report': report, 'rounds': rounds}[a.cmd](a)
 
 
 if __name__ == '__main__':
