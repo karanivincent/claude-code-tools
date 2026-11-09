@@ -238,7 +238,8 @@ r4's fix agents looked for the tool in the project, did not find it and logged n
 it, minutes and tokens. An agent's minutes and tokens are in its finish notice (`duration_ms`, `subagent_tokens`;
 a resumed agent reports its running total, so log what this run added). A render's minutes are in its output; make
 render tools print them. `production_log.py report <log>` sums each story by stage and averages each stage across
-stories; put its numbers on the review page with the video.
+stories; a critique row carries `--score`, and `production_log.py rounds <log>` lists each story's scores with the
+hours spent to reach each one. Put both on the review page with the video.
 
 ## After every critique: fix the making
 
