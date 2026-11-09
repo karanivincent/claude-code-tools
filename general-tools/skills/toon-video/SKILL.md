@@ -62,7 +62,8 @@ and effects cost money. This skill holds the craft. A project or channel can add
      place, drawn in code: `toon-world` "Looks, scene by scene"), the parts plan (which part comes from code, a
      picture, a 3D model or an effect), and one picture per place where the look uses pictures. Vincent picks; looks
      may differ scene by scene, never within one frame.
-   - d. **Still board.** One Higgsfield still per beat (`gpt_image_2_6`, 9:16), each made with the place's master
+   - d. **Still board.** One Higgsfield still per beat (`gpt_image_2_6`, 9:16, with `resolution: "2k"` and `quality:
+     "high"` for any picture that becomes a texture; without them the result comes back about 750 px wide), each made with the place's master
      picture and the cast sheet as image references, the prompt saying the people and animals stay flat 2D cartoon
      cards exactly as on the cast sheet, lit by the place, never realistic or 3D. Check every still at full size: a
      realistic person or a 3D animal is redone, not approved. The 3D build then follows the approved stills.
@@ -232,6 +233,16 @@ everything, even when we are getting inspiration from them").
 - At most one frame in four is a face close-up. The world is the star.
 - The camera shakes only on hits.
 
+**A ratio the story states is held by the framing, not by moving the story's objects.** When a frame must say "a few
+lost among many" (41 of 400), frame wide over the whole group for that beat and close on the few for the beat that
+shows them; spreading the few apart to fix the ratio makes them small everywhere else (Wald bombers, rounds 3 to 5).
+
+**Captions never cover a face: make it impossible.** Place each caption word from the projected boxes of every visible
+head, the line's subject and any drawing being read, keep one height per shot and never lower than about 82% of the
+frame (the phone's Short buttons sit below), and make the camera check fail on any overlap. Why: captions sat on Wald's
+eyes in his puzzled close-up and on the chalk plane's engine dots in rounds 2 to 4, each time after a critic had to
+find them.
+
 ## Acting
 
 - **Emotion is drawn, not narrated.** The flat look's dot eyes and small mouths cannot show strong
@@ -343,6 +354,9 @@ written in one project (bible-shorts) and never reached the next (Epiclings), wh
   alignment marks a plosive's vowel, not its burst, so a shorter lead cuts the burst off. Why: a 0.04 s lead cut the P
   off "Paris", heard as "Chris" (Mona Lisa, Ember take, 9 November 2026). Check with whisper on the cut line, not the
   raw take.
+- **A whispered or hushed line needs room to be lifted.** Level each line to the film's line loudness with a gain
+  clamp wide enough for it (up to +16 dB); a clamp of +8 left a whispered reveal at −31 LUFS, far under its neighbours
+  (Wald bombers, 9 November 2026).
 - **A new narrator re-runs the mix check.** A quieter or more dynamic narrator (Ember at stability 0) changes every
   line's margin over the same bed: the Mona Lisa's bed, levelled while Laura narrated and left as it was, sat 1.2 dB
   over Ember's plumber line at its loudest.
@@ -374,6 +388,8 @@ written in one project (bible-shorts) and never reached the next (Epiclings), wh
   voice under two lines and every line short. With the murmur cut and moved onto the music, and the bed turned down,
   the averages rose to 12 to 21 dB and six lines were still short, the plumber's steps 5.4 dB under his line. With the
   whole bed held under each line: 12.0 dB at the least, 17.6 median. Gibeon's run-by-run hold: 10.8 least, 18.2 median.
+- **Music in sections: each section is 3 s or longer.** ElevenLabs' composition plan refuses a shorter section (HTTP
+  422); merge a short beat into its neighbour and mark the change with an effect instead.
 - Effects still land on their words: level each effect to a loudness (LUFS of the file alone), not a raw gain, so a
   quiet take and a loud one sit alike. Then two-pass `loudnorm` to about −14 LUFS for the whole mix.
 
@@ -401,7 +417,7 @@ render tools print them. `production_log.py report <log>` sums each story by sta
 stories; a critique row carries `--score`, and `production_log.py rounds <log>` lists each story's scores with the
 hours spent to reach each one, and ends with the count of rounds against the aim. Put both on the review page with
 the video. **Count the rounds: the aim is three** critiques from the first cut to the owner's yes. Gibeon took six and
-the Mona Lisa seven; the three levers below are what would have saved the rest.
+the Mona Lisa seven; the levers below are what would have saved the rest.
 
 ## After every critique: fix the making
 
@@ -419,7 +435,7 @@ the critique, on one full-size frame of every shot, asked whether each place cou
 `references/findings.md`: the fault, what allowed it, the change and its level. A kind of finding that comes back
 means its fix was too weak: move it up a level.
 
-### Three rounds, not seven: the three levers
+### Three rounds, not seven: the levers
 
 Vincent asked, 9 November 2026, how the Mona Lisa's seven rounds could have been three. Three habits cost the extra
 rounds, and each has its fix:
@@ -438,6 +454,11 @@ rounds, and each has its fix:
 3. **The owner sees the still board before the build** (step 4 d), with the planner's notes on words, language, the
    subject's size against its neighbours and how the line's thing is shown. Why: his six Mona Lisa notes came after
    round 6 and each would have been seen on the board.
+4. **A fix is compared with the last two cuts at the same seconds before it is committed**, so it cannot undo an
+   earlier gain. A fix for one finding often moves something another fix depended on. Why: the Wald bombers' round 4
+   scored the same as round 3 (2.43): spreading the falling planes' slots to fix the reveal's ratio shrank every fall
+   from 15 to 25% of the width to 5 to 12%, and the first colour push added lilac shade and lime grass. With the
+   comparison in round 5, it rose to 2.51.
 
 ## Long videos: the series library
 

@@ -167,6 +167,13 @@ a copy of a Ricks Clips Short scored round by round against the original.
 
 ## 2. The look stack (what makes 3D read as a cartoon)
 
+**Colour: bright and inviting.** Vincent wants the colour feel of a bright mobile game (Brawl Stars, 9 November
+2026): saturated sky and grass, warm golden sun, shade tinted blue or violet instead of grey, especially in the
+first seconds. Push it in passes, each with a before and after sheet of the same frames from the real composition,
+and look hardest at the large flat surfaces, where a grade push goes wrong first: concrete shade turned lilac, wide
+grass turned acid lime, a desk top turned red-orange (Wald bombers, round 4). A bare-metal hero reads flat grey
+unless it carries warm sun on its upper faces, sky colour on its sides and a crisp highlight.
+
 Composer order, every story: ink, lens blur (pre, main), bloom on light sources only, NEUTRAL tone map, grade; MSAA 4.
 Every pixel size scales with output height / 1920. Files in `templates/look/`; numbers in `references/look-targets.md`.
 
