@@ -173,6 +173,46 @@ export function follow(fr: Framing, a: number, b: number, every = 6): Key[] {
   return out;
 }
 
+// ---- journeys that show where they go -------------------------------------------------------------------------------
+const smoother = (k: number) => { const c = clamp(k); return c * c * c * (c * (6 * c - 15) + 10); };
+/** A journey to a far place that keeps the destination in sight, so the viewer sees where it is and how far (Vincent,
+ *  9 November 2026: "zoom out ... then zoom in directly, maybe at the horizon, and there we can find the next city").
+ *  From the `start` camera the view turns onto the destination over `turn` frames (default 12), then the camera
+ *  travels to the destination's framing at frame b, looking at it all the way. `lift` raises the middle of the flight
+ *  (metres) to see over what lies between. Replaces the rise into the sky and the fall onto the next place.
+ *  A big turn takes a frame for every 3°; `seenFrom` on the result says when the destination comes into view.
+ *  The look points sit at the start camera's look distance, so join the result to keys of a similar look distance. */
+export function approach(a: number, b: number, start: Cam, dest: Framing, opts: { turn?: number; every?: number; lift?: number } = {}): Key[] & { seenFrom: number } {
+  const every = opts.every ?? 2, lift = opts.lift ?? 0;
+  const end = frameOn(dest, b), out: Key[] = [];
+  // the turn takes at least a frame for every 3° (the smooth ease peaks near 6° a frame), never more than half the flight
+  const d0 = norm(sub(start.look, start.pos)), d1 = norm(sub(enclose(dest.subjects, a).c, start.pos));
+  const angle = Math.acos(clamp(dot(d0, d1), -1, 1)) / RAD;
+  const turn = Math.min(Math.max(opts.turn ?? 12, angle / 3), (b - a) / 2);
+  const reach = clamp(len(sub(start.look, start.pos)), 5, 60);
+  /** turn a direction toward another by k along the great circle, so the view sweeps at an even rate */
+  const slerp = (u: V3, v: V3, k: number): V3 => {
+    const th = Math.acos(clamp(dot(u, v), -1, 1));
+    if (th < 1e-4) return v;
+    const s = Math.sin(th);
+    return norm(add(scale(u, Math.sin((1 - k) * th) / s), scale(v, Math.sin(k * th) / s)));
+  };
+  for (let f = a; ; f = Math.min(b, f + every)) {
+    const k = (f - a) / (b - a), e = smoother(k);
+    const c = enclose(dest.subjects, f).c;
+    const pos = add(mix(start.pos, end.pos, e), [0, lift * Math.sin(Math.PI * k), 0]);
+    // the look point stays a fixed distance ahead and only its direction changes: a key path through look points at
+    // very different distances (15 m, then 600 m) overshoots behind the camera and flips the picture
+    const target = f - a < turn ? c : mix(c, end.look, smoother((f - a - turn) / Math.max(1, b - a - turn)));
+    const dir = f - a < turn ? slerp(d0, norm(sub(c, pos)), smoother((f - a) / turn)) : norm(sub(target, pos));
+    const look = add(pos, scale(dir, reach));
+    out.push(K(f, pos, look, lerp(start.fov, end.fov, e), 0, f === a || f === b));
+    if (f === b) break;
+  }
+  // seenFrom: the first frame the destination is in view; promise it in the must-see list from there to b
+  return Object.assign(out, { seenFrom: a + Math.ceil(turn) });
+}
+
 // ---- what is on screen ----------------------------------------------------------------------------------------------
 /** where a world point lands: x and y from -1 to 1 across the frame (y up), z its distance in front of the lens
  *  (negative is behind). Roll is ignored. */

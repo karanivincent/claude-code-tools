@@ -13,6 +13,7 @@ the project copy; fix it here and sync again. Tests: `node --test kit/camera.tes
 | `K`, `path` | A smooth key path. `stop` keys hold still. |
 | `frameOn`, `shot` | The camera that shows named subjects at a size (share of the frame height), from a compass bearing and an elevation, with the group placed anywhere in the frame. |
 | `follow` | Keys every few frames that keep framing moving subjects (a walk, a column). |
+| `approach` | A journey to a far place that keeps the destination in sight: turn onto it, then travel to its framing, `lift` to rise over what lies between. `seenFrom` says when it comes into view. The horizon approach in `toon-video` references/joins.md. |
 | `safe` | Above the ground, outside solids (boxes), with a usable up. Says what it corrected. |
 | `upFor` | Up that never runs along the view line, so a straight-down view cannot spin or flip. |
 | `project`, `onScreen` | Where a point lands in the frame; whether a subject is in frame and how big. |

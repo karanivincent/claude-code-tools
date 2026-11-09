@@ -104,8 +104,8 @@ everything, even when we are getting inspiration from them").
 
 - **Shots by subject** (toon-kit `camera.ts`, synced with `toon-world/scripts/sync-kit.mjs`). Write each shot from the
   must-see list: `shot(word, { subjects, size, az, el })` for a held framing, `follow(...)` for someone moving. The
-  camera is worked out from what must be seen, so it cannot fall off the subject. Keep raw keys for whips and
-  world-made joins only. Gibeon's night march (9 November 2026) used hand-typed keys that raced ahead of the column,
+  camera is worked out from what must be seen, so it cannot fall off the subject. Use `approach` for a journey to a far place (the
+  destination stays in sight). Keep raw keys for whip reveals and world-made joins only. Gibeon's night march (9 November 2026) used hand-typed keys that raced ahead of the column,
   so "marched all night to save them" showed an empty hillside; `follow` on the column fixed it, and the check below
   found the fault in under a second with no render.
 - **Check the camera before any render.** Run `safe` on every camera (above the ground, outside solids, a usable up),
@@ -123,10 +123,12 @@ everything, even when we are getting inspiration from them").
   above.
 - **Cameras on uneven ground are ground-relative.** Give heights above the ground under each point,
   not absolute heights, or cameras end up underground.
-- **No hard cuts: swing.** About 0.35 s within one place, 0.45 s to a nearby one, 0.8 s with a rise
-  and a blur at the middle between far places (switch the set at the blur, so the camera never flies
-  through a wall). A swing eats the start of the next shot: any shot under about 0.6 s becomes all
-  flight, so time short shots on an earlier word. Aim for fewer than 10 hard cuts a video.
+- **Joins come from the stack, each with its reason** (`references/joins.md`, 9 November 2026). For every join, say
+  what it has to do (go far and show where, go in time, follow cause to effect, go inside), pick the entry that does
+  it, and write the reason in the shot list. A move whose reason you cannot say out loud is not a join: hold,
+  dissolve or cut. Never rise into empty sky and fall onto the next place: Gibeon 2D did that between every far place
+  and it read as the camera moving for its own sake. Within one place, follow the subject. One hard cut at most,
+  saved for the twist, plus the loop back to frame 0.
 - **What the hard-cut count sees** (Jacob wrestles 2D, 19 cuts down to 7): an inverted impact frame counts twice (in
   and out), and a fast flight between far places counts several times. Show a hit with speed lines alone, and dip
   the picture to white across a far flight (peak at its middle). A far flight eats about 0.8 s, so start it a word
@@ -244,7 +246,7 @@ with frames from before the change. A new look is a new option, never a changed 
 | Mistake | Instead |
 |---|---|
 | Talking heads on plain ground | A set list per place; at most 1 frame in 4 a face |
-| A hard cut between every shot | A camera swing, with the switch at the blur |
+| A hard cut between every shot | A join from `references/joins.md`, with its reason |
 | Aiming at the place, so a person sits just off-frame | Aim between the people, both within 10° of centre |
 | "His anger burned" over a calm face | The anger face, on every angry beat |
 | A thrown thing nobody sees | Four beats, twice as thick, a ghost trail, a side-on throw |
@@ -252,7 +254,7 @@ with frames from before the change. A new look is a new option, never a changed 
 | An empty seat with someone standing in front of it | Low, across it, nothing on the line |
 | Thin-finger hands | Mittens |
 | A beardless grown man in a long robe (reads as a woman) | A beard, or a pharaoh's plait |
-| A swing that flies through walls between far places, or a hard cut there | Tilt up to the sky at the middle of a flight over 40 m and come down on the next place: a whip, 0.25 to 0.5 s of blurred sky |
+| A swing that flies through walls between far places, or a rise into empty sky and down again | A horizon approach or a map zoom that shows where the next place is, or a moving dissolve (`references/joins.md`) |
 | Trusting a render that ran overnight | Check `df` and the output file's time: a full disk fails every frame write while the old file stays |
 | Words on the ground | Words on a screen card |
 | A prop that appears only when it matters | Introduce it early |
