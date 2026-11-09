@@ -1,7 +1,7 @@
 // Run: node --test general-tools/skills/toon-world/kit/camera.test.ts   (Node 22.6+ strips the types itself)
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { K, path, safe, upFor, frameOn, shot, follow, onScreen, project, audit, checkMustSee, turnDeg, norm, sub, dot, cross, type Subject, type V3, type Cam, type Blocker } from './camera.ts';
+import { K, path, safe, upFor, frameOn, shot, follow, onScreen, project, audit, checkMustSee, approach, turnDeg, norm, sub, dot, cross, type Subject, type V3, type Cam, type Blocker } from './camera.ts';
 
 const near = (a: number, b: number, tol: number, msg = '') => assert.ok(Math.abs(a - b) <= tol, `${msg} ${a} is not within ${tol} of ${b}`);
 
@@ -110,3 +110,18 @@ test('the must-see check finds a subject hidden behind a rock, and a rock crowdi
   const behind: Blocker = { c: [2, 1, -12], r: 1, name: 'far rock' };
   assert.equal(checkMustSee(camAt, { envoy }, [{ word: 'envoy', f: 0, subjects: ['envoy'], hold: 0 }], { blockers: [behind] }).length, 0);
 });
+
+test('approach keeps a far destination in frame after its turn and arrives at its framing', () => {
+  const start: Cam = { pos: [0, 6, 0], look: [0, 2, -40], fov: 44 };          // looking north at an army
+  const city: Subject = { name: 'city', at: [600, 10, 40], r: 70 };            // 600 m east
+  const fr = { subjects: [city], size: 0.55, az: 217, el: 25 };
+  const keys = approach(0, 90, start, fr, { turn: 15, lift: 30 });
+  const camAt = (f: number) => path(keys, f);
+  assert.ok(keys.seenFrom > 15 && keys.seenFrom < 45, `seen from ${keys.seenFrom}`);
+  assert.equal(checkMustSee(camAt, { city }, [{ word: 'Jericho', f: keys.seenFrom, subjects: ['city'], size: 0.02, hold: 90 - keys.seenFrom }]).length, 0);
+  const end = frameOn(fr, 90);
+  near(len3(sub(camAt(90).pos, end.pos)), 0, 1e-6, 'arrives');
+  assert.ok(!audit(camAt, 0, 90, { maxTurn: 6 }).some(i => i.kind === 'turn'), 'no whip-fast turn');
+  assert.ok(camAt(45).pos[1] > Math.min(start.pos[1], end.pos[1]), 'the lift raises the middle');
+});
+const len3 = (v: V3) => Math.hypot(v[0], v[1], v[2]);

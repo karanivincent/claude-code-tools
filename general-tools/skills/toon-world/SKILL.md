@@ -142,6 +142,11 @@ Every pixel size scales with output height / 1920. Files in `templates/look/`; n
 - **Two-tone light** (`shade.ts`, `lights.ts`): a lit colour and a shade colour per surface. Shade is blue-grey
   indoors and violet-blue outdoors at sunset, never brown or black. Day and golden presets in `lights.ts`; for an
   interior use one warm key per framing, set relative to the camera, and neutral blue-grey shade.
+- **The era through objects, never through fading** (Vincent, 9 November 2026, on the Mona Lisa heist's 1911: "the
+  buildings are still pale ... we can make things a little bit more modern"). Clothes, signs, cars, lettering and
+  props say when it is; the colours stay bright and modern, saturation about 0.50 to 0.58, no sepia, no faded or
+  greyed grade, no deep blacks. A faded grade is allowed only for a marked flashback inside a story. Picture prompts
+  for a period place ask for vivid modern cartoon colours too, or the picture brings the fading in.
 - **Grade** (`grade.ts`): a tone curve, three-zone tint, lifted warm blacks and a vignette, fitted to the targets.
   Metals and gold at about 60% albedo, or they go lemon under the lit multiplier.
 - **Bloom** only on real light sources (threshold 1.0). White faces never glow.
