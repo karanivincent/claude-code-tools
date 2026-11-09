@@ -192,7 +192,7 @@ export function onScreen(c: Cam, s: Subject, f: number, aspect = 9 / 16): { visi
 }
 
 // ---- checks ---------------------------------------------------------------------------------------------------------
-export interface Issue { f: number; kind: 'under ground' | 'inside solid' | 'turn' | 'missing' | 'too small'; detail: string }
+export interface Issue { f: number; kind: 'under ground' | 'inside solid' | 'turn' | 'missing' | 'too small' | 'blocked' | 'in the way' | 'state'; detail: string }
 /** degrees the view line turns between two cameras */
 export function turnDeg(a: Cam, b: Cam): number {
   const x = norm(sub(a.look, a.pos)), y = norm(sub(b.look, b.pos));
@@ -218,18 +218,50 @@ export function audit(camAt: (f: number) => Cam, a: number, b: number, s: Safety
 /** One promise per line from the plan: on frame f (the word), these subjects are in frame, each at least `size` of
  *  the frame's height (default 0.08, about what reads on a phone). */
 export interface MustSee { word: string; f: number; subjects: string[]; size?: number; hold?: number }
-/** Checks each promise from its word for `hold` frames (default 6, a fifth of a second). */
-export function checkMustSee(camAt: (f: number) => Cam, subjects: Record<string, Subject>, must: MustSee[], aspect = 9 / 16): Issue[] {
-  const out: Issue[] = [];
+/** Something solid that can stand in the way: a sphere around a rock, a bush, a pillar, a person who is not the
+ *  subject. Give the same positions the scene draws from, so the check and the picture cannot disagree. */
+export interface Blocker { c: V3; r: number; name?: string }
+export interface MustSeeOptions {
+  aspect?: number;
+  /** solids that may hide a subject or crowd the lens */
+  blockers?: Blocker[];
+  /** a blocker nearer than every subject that fills more than this share of the frame height is in the way
+   *  (default 0.25: a rock taking a quarter of the frame in front of the column) */
+  clutter?: number;
+}
+/** whether the straight line from the lens to a subject passes through a blocker (one that holds the lens or the
+ *  subject itself does not count) */
+function hides(c: Cam, s: Subject, f: number, b: Blocker): boolean {
+  const target = posOf(s, f), d = sub(target, c.pos), L = len(d);
+  if (len(sub(c.pos, b.c)) <= b.r || len(sub(target, b.c)) <= b.r + s.r) return false;
+  const dir = scale(d, 1 / L), t = clamp(dot(sub(b.c, c.pos), dir), 0, Math.max(0, L - s.r));
+  return len(sub(b.c, add(c.pos, scale(dir, t)))) < b.r;
+}
+/** Checks each promise from its word for `hold` frames (default 6, a fifth of a second): every subject in frame, big
+ *  enough, not hidden behind a blocker, and no blocker crowding the lens in front of them. */
+export function checkMustSee(camAt: (f: number) => Cam, subjects: Record<string, Subject>, must: MustSee[], opts: MustSeeOptions = {}): Issue[] {
+  const out: Issue[] = [], aspect = opts.aspect ?? 9 / 16, blockers = opts.blockers ?? [], clutter = opts.clutter ?? 0.25;
   for (const p of must) {
     for (let f = p.f; f <= p.f + (p.hold ?? 6); f++) {
       const c = camAt(f);
+      let nearest = Infinity;
       for (const name of p.subjects) {
         const s = subjects[name];
         if (!s) { out.push({ f, kind: 'missing', detail: `"${p.word}": no subject named ${name}` }); continue; }
         const o = onScreen(c, s, f, aspect);
-        if (!o.visible) out.push({ f, kind: 'missing', detail: `"${p.word}": ${name} is out of frame` });
-        else if (o.size < (p.size ?? 0.08)) out.push({ f, kind: 'too small', detail: `"${p.word}": ${name} fills ${(o.size * 100).toFixed(0)}% of the height` });
+        nearest = Math.min(nearest, project(c, posOf(s, f), aspect).z - s.r);
+        if (!o.visible) { out.push({ f, kind: 'missing', detail: `"${p.word}": ${name} is out of frame` }); continue; }
+        if (o.size < (p.size ?? 0.08)) out.push({ f, kind: 'too small', detail: `"${p.word}": ${name} fills ${(o.size * 100).toFixed(0)}% of the height` });
+        const b = blockers.find(bl => hides(c, s, f, bl));
+        if (b) out.push({ f, kind: 'blocked', detail: `"${p.word}": ${name} is behind ${b.name ?? 'a blocker'}` });
+      }
+      for (const b of blockers) {
+        const o = onScreen(c, { name: b.name ?? 'blocker', at: b.c, r: b.r }, f, aspect);
+        const z = project(c, b.c, aspect).z;
+        if (o.visible && z < nearest && o.size > clutter) {
+          out.push({ f, kind: 'in the way', detail: `"${p.word}": ${b.name ?? 'a blocker'} fills ${(o.size * 100).toFixed(0)}% of the frame in front of the subject` });
+          break;
+        }
       }
     }
   }
