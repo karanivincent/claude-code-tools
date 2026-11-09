@@ -18,8 +18,11 @@ You make it sound like theirs without copying their words.
 3. Voice it as `toon-video` says (cached lines, whisper check). Read the ElevenLabs balance before and
    after with node and `--env-file`; never print a key.
 4. Music in sections matching their energy changes; effects on the moments theirs has them; the mix
-   about −14 LUFS with voice on top.
-5. Report `round-N/sound.md`: beat timings theirs and ours, credits spent, what is left.
+   about −14 LUFS with voice on top, the whole bed held under every run of words and voice-made ambience
+   with its speech band cut (`toon-video` "Music and mix"). The mix writes a voice stem and a bed stem;
+   run `toon-video`'s `scripts/levels.mjs` on them (from the plugin cache) and fix the mix until it exits 0.
+5. Report `round-N/sound.md`: beat timings theirs and ours, the `levels.mjs` least and median margins,
+   credits spent, what is left.
 
 ## Always
 
