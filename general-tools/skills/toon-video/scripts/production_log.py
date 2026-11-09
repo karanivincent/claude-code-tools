@@ -9,7 +9,8 @@ very interesting to see it").
 
 A critique row carries --score (the critic's average, 0-3). `rounds` lists each story's critiques in order with the
 score, the change from the round before, and the agent hours and calendar hours spent up to that point, so the cost of
-each step up is plain.
+each step up is plain, and ends with the count of rounds against the aim of three (toon-video "Three rounds, not
+seven").
 
 <log> is the project's docs/production-log.jsonl, one JSON line per step. Stages:
   study     studying a reference video          script    choosing the story, writing the script
@@ -101,6 +102,8 @@ def rounds(a):
                 cal = (datetime.fromisoformat(r['at']) - t0).total_seconds() / 3600
                 print(f'{n:8d} {r["score"]:5.2f} {gain:>6s} {mins / 60:7.1f} {cal:10.1f}  {r["at"][:16]}')
                 prev = r['score']
+        print(f'{n} round(s) of critique; the aim is three'
+              + ('' if n <= 3 else f', {n - 3} over: read the findings for what came back, and why each extra round was needed'))
 
 
 def main():

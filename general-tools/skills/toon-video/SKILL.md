@@ -65,6 +65,11 @@ and effects cost money. This skill holds the craft. A project or channel can add
      picture and the cast sheet as image references, the prompt saying the people and animals stay flat 2D cartoon
      cards exactly as on the cast sheet, lit by the place, never realistic or 3D. Check every still at full size: a
      realistic person or a 3D animal is redone, not approved. The 3D build then follows the approved stills.
+     The owner sees the board before anything is built, and beside each still the planner writes down what the owner
+     judges by eye: the words on things, the language they are in, the line's subject's size against its neighbours,
+     and how the thing the line names is shown (seen happening, or only told). Why: the owner's six Mona Lisa notes
+     (French signs, a painting dwarfed by invented landscapes, the 28 hours as a number, the empty spots told, a cut
+     head, half a roof) came after round 6, and every one would have been seen on a still board; each cost a round.
    - e. **Clips.** Build and render the video in clips of 15 to 20 seconds (about four for a minute), cut at story
      beats, and show each clip before building the next. A clip reaches the owner only after the measured checks
      below pass and a critic agent has scored it against the meaning sheet (and a reference when there is one). The
@@ -85,6 +90,8 @@ and effects cost money. This skill holds the craft. A project or channel can add
    voice on top, music ducked under speech, effects on their words, about −14 LUFS.
 9. **Render, check, hand back.** Run the checks below and give their numbers with the video. Nothing
    posts without the owner's yes on the finished video; drafts only.
+10. **Fix rounds: three, not seven** (below, "Three rounds, not seven"). Each fix round fixes every finding the
+   critique lists and checks each fix on a short full-size moving render of its stretch before the round ends.
 
 ## The backbone and the dynamics
 
@@ -129,16 +136,33 @@ everything, even when we are getting inspiration from them").
   about an opening for the join through a door. `track` with `to` backs the camera along a line: for a walk toward or
   away from the lens, the camera moves more slowly than the walker, never `follow` at a fixed size, which kept him one
   size against a doorway that did not move and he read as frozen (Mona Lisa r5, 23.2 to 24.0 s).
+- **Kit shots added in 1.57.0.** `matchOf` reads the `Match` and bearing off a camera already on screen, so the other
+  side of a shape-matched dissolve copies a framing that works instead of a hand-worked guess (Mona Lisa r6: worked by
+  hand, join 11's guard side came within 7 cm of the old two-shot; `matchOf` gives az 221.6, size 0.12, el 5.1 and the
+  face at (0.615, 0.042), and `matchCam` rebuilds the camera exactly). `track` with `to` now moves the camera at an even
+  speed and refuses a walk whose distance turns back anywhere (see below).
 - **Use the kit's path blocks, never a copy.** A story that keeps its own `path`, `K` or `curve` never gets a kit fix:
   Gibeon's own `kit.ts` meant the 1.55.0 path fix changed nothing (the camera dump before and after the sync was
   byte-identical). `sync-kit.mjs` names any such copy; import from `src/toon-kit/camera` instead.
 - **Check the camera before any render.** Run `safe` on every camera (above the ground, outside solids, a usable up),
-  then `audit` (turns over 4° a frame outside a planned whip), `checkMustSee` (every must-see subject in frame and
+  then `audit` (turns over 4° a frame outside a planned whip, and a position jump: a move in one frame several times
+  its neighbours', which is a hard cut whatever dissolve is around it; Mona Lisa r7's only hard cut was a roof camera
+  that jumped 2.0 m inside join 12 at 35.367 s, a 2° turn the turn limit passed; over both films it finds that frame
+  and nothing else), `checkMustSee` (every must-see subject in frame and
   big enough on its word, not behind a rock, and no rock crowding the lens) and `checkLens` (nothing within about 6 m
   filling over 15% of the frame, on every frame, not only on words) over the whole film, every layer of a dissolve
   included: `layerRuns` turns the film's layer function into runs, one per canvas on screen, and `audit` and
   `checkLens` take them. Build the blockers from the same list the scene draws its rocks and bushes from, so the check and the
-  picture cannot disagree; people who are not the subject are blockers too. A must-see entry for something the
+  picture cannot disagree; people who are not the subject are blockers too. Indoors, give `checkLens` groups, each with
+  its own limits (wall pictures and furniture at 6 m and 30%, floor props at 3 m and 15% worked), and declare each span
+  framed on purpose with its reason (`framed`; the report prints the reasons). Why: one 6 m and 15% limit flags 265
+  frames in 15 runs over the Mona Lisa's interiors, where the two groups and two declared spans flag none; split this
+  way, the check's first run found the one real fault, a painting filling 87% behind the guard's face (r6, 35.8 s).
+  A must-see entry for a subject that must not be cut (a person, a head and a raised arm) says `whole: true`: its whole
+  sphere stays inside the frame, not only its centre. Under an overlay (a follow card, a title), `under` gives the
+  overlay's bottom edge as a share of the height, and the subject's top stays below it. Why: the centre-only check
+  passed Joshua with his head cut by the right edge (Gibeon r4, 40 frames at 47.97 to 49.27 s) and cut at the chest under
+  the card (68 frames at 58.13 to 60.37 s); with `whole` both fail, and the fixed r5 cameras pass. A must-see entry for something the
   viewer must read (a clock, a calendar, a sign) says `words: true`, which asks for 10% of the frame height, and
   `checkMustSee`'s `captions` option (the caption band's top and bottom as shares of the height, from where the
   project draws its captions) fails one that reaches into the band. Why: the size check passed a slate at 64 to 80%
@@ -150,19 +174,33 @@ everything, even when we are getting inspiration from them").
   empty sky, yet a fix round brought it back to make room for a card, Joshua cut at the chest under 60 to 70% blank
   sky (Gibeon r5, 58.1 to 60.4 s), and nothing caught it; over the whole film this check finds that ending and one
   0.2 s dissolve layer, and passes the opening's loaf held up against the sky.
-- **Measure the camera's motion before a render.** `motion` gives the turn, zoom and move over the look distance per
-  second from the paths, and `checkMotion` flags runs of seconds under a floor (default 10) longer than the dynamics
-  profile's longest hold, outside the holds the profile plans. Run it where the profile asks for pace. Why: the
-  critic found Gibeon's stillest stretch only after a render; the paths alone gave 5, 4 and 9 for those seconds (48 to
-  50 s) and 22, 119 and 51 once fixed, while the one planned stop stayed at 2.
+- **Measure how the picture moves, not how the camera moves.** On the first render of a clip (quarter size is enough)
+  and on every fix round's moving check, run `toon-world/scripts/frame_motion.py <video>`: the mean frame difference
+  each second, with the runs of still seconds longer than the profile's longest hold flagged (floor 8, planned holds
+  given with `--hold`); `checkMotion` takes the same numbers. Before a render, toon-kit `screenMotion` follows the
+  subjects and landmarks on screen and points at camera-still stretches, but it cannot see texture or acting, so it
+  never clears a stretch on its own. Why: 1.56's `motion` measured the camera's path, and a camera running with a
+  rout scored 71 and 53, among the film's liveliest seconds, while the picture was nearly still (Gibeon r4, 51 to 52 s;
+  the render's frame difference 5.4 and 6.5). The frame difference is the critic's own measure: on Gibeon r5 it gives
+  his numbers and flags exactly his two still findings (the valley at 51 to 52 s and the card hold at 59 to 60 s).
   Gibeon's `scripts/gibeon-2d-camera-check.ts` is the worked example; it found the foreground rock on the night
   march that the first subject-framed shot put in front of the column.
 - **Must-see entries start on their word.** An entry starts on its word's first frame, and a move that brings the
   subject in lands on or before the word. Why: Gibeon r2 keyed "stood" 6 frames after the word, so the check passed
   while the word showed rooftops (36.05 s); r3 lands the glide at frame 1076 for the word at 1082.
-- **Crowds clear the lens.** A crowd member within about 7 m of the lens leaves the picture for that frame; scenery
-  never crowds the lens. Why: rows laid out without the camera put heads cut by the bottom edge whenever a camera sat
-  inside the ranks (Gibeon r3, 46.6 to 47.3 s and 57 to 58 s; clean at frames 1413 and 1720).
+- **No head cut by the frame.** toon-kit `headCut(cam, feet, height)` says when the bottom edge cuts a person's head
+  (at any distance) or a side edge cuts it (nearer than 6 m). An extra it names leaves the picture for that frame (the
+  draw loop skips him); a named person is reframed, never dropped, and `checkHeads` reports a named person cut by any
+  edge at any distance over every frame. Scenery never crowds the lens. Why: the old rule ("a crowd member within 7 m
+  leaves") did not fit an interior, where the wanted front rows stand at 5 to 8 m, and it never covered the named cast:
+  workmen's heads were halved at the side edges (Mona Lisa 30 to 31.5 s), Peruggia's shocked face sat half out of the
+  left edge for the whole of "turns" (r7, critic 44.0 to 44.8 s; `checkHeads` reports every frame from the shot's first at 43.53 s to 45.00 s, when the camera leaves him) and Joshua's face slid out at the right
+  edge on a tilt (Gibeon r6; it reports 49.40 to 49.47 s, the critic saw 49.3 to 49.5 s).
+- **A camera that backs from a walker stays slower than him on every frame.** Use `track` with `to`, which moves at
+  an even speed and refuses a walk whose distance turns back; never a smoothstep or eased move, whose middle runs 1.5
+  to 1.9 times its average. Why: "slower than the walk" on average still outran Peruggia mid-walk, and he shrank (Mona
+  Lisa r6: his size 0.75, 0.86, 0.80, 0.73 eased; 0.75, 0.83, 0.88, 0.92 even, 23.1 to 23.95 s). Start the track once
+  he is walking: from a stand he is slower than any camera for his first steps.
 - **Props with states.** A prop whose state matters to the story (a gauge, a door, a level) is a toon-kit `states`
   prop, and a dial is drawn from `dial` so its needle and its marks share one angle. Check its state on its words in
   the same no-render check.
@@ -207,6 +245,11 @@ everything, even when we are getting inspiration from them").
 - **A hand target stays inside the card.** Clamp the reach to the card's drawable area less the mitten's radius. Past
   the card's edge the mitten and the arm's outline are cut off and the arm reads as a thin coloured line with no hand
   (Mona Lisa r5, 33.95 s: a target at x 620 on a 600-unit card; up and out at the hooks on the card, 33.7 to 34.2 s).
+- **A reach ends clear of the card's own head and of small things.** When the target sits within a head's width
+  above the head, swing the reach out beside the head on the target's side; aim at a point clear of small objects, or
+  the mitten on one reads as holding it. Why: the painter's mitten ended behind his beret and read as a stub, and a
+  mitten touching the plaque read as lifting it; the cold read caught both, which every critique had missed (Mona Lisa
+  r6, 33.6 to 34.5 s; read right after the change).
 - **An effect a card carries is drawn from the card.** A torch's flame, a lamp's glow, a banner: draw it from the card
   itself (its hand, or a point in card units through the card's own transform), never from the crowd point plus a
   typed offset. Why: the world drew a marching column's flames at the column point plus an offset, so they hung in
@@ -294,7 +337,9 @@ it, minutes and tokens. An agent's minutes and tokens are in its finish notice (
 a resumed agent reports its running total, so log what this run added). A render's minutes are in its output; make
 render tools print them. `production_log.py report <log>` sums each story by stage and averages each stage across
 stories; a critique row carries `--score`, and `production_log.py rounds <log>` lists each story's scores with the
-hours spent to reach each one. Put both on the review page with the video.
+hours spent to reach each one, and ends with the count of rounds against the aim. Put both on the review page with
+the video. **Count the rounds: the aim is three** critiques from the first cut to the owner's yes. Gibeon took six and
+the Mona Lisa seven; the three levers below are what would have saved the rest.
 
 ## After every critique: fix the making
 
@@ -311,6 +356,26 @@ story stays in the story. Never put a look into the kit (see `toon-world` "The t
 the critique, on one full-size frame of every shot, asked whether each place could exist (the check below). Record each finding in
 `references/findings.md`: the fault, what allowed it, the change and its level. A kind of finding that comes back
 means its fix was too weak: move it up a level.
+
+### Three rounds, not seven: the three levers
+
+Vincent asked, 9 November 2026, how the Mona Lisa's seven rounds could have been three. Three habits cost the extra
+rounds, and each has its fix:
+
+1. **Check each fix on a short full-size moving render of its stretch, not on small stills.** Render the seconds the
+   fix touches (about 2 s either side) at full size, play them, and look at the fault where it was; then run the
+   measured checks on that clip (`frame_motion.py`, brightness). A still shows one frame of a move that fails on
+   another. Why: in five of the Mona Lisa's six rounds, two to five of the ten fixes landed only partly and came back
+   as findings in the next critique: the walker on "strolls" stopped growing after r5's fix (r6), DECEMBER 1913 was
+   clean for four frames and then six, still a blink (r6, r7), and the workmen's cut heads were fixed at 30.5 s and
+   came back at 31.0 and 31.5 s (r7).
+2. **A fix round fixes every finding the critique lists**, the smaller list after the ten included, each with its
+   seconds. A finding left for later is a finding the next critique scores again. Why: Gibeon r5 left the faces cut at
+   the mouth by rock tops, the loose hand and the tip inside the smoke, and r6's critique listed all three again; the
+   Mona Lisa's plumber cut by the frame's edge was left in round 6 and found again in round 7.
+3. **The owner sees the still board before the build** (step 4 d), with the planner's notes on words, language, the
+   subject's size against its neighbours and how the line's thing is shown. Why: his six Mona Lisa notes came after
+   round 6 and each would have been seen on the board.
 
 ## Long videos: the series library
 
@@ -335,10 +400,10 @@ Give the numbers with the video. The scripts named are in the toolkit project; c
 | Sharp and popping | `python3 <toon-world>/scripts/measure_sharp.py ours.mp4 [reference.mp4]` | sharpness, fine edges, saturation and brightness within reach of the reference |
 | Meaning shown | a critic agent checks each row of the meaning sheet on the frames | every change is seen happening, big and sharp |
 | Could this place exist | the critic, and every fix round, opens one full-size frame (1080 wide) of every shot, not the sheets, and asks of each place whether it could exist | doors reach the floor, openings are open, things stand on the ground; nothing floats, passes through a body or fights another surface; no head cut by the frame or a set piece |
-| Camera and must-see | toon-kit `audit`, `checkMustSee` and `checkLens` over every frame and every layer (`layerRuns`), no render | nothing under the ground or inside a solid; no turn over 4° a frame outside a planned whip; every must-see subject in frame and at least 8% of the height on its word (10% for words to read, clear of the caption band); nothing within 6 m of the lens filling over 15% |
-| Camera motion | toon-kit `motion` and `checkMotion` from the paths, no render | no run of still seconds longer than the profile's longest hold where the profile wants pace |
+| Camera and must-see | toon-kit `audit`, `checkMustSee`, `checkLens` and `checkHeads` over every frame and every layer (`layerRuns`), no render | nothing under the ground or inside a solid; no turn over 4° a frame outside a planned whip and no one-frame position jump; every must-see subject in frame and at least 8% of the height on its word (10% for words to read, clear of the caption band), whole where it says `whole`, under any overlay; nothing within each group's distance of the lens filling over its share (6 m and 15% outdoors), outside declared spans; no named person's head cut by an edge |
+| Picture motion | `python3 <toon-world>/scripts/frame_motion.py <video>` on a quarter-size render (`--hold` for planned holds); toon-kit `screenMotion` before a render, as a pointer | no run of seconds under 8 longer than the profile's longest hold where the profile wants pace |
 | Empty sky | toon-kit `checkSky` over every frame and layer, with the terrain | no frame over 45% empty sky, none looking up with nothing whole in frame, outside declared looks at the sky |
-| Drawings cut by their canvas | toon-kit `edgeTouches` / `checkCanvases` on every card and word canvas the story draws | no drawing touches its canvas's border (except a side declared to run off the frame). Why: a thought cloud with a straight top and side and a card ending in a straight line across a robe, two cuts running (Gibeon r4-r5, 18.0 to 22.6 s, 23.1 to 23.3 s) |
+| Drawings cut by their canvas | toon-kit `edgeTouches` on every card and word canvas right after it draws, logged over a small render of every frame (`toon-world` "The people") | no drawing touches its canvas's border (except a side declared to run off the frame). Why: a thought cloud with a straight top and side and a card ending in a straight line across a robe, two cuts running (Gibeon r4-r5, 18.0 to 22.6 s, 23.1 to 23.3 s); run on every card, it found 16 cut sides in 9 cards, none seen by a critic |
 | Cold read | a fresh cheap agent names each new place, prop, effect, material and face from one still (`toon-world/references/cold-read-brief.md`) | nothing misread |
 | Score | a critic agent scores each second 0–3 on world, camera, people, light, story by picture, sound | rising every round; 2.5 is the aim |
 
@@ -381,3 +446,9 @@ with frames from before the change. A new look is a new option, never a changed 
 | A flame or glow placed at the crowd point plus an offset | Drawn from the card that carries it |
 | A story's own copy of `path` | Import the kit's; `sync-kit.mjs` names the copies |
 | Tilting up to make room for a card | Put the card in sky already there, or push in on the person; `checkSky` |
+| Judging pace from the camera path | `frame_motion.py` on a cheap render; `screenMotion` only points |
+| A crowd rule by distance; a named person cut at the edge | `headCut` drops extras; `checkHeads` reframes the named |
+| A one-frame camera jump inside a join | `audit` reports the jump; one camera, eased onto the match |
+| Checking fixes on small stills | A short full-size moving render of each fixed stretch |
+| A fix round that fixes the top ten only | Every finding, the smaller list too |
+| Building before the owner has seen the still board | The board first, with notes on words, language, sizes and how each line's thing is shown |

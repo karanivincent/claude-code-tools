@@ -18,9 +18,11 @@ used in this other video." Stories had been copying each other's code, so the vi
 one never reached the next.
 
 - **What it is.** `kit/` holds generic building blocks with settings and no look of their own. Today: `camera.ts`
-  (shots by subject, shape-matched shots aimed where the shape is drawn, the turn about a doorway, tracking shots from
-  a fixed spot or backing along a line, the safe camera, the turn, must-see (caption band included), blocked-view and
-  lens checks over every layer of a dissolve, empty sky, camera motion per second, a card's reach on the screen),
+  (shots by subject, shape-matched shots aimed where the shape is drawn or read off a camera already on screen, the
+  turn about a doorway, tracking shots from a fixed spot or backing along a line at an even speed, the safe camera,
+  turn and jump limits, must-see (whole, under an overlay, caption band included), blocked-view and lens checks in
+  groups over every layer of a dissolve, heads cut by the frame, empty sky, screen motion per second, a card's reach on
+  the screen),
   `cards.ts` (a drawing cut by its own canvas), `props.ts`
   (props with named states and dials whose needle and marks share one angle), `set.ts` (a wall's bands, rails and
   skirting cut at its openings) and `light.ts` (the time of day on every lit material; the only kit file that touches
@@ -69,6 +71,13 @@ Before building a scene, give each part of the picture its source; this is where
 | Fire, smoke, dust, water | A raymarched volume in code (`fx.ts` in the railroads practice); a Higgsfield element only if code fails | The railroads fireball cost no credits |
 | Words on screen | Code | |
 
+**Invented things around a small subject stay near its size, and the subject gets its own light.** Size the neighbours
+from the subject, not from the picture: a master picture invents its own furniture at its own scale. Give the subject a
+soft pool of light of its own so the eye lands on it. Why: the Mona Lisa's master picture brought two invented canvases
+of 4.7 by 6.3 m beside a painting of 0.77 by 0.53 m, the plan kept them, and the owner saw a small thing among big
+things; with six paintings near her size and a warm pool on her spot, the next critique found the note landed (r7,
+1.5 and 46.5 s).
+
 ## First
 
 - Read `references/look-targets.md` (the numbers to hit) and, for a place made from pictures,
@@ -93,7 +102,9 @@ Pictures, then 3D, in seven steps (detail in `references/place-from-pictures.md`
    As real and rich as the 3D hall's picture, warm and well lit, with big simple shapes. No people or animals in it.
 3. Fit its camera (`scripts/fit-camera-example.mjs`) and measure the plan from it (`scripts/measure.mjs`).
 4. Build the room in code to the plan and colour it by projecting the master, with a depth test; fill surfaces it never
-   saw squarely with tiles cut from it (`hall3d.ts`).
+   saw squarely with tiles cut from it (`hall3d.ts`). To take an object off the master (an invented canvas, a sign in
+   the wrong language), `hallMaterial`'s `holes` lays the wall's own tile over it in phase, cut one pattern repeat
+   from the same wall; a rectified tile's v runs 1 − t (the canvas flips on upload), or it lies upside down and bands.
 5. Hero props: ask for each as a studio picture made from the master (plain grey ground, whole object, three-quarter
    view), then Higgsfield `image_to_3d` with `should_texture: true` (30 credits, about 3 minutes, 5 MB GLB). Scale to
    the plan. Never generate a separate close-up of the place: it redraws the room.
@@ -117,6 +128,12 @@ full-size still of every doorway the film shows. Why: a hall's lower band and it
 the room, so they crossed the street door just in front of it and the door stood on them at waist height like a
 cupboard (Mona Lisa 21.6 to 22.6 s); five critic rounds on small sheets missed it and the owner found it. The hotel's
 skirting crossed its door the same way. Cut at the jambs, the door reaches the floor (full-size still at 22.3 s).
+
+**Far backdrop bands reach below the lowest point the ground's far edge can reach**, wherever the ground falls away (a
+valley floor, a slope down to the sea, the end of the terrain), or the sky shows through between the ground and the
+backdrop as a pale strip that reads as a lake. Why: Gibeon's far ridges stopped 60 m down while the valley floor dropped
+55 m and the ground ended 1.5 km out, so a blue strip lay under the hills (r5, 51 to 52 s); reaching 260 m down, it is
+gone (frame 1560, full size).
 
 **Set pieces in one plane are offset by 3 to 6 cm** (or the trim gets `polygonOffset`). Two surfaces that share a
 plane fight in depth and their edges show through as dashed lines. Why: a corridor box behind a door started exactly in
@@ -182,6 +199,17 @@ Every pixel size scales with output height / 1920. Files in `templates/look/`; n
   glare goes off in a close-up of what is behind the glass. Why: halos stacking near a moving camera, and a lamp
   beside the lens, whited out Gibeon's lower third (torches at 45 s); a glare streak and a light pool turned the
   Mona Lisa's face to milky cream (51 s: saturation 0.21, then 0.49 with them moved).
+- **A light volume (a shaft, a beam, a pool seen from the side) fades by the angle it is seen at and to nothing below
+  its top, with no outline**: its opacity times |N·V| to the power 2 to 3, faded to zero well before its base, so it has
+  no silhouette edge. Keep enough strength that it still reads as light, and look at it on a full-size frame. Why: an open cylinder of one even opacity read as a glass box over Gibeon's stones
+  (r5, 3.8 to 4.3 s, 28 to 32 s); faded by angle and height the box was gone (frames 120, 870), but so weak that the
+  critic saw only grey balls under a haze and "a clear patch of light" no longer read (r6, 28.5 to 29.3 s).
+- **Indoors, only people's contact blobs and things standing free on the floor cast the key light's shadow.** Window
+  frames, rails, bars, things leaned on a wall, furniture against a wall and anything with gaps (planks, slats, a
+  lid) cast none. Why: one directional key stands in for the sun, a skylight or a window, and its hard shadows in the
+  shade colour came out as lavender slabs and stripes on orange tile and brown parquet in five rooms, each read as a
+  glass panel or a light patch (Mona Lisa r6, 15.0 to 15.6, 38.6, 39.5 and 40.4 s); with those casters off, none
+  remain (r7: 14.4 to 15.8, 38.7, 40.5 s).
 - **Grade** (`grade.ts`): a tone curve, three-zone tint, lifted warm blacks and a vignette, fitted to the targets.
   Metals and gold at about 60% albedo, or they go lemon under the lit multiplier.
 - **Bloom** only on real light sources (threshold 1.0). White faces never glow.
@@ -196,6 +224,22 @@ Every pixel size scales with output height / 1920. Files in `templates/look/`; n
   soft blob shadow sits under the feet. Never emissive: that is what makes people look pasted on. In a game world
   (section 1b) the faces stay flat white instead and a card-shaped shadow on the ground ties them in.
 - Our own `spike2d` figures stay available when a story needs them; light them the same way.
+- **A card cropped for sharpness keeps its crop edges off the screen.** A close card is often drawn from the hips or
+  the chest up to save canvas; choose the crop from the frame, not the distance: project the frame's bottom and side
+  edges onto the card's plane and move the crop out (in 0.1 m steps) until its edges are past them. Why: an envoy's
+  close-up crop was chosen from the distance to his face, and his card ended in a straight line across his robe with
+  the ground below it (Gibeon r4, 23.1 to 23.3 s); cropped from the frame, his robe runs out of the frame's bottom
+  (frame 695; Gibeon's `people.ts` `uncropped()` is the worked example).
+- **Every card and word canvas runs the border check right after it draws.** Call toon-kit `edgeTouches` on the
+  canvas's pixels at the end of the card's draw (once per card and side), name the card, and list in `allow` the sides
+  drawn to the edge on purpose (a sleeve that enters from the frame's edge). Then render every frame of the film small
+  (a tenth of the size is enough; only the canvases matter) with the check on and collect the reports. Give a drawing
+  whose outline dips under its baseline (hooves, a board's bottom edge) a little canvas below it. Why: a drawing bigger
+  than its canvas shows as a straight cut line a few pixels long on a small sheet; Gibeon's thought cloud had one for
+  three rounds and no critic saw it. Wired into every card (Gibeon r5: `src/stories/gibeon-2d/edges.ts`, called from
+  `Card.set` and from a person's full view, and `scripts/gibeon-2d-edges.mjs`, which renders at 0.1 scale and prints
+  `EDGE` lines), it found 16 cut sides in 9 cards in two runs (the cloud, a board drawn through half a translate,
+  donkeys' ears and hooves, a hand's fingers), and none after the fixes.
 
 ## 4. Checks
 
@@ -207,6 +251,9 @@ Every pixel size scales with output height / 1920. Files in `templates/look/`; n
 - `python3 scripts/measure_look.py ours.mp4 [reference.mp4]`: median brightness, dark floor, highlights, saturation,
   lit chroma, vignette and ink share, in the targets' terms. Hit the targets for the look you chose, not for whatever
   reference you copy: a darker reference moves the targets.
+- `python3 scripts/frame_motion.py video.mp4 [--from S --to S] [--hold 54-55]`: the mean frame difference each
+  second (10 a second, 270 wide, grey) and the runs of still seconds against the profile (floor 8, longest hold 1 s).
+  The critic's own motion measure; a whole film takes a few seconds. Exit 3 when a run is flagged.
 - `python3 scripts/short_qa.py final.mp4 <qa dir> shots.json`: black, white, frozen and popping frames, and loudness.
 - `python3 scripts/sbs_sheet.py out.jpg --ours ... --ref ...` for a side-by-side, then a fresh Opus verifier scores
   eight areas out of 10 (colour, lighting, ink, textures, characters, depth, composition, motion) with a numbered fix
@@ -238,3 +285,9 @@ Every pixel size scales with output height / 1920. Files in `templates/look/`; n
 | Motion blur on everything | The fastest move only, camera only |
 | A band, rail or skirting sized to the room, running across a doorway | `trimSpans` from the wall's own openings; the door reaches the floor |
 | Two set pieces sharing one plane (dashed edges) | Offset 3 to 6 cm |
+| Invented neighbours at the picture's own scale around a small subject | Neighbours near its size; the subject's own light |
+| A light shaft as an even see-through mesh (a glass box) | Faded by viewing angle and height, no outline, still bright enough to read |
+| Hard key-light shadows from rails, bars, leaned or wall furniture indoors | Only people's blobs and free-standing floor things cast |
+| Far backdrop ending above where the ground falls away | Bands reaching below the ground's lowest far edge |
+| A close card's crop chosen from the distance | Crop edges projected off the screen |
+| A card canvas sized apart from its drawing | `edgeTouches` on every canvas after it draws |

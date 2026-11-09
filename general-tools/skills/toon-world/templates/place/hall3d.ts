@@ -76,7 +76,10 @@ export function pixels(img: HTMLImageElement) {
   return g.getImageData(0, 0, c.width, c.height);
 }
 /** a patch of a plane in painted space (origin o, axes a and b, metres), resampled from real-wide through its camera
- * into a square texture: the rectified surface, which MirroredRepeat then tiles without a seam */
+ * into a square texture: the rectified surface, which MirroredRepeat then tiles without a seam.
+ * The canvas is written top row first (row j is t = (j + 0.5) / size along b), and a CanvasTexture flips it on upload,
+ * so in the texture v = 1 - t: a point at (s, t) on the patch is uv (s, 1 - t). Laid with v = t, the tile runs upside
+ * down and out of phase with the picture beside it (Mona Lisa r6's first `holes` try: the damask banded) */
 export function rectify(px: ImageData, o: V3, a: V3, b: V3, size = 512) {
   const cam = new THREE.PerspectiveCamera(WIDE.fov, PIC.w / PIC.h, 0.1, 500);
   cam.position.set(...WIDE.pos); cam.lookAt(...WIDE.look); cam.updateMatrixWorld(true); cam.updateProjectionMatrix();
@@ -111,17 +114,30 @@ export function cutTiles(px: ImageData): Tiles {
 const TILE_SIZE: Record<keyof Tiles, [number, number]> = { flags: [2.0 * WIDEN, 2.6], runner: [2 * PLAN.runnerHalfW * WIDEN, 4], stone: [0.82 * WIDEN, 1.25] };
 
 // ---- the material ---------------------------------------------------------------------------------------------
+/** `holes`: take an object off the projected master by laying the wall's own tile over it, in phase. Rectangles on a
+ * wall facing +z or -z at world z = `z` ([x0, x1, y0, y1], world metres) where the picture is not used: the tile cut
+ * from that same wall by `rectify` (pass the same painted-space `o`, `a`, `b` it was cut with) is laid there in its own
+ * colour, so its pattern runs on from the picture around the hole with no seam. Cut that tile one pattern repeat wide
+ * and tall (it repeats plainly here, not mirrored). `edge` (metres, default 0.15) softens the rectangle's border.
+ * Why: a master picture brought two invented canvases four times her size beside the Mona Lisa; taken off the wall this
+ * way, the damask ran on through both holes with no seam and her own-size neighbours hung in their place (Mona Lisa r6,
+ * proj.ts `holes`). Relit by the picture's blurred colour instead of its own, the tile banded: a patterned wall's rows
+ * survive any blur at one height. Up to four rectangles per material. */
+export interface Holes { z: number; rects: [number, number, number, number][]; o: V3; a: V3; b: V3; edge?: number }
 export interface HallLook { emit: number; albedo: number }
 export const LOOK: HallLook = { emit: 0.45, albedo: 1.0 };
 /** a lit material whose colour is real-wide where the projector sees the surface (in front of the depth map, inside the
  * frame, facing it), the tile elsewhere. `face` picks the tile's axes: 'auto' from the normal */
-export function hallMaterial(P: Projector, depth: THREE.Texture, picture: THREE.Texture, tiles: Tiles, tile: keyof Tiles, o: { tint?: string; minFacing?: number; roughness?: number } = {}) {
+export function hallMaterial(P: Projector, depth: THREE.Texture, picture: THREE.Texture, tiles: Tiles, tile: keyof Tiles, o: { tint?: string; minFacing?: number; roughness?: number; holes?: Holes } = {}) {
   const m = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: o.roughness ?? 0.82, metalness: 0, envMapIntensity: 0, side: THREE.DoubleSide });
-  const t = tiles[tile];
+  const t = tiles[tile], H = o.holes;
   const U = {
     uVP: { value: P.vp }, uPP: { value: P.pos }, uPic: { value: picture }, uDepth: { value: depth }, uTile: { value: t },
     uTileSize: { value: new THREE.Vector2(...TILE_SIZE[tile]) }, uTileOff: { value: new THREE.Vector2(tile === 'runner' ? wx(PLAN.runnerHalfW) : 0, 0) }, uTint: { value: new THREE.Color(o.tint ?? '#ffffff') },
     uNF: { value: new THREE.Vector2(P.near, P.far) }, uMinFacing: { value: o.minFacing ?? 0.03 }, uEmit: { value: LOOK.emit },
+    uHoles: { value: [...(H?.rects ?? []), [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]].slice(0, 4).map(r => new THREE.Vector4(...r)) },
+    uHoleO: { value: new THREE.Vector3(...(H?.o ?? [0, 0, 0])) }, uHoleA: { value: new THREE.Vector3(...(H?.a ?? [1, 0, 0])) },
+    uHoleB: { value: new THREE.Vector3(...(H?.b ?? [0, 1, 0])) }, uHoleZ: { value: H?.z ?? 0 }, uHoleE: { value: H?.edge ?? 0.15 }, uWiden: { value: WIDEN },
   };
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, U);
@@ -133,6 +149,7 @@ export function hallMaterial(P: Projector, depth: THREE.Texture, picture: THREE.
         varying vec3 vW; varying vec3 vWN;
         uniform mat4 uVP; uniform vec3 uPP; uniform sampler2D uPic; uniform sampler2D uDepth; uniform sampler2D uTile;
         uniform vec2 uTileSize; uniform vec2 uTileOff; uniform vec3 uTint; uniform vec2 uNF; uniform float uMinFacing; uniform float uEmit;
+        uniform vec4 uHoles[4]; uniform vec3 uHoleO; uniform vec3 uHoleA; uniform vec3 uHoleB; uniform float uHoleZ; uniform float uHoleE; uniform float uWiden;
         float linZ(float d) { float z = d * 2.0 - 1.0; return 2.0 * uNF.x * uNF.y / (uNF.y + uNF.x - z * (uNF.y - uNF.x)); }
         vec3 hallColour(out float wPic) {
           vec3 n = normalize(vWN), an = abs(n);
@@ -157,12 +174,27 @@ export function hallMaterial(P: Projector, depth: THREE.Texture, picture: THREE.
           float wf = smoothstep(uMinFacing, uMinFacing + 0.12, facing);
           wPic = inside * vis * wf;
           vec3 pic = texture2D(uPic, uv).rgb;
-          return mix(tile, pic, wPic);
+          vec3 outC = mix(tile, pic, wPic);
+          ${H ? `
+          // holes: the wall's own tile, in phase with the patch it was cut from (painted space; v = 1 - t, see rectify)
+          if (abs(vW.z - uHoleZ) < 0.05) {
+            float hole = 0.0;
+            for (int i = 0; i < 4; i++) { vec4 r = uHoles[i]; float e = uHoleE;
+              hole = max(hole, smoothstep(r.x, r.x + e, vW.x) * (1.0 - smoothstep(r.y - e, r.y, vW.x)) * smoothstep(r.z, r.z + e, vW.y) * (1.0 - smoothstep(r.w - e, r.w, vW.y))); }
+            if (hole > 0.0) {
+              vec3 pp = vec3(vW.x / uWiden, vW.y, vW.z) - uHoleO;
+              vec2 huv = vec2(dot(pp, uHoleA) / dot(uHoleA, uHoleA), 1.0 - dot(pp, uHoleB) / dot(uHoleB, uHoleB));
+              vec3 ht = textureGrad(uTile, fract(huv), dFdx(huv), dFdy(huv)).rgb;
+              outC = mix(outC, ht * uTint, hole);
+              wPic *= 1.0 - hole;
+            }
+          }` : ''}
+          return outC;
         }`)
       .replace('#include <map_fragment>', '#include <map_fragment>\nfloat wPic; vec3 hc = hallColour(wPic); diffuseColor.rgb *= hc;')
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += hc * uEmit;');
   };
-  m.customProgramCacheKey = () => 'hall3d-proj';
+  m.customProgramCacheKey = () => 'hall3d-proj' + (H ? '-holes' : '');
   m.userData.hallUniforms = U;
   return m;
 }
