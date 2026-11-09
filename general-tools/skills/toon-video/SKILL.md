@@ -40,7 +40,8 @@ and effects cost money. This skill holds the craft. A project or channel can add
    at about 1.2× with `atempo`), chosen on 7 November 2026 for her energy. One voice per speaker, `say` with eleven_v3 tags, each line cached by a hash of its text
    and voice, so a rerun costs nothing. Check every line with whisper. Lines reused from an earlier
    version are copied (mp3 and align files) and cost nothing. Read the total duration now and cut lines
-   here, not after the music.
+   here, not after the music. A new narrator is picked by measured pitch, each line is cut with a lead
+   before its first letter, and a slower narrator's length is checked first ("Voice", below).
 3. **Retell check.** Give a fresh agent only the script (or the contact sheet) and ask it to retell the
    story. Anything it gets wrong, the viewer will too. Fix and repeat until it retells it right.
    **Then the meaning sheet** (required, approved with the script and the comic): a table with one row per beat
@@ -87,7 +88,9 @@ and effects cost money. This skill holds the craft. A project or channel can add
 7. **Shots.** Time each shot on a word of the voice. Build the camera, the acting and the action by the
    rules below. Look at the contact sheet after every round, and re-sheet only what changed.
 8. **Music and mix.** Settle every pause first, then music in sections with a coda, then the mix:
-   voice on top, music ducked under speech, effects on their words, about −14 LUFS.
+   voice on top, the whole bed held down under every run of words, effects on their words, about −14 LUFS. The mix
+   writes a voice stem and a bed stem, and `scripts/levels.mjs` must pass on them before any render is handed back,
+   and again whenever the narrator changes ("Music and mix", below).
 9. **Render, check, hand back.** Run the checks below and give their numbers with the video. Nothing
    posts without the owner's yes on the finished video; drafts only.
 10. **Fix rounds: three, not seven** (below, "Three rounds, not seven"). Each fix round fixes every finding the
@@ -315,6 +318,65 @@ everything, even when we are getting inspiration from them").
 - Nobody walks through solid scenery: list the solids and check the paths.
 - Captions: one word at a time, white, in the portrait safe area.
 
+## Voice
+
+This skill's own scripts (`levels.mjs`, `pitch.mjs`, `production_log.py`) run from the plugin cache,
+`~/.claude/plugins/cache/vince-tools-marketplace/general-tools/<newest version>/skills/toon-video/scripts/`, written
+`<toon-video>/scripts/` below. They are not in any project. Why: the voice-over-bed check and the bed hold were
+written in one project (bible-shorts) and never reached the next (Epiclings), whose narrator was drowned.
+
+- **Pick a narrator by measured pitch.** "Higher, excited, still a normal person" is a pitch band, not a word to search
+  for. Search the voice library by energy and use case, voice the same opening lines (about 30 words, the hook
+  included) with every candidate at the same settings and tempo, then run `node <toon-video>/scripts/pitch.mjs
+  takes/*.mp3 --band <lo>-<hi>` and show the owner the takes ordered with their numbers. Why: on the Mona Lisa heist
+  the owner liked takes at about 170 to 211 Hz, and men there are rare: 11 of 12 young excited men from the library sat
+  at 103 to 141 Hz (one at 200). A formant-preserving lift is an option for a voice he likes that sits low (ffmpeg
+  `rubberband=pitch=1.26:formant=preserved`, four semitones, lifted 141 Hz takes to about 176 Hz); offer it beside the
+  voices already in the band. Record the pick in the story's voices file: the voice and its id, the settings, its
+  pitch, how many were tried, and why this one.
+- **A slower narrator lengthens the film.** Before choosing, work out each finalist's length for the whole script at
+  the tempo cap (the fastest `atempo` the lines stay clear at; 1.3 on the Mona Lisa) and check it against the form
+  (50 to 65 s for a Short). Why: Laura fitted the Mona Lisa to 57.5 s at 206 words a minute; Ember, who replaced her,
+  reads more slowly and the film ran 62.9 s at the cap (188 words a minute), and every shot, effect and music cue was
+  re-timed.
+- **Cut each line from at least 0.10 s before the alignment's first letter** (and about 0.12 s after its last). The
+  alignment marks a plosive's vowel, not its burst, so a shorter lead cuts the burst off. Why: a 0.04 s lead cut the P
+  off "Paris", heard as "Chris" (Mona Lisa, Ember take, 9 November 2026). Check with whisper on the cut line, not the
+  raw take.
+- **A new narrator re-runs the mix check.** A quieter or more dynamic narrator (Ember at stability 0) changes every
+  line's margin over the same bed: the Mona Lisa's bed, levelled while Laura narrated and left as it was, sat 1.2 dB
+  over Ember's plumber line at its loudest.
+
+## Music and mix
+
+- **The voice is the loudest thing under every line, measured.** The mix writes two stems on the film's clock, before
+  the final loudness gain (which moves them together): the voice as it goes into the mix, and the bed, everything else
+  (music, ambience, effects) exactly as it sits under the voice after its ducking and hold. Then
+  `node <toon-video>/scripts/levels.mjs voice.wav bed.wav timeline.json` (the timeline gives each line's `start` and
+  `end`): under every spoken line the bed's loudest 400 ms moment stays at least 10 dB below the line, the last 30 s
+  included (Vincent's rule, 5 November 2026). Exit 3 names each line that falls short. Required before any render is
+  handed back, and again whenever the narrator, the music or an effect's level changes.
+- **Hold the whole bed down for every run of words**, not only duck it with a compressor keyed on the voice. A
+  compressor reacts after the sound starts, so a sharp hit landing between two words passes at full level. The
+  settings that work (Gibeon's mix): join words into runs where the gap is under 0.25 s; from 0.15 s before a run to
+  0.12 s after it the bed's gain is 0.2 (−14 dB); in a pause under 0.9 s it is 0.4 (−8 dB); in a longer pause the bed
+  is full; smooth the gain over 0.16 s. Write the gain as a track at 1 kHz (raw 32-bit floats), read it in ffmpeg with
+  `-f f32le -ar 1000 -ac 1 -i gain.f32`, resample it to the mix rate and `amultiply` it into the bed; then a
+  `sidechaincompress` keyed on the voice (threshold 0.02, ratio 6, attack 15 ms, release 150 ms) catches what still
+  pokes up. Why runs, not whole lines: a fast read has many short pauses, and a bed held down through them read as
+  holes of −35 to −39 LUFS. A hold per line also passes (the Mona Lisa: 9 dB with 0.08 s ramps).
+- **Ambience made of voices** (a crowd's murmur, a room of chatter) masks speech far more than its level says, because
+  it fills the same band. It goes on the bed and is held with it, never left beside the voice, and its speech band
+  (300 Hz to 3 kHz) is cut by about 10 dB (ffmpeg `equalizer=f=950:t=o:w=3.3:g=-10` measures −10 dB at 1 kHz, −5 dB
+  at 300 Hz and 3 kHz, −1 dB at 100 Hz and 8 kHz).
+- Why all three: the Mona Lisa's opening murmur and music drowned the narrator (owner, 9 November 2026). By average
+  loudness the first line sat 10 dB over the bed and looked fine; the check shows the bed's loudest moment over the
+  voice under two lines and every line short. With the murmur cut and moved onto the music, and the bed turned down,
+  the averages rose to 12 to 21 dB and six lines were still short, the plumber's steps 5.4 dB under his line. With the
+  whole bed held under each line: 12.0 dB at the least, 17.6 median. Gibeon's run-by-run hold: 10.8 least, 18.2 median.
+- Effects still land on their words: level each effect to a loudness (LUFS of the file alone), not a raw gain, so a
+  quiet take and a loud one sit alike. Then two-pass `loudnorm` to about −14 LUFS for the whole mix.
+
 ## Building as a team
 
 For anything longer than a few seconds, build each clip with specialist agents that own separate files: places and
@@ -386,7 +448,8 @@ measured: about 1.5M tokens for a 15-second clip once the library exists.)
 
 ## Checks before the hand-back
 
-Give the numbers with the video. The scripts named are in the toolkit project; copy them.
+Give the numbers with the video. Scripts under `<toon-video>/scripts/` and `<toon-world>/scripts/` run from the
+plugin cache ("Voice", above); the others are in the toolkit project, so copy them.
 
 | Check | How | Aim |
 |---|---|---|
@@ -395,7 +458,8 @@ Give the numbers with the video. The scripts named are in the toolkit project; c
 | Face close-ups | `ffmpeg -i <video> -vf fps=0.4,tile=7x4 sheet.png`, count by eye | at most 1 in 4 |
 | Brightness | `node scripts/brightness.mjs <video>` | opening 120+, nothing too dark on a phone |
 | Walking | `node scripts/walk-check.mjs` | nobody through a solid |
-| Loudness | mix about −14 LUFS; each line audible over the music | |
+| Loudness | two-pass `loudnorm` on the mix | about −14 LUFS |
+| Voice over the bed (required) | the mix writes a voice stem and a bed stem; `node <toon-video>/scripts/levels.mjs voice.wav bed.wav timeline.json`, on every mix handed back and again whenever the narrator changes | exit 0: under every spoken line the bed's loudest 400 ms moment at least 10 dB below the line, the last 30 s included |
 | Retell | a fresh agent retells it from the sheet | it gets the story right |
 | Sharp and popping | `python3 <toon-world>/scripts/measure_sharp.py ours.mp4 [reference.mp4]` | sharpness, fine edges, saturation and brightness within reach of the reference |
 | Meaning shown | a critic agent checks each row of the meaning sheet on the frames | every change is seen happening, big and sharp |
@@ -452,3 +516,7 @@ with frames from before the change. A new look is a new option, never a changed 
 | Checking fixes on small stills | A short full-size moving render of each fixed stretch |
 | A fix round that fixes the top ten only | Every finding, the smaller list too |
 | Building before the owner has seen the still board | The board first, with notes on words, language, sizes and how each line's thing is shown |
+| Ducking the music with a compressor and trusting the averages | The whole bed held under every run of words; `levels.mjs` on the stems |
+| A crowd murmur beside the voice at its own level | On the bed, held with it, its 300 Hz to 3 kHz band cut |
+| Picking a narrator by the library's words ("young, excited") | The same lines from every candidate, `pitch.mjs`, ordered with the numbers |
+| Cutting a line at the alignment's first letter | At least 0.10 s before it, or plosives go |
