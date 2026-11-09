@@ -18,13 +18,17 @@ used in this other video." Stories had been copying each other's code, so the vi
 one never reached the next.
 
 - **What it is.** `kit/` holds generic building blocks with settings and no look of their own. Today: `camera.ts`
-  (shots by subject, shape-matched and tracking shots, the safe camera, the turn, must-see, blocked-view and lens
-  checks, a card's reach on the screen), `props.ts` (props with named states and dials whose needle and marks share
-  one angle) and `light.ts` (the time of day on every lit material; the only kit file that touches Three.js); see
-  `kit/README.md`.
+  (shots by subject, shape-matched shots aimed where the shape is drawn, the turn about a doorway, tracking shots from
+  a fixed spot or backing along a line, the safe camera, the turn, must-see (caption band included), blocked-view and
+  lens checks over every layer of a dissolve, empty sky, camera motion per second, a card's reach on the screen),
+  `cards.ts` (a drawing cut by its own canvas), `props.ts`
+  (props with named states and dials whose needle and marks share one angle), `set.ts` (a wall's bands, rails and
+  skirting cut at its openings) and `light.ts` (the time of day on every lit material; the only kit file that touches
+  Three.js); see `kit/README.md`.
 - **How a project gets it.** `node <skill>/scripts/sync-kit.mjs <project>` writes `src/toon-kit/`. A project never
   edits those files; the sync stops if one was edited. A fix goes into `kit/` through the skills repo, then every
-  project syncs.
+  project syncs. The sync warns when a file under `src/` keeps its own `path`, `K` or `curve`: a kit fix never reaches
+  it (Gibeon's own copy meant the 1.55.0 path fix changed nothing).
 - **What may go in.** Only what any video could use, tuned by its settings: camera rules, effects (fire, smoke,
   sparks, fireworks, glowing bulbs, rain), finishing tools (sharpen, grade, depth blur, ink), props with named states,
   action blocks, checks. The test: if two videos use it, could a viewer tell they share it? If yes, it is a look, and
@@ -106,6 +110,19 @@ heist's trestle in `toon-world` style had dozens of criss-cross braces and read 
 The exception: when the repeated part is the hero and the shot is close (the railroads' rails and sleepers), it
 is the subject, and it gets full detail. Check every set on the shot board before it is detailed.
 
+**Every doorway reaches the floor, and every opening is open.** Cut a wall's bands, rails, skirting and sills at the
+same openings the wall is cut with: toon-kit `trimSpans` gives the pieces between them, from the same list of holes.
+Nothing is built across a doorway or a window, and nothing stands in it unless the story puts it there. Look at one
+full-size still of every doorway the film shows. Why: a hall's lower band and its rail were one piece each, sized to
+the room, so they crossed the street door just in front of it and the door stood on them at waist height like a
+cupboard (Mona Lisa 21.6 to 22.6 s); five critic rounds on small sheets missed it and the owner found it. The hotel's
+skirting crossed its door the same way. Cut at the jambs, the door reaches the floor (full-size still at 22.3 s).
+
+**Set pieces in one plane are offset by 3 to 6 cm** (or the trim gets `polygonOffset`). Two surfaces that share a
+plane fight in depth and their edges show through as dashed lines. Why: a corridor box behind a door started exactly in
+the room's wall plane, and its edges flickered through as dashed grey lines above the hotel door (Mona Lisa r5, 43.7 to
+44.9 s); starting 6 cm behind the wall, they are gone (44.27 s).
+
 ## 1b. The game world
 
 Learned from the railroads practice (bible-shorts branch `practice/railroads-gameworld`, code in
@@ -146,7 +163,8 @@ Every pixel size scales with output height / 1920. Files in `templates/look/`; n
   interior use one warm key per framing, set relative to the camera, and neutral blue-grey shade.
 - **The era through objects, never through fading** (Vincent, 9 November 2026, on the Mona Lisa heist's 1911: "the
   buildings are still pale ... we can make things a little bit more modern"). Clothes, signs, cars, lettering and
-  props say when it is; the colours stay bright and modern, saturation about 0.50 to 0.58, no sepia, no faded or
+  props say when it is, never words in the period's or the place's language (words on things are in the narration's
+  language; `toon-video` "The world"); the colours stay bright and modern, saturation about 0.50 to 0.58, no sepia, no faded or
   greyed grade, no deep blacks. A faded grade is allowed only for a marked flashback inside a story. Picture prompts
   for a period place ask for vivid modern cartoon colours too, or the picture brings the fading in.
 - **Time of day changes the whole lit world, not only the sky.** Multiply every lit material by one colour for the
@@ -218,3 +236,5 @@ Every pixel size scales with output height / 1920. Files in `templates/look/`; n
 | A glow beside the lens, glare over a face | Glow sources 4 m or more in front of the lens; light pools behind the subject |
 | A soft, washed render (blur everywhere, lifted blacks, low-resolution textures) | `measure_sharp.py` against the reference; 2048 textures, tight bloom, blur only where the reference has it |
 | Motion blur on everything | The fastest move only, camera only |
+| A band, rail or skirting sized to the room, running across a doorway | `trimSpans` from the wall's own openings; the door reaches the floor |
+| Two set pieces sharing one plane (dashed edges) | Offset 3 to 6 cm |

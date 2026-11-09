@@ -49,6 +49,9 @@ and effects cost money. This skill holds the craft. A project or channel can add
    "the action of closing is the most important part"). Name the one thing the viewer must see in each second,
    too. Every later stage is checked against this sheet, not against a reference's pictures. The same list goes into
    code as must-see entries (`MustSee`: the word, the subjects by name, the size), and the shots are written from it.
+   When the meaning names a place (at the gate, on the wall, in the doorway), the place is a subject of the entry too.
+   Why: Gibeon r3's entry for "stood" listed the army and its leader and passed while the gate was out of frame and the
+   critic saw open desert; with the gate added, r4 is clean with the gate in frame (frames 1082 to 1094).
 4. **The stages the owner reviews.** Nothing moves to the next stage before his yes (Vincent, 8 November 2026,
    taken from `ai-story-video`):
    - a. **Comic.** The script as one page of panels drawn in code, a panel per line, the words under it. Free;
@@ -64,7 +67,9 @@ and effects cost money. This skill holds the craft. A project or channel can add
      realistic person or a 3D animal is redone, not approved. The 3D build then follows the approved stills.
    - e. **Clips.** Build and render the video in clips of 15 to 20 seconds (about four for a minute), cut at story
      beats, and show each clip before building the next. A clip reaches the owner only after the measured checks
-     below pass and a critic agent has scored it against the meaning sheet (and a reference when there is one).
+     below pass and a critic agent has scored it against the meaning sheet (and a reference when there is one). The
+     critic also opens one full-size frame of every shot and asks whether the place could exist ("Could this place
+     exist", below).
    (Vincent, 7 November 2026, after the train heist: "before any of this is animated ... I can review them fast.")
 5. **Sets.** A set list per place before any shot: 8 or more props, a full background, extras.
    People are small inside a big place. Crowds are painted once and reused. Build only what the
@@ -117,13 +122,39 @@ everything, even when we are getting inspiration from them").
   shape-matched dissolve; `track` pans from a fixed spot on a moving subject (a stairwell, a hall, a corridor) and
   refuses a subject whose path jumps; `cardReach` aims a card's hand on the screen. `path` blends the view's
   direction and its look distance apart, so mixing near and far look points no longer flips the picture.
+- **Kit shots added in 1.56.0.** `path` blends look points again where neighbouring keys' look points are close, so a
+  still, near subject the camera moves round keeps its spot: 1.55's direction-only blend let a loaf held 1.3 m from
+  the lens drift out of the frame (Gibeon r4, 23.7 s, frame 711; clean on the 1.56 path over the whole film).
+  `screenFix` aims `matchCam` at where a shape is drawn (see `references/joins.md`). `mirrorAbout` turns a camera
+  about an opening for the join through a door. `track` with `to` backs the camera along a line: for a walk toward or
+  away from the lens, the camera moves more slowly than the walker, never `follow` at a fixed size, which kept him one
+  size against a doorway that did not move and he read as frozen (Mona Lisa r5, 23.2 to 24.0 s).
+- **Use the kit's path blocks, never a copy.** A story that keeps its own `path`, `K` or `curve` never gets a kit fix:
+  Gibeon's own `kit.ts` meant the 1.55.0 path fix changed nothing (the camera dump before and after the sync was
+  byte-identical). `sync-kit.mjs` names any such copy; import from `src/toon-kit/camera` instead.
 - **Check the camera before any render.** Run `safe` on every camera (above the ground, outside solids, a usable up),
   then `audit` (turns over 4° a frame outside a planned whip), `checkMustSee` (every must-see subject in frame and
   big enough on its word, not behind a rock, and no rock crowding the lens) and `checkLens` (nothing within about 6 m
   filling over 15% of the frame, on every frame, not only on words) over the whole film, every layer of a dissolve
-  included. Build the blockers from the same list the scene draws its rocks and bushes from, so the check and the
+  included: `layerRuns` turns the film's layer function into runs, one per canvas on screen, and `audit` and
+  `checkLens` take them. Build the blockers from the same list the scene draws its rocks and bushes from, so the check and the
   picture cannot disagree; people who are not the subject are blockers too. A must-see entry for something the
-  viewer must read (a clock, a calendar, a sign) says `words: true`, which asks for 10% of the frame height.
+  viewer must read (a clock, a calendar, a sign) says `words: true`, which asks for 10% of the frame height, and
+  `checkMustSee`'s `captions` option (the caption band's top and bottom as shares of the height, from where the
+  project draws its captions) fails one that reaches into the band. Why: the size check passed a slate at 64 to 80%
+  of the height and the caption covered its "28" (Mona Lisa r4; at 24 to 41% it reads, r5 25.0 to 25.7 s). Give a
+  words entry the words themselves as its subject, sized to the lettering, not the thing they hang on.
+- **No empty sky.** `checkSky` over every frame and layer, with the terrain: more than 45% of the frame's centre column
+  empty sky (meeting neither the ground nor a subject) fails, and so does a view over 12° up with no subject whole in
+  the frame; a planned look at the sky (the sun the line names) is declared. Why: the joins stack forbids rising into
+  empty sky, yet a fix round brought it back to make room for a card, Joshua cut at the chest under 60 to 70% blank
+  sky (Gibeon r5, 58.1 to 60.4 s), and nothing caught it; over the whole film this check finds that ending and one
+  0.2 s dissolve layer, and passes the opening's loaf held up against the sky.
+- **Measure the camera's motion before a render.** `motion` gives the turn, zoom and move over the look distance per
+  second from the paths, and `checkMotion` flags runs of seconds under a floor (default 10) longer than the dynamics
+  profile's longest hold, outside the holds the profile plans. Run it where the profile asks for pace. Why: the
+  critic found Gibeon's stillest stretch only after a render; the paths alone gave 5, 4 and 9 for those seconds (48 to
+  50 s) and 22, 119 and 51 once fixed, while the one planned stop stayed at 2.
   Gibeon's `scripts/gibeon-2d-camera-check.ts` is the worked example; it found the foreground rock on the night
   march that the first subject-framed shot put in front of the column.
 - **Must-see entries start on their word.** An entry starts on its word's first frame, and a move that brings the
@@ -173,6 +204,13 @@ everything, even when we are getting inspiration from them").
 - **A card's hand reaches on the screen.** Aim a point, a reach or a hand-over with toon-kit `cardReach`, which
   measures the target's offset on the screen at the card's depth. Why: along the world's right, a card near the
   frame's edge points away from a farther target (Mona Lisa r4, 33.8 s: the painter's arm went off the frame).
+- **A hand target stays inside the card.** Clamp the reach to the card's drawable area less the mitten's radius. Past
+  the card's edge the mitten and the arm's outline are cut off and the arm reads as a thin coloured line with no hand
+  (Mona Lisa r5, 33.95 s: a target at x 620 on a 600-unit card; up and out at the hooks on the card, 33.7 to 34.2 s).
+- **An effect a card carries is drawn from the card.** A torch's flame, a lamp's glow, a banner: draw it from the card
+  itself (its hand, or a point in card units through the card's own transform), never from the crowd point plus a
+  typed offset. Why: the world drew a marching column's flames at the column point plus an offset, so they hung in
+  the air beside unlit torch heads (Gibeon r4, 45.7 s; on the torches at frames 1372 and 1380).
 - **A prop passes from the world to a card on one quiet frame.** At the swap the prop keeps its screen size and
   colour, and nothing else changes on that frame (no step, no light change); whatever the prop uncovers is keyed to
   when the prop moves, not to the swap. Why: a step, the uncovered patch and a gilt of another colour all changed on
@@ -205,12 +243,28 @@ everything, even when we are getting inspiration from them").
 - **Show how a device works before anyone reacts to it**: a see-through "what if" copy of the moving part
   (a ball dropping from the dragon into the frog) in the first five seconds.
 - **A camera that ends high shows a count**: orbit and rise until the eight of something can be counted. In 9:16,
-  count from high only when the things fit in about 50 m; spread wider, have them arrive one by one in one medium
-  frame, each on a beat. Why: a portrait frame is about 26° across, so a ring 250 m wide left each of five armies a
-  speck for three rounds (Gibeon 42.3 s); counted arriving, the five read (frames 1258 to 1297).
+  count from high only when the things fit in about 50 m; spread wider, have them arrive one by one, each on a beat.
+  Why: a portrait frame is about 26° across, so a ring 250 m wide left each of five armies a speck for three rounds
+  (Gibeon 42.3 s); counted arriving, the five read (frames 1258 to 1297). A portrait frame is tall, so arrivals side by
+  side are small (five kings an eighth of the frame each, Gibeon r4 42 to 43 s). One way that fits it: line them up
+  receding toward the lens, each a step nearer and to alternate sides, so none hides another (the screen spacing, side
+  offset over distance, wider than half a body); Gibeon's five kings then ran from a fifth of the frame to nearly half
+  (frames 1275 to 1305). It is an example, not the only way.
 - **A name is spoken while its person is on screen**, within about 0.2 s, or the shot loses its point.
 - One or two picture jokes that carry the story without words.
 - Facts as things in the world: a counter, a mark, a scroll, the objects themselves.
+- **Words on things are in the narration's language.** Signs, slates, labels and pages say what they say in the
+  language the viewer hears; the era and the place come through shapes and objects (clothes, lettering style, props),
+  not through foreign words. Mastheads and proper names (a newspaper's title, a city's name) may stay. Why: the owner
+  could not read FERMÉ, HEURES, VISITEURS or LE VOLEUR in the Mona Lisa heist, so each sign showed a word that told
+  him nothing (9 November 2026).
+- **The thing a line is about reads as the subject, even when its true size is small.** Scale or frame the invented
+  things around it so it wins: smaller neighbours, a plainer wall, a frame that crops them. Why: two landscapes
+  invented to hang beside the Mona Lisa dwarfed her, so the shot read as a room of big paintings (owner, 9 November
+  2026).
+- **Show time passing with something that moves**: a clock's hands turning, light crossing a room, a candle burning
+  down, rather than a number counting. A number tells; the moving thing shows. Why: the Mona Lisa's hours were a
+  number on a slate, and the owner asked for a moving clock instead (9 November 2026).
 - Light follows the story: warm firelight, blue night for danger, gold dawn for hope. Keep every face
   bright enough for a phone.
 - **Words go on screen cards, never on the ground.** Text laid on the ground reads backwards from half
@@ -222,7 +276,8 @@ everything, even when we are getting inspiration from them").
 
 For anything longer than a few seconds, build each clip with specialist agents that own separate files: places and
 track, effects, people and props that act (a train), sound at the same time; then the camera last, because it frames
-what the others built; then a critic that scores the clip. Resume the same agents for the next round so they keep
+what the others built; then a critic that scores the clip, from the sheets and from one full-size frame of every shot
+(below). Resume the same agents for the next round so they keep
 their knowledge of the code. The railroads practice went from 1.2 to 1.8 out of 3 in three rounds this way, where
 one lead builder alone stopped at 1.2. Each agent writes a short report with notes for the camera.
 
@@ -252,7 +307,8 @@ each finding by what in the making allowed it, and fix it at the strongest level
 4. **A check**: only behind 1 to 3.
 
 A fix that is true of any video goes into the kit or this skill through the skills repo; one that belongs to the
-story stays in the story. Never put a look into the kit (see `toon-world` "The toon-kit"). Record each finding in
+story stays in the story. Never put a look into the kit (see `toon-world` "The toon-kit"). Every fix round ends, like
+the critique, on one full-size frame of every shot, asked whether each place could exist (the check below). Record each finding in
 `references/findings.md`: the fault, what allowed it, the change and its level. A kind of finding that comes back
 means its fix was too weak: move it up a level.
 
@@ -278,9 +334,20 @@ Give the numbers with the video. The scripts named are in the toolkit project; c
 | Retell | a fresh agent retells it from the sheet | it gets the story right |
 | Sharp and popping | `python3 <toon-world>/scripts/measure_sharp.py ours.mp4 [reference.mp4]` | sharpness, fine edges, saturation and brightness within reach of the reference |
 | Meaning shown | a critic agent checks each row of the meaning sheet on the frames | every change is seen happening, big and sharp |
-| Camera and must-see | toon-kit `audit`, `checkMustSee` and `checkLens` over every frame, no render | nothing under the ground or inside a solid; no turn over 4° a frame outside a planned whip; every must-see subject in frame and at least 8% of the height on its word (10% for words to read); nothing within 6 m of the lens filling over 15% |
+| Could this place exist | the critic, and every fix round, opens one full-size frame (1080 wide) of every shot, not the sheets, and asks of each place whether it could exist | doors reach the floor, openings are open, things stand on the ground; nothing floats, passes through a body or fights another surface; no head cut by the frame or a set piece |
+| Camera and must-see | toon-kit `audit`, `checkMustSee` and `checkLens` over every frame and every layer (`layerRuns`), no render | nothing under the ground or inside a solid; no turn over 4° a frame outside a planned whip; every must-see subject in frame and at least 8% of the height on its word (10% for words to read, clear of the caption band); nothing within 6 m of the lens filling over 15% |
+| Camera motion | toon-kit `motion` and `checkMotion` from the paths, no render | no run of still seconds longer than the profile's longest hold where the profile wants pace |
+| Empty sky | toon-kit `checkSky` over every frame and layer, with the terrain | no frame over 45% empty sky, none looking up with nothing whole in frame, outside declared looks at the sky |
+| Drawings cut by their canvas | toon-kit `edgeTouches` / `checkCanvases` on every card and word canvas the story draws | no drawing touches its canvas's border (except a side declared to run off the frame). Why: a thought cloud with a straight top and side and a card ending in a straight line across a robe, two cuts running (Gibeon r4-r5, 18.0 to 22.6 s, 23.1 to 23.3 s) |
 | Cold read | a fresh cheap agent names each new place, prop, effect, material and face from one still (`toon-world/references/cold-read-brief.md`) | nothing misread |
 | Score | a critic agent scores each second 0–3 on world, camera, people, light, story by picture, sound | rising every round; 2.5 is the aim |
+
+Why the full-size frame: the sheets the critic reads are about 540 px wide, where a door is about 50 px tall. A hall
+door stood on the wall's lower band at waist height, its rail across the doorway, and five critic rounds scoring story
+on the sheets missed it; the owner found it (Mona Lisa 21.6 to 22.6 s). Round 6's first critique with full-size frames
+found five more places that could not exist: a magnified canvas the wall showed through (7.5 s), light patches like
+glass slabs (15.0 to 15.6 s, 38.6 s), half a window view (40.4 s), bars floating at a man's knees (23.7 to 24.0 s) and
+planks through workmen's necks (31.5 s). Heads cut by the frame came back the same way (Gibeon r3, Mona Lisa 30 s).
 
 After any change to shared drawing code, render two frames of an earlier video and byte-compare them
 with frames from before the change. A new look is a new option, never a changed default.
@@ -308,3 +375,9 @@ with frames from before the change. A new look is a new option, never a changed 
 | Showing a state where the story needs a change (a hot rail, not the gap closing) | The meaning sheet's change, seen happening |
 | Copying a reference's pictures without its meaning | The meaning sheet first; the reference only for look and timing |
 | A camera skimming close with a wide lens | Further back, a longer lens, a slow glide |
+| Judging places on the small sheets only | One full-size frame per shot: could each place exist? |
+| Signs in the story's foreign language | Words in the narration's language; the era through shapes and objects |
+| A walk toward the lens with `follow` at a fixed size | `track` with `to`: the camera backs more slowly than the walker |
+| A flame or glow placed at the crowd point plus an offset | Drawn from the card that carries it |
+| A story's own copy of `path` | Import the kit's; `sync-kit.mjs` names the copies |
+| Tilting up to make room for a card | Put the card in sky already there, or push in on the person; `checkSky` |

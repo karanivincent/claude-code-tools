@@ -4,29 +4,37 @@ Generic building blocks for any toon video: techniques with settings, never a lo
 "The toon-kit".
 
 Bring it into a project: `node <toon-world>/scripts/sync-kit.mjs <project-root>` (writes `src/toon-kit/`). Never edit
-the project copy; fix it here and sync again. Tests: `node --test kit/*.test.ts` (Node 22.6 or later).
+the project copy; fix it here and sync again. The sync also warns when a file under the project's `src/` defines its own
+`path`, `K` or `curve`, because a kit fix never reaches code that uses its own copy (Gibeon's `kit.ts`). Tests:
+`node --test kit/*.test.ts` (Node 22.6 or later).
 
 ## camera.ts
 
 | Block | What it does |
 |---|---|
-| `K`, `path` | A smooth key path. `stop` keys hold still. The view blends its direction (along the great circle) and its look distance apart, so a key looking 15 m out next to one looking 600 m out cannot flip the picture. |
+| `K`, `path` | A smooth key path. `stop` keys hold still. Neighbouring keys whose look points are close (closer than half the nearer look distance, `looksClose`) blend the look point, so a still, near subject the camera moves round stays on its spot; keys whose look points are far apart blend the view direction (along the great circle) and the look distance apart, so a key looking 15 m out next to one looking 600 m out cannot flip the picture. Neither runs past a key and back. |
 | `slerp` | Turn one direction toward another along the great circle. |
 | `frameOn`, `shot` | The camera that shows named subjects at a size (share of the frame height), from a compass bearing and an elevation, with the group placed anywhere in the frame. |
 | `follow` | Keys every few frames that keep framing moving subjects (a walk, a column). |
 | `matchCam` | A shape (a flame, a wheel, a moon) at one screen spot and size from any bearing: give both sides of a shape-matched dissolve the same `Match` and hold them through the overlap. Follows a moving shape. |
-| `track` | A pan from a fixed spot that keeps a moving subject, for stairwells, halls and corridors. Refuses a subject whose path jumps inside the track (a hand-over between two paths). |
+| `screenFix` | The world offset from a shape's typed point to where it is drawn, from one rendered frame (where the shape was measured, as shares of the width and height). Aim `matchCam` at the corrected point; measure one frame per side, correct once. |
+| `mirrorAbout` | A camera or key turned 180° about the upright line through an opening's centre: the opening keeps its place and size, so a 6 to 8 frame dissolve to the turned camera is the join through a door. |
+| `track` | A pan that keeps a moving subject: from a fixed spot (stairwells, halls, corridors), or with `to` backing along a line, for a walk toward or away from the lens (back more slowly than the walker). Refuses a subject whose path jumps inside the track, and a walk along the lens axis whose distance hardly changes (it reads as frozen). |
 | `approach` | A journey to a far place that keeps the destination in sight: turn onto it, then travel to its framing, `lift` to rise over what lies between. `seenFrom` says when it comes into view. The horizon approach in `toon-video` references/joins.md. |
 | `safe` | Above the ground, outside solids (boxes), with a usable up. Says what it corrected. |
 | `upFor` | Up that never runs along the view line, so a straight-down view cannot spin or flip. |
 | `project`, `onScreen` | Where a point lands in the frame; whether a subject is in frame and how big. |
-| `audit` | Over a range of frames: corrections `safe` had to make, and turns over a limit outside planned whips. |
-| `checkMustSee` | Each must-see entry (word, subjects, size) checked from its word's first frame for a few frames: in frame, big enough (0.08 of the height, 0.10 with `words: true`), not behind a blocker, and no blocker crowding the lens in front of it. Blockers are spheres taken from the same list the scene draws its rocks, bushes and pillars from; a person's `c` can be a function of the frame. |
-| `checkLens` | Every frame of a range: anything within `near` metres of the lens (default 6) filling over `size` of the height (default 0.15). Catches clutter between words. |
+| `layerRuns` | The runs of every canvas on screen, from the function the film draws its layers with: each layer of a dissolve, and a canvas that comes back later as a second run. `audit`, `checkLens` and `motion` take the runs. |
+| `audit` | Over a range of frames (or every layer run): corrections `safe` had to make, and turns over a limit outside planned whips. |
+| `checkMustSee` | Each must-see entry (word, subjects, size) checked from its word's first frame for a few frames: in frame, big enough (0.08 of the height, 0.10 with `words: true`), not behind a blocker, and no blocker crowding the lens in front of it. With `captions` (the band's top and bottom as shares of the height), a `words: true` subject reaching into the caption band fails. Blockers are spheres taken from the same list the scene draws its rocks, bushes and pillars from; a person's `c` can be a function of the frame. |
+| `checkLens` | Every frame of a range (or every layer run, each with its own blockers): anything within `near` metres of the lens (default 6) filling over `size` of the height (default 0.15). Catches clutter between words. |
+| `checkSky` | Every frame (or every layer run): more than 45% of the frame's centre column empty sky (meeting neither the ground nor a subject), or the view over 12° up with no subject whole in the frame. Planned looks at the sky are declared. The rise into empty sky the joins stack forbids. |
+| `motion`, `checkMotion` | How much the camera moves each second (turn, zoom and move over the look distance, in degrees) from the paths, no render; runs of seconds under a floor (default 10) longer than the profile's longest hold, outside planned holds. |
 | `cardReach` | Where a card's hand should reach for a world target, measured on the screen at the card's depth (sideways and up, in metres). The story turns it into drawing units and clamps it to the arm. |
 
 A subject is `{ name, at, r }`: a point or a function of the frame, and a radius that wraps it (a person about 0.9 m,
-a hand prop about 0.2 m).
+a hand prop about 0.2 m), a number or a function of the frame. For a `words: true` entry, wrap the words themselves (the
+sign, sized to its lettering), not the thing they hang on, or the caption check judges the bigger sphere.
 
 ## props.ts
 
@@ -37,6 +45,20 @@ a hand prop about 0.2 m).
 | `checkStates` | The prop's state on given words, in the same no-render check as the camera's. |
 
 It never draws a prop: each video draws its own scale, door or jar.
+
+## set.ts
+
+| Block | What it does |
+|---|---|
+| `trimSpans(from, to, openings, y0, y1)` | The pieces of a horizontal strip on a wall (a lower band, a rail, a skirting) between the wall's openings: pass the same openings the wall is cut with and draw one piece per span, so nothing runs across a doorway or a window. |
+
+It never draws a wall: each video draws its own from the spans.
+
+## cards.ts
+
+| Block | What it does |
+|---|---|
+| `edgeTouches(pixels)`, `checkCanvases` | The sides of a card or word canvas its drawing touches (opaque pixels at the border): a drawing cut by its own canvas, which shows as a straight edge in the film. Run on every card and word canvas right after it is drawn (`ctx.getImageData`); a side meant to run off the frame is allowed by name. |
 
 ## light.ts
 
