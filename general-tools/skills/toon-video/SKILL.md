@@ -198,6 +198,16 @@ what the others built; then a critic that scores the clip. Resume the same agent
 their knowledge of the code. The railroads practice went from 1.2 to 1.8 out of 3 in three rounds this way, where
 one lead builder alone stopped at 1.2. Each agent writes a short report with notes for the camera.
 
+## Log every step's time
+
+Vincent, 9 November 2026: "track the time it takes to build a whole story ... keep data". Every step goes into the
+project's `docs/production-log.jsonl` the moment it ends, with `scripts/production_log.py add`: the story, the stage
+(study, script, voice, plan, world, people, camera, build, render, critique, fix, spike, review), the round, who did
+it, minutes and tokens. An agent's minutes and tokens are in its finish notice (`duration_ms`, `subagent_tokens`;
+a resumed agent reports its running total, so log what this run added). A render's minutes are in its output; make
+render tools print them. `production_log.py report <log>` sums each story by stage and averages each stage across
+stories; put its numbers on the review page with the video.
+
 ## After every critique: fix the making
 
 The critic finds faults; the build is changed so the next video cannot make them. Before the next fix round, sort
