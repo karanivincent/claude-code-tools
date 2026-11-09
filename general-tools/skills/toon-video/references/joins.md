@@ -24,13 +24,23 @@ video and from our own ideas; add a row with where it was seen or who proposed i
 | Jolt at the twist | The one hard cut |
 | Anything else inside one place | Follow the subject (`follow`), or hold |
 
+## Rules for every join
+
+- **The change a join's reason names plays in full view**, before the overlap starts or after it ends. A change inside
+  a dissolve is not seen. Why: Gibeon r3 ran the tip to the feet under the dissolve at 9.1 s and the shadow's slide at
+  53.7 s; with the move before the overlap, both read (frames 268 to 279, and 1612 against 1630).
+- **A dissolve between two framings of one place draws the person on both paths** for the dissolve's length, each
+  where its own camera expects him (or ends the outgoing path only after the dissolve passes half). Why: one path
+  drove him for both layers, so when the incoming layer needed him the outgoing layer, still on top, showed an empty
+  landing (Mona Lisa r4, 16.1 to 16.45 s; both layers occupied at 16.05, 16.15 and 16.30 s).
+
 ## The stack
 
 | Join | Use it when | Not when | Seen in | How we build it |
 |---|---|---|---|---|
 | Moving dissolve, 6 to 12 frames, both cameras moving | Two places with nothing to show between them | The journey itself is the point | all 20 | Two canvases overlapping; built |
-| Shape-matched dissolve | Two places share a shape (a grid, a ring, a column) | The shapes sit in different screen places | scratch cards, storm oil, spear and shield, random numbers, ancient jar, grave bell | Plan both shots in screen space so the shape keeps its place and size; blueprint |
-| Horizon approach | A far place the story goes to next, and the viewer should see where it is and how far. Compose the shot before it facing the way the journey goes | The two places face opposite ways and there is no time to turn (a turn takes about a frame for every 3°) | Vincent, 9 Nov; Gibeon 2D opening (Jericho's ring from above, Gibeon's towers on the horizon) | toon-kit `approach`; promise the destination from `seenFrom` in the must-see list; built |
+| Shape-matched dissolve | Two places share a shape (a grid, a ring, a column, a flame) | The shapes sit in different screen places | scratch cards, storm oil, spear and shield, random numbers, ancient jar, grave bell; Gibeon 2D flame to flame (45.0 s) | toon-kit `matchCam`: both canvases get the same `Match` (size, elevation, screen spot, lens), each its own shape and bearing, held from before the overlap until after it, then they move; built (Gibeon r3, frames 1344 to 1366: two flames on one screen point) |
+| Horizon approach | A far place the story goes to next, and the viewer should see where it is and how far. Compose the shot before it facing the way the journey goes | The two places face opposite ways and there is no time to turn (a turn takes about a frame for every 3°) | Vincent, 9 Nov; Gibeon 2D opening (Jericho's ring from above, Gibeon's towers on the horizon) | toon-kit `approach`; promise the destination from `seenFrom` in the must-see list. The far view has the arrival's colour and silhouette, about a tenth of the frame wide, and the dissolve begins as the start place leaves the frame: a low-detail haze card drawn apart from the place did not read as the town we arrive at (Gibeon r3, 5.4 to 6.2 s; right at frames 160 to 190); built |
 | Map zoom | Geography is the point (how near, which way, where the road goes) | The map has nothing new to say | Vincent, 9 Nov; Gibeon 2D map (33 s) | Pull up until the place becomes its icon on a map, travel on the map, dive into the next icon; match the icon's size to the place's size on screen |
 | Crane to an aerial and dive into another example | One becomes many | Only one example exists | expulsion room, pink prison, pachinko, spear and shield, random numbers | Terrain with tiny copies; blueprint |
 | Into a screen, lens, eye, mirror, icon or page; out in what it shows | A person and what they see or read | Nothing in the scene shows the next place | pink prison, mirror race, second draw, time test, idea zone, expulsion room, teleporter, dashcam, random numbers | Render the next place onto the object; push until it fills the frame; blueprint |
