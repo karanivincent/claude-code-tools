@@ -74,3 +74,21 @@ The only kit file that touches Three.js, and only for types, so the tests run wi
 
 - Effects with settings, finishing tools and action blocks (open a door, hand something over) move in when a video
   needs one.
+
+## acting.ts
+
+The acting audit: the faults the jungle holdout's critics found only after full renders (five cuts), checked from
+numbers the story samples over the film, no video needed. The story writes one sample per frame (or every few):
+who is on screen with a pose signature, their head and feet on screen, their height, and held props with the hand
+that holds them; plus its cards and its picture events and sound cues. Run it after the build, before any render.
+
+| Block | What it does |
+|---|---|
+| `actingStills` | Stretches over 1 s (`maxStill`) where nobody on screen changes pose. Camera moves do not count. |
+| `checkFraming` | Named heads cut by any edge; named people under 8% of the frame high. |
+| `checkHeld` | Props further than 5% of the frame from the hand that should hold them, or with no hand at all. |
+| `checkCues` | A card whose text is spoken must arrive 0.4 s before to 0.2 s after that word (the 1972 card on the wrong "by"). |
+| `checkSync` | Every picture event (a shot, a fall) has its sound within 0.1 s, and every sound its event. |
+| `report` | All issues as time-sorted lines. |
+
+Wiring it into a story: `toon-video` references/film-from-board.md, "The audit".
