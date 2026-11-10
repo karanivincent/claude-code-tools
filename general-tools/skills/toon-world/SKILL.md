@@ -167,8 +167,8 @@ a copy of a Ricks Clips Short scored round by round against the original.
 
 ## 2. The look stack (what makes 3D read as a cartoon)
 
-**Colour: bright and inviting.** Vincent wants the colour feel of a bright mobile game (Brawl Stars, 9 November
-2026): saturated sky and grass, warm golden sun, shade tinted blue or violet instead of grey, especially in the
+**Colour: bright and inviting.** Vincent wants the vibrant colour of today's bright games (Brawl Stars, the
+GTA 6 trailers and the like; 9 and 10 November 2026), never a muted or grey look: saturated sky and grass, warm golden sun, shade tinted blue or violet instead of grey, especially in the
 first seconds. Push it in passes, each with a before and after sheet of the same frames from the real composition,
 and look hardest at the large flat surfaces, where a grade push goes wrong first: concrete shade turned lilac, wide
 grass turned acid lime, a desk top turned red-orange (Wald bombers, round 4). A bare-metal hero reads flat grey
