@@ -111,6 +111,9 @@ and effects cost money. This skill holds the craft. A project or channel can add
    predicts each fix's gain, proposes raises to 4 and 5 beside its faults, scores against anchor stills, and re-scores
    only what changed. Run the measured checks below and give their numbers with the video.
    Nothing posts without the owner's yes on the finished video; drafts only.
+   Then **the package**: thumbnail, title and first frame, with the `story-thumbnails` skill (click critics, an
+   honesty veto, a phone-feed shortlist for the owner, the A/B test where offered). It is what makes people click
+   (Vincent, 10 November 2026).
 10. **Fix rounds: three, not seven** (below, "Three rounds, not seven"). Each fix round fixes every finding the
    critique lists and checks each fix on a short full-size moving render of its stretch before the round ends.
 
