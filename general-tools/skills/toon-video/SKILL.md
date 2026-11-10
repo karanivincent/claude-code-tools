@@ -78,10 +78,11 @@ and effects cost money. This skill holds the craft. A project or channel can add
      (French signs, a painting dwarfed by invented landscapes, the 28 hours as a number, the empty spots told, a cut
      head, half a roof) came after round 6, and every one would have been seen on a still board; each cost a round.
    - e. **Clips.** Build and render the video in clips of 15 to 20 seconds (about four for a minute), cut at story
-     beats, and show each clip before building the next. A clip reaches the owner only after the measured checks
-     below pass and a critic agent has scored it against the meaning sheet (and a reference when there is one). The
-     critic also opens one full-size frame of every shot and asks whether the place could exist ("Could this place
-     exist", below).
+     beats, and show each clip before building the next. A clip reaches the owner once the measured checks below
+     pass. The owner reviews first; then, with the owner's notes fixed, a critic agent scores it against the meaning
+     sheet (and a reference when there is one) and opens one full-size frame of every shot to ask whether the place
+     could exist ("Could this place exist", below). Its fixes come after.
+     (Vincent, 10 November 2026: "I review first and then the critic"; he sees things a critic does not.)
    (Vincent, 7 November 2026, after the train heist: "before any of this is animated ... I can review them fast.")
 5. **Sets.** A set list per place before any shot: 8 or more props, a full background, extras.
    People are small inside a big place. Crowds are painted once and reused. Build only what the
@@ -97,8 +98,9 @@ and effects cost money. This skill holds the craft. A project or channel can add
    voice on top, the whole bed held down under every run of words, effects on their words, about −14 LUFS. The mix
    writes a voice stem and a bed stem, and `scripts/levels.mjs` must pass on them before any render is handed back,
    and again whenever the narrator changes ("Music and mix", below).
-9. **Render, check, hand back.** Run the checks below and give their numbers with the video. Nothing
-   posts without the owner's yes on the finished video; drafts only.
+9. **Render, check, hand back.** Run the measured checks below and give their numbers with the video. The owner
+   reviews it first; the critic scores it after the owner's notes are fixed, never before the owner has seen it.
+   Nothing posts without the owner's yes on the finished video; drafts only.
 10. **Fix rounds: three, not seven** (below, "Three rounds, not seven"). Each fix round fixes every finding the
    critique lists and checks each fix on a short full-size moving render of its stretch before the round ends.
 
