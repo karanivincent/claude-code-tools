@@ -119,7 +119,7 @@ overwrite another story's files, and every earlier story must still render the s
    start, the middle and the last second, and at every shot whose words state a count. A fault in a few shots after the full render: render only
    their frames (`--frames=<a>-<b> --muted`) and lay them over the video while re-encoding it, as the
    furnace did (`docs/MAKING-A-STORY.md`, The pipeline), not a second full render.
-   A 16:9 video gets its thumbnail and title from the `clay-thumbnails` skill: ten ideas, three
+   A 16:9 video gets its thumbnail and title from the `story-thumbnails` skill (its Bible in Clay channel file): ten ideas, three
    critics, a shortlist for Vincent, then YouTube's A/B test. Leave time for it before the yes.
 8. **Ready and drafts.** Write `stories/<story>/upload.json` (title, description ending with the
    references and "Berean Standard Bible (public domain). Animated in code; voices are AI.", a title
