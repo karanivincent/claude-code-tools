@@ -7,7 +7,8 @@ very interesting to see it").
     python3 production_log.py report <log> [--story S]
     python3 production_log.py rounds <log> [--story S]
 
-A critique row carries --score (the critic's average, 0-3). `rounds` lists each story's critiques in order with the
+A critique row carries --score (the critic's average, 1-5; rows logged before 11 November 2026 were 0-3 and carry no
+`scale`, so `rounds` shows them times 5/3). `rounds` lists each story's critiques in order with the
 score, the change from the round before, and the agent hours and calendar hours spent up to that point, so the cost of
 each step up is plain, and ends with the count of rounds against the aim of three (toon-video "Three rounds, not
 seven").
@@ -37,6 +38,7 @@ def add(a):
            'round': a.round, 'step': a.step, 'by': a.by, 'minutes': a.minutes, 'tokens': a.tokens}
     if a.score is not None:
         row['score'] = a.score
+        row['scale'] = 5
     if a.note:
         row['note'] = a.note
     with open(a.log, 'a') as f:
@@ -98,10 +100,11 @@ def rounds(a):
             mins += r.get('minutes') or 0
             if r['stage'] == 'critique' and 'score' in r:
                 n += 1
-                gain = '' if prev is None else f'{r["score"] - prev:+.2f}'
+                sc = r['score'] * (5 / 3 if r.get('scale', 3) == 3 else 1)   # old rows were 0-3: shown out of 5
+                gain = '' if prev is None else f'{sc - prev:+.2f}'
                 cal = (datetime.fromisoformat(r['at']) - t0).total_seconds() / 3600
-                print(f'{n:8d} {r["score"]:5.2f} {gain:>6s} {mins / 60:7.1f} {cal:10.1f}  {r["at"][:16]}')
-                prev = r['score']
+                print(f'{n:8d} {sc:5.2f} {gain:>6s} {mins / 60:7.1f} {cal:10.1f}  {r["at"][:16]}')
+                prev = sc
         print(f'{n} round(s) of critique; the aim is three'
               + ('' if n <= 3 else f', {n - 3} over: read the findings for what came back, and why each extra round was needed'))
 
