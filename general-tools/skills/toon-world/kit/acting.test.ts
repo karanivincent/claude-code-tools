@@ -1,7 +1,7 @@
 // Run: node --test general-tools/skills/toon-world/kit/acting.test.ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { actingStills, checkFraming, checkHeld, checkCues, checkSync, type Sample } from './acting.ts';
+import { actingStills, checkFraming, checkHeld, checkCues, checkSync, actingTooSmall, type Sample } from './acting.ts';
 
 const at = (t: number, sig: string, shot = 'a', extra: Partial<Sample> = {}): Sample => ({ t, shot, people: [{ key: 'onoda', sig, head: [0.5, 0.3], feet: [0.5, 0.8], height: 0.5, named: true }], ...extra });
 
@@ -47,4 +47,11 @@ test('a person whose head and feet are both outside the frame is not a cut head'
   assert.equal(checkFraming(S).length, 0);
   const cut: Sample[] = [{ t: 0, shot: 'x', people: [{ key: 'a', sig: '1', head: [0.5, -0.05], feet: [0.5, 0.6], height: 0.7, named: true }] }];
   assert.equal(checkFraming(cut).length, 1);
+});
+
+test('acting at 20% of the frame high is too small to read; at 40% it reads', () => {
+  const small = [0, 0.1, 0.2].map((t, i) => ({ t, shot: 'beach', people: [{ key: 'onoda', sig: `pose${i}`, height: 0.2, named: true }] }));
+  assert.equal(actingTooSmall(small).length, 1);
+  const big = [0, 0.1, 0.2].map((t, i) => ({ t, shot: 'beach', people: [{ key: 'onoda', sig: `pose${i}`, height: 0.4, named: true }] }));
+  assert.equal(actingTooSmall(big).length, 0);
 });

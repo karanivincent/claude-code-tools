@@ -49,6 +49,7 @@ word lookup and segment maths. Do not rebuild these from the jungle holdout's co
 | People act with their bodies: walk, crouch, aim, point, throw, shake the head, fold the arms, salute | "He's just still in most of the images" |
 | What the line says happens on screen: firing on "still fighting", the tent going up on "pitches a tent", the paper falling on "flutters down" | The hook showed a man standing on a rock |
 | Props are held by hands (a drawn fist over a 3D prop, or the prop at the card's hand point); nothing rides on a rifle or floats | The leaflet and the photo sat on the rifle's end like signposts |
+| Acting framed close enough to read on a phone (the person at least a quarter of the frame high while acting), the camera moving in on the action word | The final round's acting raises all missed: staged in locked wides (`actingTooSmall`) |
 | A gesture the story turns on is held about 1 s and framed close enough to read: a salute, a handover, a tick on a list | The salute and the sword "missing" in cut 4 |
 | People who leave fall or walk out, in clear view, never vanish | Three men popped out of existence |
 | Gunfire is seen (flash, recoil, smoke, dust where it hits) and heard on top of the mix | "If he's still fighting we should hear gunshots" |

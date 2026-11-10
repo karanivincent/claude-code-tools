@@ -6,7 +6,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { bundle } from '@remotion/bundler';
 import { renderMedia, selectComposition } from '@remotion/renderer';
-import { actingStills, checkFraming, checkHeld, checkCues, checkSync, report } from '../../../toon-kit/acting.ts';
+import { actingStills, actingTooSmall, checkFraming, checkHeld, checkCues, checkSync, report } from '../../../toon-kit/acting.ts';
 const root = path.resolve(import.meta.dirname, '../../../..');
 const conc = Math.min(5, Number(process.argv[2] ?? 4)), t0 = Date.now();
 const serveUrl = await bundle({ entryPoint: path.join(root, 'src/index.ts'), publicDir: path.join(root, 'public'), onProgress: () => {} });
@@ -25,7 +25,7 @@ const S = [...samples.values()].sort((a, b) => a.t - b.t);
 const words = JSON.parse(fs.readFileSync(path.join(root, 'src/stories/__SLUG__/full.json'), 'utf8')).lines.flatMap(l => l.words);
 const cuesFile = path.join(root, 'public/__SLUG__/sound/cues.json');
 const sounds = fs.existsSync(cuesFile) ? JSON.parse(fs.readFileSync(cuesFile, 'utf8')) : null;
-const issues = [...actingStills(S), ...checkFraming(S), ...checkHeld(S), ...(cfg ? checkCues(cfg.cues, words) : []),
+const issues = [...actingStills(S), ...actingTooSmall(S), ...checkFraming(S), ...checkHeld(S), ...(cfg ? checkCues(cfg.cues, words) : []),
   ...(cfg && sounds ? checkSync(cfg.events, sounds) : [])];
 const lines = [...(cfg?.segs ?? []).map(x => `segments      ${x}`), ...report(issues)];
 if (!sounds) lines.push('note: no public/__SLUG__/sound/cues.json yet, so picture-sound sync was not checked (run the sound script)');

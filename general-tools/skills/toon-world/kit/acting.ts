@@ -113,6 +113,20 @@ function merge(raw: Issue[]): Issue[] {
   return out;
 }
 
+/** acting too small to read: a person changes pose (acts) while under `minHeight` of the frame high (default 0.25).
+ *  The jungle holdout's final round: of 30 predicted raises, the acting ones missed, every one staged in a locked wide
+ *  (a jump off a ramp at 20% of the frame, men sinking with faces at 5%). Frame the acting close, or move the camera in
+ *  on the action word. Extras (`named: false`) are not judged. */
+export function actingTooSmall(samples: Sample[], opts: { minHeight?: number } = {}): Issue[] {
+  const minH = opts.minHeight ?? 0.25, raw: Issue[] = [], prev = new Map<string, string>();
+  for (const s of samples) for (const p of s.people) {
+    const k = `${s.shot}|${p.key}`, before = prev.get(k); prev.set(k, p.sig);
+    if (before === undefined || before === p.sig || p.named === false || p.height === undefined) continue;
+    if (p.height < minH) raw.push({ check: 'acting-small', from: s.t, to: s.t, shot: s.shot, who: p.key, what: `acts at ${(p.height * 100).toFixed(0)}% of the frame high` });
+  }
+  return merge(raw);
+}
+
 /** all issues as lines, sorted by time */
 export const report = (issues: Issue[]) => issues.sort((a, b) => a.from - b.from)
   .map(i => `${i.from.toFixed(2)}-${i.to.toFixed(2)}  ${i.check.padEnd(13)} ${(i.shot || '').padEnd(16)} ${i.who ? i.who + ': ' : ''}${i.what}`);
