@@ -407,7 +407,7 @@ For anything longer than a few seconds, build each clip with specialist agents t
 track, effects, people and props that act (a train), sound at the same time; then the camera last, because it frames
 what the others built; then a critic that scores the clip, from the sheets and from one full-size frame of every shot
 (below). Resume the same agents for the next round so they keep
-their knowledge of the code. The railroads practice went from 1.2 to 1.8 out of 3 in three rounds this way, where
+their knowledge of the code. The railroads practice went from 2.0 to 3.0 out of 5 (1.2 to 1.8 on the old 0–3 scale) in three rounds this way, where
 one lead builder alone stopped at 1.2. Each agent writes a short report with notes for the camera.
 
 ## Log every step's time
@@ -498,7 +498,10 @@ plugin cache ("Voice", above); the others are in the toolkit project, so copy th
 | Empty sky | toon-kit `checkSky` over every frame and layer, with the terrain | no frame over 45% empty sky, none looking up with nothing whole in frame, outside declared looks at the sky |
 | Drawings cut by their canvas | toon-kit `edgeTouches` on every card and word canvas right after it draws, logged over a small render of every frame (`toon-world` "The people") | no drawing touches its canvas's border (except a side declared to run off the frame). Why: a thought cloud with a straight top and side and a card ending in a straight line across a robe, two cuts running (Gibeon r4-r5, 18.0 to 22.6 s, 23.1 to 23.3 s); run on every card, it found 16 cut sides in 9 cards, none seen by a critic |
 | Cold read | a fresh cheap agent names each new place, prop, effect, material and face from one still (`toon-world/references/cold-read-brief.md`) | nothing misread |
-| Score | a critic agent scores each second 0–3 on world, camera, people, light, story by picture, sound | rising every round; 2.5 is the aim |
+| Score | a critic agent scores each second 1–5 on world, camera, people, light, story by picture, sound (1 broken: wrong, unreadable or laughable; 2 weak: reads but flat, frozen or confusing; 3 fine: clear and correct, forgettable; 4 good: alive, reads on a phone, lands; 5 great: you would stop scrolling for it), and gives the average per area and the weakest seconds | rising every round; 4.2 is the aim |
+
+One scale everywhere (Vincent, 10 November 2026: "out of five ... a rounded number that people use a lot"): every critic
+scores 1 to 5 with the meanings in the row above. Scores logged before then were 0 to 3; multiply them by 5/3 to compare.
 
 Why the full-size frame: the sheets the critic reads are about 540 px wide, where a door is about 50 px tall. A hall
 door stood on the wall's lower band at waist height, its rail across the doorway, and five critic rounds scoring story

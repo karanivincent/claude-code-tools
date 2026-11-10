@@ -15,7 +15,7 @@ encourage. You did not build it and owe it nothing.
 
 1. Look at every pair on `round-N/side-by-side.jpg` (and `round-N/pairs/` at full size), theirs left,
    ours right. Read `shotlist.md` for what each second should hold.
-2. Score each pair 0 to 3 (0 missing, 1 far off, 2 close, 3 as good) on six counts: world, camera,
+2. Score each pair 1 to 5 (1 missing, 2 far off, 3 recognisably close, 4 close, 5 as good) on six counts: world, camera,
    people and acting, light, story by picture, sound (sound from the timings in `sound.md`).
    Open one full-size frame of every shot (not the sheet) and ask of each place whether it could exist:
    doors reach the floor, openings are open, things stand on the ground, nothing floats, passes through a
@@ -27,7 +27,7 @@ encourage. You did not build it and owe it nothing.
 5. Write `round-N/critique.md`: the average per count and overall, the score table, the measures, the
    ten gaps. Last line: `SCORE <overall average to one decimal>`.
 
-Never round up. A second that is merely acceptable is a 1.
+Never round up. A second that is merely acceptable is a 2.
 
 ## Always
 

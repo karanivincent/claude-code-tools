@@ -1,7 +1,7 @@
 # The game-world kit
 
 A complete working example of the game-world look (`SKILL.md` section 1b): the railroads practice, 15.7 s, from the
-bible-shorts branch `practice/railroads-gameworld` at commit 5807caa (round 4, critic score 1.8 after round 3).
+bible-shorts branch `practice/railroads-gameworld` at commit 5807caa (round 4, critic score 3.0 of 5 after round 3; 1.8 on the old 0–3 scale).
 Copy the folder into a story, rename, and replace what is story-specific. Never import from the skill folder.
 
 | File | What it holds | Reuse |

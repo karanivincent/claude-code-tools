@@ -59,11 +59,11 @@ the same one.
    render once the sheet scores well. Then
    `bash <skill>/scripts/side-by-side.sh ref.mp4 ours.mp4 out/practice/<slug>/round-N/` makes a sheet
    of matching seconds, theirs on the left, ours on the right, plus the measures.
-4. **Critic.** It scores each second's pair 0 to 3 (0 missing, 3 as good as theirs) on six counts: the
+4. **Critic.** It scores each second's pair 1 to 5 (1 missing, 5 as good as theirs) on six counts: the
    world (props, background, extras), camera (move and angle), people and acting, light, story told by
    picture (jokes, signs, state kept), sound. It names the ten biggest gaps, each with the second and
    the owning agent.
-5. **Repeat** from step 2 with the gaps. Stop when the average is 2.5 or more and no second scores 0,
+5. **Repeat** from step 2 with the gaps. Stop when the average is 4.2 or more and no second scores 1,
    or after five rounds; say which.
 6. **Learn.** Write what this copy taught to `docs/PRACTICE.md` in bible-shorts (newest first): the
    score each round, what moved it, and which helpers were added. Lessons that would help any toon
