@@ -25,8 +25,9 @@ one never reached the next.
   the screen),
   `cards.ts` (a drawing cut by its own canvas), `props.ts`
   (props with named states and dials whose needle and marks share one angle), `set.ts` (a wall's bands, rails and
-  skirting cut at its openings) and `light.ts` (the time of day on every lit material; the only kit file that touches
-  Three.js); see `kit/README.md`.
+  skirting cut at its openings), `light.ts` (the time of day on every lit material; the only kit file that touches
+  Three.js), `acting.ts` (the acting audit) and `timing.ts` (word times that refuse a guess, segments with shared
+  clocks, pushes, swings, whips and the mid-shot punch); see `kit/README.md`.
 - **How a project gets it.** `node <skill>/scripts/sync-kit.mjs <project>` writes `src/toon-kit/`. A project never
   edits those files; the sync stops if one was edited. A fix goes into `kit/` through the skills repo, then every
   project syncs. The sync warns when a file under `src/` keeps its own `path`, `K` or `curve`: a kit fix never reaches
@@ -39,6 +40,12 @@ one never reached the next.
   designs its own. `templates/` are worked examples to learn from, never a starting kit to copy whole, and a story
   never copies another story's people or places (the Mona Lisa took the train heist's people code, and the two
   looked alike).
+- **The film harness is the exception: start every story from it.** `templates/film/` (Film, Stage, the place
+  contract, overlays, the detail layer, render, stills and audit tools) and `templates/sound/` (music in sections,
+  effects on words, an unducked action layer, -14 LUFS, `cues.json`) hold no people, places or palette, only the
+  machinery the jungle holdout needed five cuts to get right. `node <skill>/scripts/new-film.mjs <project> <slug>
+  <CompositionId>` copies both into the story and syncs the kit; the story then writes its own cast, places and
+  segments. What each default prevents: `templates/film/README.md`.
 
 ## Looks, scene by scene (decided 8 November 2026)
 
@@ -111,7 +118,8 @@ things; with six paintings near her size and a warm pool on her spot, the next c
   `references/place-from-pictures.md` and `references/picture-rules.md`.
 - Pin the post stack: `@react-three/postprocessing@3.0.4` and `postprocessing@6.39.5` with three 0.186. With
   `@react-three/postprocessing` 3.2 Remotion renders a blank frame (the composer is created one frame late).
-- Copy what you need from `templates/` into the story's folder; never import from the skill folder.
+- Start the story's film with `scripts/new-film.mjs` (see "The toon-kit"), then copy what else you need from
+  `templates/` into the story's folder; never import from the skill folder.
 
 ## 1. The place: pick a route
 

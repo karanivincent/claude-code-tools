@@ -21,6 +21,13 @@ export type Outfit = {
   jacket: string; pants: string; boots: string; hat?: string | null; belt?: string | null; buttons?: string; rifle?: boolean;
   sash?: string; sword?: boolean; moustache?: string; skin?: string; head?: number; cap?: string; hair?: string; dress?: string;
   build?: Build; spear?: boolean;
+  /** a rucksack (its colour): straps over the shoulders and its top seen past them; not drawn when the person falls */
+  pack?: string;
+  /** squares sewn on the jacket (their colours, up to three places) with a rip or two: a uniform worn for years */
+  patches?: string[];
+  /** the sword's look when `sword` is set: "sabre" (default, a bare blade) or "katana" (a dark scabbard slung from the
+   *  belt, the wrapped hilt up by the hip, a brass guard and end) */
+  scabbard?: "sabre" | "katana";
 };
 type P2 = [number, number];
 
@@ -407,6 +414,24 @@ const hatOn = (p: Pen, o: Outfit, hp: P2[], H: Blob, cx: number, hc: number, lig
         p.ell(px, py, 32 * u, 0.06 * HH, shade(col, 0.8), ow, 0, 180, deg);
       }
     }
+  } else if (o.hat === "longhair") {
+    // long hair: a full cap of hair with a ragged fringe and locks hanging past the ears to the jaw. `hair` is its
+    // colour (default near black); `cap` adds a thin headband.
+    const col = o.hair ?? "#1a1414", cut = crown + 0.36 * HH;
+    const arc = hp.filter(([, y]) => y < cut).map(([x, y]) => [cx + (x - cx) * 1.05, hc + (y - hc) * 1.05] as P2);
+    if (arc.length > 3) {
+      const [x0, y0] = arc[arc.length - 1], [x1, y1] = arc[0];
+      for (let i = 1; i < 8; i++) arc.push([x0 + ((x1 - x0) * i) / 8, y0 + ((y1 - y0) * i) / 8 + (i % 2 ? 6 * u : 0)]);   // fringe
+      p.shadedFill(arc, col, mul(col, SH_FELT), light, H.a, 0.35); p.poly(arc, null, ow);
+      for (const sd of [-1, 1]) {
+        // a lock hugging the head's side, wavy, thinning to points past the jaw
+        const xi = cx + sd * 0.9 * H.a, xo = cx + sd * 1.1 * H.a, yt = hc - 0.55 * H.b, yb = hc + 1.15 * H.b;
+        const lock = R([[xi - sd * 4 * u, yt], [xo, yt + 4 * u], [xo + sd * 4 * u, hc + 0.3 * H.b], [xo + sd * 2 * u, yb - 6 * u], [xo - sd * 5 * u, yb],
+          [xi + sd * 2 * u, yb - 12 * u], [xi + sd * 4 * u, yb - 4 * u], [xi - sd * 1 * u, hc + 0.6 * H.b], [xi - sd * 3 * u, hc]]);
+        p.shadedFill(lock, col, mul(col, SH_FELT), light, H.a * 0.4, 0.35); p.poly(lock, null, ow * 0.85);
+      }
+      if (o.cap) p.band(R([[cx - 0.98 * H.a, cut - 0.07 * HH], [cx + 0.98 * H.a, cut - 0.07 * HH]]), o.cap, 5 * u, 1.4 * u);   // a thin headband
+    }
   } else if (o.hat === "tophat") {
     const yb = crown + 0.22 * HH, ht = 0.8 * HH, wb = 0.31 * W, wt = 0.33 * W, col = "#2e2a36";
     const body = R([...sag(yb, wb).reverse(), [cx - wt, yb - ht], [cx + wt, yb - ht]]);
@@ -579,9 +604,23 @@ export const bodyFront = (p: Pen, o: Outfit, opts: FrontOpts) => {
     p.band([R0, R1], "#7a4b2a", 5 * u, 1.5 * u, "round");
     p.band([lerp2(R0, R1, 0.6), R1], "#8d949c", 2.4 * u, 1.2 * u, "round");
   }
-  if (o.sword && mode !== "sit") {
+  if (o.sword && mode !== "sit" && o.scabbard === "katana") {
+    // a katana in its dark scabbard slung from the belt: the hilt up by the hip, the guard, the sheath angled back
+    const s0: P2 = [tcx - 0.8 * T.a, torsoBot - 0.3 * HH], dir: P2 = [-Math.sin(rad(28)), Math.cos(rad(28))];
+    const at = (k: number): P2 => [s0[0] + dir[0] * k * HH, s0[1] + dir[1] * k * HH];
+    p.band([at(0.02), at(0.95)], "#2e2622", 5.5 * u, 1.6 * u, "round");                  // scabbard
+    p.band([at(0.9), at(0.97)], "#c9a24a", 6 * u, 1.2 * u, "round");                     // the brass end
+    p.band([at(-0.3), at(-0.02)], "#e8e0cc", 4.5 * u, 1.4 * u, "round");                 // the wrapped hilt
+    for (let k = 0; k < 4; k++) p.stroke([at(-0.27 + k * 0.07), at(-0.24 + k * 0.07)], 1.2 * u);
+    const [gx, gy] = at(0); p.ell(gx, gy, 7 * u, 3.5 * u, "#c9a24a", 1.4 * u, 0, 360, 62);   // the guard
+  } else if (o.sword && mode !== "sit") {
     const s0: P2 = [tcx - 0.75 * T.a, torsoBot - 0.2 * HH];
     p.band([s0, [s0[0] - Math.sin(rad(25)) * 0.8 * HH, s0[1] + Math.cos(rad(25)) * 0.8 * HH]], "#c9ccd2", 3 * u, 1.2 * u, "round");
+  }
+  if (o.pack && mode !== "fall") {   // the rucksack's top and sides, seen past the shoulders
+    const pk: P2[] = [[tcx - 1.18 * T.a, chin + 0.75 * HH], [tcx - 1.15 * T.a, chin - 0.2 * HH], [tcx - 0.8 * T.a, chin - 0.5 * HH], [tcx + 0.8 * T.a, chin - 0.5 * HH], [tcx + 1.15 * T.a, chin - 0.2 * HH], [tcx + 1.18 * T.a, chin + 0.75 * HH]];
+    p.gradFill(pk, o.pack, mul(o.pack, SH_CLOTH), light); p.poly(pk, null, ow * 0.9);
+    p.band([[tcx - 0.55 * T.a, chin - 0.36 * HH], [tcx + 0.55 * T.a, chin - 0.36 * HH]], shade(o.pack, 0.75), 4 * u, 1.2 * u);   // the flap's seam
   }
   for (const a of arms) if (!a.front) drawArm(a);
   // torso / dress: shaded fill -> clothing clipped to it -> thick-thin ink ring
@@ -602,6 +641,17 @@ export const bodyFront = (p: Pen, o: Outfit, opts: FrontOpts) => {
         const xc = tcx + 0.025 * T.a, yc = chin - 0.05 * HH + (torsoBot - 0.1 * HH - (chin - 0.05 * HH)) * (0.75 / 1.55);
         p.poly([[xc - 3.5 * u, yc - 3.5 * u], [xc + 3.5 * u, yc - 3.5 * u], [xc + 3.5 * u, yc + 3.5 * u], [xc - 3.5 * u, yc + 3.5 * u]], "#d9dde0", 1.5 * u);
       }
+      if (o.patches) {   // squares sewn on over the years, stitched, and a rip or two
+        o.patches.forEach((pc, i) => {
+          const px = tcx + [-0.45, 0.4, -0.1][i % 3] * T.a, py = chin + [0.35, 0.75, 1.05][i % 3] * HH, w = [13, 11, 15][i % 3] * u, an = [0.2, -0.25, 0.1][i % 3];
+          const c = Math.cos(an), sn = Math.sin(an), q = (x: number, y: number): P2 => [px + x * c - y * sn, py + x * sn + y * c];
+          p.poly([q(-w, -w * 0.8), q(w, -w), q(w * 0.9, w * 0.85), q(-w, w)], pc, 1.4 * u);
+          for (let k = -2; k <= 2; k++) p.stroke([q(-w + 3 * u, k * w * 0.35), q(-w + 6 * u, k * w * 0.35)], 1 * u);
+        });
+        p.stroke([[tcx + 0.55 * T.a, chin + 0.25 * HH], [tcx + 0.68 * T.a, chin + 0.32 * HH], [tcx + 0.6 * T.a, chin + 0.4 * HH]], 1.4 * u);
+        p.stroke([[tcx - 0.7 * T.a, torsoBot - 0.05 * HH], [tcx - 0.6 * T.a, torsoBot - 0.16 * HH], [tcx - 0.5 * T.a, torsoBot - 0.03 * HH]], 1.4 * u);
+      }
+      if (o.pack) for (const sd of [-1, 1]) p.band([[tcx + sd * 0.55 * T.a, chin - 0.1 * HH], [tcx + sd * 0.42 * T.a, chin + 0.75 * HH]], shade(o.pack, 0.7), 6 * u, 1.4 * u);   // the straps
       if (o.sash) p.band([[tcx - 1.3 * T.a, torsoBot - 0.32 * HH], [tcx + 1.3 * T.a, torsoBot - 0.32 * HH]], o.sash, 0.13 * HH, 1.8 * u);
       for (let i = 0; i < 4; i++) {
         const y = chin + 0.12 * HH + i * 0.2 * HH;

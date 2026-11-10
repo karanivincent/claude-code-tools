@@ -85,10 +85,25 @@ that holds them; plus its cards and its picture events and sound cues. Run it af
 | Block | What it does |
 |---|---|
 | `actingStills` | Stretches over 1 s (`maxStill`) where nobody on screen changes pose. Camera moves do not count. |
-| `checkFraming` | Named heads cut by any edge; named people under 8% of the frame high. |
+| `checkFraming` | Named heads cut by any edge; named people under 8% of the frame high. A person whose head and feet are both outside the frame is skipped (off screen, not cut); the film template's sampler also drops people behind the lens. |
 | `checkHeld` | Props further than 5% of the frame from the hand that should hold them, or with no hand at all. |
 | `checkCues` | A card whose text is spoken must arrive 0.4 s before to 0.2 s after that word (the 1972 card on the wrong "by"). |
 | `checkSync` | Every picture event (a shot, a fall) has its sound within 0.1 s, and every sound its event. |
 | `report` | All issues as time-sorted lines. |
 
 Wiring it into a story: `toon-video` references/film-from-board.md, "The audit".
+
+## timing.ts
+
+The voice timeline and the film's segments, pure, shared by `shots.ts` and the sound script. The film template
+(`templates/film/`) is built on it.
+
+| Block | What it does |
+|---|---|
+| `makeTimeline(data)` | `L(id)` a line, `W(id, word, nth?)` when a word is said, `onWord` (two frames early, for picture beats), `onLine`, `next`, `talk`, `words`. `W` throws when the word is said more than once in its line and `nth` is not given, and when `nth` is past the last one: the 1972 card took the "by" of "one by one". Words compare with digits kept ("1972," matches "1972"). |
+| `resolveClocks(segs)` | Fills each segment's `clock` and `lead`. Consecutive segments of the same place and shot continue the first one's clock, so one shot split into several camera moves keeps acting (the list's tick restarted at each split). `clock: 'own'` restarts; a number shares a clock across shots (three angles on one standoff). |
+| `pushed`, `lerpView`, `sm` | A view moved by push, side, rise, fov and aim (aim moves the look point and the camera together). |
+| `viewAt` | A segment's framing at t: a creep towards `to` that never stalls, and a punch in at the middle of any segment over 1.8 s (`punch: false` to turn it off). |
+| `frameAt`, `whipAt`, `intoOf` | The camera, the shot's clock and the whip blur at film time t: a swing from the last framing inside a place, a whip between places. |
+| `segAt`, `shotClock`, `filmTimeOf` | Which segment plays; a shot's own clock; the film time of a moment in a shot's clock (picture events for the audit and the sound). |
+| `checkSegs` | Gaps, overlaps, backwards segments and unknown shots in the list (the audit prints them). |
