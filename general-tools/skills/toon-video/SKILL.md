@@ -104,8 +104,12 @@ and effects cost money. This skill holds the craft. A project or channel can add
    place files that animate them. The mix
    writes a voice stem and a bed stem, and `scripts/levels.mjs` must pass on them before any render is handed back,
    and again whenever the narrator changes ("Music and mix", below).
-9. **Render, check, hand back.** Run the measured checks below and give their numbers with the video. The owner
-   reviews it first; the critic scores it after the owner's notes are fixed, never before the owner has seen it.
+9. **Audit, beat board, then one render.** The order (Vincent, 10 November 2026): build → the code audit (toon-kit
+   `acting.ts`, no render) → the beat board (2 to 3 full-size stills per shot at its action words) reviewed by the
+   owner and scored by the critic in beat-board mode, fixed there → one full render → the owner reviews it first, then
+   a short full-mode critic pass for motion, joins and sound. Brief the critic from `references/critic-brief.md`: it
+   predicts each fix's gain, proposes raises to 4 and 5 beside its faults, scores against anchor stills, and re-scores
+   only what changed. Run the measured checks below and give their numbers with the video.
    Nothing posts without the owner's yes on the finished video; drafts only.
 10. **Fix rounds: three, not seven** (below, "Three rounds, not seven"). Each fix round fixes every finding the
    critique lists and checks each fix on a short full-size moving render of its stretch before the round ends.
