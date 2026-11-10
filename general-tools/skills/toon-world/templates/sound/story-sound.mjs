@@ -76,7 +76,9 @@ const file = n => { const f = path.join(OUT, `${n}.mp3`); if (!fs.existsSync(f))
 // the action cues for the acting audit (toon-kit checkSync): kind and film time
 fs.writeFileSync(path.join(OUT, 'cues.json'), JSON.stringify(action.filter(c => c[6]).map(c => ({ name: c[6], t: +c[1].toFixed(3) }))) + '\n');
 
-const inputs = [], filters = ['[0:a]aformat=sample_rates=48000:channel_layouts=stereo,asplit=2[vo][key]'];
+// the voice is padded to the film's length: the ducker stops when its key ends, which cut the music, the effects and
+// the closing chord at the last word (jungle holdout cut 6: 1.5 s of silence at the end)
+const inputs = [], filters = [`[0:a]aformat=sample_rates=48000:channel_layouts=stereo,apad=whole_dur=${D},asplit=2[vo][key]`];
 const layer = (list, tag, offset) => list.map(([n, at, gain, fin, fout, len], i) => {
   const k = offset + i + 1; inputs.push('-i', file(n));
   const fades = `${fin ? `afade=t=in:d=${fin},` : ''}${fout ? `afade=t=out:st=${Math.max(0, len - fout).toFixed(2)}:d=${fout},` : ''}`;
