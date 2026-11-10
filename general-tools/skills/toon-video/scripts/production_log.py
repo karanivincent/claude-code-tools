@@ -6,6 +6,19 @@ very interesting to see it").
                                   [--by "opus agent"] [--minutes M] [--tokens T] [--at ISO] [--note "..."]
     python3 production_log.py report <log> [--story S]
     python3 production_log.py rounds <log> [--story S]
+    python3 production_log.py profile <log> --story S --channel C --look L --methods m1,m2 [--note "..."]
+    python3 production_log.py areas <log>
+
+A profile row says what kind of video a story is, so videos can be compared by how they were made (Vincent,
+10 November 2026: "this one was 3D items from Higgsfield, or still pictures from Higgsfield, 3D worlds we created,
+2D objects"). Methods, any of:
+  picture-backdrop   AI pictures as far backdrops (Higgsfield)     picture-to-3d   image-to-3D hero props (Higgsfield)
+  code-3d            places and props built in code                painted-texture AI tileable textures on code 3D
+  drawn-2d           cards, details and effects drawn in code      bean-cards      the lit bean-head people
+  clay-3d            clay figures in 3D                            ai-video        AI-generated video (Higgsfield)
+A critique row can carry --areas world=3.5,camera=3.2,... (each area's average, 1-5) and --judge "opus 5.5".
+`areas` prints each story's last critique by area, then each area's average across stories that use a method and
+those that do not, so the weakest area and the method behind it show up after a few videos.
 
 A critique row carries --score (the critic's average, 1-5; rows logged before 11 November 2026 were 0-3 and carry no
 `scale`, so `rounds` shows them times 5/3). `rounds` lists each story's critiques in order with the
@@ -30,7 +43,9 @@ from collections import defaultdict
 from datetime import datetime, timezone
 
 STAGES = ['study', 'script', 'voice', 'plan', 'world', 'people', 'camera', 'build', 'render', 'critique', 'fix',
-          'spike', 'review', 'other']
+          'spike', 'review', 'other', 'profile']
+METHODS = ['picture-backdrop', 'picture-to-3d', 'code-3d', 'painted-texture', 'drawn-2d', 'bean-cards', 'clay-3d', 'ai-video']
+AREAS = ['world', 'camera', 'people', 'light', 'story', 'sound']
 
 
 def add(a):
@@ -39,6 +54,12 @@ def add(a):
     if a.score is not None:
         row['score'] = a.score
         row['scale'] = 5
+    if getattr(a, 'areas', None):
+        row['areas'] = {k: float(v) for k, v in (x.split('=') for x in a.areas.split(','))}
+        bad = [k for k in row['areas'] if k not in AREAS]
+        if bad: sys.exit(f'unknown area(s) {bad}; use {AREAS}')
+    if getattr(a, 'judge', None):
+        row['judge'] = a.judge
     if a.note:
         row['note'] = a.note
     with open(a.log, 'a') as f:
@@ -109,6 +130,42 @@ def rounds(a):
               + ('' if n <= 3 else f', {n - 3} over: read the findings for what came back, and why each extra round was needed'))
 
 
+def profile(a):
+    methods = [m for m in a.methods.split(',') if m]
+    bad = [m for m in methods if m not in METHODS]
+    if bad: sys.exit(f'unknown method(s) {bad}; use {METHODS}')
+    row = {'at': a.at or datetime.now(timezone.utc).isoformat(timespec='minutes'), 'story': a.story, 'stage': 'profile',
+           'step': 'what kind of video', 'channel': a.channel, 'look': a.look, 'methods': methods}
+    if a.note: row['note'] = a.note
+    with open(a.log, 'a') as f:
+        f.write(json.dumps(row, ensure_ascii=False) + '\n')
+    print(json.dumps(row, ensure_ascii=False))
+
+
+def areas(a):
+    rows = sorted((json.loads(l) for l in open(a.log) if l.strip()), key=lambda r: r['at'])
+    prof = {r['story']: r for r in rows if r['stage'] == 'profile'}
+    last = {}
+    for r in rows:
+        if r['stage'] == 'critique' and r.get('areas'):
+            last[r['story']] = r
+    if not last:
+        print('no critique with --areas yet'); return
+    print(f'{"story":22s} ' + ' '.join(f'{x:>6s}' for x in AREAS) + '  overall  judge')
+    for st, r in last.items():
+        ar = r['areas']
+        print(f'{st:22s} ' + ' '.join(f'{ar.get(x, float("nan")):6.2f}' for x in AREAS) + f'  {r.get("score", float("nan")):7.2f}  {r.get("judge", "")}')
+    mean = lambda xs: sum(xs) / len(xs) if xs else float('nan')
+    print('\nweakest area per story: ' + ', '.join(f'{st} {min(r["areas"], key=r["areas"].get)}' for st, r in last.items()))
+    print(f'\n{"method":18s} {"with":>5s} ' + ' '.join(f'{x:>6s}' for x in AREAS) + '   (average of stories with the method; then without)')
+    for m in METHODS:
+        w = [last[s]['areas'] for s in last if m in prof.get(s, {}).get('methods', [])]
+        wo = [last[s]['areas'] for s in last if s in prof and m not in prof[s].get('methods', [])]
+        if not w: continue
+        print(f'{m:18s} {len(w):5d} ' + ' '.join(f'{mean([x[k] for x in w if k in x]):6.2f}' for k in AREAS))
+        if wo: print(f'{"  without":18s} {len(wo):5d} ' + ' '.join(f'{mean([x[k] for x in wo if k in x]):6.2f}' for k in AREAS))
+
+
 def main():
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest='cmd', required=True)
@@ -118,12 +175,18 @@ def main():
     pa.add_argument('--round', type=int); pa.add_argument('--by', default='coordinator')
     pa.add_argument('--minutes', type=float); pa.add_argument('--tokens', type=int)
     pa.add_argument('--at'); pa.add_argument('--note'); pa.add_argument('--score', type=float)
+    pa.add_argument('--areas'); pa.add_argument('--judge')
     pr = sub.add_parser('report')
     pr.add_argument('log'); pr.add_argument('--story')
     pd = sub.add_parser('rounds')
     pd.add_argument('log'); pd.add_argument('--story')
+    pp = sub.add_parser('profile')
+    pp.add_argument('log'); pp.add_argument('--story', required=True); pp.add_argument('--channel', required=True)
+    pp.add_argument('--look', required=True); pp.add_argument('--methods', required=True); pp.add_argument('--at'); pp.add_argument('--note')
+    pr2 = sub.add_parser('areas')
+    pr2.add_argument('log')
     a = p.parse_args()
-    {'add': add, 'report': report, 'rounds': rounds}[a.cmd](a)
+    {'add': add, 'report': report, 'rounds': rounds, 'profile': profile, 'areas': areas}[a.cmd](a)
 
 
 if __name__ == '__main__':
