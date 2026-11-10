@@ -9,7 +9,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { InkPass, NOINK, noInkFallback } from '../../look/ink';
 import { LensBlur } from '../../look/lensblur';
 import { GradeEffect, GRADES, gradeFor } from '../../look/grade';
-import { LIGHTS } from '../../look/lights';
+import { LIGHTS, type LightPreset } from '../../look/lights';
 import { TONE, CHAR } from '../../look/shade';
 import { Cast, Person, SCALE } from './cast';
 import { PLACES, PlaceName } from './places';
@@ -60,9 +60,52 @@ const makeBloom = () => {
 const fwd = new THREE.Vector3(), fpt = new THREE.Vector3();
 
 /** what the board leaves alone and the film may change on a shot: people (the segment's acting) and the blur */
-export interface Take { t?: number; view?: View; people?: (base: Person[]) => Person[]; focus?: Shot['focus']; blur?: number }
+export interface Take { t?: number; view?: View; people?: (base: Person[]) => Person[]; focus?: Shot['focus']; blur?: number; relight?: Relight }
+/** a thumbnail-only re-light of the same moment (story-thumbnails: bright cards are lit, never brightened after):
+ *  light presets over the place's own, the key light's strength, and a tint on the unlit pictures (sky, painted leaves) */
+export interface Relight { light?: Partial<LightPreset>; key?: number; pictures?: number; fog?: string;
+  /** a lighter sky over the place's own picture: [top colour, horizon colour], screened on at `skyMix` (0 to 1) */
+  sky?: [string, string]; skyMix?: number }
+type FrameView = (shotView: Shot['view'], other: (shot: string) => Shot['view'], shotT: number) => { view: Shot['view']; t: number };
+
 /** the film's camera and clock for this frame, from the shot's own view, any shot's view, and the shot's start time */
 export type FrameView = (shotView: View, other: (shot: string) => View, shotT: number) => { view: View; t: number };
+
+/** scale the colour of every unlit picture material (MeshBasic: the sky screen, glow cards stay as they are above 1) */
+function relightPictures(scene: THREE.Scene, k: number) {
+  scene.traverse(o => {
+    const m = (o as THREE.Mesh).material as (THREE.MeshBasicMaterial | THREE.MeshLambertMaterial) & { userData: { c0?: THREE.Color } } | undefined;
+    const mm = m as unknown as { isMeshBasicMaterial?: boolean; isMeshLambertMaterial?: boolean };
+    if (!m || Array.isArray(m) || !m.color || !(mm.isMeshBasicMaterial || mm.isMeshLambertMaterial)) return;
+    if (o.renderOrder > 0) return;   // props drawn over the world (papers, cards) keep their own colour
+    if (k === 1 && !m.userData.c0) return;
+    m.userData.c0 ??= m.color.clone();
+    m.color.copy(m.userData.c0).multiplyScalar(k);
+  });
+}
+
+/** the sky screens (renderOrder -10) get a lighter sky: the place's picture, then a vertical gradient screened over it */
+const SKIES = new Map<string, THREE.Texture>(), OURS = new WeakSet<THREE.Texture>();
+function relightSky(scene: THREE.Scene, sky: [string, string], mix: number) {
+
+  scene.traverse(o => {
+    const m = (o as THREE.Mesh).material as THREE.MeshBasicMaterial | undefined;
+    if (o.renderOrder !== -10 || !m || Array.isArray(m) || !m.map || OURS.has(m.map)) return;
+    const src = m.map, id = `${src.uuid}|${sky.join()}|${mix}`;
+    let t = SKIES.get(id);
+    if (!t) {
+      const img = src.image as CanvasImageSource & { width: number; height: number };
+      const cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height;
+      const c = cv.getContext('2d')!; c.drawImage(img, 0, 0);
+      const g = c.createLinearGradient(0, 0, 0, cv.height); g.addColorStop(0, sky[0]); g.addColorStop(1, sky[1]);
+      c.globalAlpha = mix; c.globalCompositeOperation = 'screen'; c.fillStyle = g; c.fillRect(0, 0, cv.width, cv.height);
+      t = new THREE.CanvasTexture(cv);
+      t.colorSpace = THREE.SRGBColorSpace; t.wrapS = src.wrapS; t.wrapT = src.wrapT; t.repeat.copy(src.repeat); t.offset.copy(src.offset);
+      OURS.add(t); SKIES.set(id, t);
+    }
+    m.map = t; m.needsUpdate = true;
+  });
+}
 
 export const Stage: React.FC<{ def: PlaceDef; a: Loaded; shot: string; take?: Take; frameView?: FrameView; debug?: string; filmT?: number }> = ({ def, a, shot, take = {}, frameView, debug = '', filmT }) => {
   const { camera, scene, size } = useThree();
@@ -116,13 +159,17 @@ export const Stage: React.FC<{ def: PlaceDef; a: Loaded; shot: string; take?: Ta
   if (v.roll) cam.rotateZ(v.roll);
   cam.fov = v.fov; cam.near = 0.05; cam.far = 3000; cam.aspect = size.width / size.height; cam.updateProjectionMatrix(); cam.updateMatrixWorld();
   cam.layers.enable(NOINK);
-  const P = { ...LIGHTS[def.grade], ...(def.light ?? {}) };
+  const P = { ...LIGHTS[def.grade], ...(def.light ?? {}), ...(take.relight?.light ?? {}) };
+  W.sun.intensity = 2.6 * (take.relight?.key ?? 1);
+  relightPictures(scene, take.relight?.pictures ?? 1);
+  if (take.relight?.fog && scene.fog) (scene.fog as THREE.Fog).color.set(take.relight.fog);
   TONE.uLitCol.value.set(...P.lit); TONE.uShadeCol.value.set(...P.shade); TONE.uShadeLift.value.set(...P.lift);
   TONE.uLambert.value = P.lambert; TONE.uSideK.value = P.sideK; TONE.uTerm.value = P.term; TONE.uSat.value = 1; TONE.uBounce.value.set(0, 0, 0);
   CHAR.uCharTint.value.set(...P.charTint); CHAR.uCharShade.value = P.charShade; CHAR.uGrad.value = P.charGrad; CHAR.uBodyGrad.value = P.bodyGrad; CHAR.uSideTint.value.set(...P.sideTint);
   const sunDir = new THREE.Vector3(...def.sun).normalize(), focus = new THREE.Vector3(...(S.focus ?? v.look));
   W.sun.position.copy(focus).addScaledVector(sunDir, 120); W.sun.target.position.copy(focus); W.sun.target.updateMatrixWorld();
   W.built.update?.(shot, t, cam);
+  if (take.relight?.sky) relightSky(scene, take.relight.sky, take.relight.skyMix ?? 0.5);
   W.cast.update(t, cam, sunDir, S.people ?? []);
   // the acting audit (toon-kit acting.ts): one sample per frame, logged instead of judged by eye after a render
   if (debug.includes('audit') && filmT !== undefined) {

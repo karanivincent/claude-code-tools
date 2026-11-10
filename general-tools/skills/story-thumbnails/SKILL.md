@@ -96,6 +96,12 @@ from, its honesty rules, its Studio access), and its own Results table in its pr
 - A card need not be a frame of the video ("it can be modified a little", 27 October 2026): stage it so the picture
   says the idea at a glance (people rearranged so all show, one stepped forward, the fire hotter, less glare).
 - The picture proves the words: a card that counts something shows every one counted.
+- **Bright cards** (Vincent, 10 November 2026: the posted jungle-holdout card "too dark, it should be much brighter").
+  Every card is lit bright: average brightness at least 115 of 255 over the whole card and 100 over the 3:2 band,
+  faces and the subject the brightest part. Light it at render, never brighten it afterwards: a stronger key light,
+  lighter shade and lift, brighter pictures and fog, a lighter sky of the same time of day (the toon film template's
+  `relight` prop, rendered with `tools/stills.mjs`). A curve or brightness slider on the finished image greys the
+  night and the ink lines and was turned down. `tools/thumbs.py` prints both numbers and flags a dark card.
 - Zero to three words on the card, never the title's words. Titles under 50 characters, the subject in the first
   words.
 - When the owner turns cards down, his note is usually about the picture: restage, render, send a fresh mock. He may
@@ -115,6 +121,8 @@ from, its honesty rules, its Studio access), and its own Results table in its pr
 | A test stopped, unlisted or called under 1,000 impressions a card | Let it run; no winner before then |
 | A card that wins the click but the video does not pay off | Score Deliver as well as Click |
 | Words that only read at desktop size | Check every card at 120 px wide |
+| A night or dusk card as dark as the film (jungle holdout: 64 of 255) | Re-light the same moment for the card; check the brightness numbers |
+| Brightening the finished card with a curve | Light it at render: key, shade, pictures, sky |
 | A calm face and a phrase that names nothing | A moment only this story has, and a face that shows a feeling |
 | Adding words before the framing works | Plain frames first, then words |
 | Moment times picked by eye | The critic's table or the story's shot list, each at its action word |
