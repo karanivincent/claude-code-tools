@@ -93,9 +93,15 @@ and effects cost money. This skill holds the craft. A project or channel can add
    Why: "it reads as something else" came back in three rounds running (hail as fire, rocks as snow, fear as cheering,
    then Gibeon r3's stones as posts), each time found only by the critic after the render.
 7. **Shots.** Time each shot on a word of the voice. Build the camera, the acting and the action by the
-   rules below. Look at the contact sheet after every round, and re-sheet only what changed.
+   rules below. Look at the contact sheet after every round, and re-sheet only what changed. Every shot is alive
+   from the first build: a function of the film's clock, with an action or an expression change on every beat,
+   props in hands, key gestures held about 1 s, gunfire seen and heard, dates and orders as cards, unfamiliar words
+   as thought bubbles. Never play board stills on a timer: the jungle holdout's first cut did, and took four more
+   cuts to come alive (`references/film-from-board.md`, with the table of what the first build must have).
 8. **Music and mix.** Settle every pause first, then music in sections with a coda, then the mix:
-   voice on top, the whole bed held down under every run of words, effects on their words, about −14 LUFS. The mix
+   voice on top, the whole bed held down under every run of words, effects on their words, about −14 LUFS. Action
+   sounds the story turns on (gunshots, a scream) go on top, not under the voice, with their times read from the
+   place files that animate them. The mix
    writes a voice stem and a bed stem, and `scripts/levels.mjs` must pass on them before any render is handed back,
    and again whenever the narrator changes ("Music and mix", below).
 9. **Render, check, hand back.** Run the measured checks below and give their numbers with the video. The owner
@@ -406,7 +412,7 @@ written in one project (bible-shorts) and never reached the next (Epiclings), wh
 For anything longer than a few seconds, build each clip with specialist agents that own separate files: places and
 track, effects, people and props that act (a train), sound at the same time; then the camera last, because it frames
 what the others built; then a critic that scores the clip, from the sheets and from one full-size frame of every shot
-(below). Resume the same agents for the next round so they keep
+(below). Brief each place agent from `references/place-agent-brief.md`. Resume the same agents for the next round so they keep
 their knowledge of the code. The railroads practice went from 2.0 to 3.0 out of 5 (1.2 to 1.8 on the old 0–3 scale) in three rounds this way, where
 one lead builder alone stopped at 1.2. Each agent writes a short report with notes for the camera.
 
@@ -538,6 +544,13 @@ with frames from before the change. A new look is a new option, never a changed 
 | A camera skimming close with a wide lens | Further back, a longer lens, a slow glide |
 | Judging places on the small sheets only | One full-size frame per shot: could each place exist? |
 | Signs in the story's foreign language | Words in the narration's language; the era through shapes and objects |
+| Board stills played on a timer with camera pushes | Shots as functions of time, acting on every word, from the first build (`references/film-from-board.md`) |
+| A prop resting on another prop or floating (a leaflet on a rifle's end) | In a hand: a drawn fist over it, or the prop at the card's hand point |
+| A salute or a handover over in half a second | Held about 1 s, framed close enough to read |
+| People who leave by vanishing | They fall or walk out, in clear view |
+| "Still fighting" over a man standing still; gunfire nobody hears | Flash, recoil, smoke and hits on screen; shots on top of the mix |
+| A word the viewer may not picture (a yeti) | A thought bubble or inset with its picture, on its word |
+| One shot split into several camera moves, its acting restarting at each | One clock across the split (`clock` in `shots.ts`) |
 | A walk toward the lens with `follow` at a fixed size | `track` with `to`: the camera backs more slowly than the walker |
 | A flame or glow placed at the crowd point plus an offset | Drawn from the card that carries it |
 | A story's own copy of `path` | Import the kit's; `sync-kit.mjs` names the copies |
