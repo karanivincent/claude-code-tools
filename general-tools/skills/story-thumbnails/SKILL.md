@@ -18,10 +18,13 @@ from, its honesty rules, its Studio access), and its own Results table in its pr
 
 1. Read the project's thumbnail notes and Results table if it has them (`docs/thumbnails/README.md`); start one if not.
    The angles that won before go into this run's idea brief.
-2. Know the form. A 16:9 video gets the full run and an A/B test. A Short shows its **first frame** in the feed: score
-   the opening second as the click-maker first (step 6), and make a card too, because it shows on the channel page and
-   in search. YouTube's options for Shorts change: check in Studio at upload whether this Short takes a custom
-   thumbnail, a chosen frame, or an A/B test, and say which.
+2. Know the form (research, November 2026: `references/research-2026-11.md`, with sources).
+   - **A 16:9 video** gets the full run and YouTube's Test & Compare (up to three cards; it picks by watch-time
+     share, not clicks).
+   - **A Short** cannot be A/B tested, and the Shorts feed plays the video, so the card never shows there. The
+     package is the **first frame and the first line**: score those first (step 6). A custom card exists since
+     24 July 2026 for Partner Program channels only; it shows on home, the channel page and search, cropped to about
+     3:2. Check in Studio whether this channel has it. The Short's number to learn from is "viewed vs swiped away".
 3. The video is final, or close: cards come from the film's own code, so later changes would make them lie.
 
 ## The steps
@@ -38,23 +41,37 @@ from, its honesty rules, its Studio access), and its own Results table in its pr
    the channel's audience, and the output format. Copy the shape from the project's last brief or Jericho's.
 4. **Three idea agents** (one message, background, Sonnet), one angle each: spectacle (the one huge moment and its
    stakes), curiosity (a question only the video answers), face and emotion (one big face, one feeling). Four ideas
-   each, two titles each.
-5. **Ten cards.** Merge duplicates; keep ten that differ in idea. Frame plain first and look, then add 0 to 3 big
-   words (never the title's words). Keep the bottom-right corner empty (the length stamp).
-6. **Click critics** (one message, background, Sonnet), each scoring all ten cards (and, for a Short, the first frame)
-   1 to 5 on the rubric below and predicting the click-through each card would get against the others:
+   each, two titles each. Give each the menu in `references/research-2026-11.md` section 1: Higgsfield's 16 concept
+   frameworks (posed portrait, action shot, size difference, repetition, map, before/after...) and its emotion ladder
+   (shock, hype, rage, awe, laugh, fear, smug...), MIT.
+5. **Ten cards.** Merge duplicates; keep ten that differ in idea. Frame plain first and look, then add 0 to 4 big
+   words (never the title's words, never on the face): caps in a heavy display face (Anton, Bebas Neue), a thick
+   stroke drawn under the fill (`paint-order: stroke fill`), cap height 12 to 18% of the card. Keep the bottom-right
+   corner empty (the length stamp). A Short's card: face and words inside the centre 3:2 band, exported at 2160x3840.
+   Every card must read in under a second at 120 px wide.
+6. **Click critics** (one message, background, Sonnet), each scoring all ten cards (and, for a Short, the first frame
+   and first line) 1 to 5 on the rubric below, in two numbers: **Click** (would they tap) and **Deliver** (does the
+   video pay it off in its first seconds, so they stay), because the test picks by watch time, not clicks:
    - **The scroller**: a target viewer persona (the channel's audience: country, age, phone), scrolling fast. Would
      they stop? What do they think it is in one second?
    - **The packaging strategist**: contrast at phone size, one subject, a face with a feeling, a question opened,
      the title and card working together, how it stands out next to the other videos on that topic.
-   - **The honesty editor**: every card and title against the video. A card that promises what the video does not
-     show is vetoed, whatever it scores. Facts on a card must be true.
-7. **The shortlist.** The editor's veto first, then the totals. Take the best card of each of the three best ideas,
-   not the top three totals. Apply the cheap fixes, re-render, and make a **phone-feed mock**: each card at feed size
-   with the length stamp and its title underneath, beside two or three real thumbnails of similar videos. Send it to
-   the owner with one question.
-8. **The test decides.** Where Studio offers A/B testing, run the three cards (and titles) and let YouTube finish
-   (it picks by watch time; up to two weeks). Never stop it early. Otherwise set the critics' first pick.
+   - **The honesty editor**: reads each card with the video's transcript and its shot list together (that setup found
+     misleading thumbnails with 93.8% accuracy, arXiv 2607.23739). A card that promises what the video does not show
+     is vetoed, whatever it scores. Facts on a card must be true.
+7. **The shortlist.** The editor's veto first, then Click plus Deliver. Take the best card of each of the three best
+   ideas, not the top three totals. Apply the cheap fixes, re-render, and make a **phone-feed mock**: each card at feed
+   size (and at 120 px) with the length stamp and its title underneath, a Short's card shown in its 3:2 crop, beside
+   two or three real thumbnails of similar videos. Send it to the owner with one question.
+   Optional, trial on one story first: a polish pass on Higgsfield on the film's own frame (upscale, cut out and
+   recompose, push one expression), never a fully generated card, which would break the look and the honesty rule;
+   and a local saliency heatmap (DeepGaze) on the shortlist to check the eye lands on the face and the words (a sanity
+   check only: no link to clicks is shown).
+8. **The test decides** (16:9 only). Run the three cards (and titles) in Test & Compare and let YouTube finish (up to
+   two weeks). Never unlist the video or turn it into a Short while it runs, and record no winner under about 1,000
+   impressions per card: every Bible in Clay test so far ended early that way (two at 23 and 26 impressions), and
+   nothing was learned. For a Short, set the critics' first pick and, after 7 days, log its viewed-vs-swiped share
+   against the channel's median.
 9. **Learn.** Record the winner, its share, the critics' prediction and the angle in the Results table, and log the
    run in `docs/production-log.jsonl` (stage `review`, step "thumbnails"). After three results, change the idea brief
    or the rubric's weights to match what wins.
@@ -95,6 +112,9 @@ from, its honesty rules, its Studio access), and its own Results table in its pr
 | A card promising a scene the video lacks | Pick from the menu; stage only what the video shows |
 | Choosing by the critics' total alone | The owner's shortlist, then the A/B test |
 | A Short judged only by its card | The first frame first: that is what the feed shows |
+| A test stopped, unlisted or called under 1,000 impressions a card | Let it run; no winner before then |
+| A card that wins the click but the video does not pay off | Score Deliver as well as Click |
+| Words that only read at desktop size | Check every card at 120 px wide |
 | A calm face and a phrase that names nothing | A moment only this story has, and a face that shows a feeling |
 | Adding words before the framing works | Plain frames first, then words |
 | Moment times picked by eye | The critic's table or the story's shot list, each at its action word |
