@@ -117,7 +117,9 @@ and effects cost money. This skill holds the craft. A project or channel can add
    a short full-mode critic pass for motion, joins and sound. Brief the critic from `references/critic-brief.md`: it
    predicts each fix's gain, proposes raises to 4 and 5 beside its faults, scores against anchor stills, and re-scores
    only what changed. Run the measured checks below and give their numbers with the video.
-   Nothing posts without the owner's yes on the finished video; drafts only.
+   Nothing posts without the owner's yes on the finished video; drafts only. With the upload, add the narration as an
+   English caption file (CC): `tools/srt.py` makes it from `full.json`, and Studio's Languages page takes it (Edit
+   subtitles, Upload file, With timing). YouTube's own captions misspell names ("Onotta").
    Then **the package**: thumbnail, title and first frame, with the `story-thumbnails` skill (click critics, an
    honesty veto, a phone-feed shortlist for the owner, the A/B test where offered). It is what makes people click
    (Vincent, 10 November 2026).
@@ -363,7 +365,10 @@ find them.
 - **Words go on screen cards, never on the ground.** Text laid on the ground reads backwards from half
   the cameras. A map on the ground is shapes only, laid on the terrain point by point.
 - Nobody walks through solid scenery: list the solids and check the paths.
-- Captions: one word at a time, white, in the portrait safe area.
+- Captions: one word at a time, white, in the portrait safe area. Every film has them, burned in: the film template
+  draws them (`overlays.tsx` `captionsOf`) and the audit's `checkCaptions` fails a film with none or a word left
+  uncaptioned. Why: the jungle holdout was built fresh from the board, lost them, and went out without (10 November
+  2026); five critic rounds scored what was on screen and none noticed what was missing.
 
 ## Voice
 

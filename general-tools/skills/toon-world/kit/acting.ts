@@ -91,6 +91,17 @@ export function checkCues(cues: Cue[], words: Word[], opts: { lead?: number; lat
   return out;
 }
 
+/** running captions: the film must caption the narration, every spoken word on screen while it is said (up by
+ *  `tol` s after its start, default 0.15). Why: the jungle holdout went out with none (10 November 2026); the film was
+ *  built fresh from the board and nothing checked for them. */
+export function checkCaptions(captions: { text: string; s: number; e: number }[], words: (Word & { e: number })[], opts: { tol?: number } = {}): Issue[] {
+  if (!captions.length) return [{ check: 'no-captions', from: 0, to: 0, shot: '', what: 'the film has no running captions (overlays.tsx captionsOf, drawn by Film.tsx)' }];
+  const tol = opts.tol ?? 0.15, out: Issue[] = [];
+  for (const w of words) if (/\w/.test(w.w) && !captions.some(c => c.s <= w.s + tol && c.e > w.s))
+    out.push({ check: 'uncaptioned', from: w.s, to: w.e, shot: '', what: `"${w.w}" at ${w.s.toFixed(2)} s has no caption on screen` });
+  return out;
+}
+
 /** picture events and their sounds: every event (a shot fired, a fall, a bell) needs a sound of the same kind within
  *  `tol` seconds (default 0.1), and every such sound an event. Kinds are the part of the name before a colon
  *  ("shot:hook-b:1" pairs with "shot"). */

@@ -1,7 +1,7 @@
 // Run: node --test general-tools/skills/toon-world/kit/acting.test.ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { actingStills, checkFraming, checkHeld, checkCues, checkSync, actingTooSmall, checkOpening, type Sample } from './acting.ts';
+import { actingStills, checkFraming, checkHeld, checkCues, checkSync, actingTooSmall, checkOpening, checkCaptions, type Sample } from './acting.ts';
 
 const at = (t: number, sig: string, shot = 'a', extra: Partial<Sample> = {}): Sample => ({ t, shot, people: [{ key: 'onoda', sig, head: [0.5, 0.3], feet: [0.5, 0.8], height: 0.5, named: true }], ...extra });
 
@@ -62,4 +62,11 @@ test('an opening with only a small calm figure and no card is weak; a big face o
   assert.equal(checkOpening(small, [{ text: '1974', at: 0 }]).length, 0);
   const big = [0, 0.1].map(t => ({ t, shot: 'hook', people: [{ key: 'onoda', sig: 'x', height: 0.45, named: true }] }));
   assert.equal(checkOpening(big).length, 0);
+});
+
+test('checkCaptions: a film without captions fails; every word must be on screen as it is said', () => {
+  const words = [{ w: 'In', s: 0.35, e: 0.41 }, { w: '1974,', s: 0.41, e: 1.52 }, { w: 'a', s: 1.52, e: 1.55 }];
+  assert.equal(checkCaptions([], words)[0].check, 'no-captions');
+  assert.equal(checkCaptions([{ text: 'In', s: 0.31, e: 0.37 }, { text: '1974', s: 0.37, e: 1.48 }, { text: 'a', s: 1.48, e: 1.75 }], words).length, 0);
+  assert.equal(checkCaptions([{ text: 'In', s: 0.31, e: 0.37 }], words).length, 2);
 });
