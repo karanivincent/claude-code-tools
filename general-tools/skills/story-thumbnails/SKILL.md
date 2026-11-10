@@ -1,14 +1,18 @@
 ---
 name: story-thumbnails
-description: Use when any story video (a toon Short, an Epiclings story, a 16:9 video) needs its thumbnail, title and first frame - the package that makes people click. Stills of the story's strongest moments are rendered from the film's own code, three idea agents propose ten cards with titles from different angles, three click critics score them on how likely a viewer is to tap, an honesty editor vetoes anything the video does not show, the owner sees a phone-feed shortlist, and YouTube's A/B test (where offered) picks the winner, then the result is recorded. Triggers - "make the thumbnail", "thumbnail and title", "will people click this", "the thumbnail is boring", "first frame", "what thumbnail won". For Bible in Clay's clay videos, clay-thumbnails holds that channel's extra rules.
+description: The one skill for thumbnails, titles and first frames, for every channel (Bible in Clay, Epiclings, any other) and every kind of video (clay, toon, AI video; Shorts and 16:9) - the package that makes people click. Frames of the story's strongest moments are rendered from the film's own code (or taken from the video), three idea agents propose ten cards with titles from different angles, three click critics score them on how likely a viewer is to tap, an honesty editor vetoes anything the video does not show, the owner sees a phone-feed shortlist, and YouTube's A/B test (where offered) picks the winner, then the result is recorded per channel. Each channel's own rules are in references/channels/. Triggers - "make the thumbnail", "thumbnail and title", "thumbnail for <story>", "will people click this", "the thumbnail is boring", "first frame", "A/B test the thumbnail", "what thumbnail won".
 ---
 
 # Story thumbnails
 
 The thumbnail, the title and (for a Short) the first frame are one package, judged in a second on a phone before
 anyone watches. Vincent, 10 November 2026: "that is what is going to pull people to watch it. So it's not just about
-what the video means, but how likely are people to click this." The method is `clay-thumbnails`' (Bible in Clay,
-27 October 2026), made general: read that skill's rules and common mistakes too; they hold for any channel.
+what the video means, but how likely are people to click this." One skill for every channel and video (Vincent, the
+same day: "one skill you can depend on"); it began as Bible in Clay's `clay-thumbnails` (27 October 2026).
+
+**Channels.** Read the channel's file before anything: `references/channels/bible-in-clay.md`,
+`references/channels/epiclings.md`. A new channel gets its own file on its first run (its project, where frames come
+from, its honesty rules, its Studio access), and its own Results table in its project.
 
 ## First
 
@@ -22,8 +26,10 @@ what the video means, but how likely are people to click this." The method is `c
 
 ## The steps
 
-1. **Frames from the film.** Render stills from the story's composition (`tools/render.mjs --stills <dir> <times>`
-   in the toon-world film template), at 1080x1920 for a Short and 1920x1080 for a 16:9 card. A thumbnail-only
+1. **Frames from the film.** Render stills from the story's composition, at 1080x1920 for a Short and 1920x1080 for a
+   16:9 card: toon stories with the toon-world film template's `tools/render.mjs --stills <dir> <times>`, clay stories
+   with a `<Story>Frame` composition (the channel file), AI-video stories as frames pulled from the video with ffmpeg
+   (no staging possible; pick the frame). A thumbnail-only
    staging may move the camera, change a pose or an expression, or push the light; it never adds a person or an event
    the video lacks.
 2. **The moments menu.** The 15 to 25 strongest seconds, chosen from the critic's per-second table (its 4s and 5s)
@@ -66,6 +72,19 @@ what the video means, but how likely are people to click this." The method is `c
 | Distinct | It does not look like every other video on the topic |
 | First frame (Shorts) | The opening second already hooks: motion, a face, a strange true thing, a word card |
 
+## Rules for every channel
+
+- The thumbnail's moment is in the video. A thumbnail-only staging may move the camera or change a pose or an
+  expression of something the video shows; it never adds a person or an event the video lacks.
+- A card need not be a frame of the video ("it can be modified a little", 27 October 2026): stage it so the picture
+  says the idea at a glance (people rearranged so all show, one stepped forward, the fire hotter, less glare).
+- The picture proves the words: a card that counts something shows every one counted.
+- Zero to three words on the card, never the title's words. Titles under 50 characters, the subject in the first
+  words.
+- When the owner turns cards down, his note is usually about the picture: restage, render, send a fresh mock. He may
+  keep one new card and two earlier ones.
+- Cost: six Sonnet agents a run, at most three at once; frames are stills, minutes not credits.
+
 ## Common mistakes
 
 | Mistake | Instead |
@@ -76,3 +95,8 @@ what the video means, but how likely are people to click this." The method is `c
 | A card promising a scene the video lacks | Pick from the menu; stage only what the video shows |
 | Choosing by the critics' total alone | The owner's shortlist, then the A/B test |
 | A Short judged only by its card | The first frame first: that is what the feed shows |
+| A calm face and a phrase that names nothing | A moment only this story has, and a face that shows a feeling |
+| Adding words before the framing works | Plain frames first, then words |
+| Moment times picked by eye | The critic's table or the story's shot list, each at its action word |
+| Stopping the A/B test after a day | Let YouTube finish; record the result |
+| A run that does not read the Results | The idea brief starts from what won before on that channel |
