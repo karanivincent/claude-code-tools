@@ -85,6 +85,7 @@ that holds them; plus its cards and its picture events and sound cues. Run it af
 | Block | What it does |
 |---|---|
 | `actingStills` | Stretches over 1 s (`maxStill`) where nobody on screen changes pose. Camera moves do not count. |
+| `actingTooSmall` | A named person changing pose while under 25% of the frame high: acting a phone cannot read. Frame it close or push in on the action word. |
 | `checkFraming` | Named heads cut by any edge; named people under 8% of the frame high. A person whose head and feet are both outside the frame is skipped (off screen, not cut); the film template's sampler also drops people behind the lens. |
 | `checkHeld` | Props further than 5% of the frame from the hand that should hold them, or with no hand at all. |
 | `checkCues` | A card whose text is spoken must arrive 0.4 s before to 0.2 s after that word (the 1972 card on the wrong "by"). |
