@@ -41,3 +41,10 @@ test('a shot fired with no gunshot, and a gunshot with nothing fired, both fail'
   assert.deepEqual(issues.map(i => i.check).sort(), ['no-picture', 'no-sound']);
   assert.equal(checkSync([{ name: 'shot:hook', t: 1.0 }], [{ name: 'shot', t: 1.05 }]).length, 0);
 });
+
+test('a person whose head and feet are both outside the frame is not a cut head', () => {
+  const S: Sample[] = [0, 0.1, 0.2].map(t => ({ t, shot: 'x', people: [{ key: 'a', sig: '1', head: [1.4, -0.3], feet: [1.4, 0.2 + 1], height: -0.2, named: true }] }));
+  assert.equal(checkFraming(S).length, 0);
+  const cut: Sample[] = [{ t: 0, shot: 'x', people: [{ key: 'a', sig: '1', head: [0.5, -0.05], feet: [0.5, 0.6], height: 0.7, named: true }] }];
+  assert.equal(checkFraming(cut).length, 1);
+});

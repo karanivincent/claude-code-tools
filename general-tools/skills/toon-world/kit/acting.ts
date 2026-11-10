@@ -44,7 +44,9 @@ export function actingStills(samples: Sample[], opts: { maxStill?: number } = {}
  *  read on a phone (under `minHeight` of the frame, default 0.08). Runs of frames are merged. */
 export function checkFraming(samples: Sample[], opts: { edge?: number; minHeight?: number } = {}): Issue[] {
   const edge = opts.edge ?? 0.02, minH = opts.minHeight ?? 0.08, raw: Issue[] = [];
+  const out = (q?: XY) => !!q && (q[0] < 0 || q[0] > 1 || q[1] < 0 || q[1] > 1);
   for (const s of samples) for (const p of s.people) {
+    if (out(p.head) && out(p.feet)) continue;   // wholly off screen (or behind the lens): not a cut head
     if (p.head && p.named !== false) {
       const [x, y] = p.head, cut = y < edge ? 'top' : x < edge ? 'left' : x > 1 - edge ? 'right' : y > 1 - edge ? 'bottom' : '';
       if (cut) raw.push({ check: 'head-cut', from: s.t, to: s.t, shot: s.shot, who: p.key, what: `head cut by the ${cut} edge` });

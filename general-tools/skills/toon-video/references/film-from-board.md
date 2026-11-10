@@ -6,6 +6,14 @@ the voice with camera pushes, and the owner's verdict was "he barely moves ... i
 (still frames 14%, characters 3 of 10). Four more cuts went on adding the motion that should have been there in the
 first build. Build it in from the start.
 
+## Start from the template
+
+Every new story starts its film with `node <toon-world>/scripts/new-film.mjs <project> <slug> <CompositionId>`: it
+copies toon-world `templates/film/` (Film, Stage, the place contract, overlays, the detail layer, render, stills and
+audit tools) and `templates/sound/story-sound.mjs` into the story and syncs the toon-kit, whose `timing.ts` holds the
+word lookup and segment maths. Do not rebuild these from the jungle holdout's code. What each default prevents is in
+`templates/film/README.md`; the parts below describe what the template already does.
+
 ## The parts
 
 - **One place file per place** (`places/<place>.ts`) builds the world once and names its shots. A shot is a
@@ -20,8 +28,11 @@ first build. Build it in from the start.
   - `into`: `swing` (same place, the camera flies from the last framing), `whip` (between places, motion blur), or
     `cut` (when a swing would pass through a prop or a person, or for a shock).
   - `punch`: shots over 1.8 s get a punch in at their middle; turn it off where the subject would leave the frame.
-  - `clock`: when one shot is split into several camera moves, give the later ones the first one's start, or the
-    acting restarts at every split (the jungle holdout's list lost its tick this way).
+  - `clock`: consecutive segments of the same shot share one clock by default (toon-kit `resolveClocks`), so a shot
+    split into several camera moves keeps acting (the jungle holdout's list lost its tick when it restarted).
+    `clock: 'own'` restarts it; a number shares a clock across shots (three angles on one standoff).
+  - Word times come from `W(line, word, nth)`, which throws when the word is said twice in its line and `nth` is
+    missing (the 1972 card landed on the "by" of "one by one").
   - `lead`: start a shot's clock early when its start was moved earlier.
 - **`Film.tsx`**: one place on screen at a time, its canvas keyed by the place; the next place loads while this one
   plays. Overlays drawn in HTML over the picture: year cards (with an optional small label: "THE WAR ENDED / 1945"),
@@ -52,7 +63,8 @@ The film's composition takes an `audit` flag: on each frame it logs one JSON sam
 head and feet projected to the frame, held props with their holder's hand) instead of drawing the look stack, and a
 tool renders it tiny and fast, collects the samples, and runs toon-kit `acting.ts` (`actingStills`, `checkFraming`,
 `checkHeld`, `checkCues`, `checkSync`) with the story's cards, word times, picture events and sound cues. Fix what it
-reports, then render. The jungle holdout's `tools/audit.mjs` is the first.
+reports, then render. The template's `tools/audit.mjs` does this; it also prints the segment list's gaps and unknown shots, and skips
+people behind the lens or wholly off screen.
 
 ## Checking it
 

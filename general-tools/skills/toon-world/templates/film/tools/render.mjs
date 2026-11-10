@@ -1,0 +1,32 @@
+// Render the film (composition __FILM__), silent; the mix is muxed after. Take a render slot first if the project
+// shares the machine with other renders (the project's CLAUDE.md says how); keep concurrency at 5 or below.
+//   TMPDIR=$HOME/remotion-tmp/__SLUG__ node src/stories/__SLUG__/tools/render.mjs out.mp4 [concurrency] [scale] [from-to frames]
+//   stills: node render.mjs --stills out/dir t1,t2,...  [scale]   (one png per time in seconds)
+import path from 'node:path';
+import fs from 'node:fs';
+import { bundle } from '@remotion/bundler';
+import { renderMedia, renderStill, selectComposition } from '@remotion/renderer';
+const root = path.resolve(import.meta.dirname, '../../../..');
+const args = process.argv.slice(2);
+const t0 = Date.now();
+const serveUrl = await bundle({ entryPoint: path.join(root, 'src/index.ts'), publicDir: path.join(root, 'public'), onProgress: () => {} });
+const inputProps = { audio: '' };
+const chromiumOptions = { gl: 'angle' };
+const composition = await selectComposition({ serveUrl, id: '__FILM__', inputProps, chromiumOptions });
+if (args[0] === '--stills') {
+  const [, dir, times, scale] = args; fs.mkdirSync(dir, { recursive: true });
+  for (const s of times.split(',')) {
+    const frame = Math.min(composition.durationInFrames - 1, Math.round(Number(s) * composition.fps));
+    await renderStill({ composition, serveUrl, output: path.join(dir, `${s.padStart(5, '0')}.png`), frame, inputProps, chromiumOptions, scale: Number(scale ?? 0.4), timeoutInMilliseconds: 300000 });
+    console.log('still', s);
+  }
+} else {
+  const [out, conc, scale, range] = args;
+  if (!out) { console.error('usage: node render.mjs out.mp4 [concurrency] [scale] [from-to]'); process.exit(1); }
+  let last = 0;
+  await renderMedia({ composition, serveUrl, codec: 'h264', outputLocation: out, inputProps, concurrency: Math.min(5, Number(conc ?? 4)), muted: true, crf: 18,
+    scale: Number(scale ?? 1), frameRange: range ? range.split('-').map(Number) : undefined, chromiumOptions, timeoutInMilliseconds: 300000,
+    onProgress: ({ renderedFrames }) => { if (renderedFrames - last >= 100) { last = renderedFrames; console.log(renderedFrames, ((Date.now() - t0) / 1000).toFixed(0) + 's'); } } });
+}
+fs.rmSync(serveUrl, { recursive: true, force: true });
+console.log('done', ((Date.now() - t0) / 1000).toFixed(0) + 's');
