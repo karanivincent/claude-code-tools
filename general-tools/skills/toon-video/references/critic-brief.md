@@ -31,6 +31,11 @@ project without anchors starts them from its first scored round.
    a framing, a sound hit, a gag), with the same prediction.
 4. **The forecast**: the overall average if every fault and raise is done, and if only the top five are.
 
+## When to stop
+
+Ship when the forecast for the next round is under +0.1 overall, or after three critic rounds. Then learn from the
+audience (step 11 in `toon-video`): its retention dips are what calibrate this critic, not more rounds.
+
 ## After a fix round
 
 Re-score in delta mode. Compare each prediction with the new score: a fix that missed its prediction by a point or

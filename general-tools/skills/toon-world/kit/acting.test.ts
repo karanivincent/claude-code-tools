@@ -1,7 +1,7 @@
 // Run: node --test general-tools/skills/toon-world/kit/acting.test.ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { actingStills, checkFraming, checkHeld, checkCues, checkSync, actingTooSmall, type Sample } from './acting.ts';
+import { actingStills, checkFraming, checkHeld, checkCues, checkSync, actingTooSmall, checkOpening, type Sample } from './acting.ts';
 
 const at = (t: number, sig: string, shot = 'a', extra: Partial<Sample> = {}): Sample => ({ t, shot, people: [{ key: 'onoda', sig, head: [0.5, 0.3], feet: [0.5, 0.8], height: 0.5, named: true }], ...extra });
 
@@ -54,4 +54,12 @@ test('acting at 20% of the frame high is too small to read; at 40% it reads', ()
   assert.equal(actingTooSmall(small).length, 1);
   const big = [0, 0.1, 0.2].map((t, i) => ({ t, shot: 'beach', people: [{ key: 'onoda', sig: `pose${i}`, height: 0.4, named: true }] }));
   assert.equal(actingTooSmall(big).length, 0);
+});
+
+test('an opening with only a small calm figure and no card is weak; a big face or a card at 0 s passes', () => {
+  const small = [0, 0.1, 0.2].map(t => ({ t, shot: 'hook', people: [{ key: 'onoda', sig: 'x', height: 0.15, named: true }] }));
+  assert.equal(checkOpening(small).length, 1);
+  assert.equal(checkOpening(small, [{ text: '1974', at: 0 }]).length, 0);
+  const big = [0, 0.1].map(t => ({ t, shot: 'hook', people: [{ key: 'onoda', sig: 'x', height: 0.45, named: true }] }));
+  assert.equal(checkOpening(big).length, 0);
 });

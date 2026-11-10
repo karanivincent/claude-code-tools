@@ -8,6 +8,13 @@ very interesting to see it").
     python3 production_log.py rounds <log> [--story S]
     python3 production_log.py profile <log> --story S --channel C --look L --methods m1,m2 [--note "..."]
     python3 production_log.py areas <log>
+    python3 production_log.py audience <log> --story S --days 7 --viewed 0.62 --avg-viewed 0.78 [--views N]
+                                       [--dips 9.5,38,61] [--url U]
+
+An audience row is what viewers did, the yardstick the critic is calibrated against (toon-video step 11): the share
+who viewed rather than swiped away, the average percentage viewed, and the seconds where the retention graph dips.
+`areas` prints them beside the critic's last scores, and for each dip the critic's score at that second when the
+story's per-second table is given (--scores docs/stories/<slug>/review-N-scores.md).
 
 A profile row says what kind of video a story is, so videos can be compared by how they were made (Vincent,
 10 November 2026: "this one was 3D items from Higgsfield, or still pictures from Higgsfield, 3D worlds we created,
@@ -43,7 +50,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 
 STAGES = ['study', 'script', 'voice', 'plan', 'world', 'people', 'camera', 'build', 'render', 'critique', 'fix',
-          'spike', 'review', 'other', 'profile']
+          'spike', 'review', 'other', 'profile', 'audience']
 METHODS = ['picture-backdrop', 'picture-to-3d', 'code-3d', 'painted-texture', 'drawn-2d', 'bean-cards', 'clay-3d', 'ai-video']
 AREAS = ['world', 'camera', 'people', 'light', 'story', 'sound']
 
@@ -142,6 +149,30 @@ def profile(a):
     print(json.dumps(row, ensure_ascii=False))
 
 
+def audience(a):
+    row = {'at': a.at or datetime.now(timezone.utc).isoformat(timespec='minutes'), 'story': a.story, 'stage': 'audience',
+           'step': f'audience after {a.days} days', 'days': a.days, 'viewed': a.viewed, 'avgViewed': a.avg_viewed}
+    if a.views is not None: row['views'] = a.views
+    if a.dips: row['dips'] = [float(x) for x in a.dips.split(',') if x]
+    if a.url: row['url'] = a.url
+    with open(a.log, 'a') as f:
+        f.write(json.dumps(row, ensure_ascii=False) + '\n')
+    print(json.dumps(row, ensure_ascii=False))
+
+
+def per_second(path):
+    import re
+    out = {}
+    for line in open(path):
+        m = re.match(r'\|\s*(\d+)-\d+\s*\|(.*)', line)
+        if not m: continue
+        cells = [c.strip() for c in line.strip().strip('|').split('|')][1:7]
+        try: v = [float(x) for x in cells]
+        except ValueError: continue
+        out[int(m.group(1))] = sum(v) / len(v)
+    return out
+
+
 def areas(a):
     rows = sorted((json.loads(l) for l in open(a.log) if l.strip()), key=lambda r: r['at'])
     prof = {r['story']: r for r in rows if r['stage'] == 'profile'}
@@ -157,6 +188,16 @@ def areas(a):
         print(f'{st:22s} ' + ' '.join(f'{ar.get(x, float("nan")):6.2f}' for x in AREAS) + f'  {r.get("score", float("nan")):7.2f}  {r.get("judge", "")}')
     mean = lambda xs: sum(xs) / len(xs) if xs else float('nan')
     print('\nweakest area per story: ' + ', '.join(f'{st} {min(r["areas"], key=r["areas"].get)}' for st, r in last.items()))
+    aud = {}
+    for r in rows:
+        if r['stage'] == 'audience': aud[r['story']] = r
+    if aud:
+        print(f'\n{"story":22s} {"days":>4s} {"viewed":>7s} {"avg %":>6s} {"views":>7s}  critic overall  dips (critic score there)')
+        table = per_second(a.scores) if getattr(a, 'scores', None) else {}
+        for st, r in aud.items():
+            dips = ', '.join(f'{d:g}s' + (f' ({table[int(d)]:.1f})' if int(d) in table else '') for d in r.get('dips', []))
+            crit = last.get(st, {}).get('score', float('nan'))
+            print(f'{st:22s} {r["days"]:4d} {r["viewed"]:7.2f} {r["avgViewed"]:6.2f} {r.get("views", 0):7d}  {crit:14.2f}  {dips}')
     print(f'\n{"method":18s} {"with":>5s} ' + ' '.join(f'{x:>6s}' for x in AREAS) + '   (average of stories with the method; then without)')
     for m in METHODS:
         w = [last[s]['areas'] for s in last if m in prof.get(s, {}).get('methods', [])]
@@ -184,9 +225,13 @@ def main():
     pp.add_argument('log'); pp.add_argument('--story', required=True); pp.add_argument('--channel', required=True)
     pp.add_argument('--look', required=True); pp.add_argument('--methods', required=True); pp.add_argument('--at'); pp.add_argument('--note')
     pr2 = sub.add_parser('areas')
-    pr2.add_argument('log')
+    pr2.add_argument('log'); pr2.add_argument('--scores')
+    pu = sub.add_parser('audience')
+    pu.add_argument('log'); pu.add_argument('--story', required=True); pu.add_argument('--days', type=int, default=7)
+    pu.add_argument('--viewed', type=float, required=True); pu.add_argument('--avg-viewed', type=float, required=True)
+    pu.add_argument('--views', type=int); pu.add_argument('--dips'); pu.add_argument('--url'); pu.add_argument('--at')
     a = p.parse_args()
-    {'add': add, 'report': report, 'rounds': rounds, 'profile': profile, 'areas': areas}[a.cmd](a)
+    {'add': add, 'report': report, 'rounds': rounds, 'profile': profile, 'areas': areas, 'audience': audience}[a.cmd](a)
 
 
 if __name__ == '__main__':

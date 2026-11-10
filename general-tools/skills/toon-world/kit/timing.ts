@@ -209,3 +209,17 @@ export function checkSegs(segs: Seg[], shots?: (place: string) => string[]): str
   });
   return out;
 }
+
+/** the planned pace, from the segment list alone (no render): every segment start is a picture change, and so is the
+ *  mid-shot punch-in of a segment over 1.8 s that has not turned it off. Ricks Clips runs about 60 a minute; the
+ *  jungle holdout planned one board shot per line and stayed at 22-24 through six cuts, because no fix round can add
+ *  shots the board did not plan. Plan 2 to 3 framings per line on the board. */
+export function planPace(segs: { a: number; b: number; punch?: boolean }[], duration: number): { changes: number; perMinute: number } {
+  const changes = segs.length + segs.filter(s => s.b - s.a > 1.8 && s.punch !== false).length;
+  return { changes, perMinute: +(changes / Math.max(1, duration) * 60).toFixed(1) };
+}
+/** a line for the audit when the planned pace is under `min` changes a minute (default 40) */
+export function checkPace(segs: { a: number; b: number; punch?: boolean }[], duration: number, min = 40): string[] {
+  const { changes, perMinute } = planPace(segs, duration);
+  return perMinute < min ? [`pace: ${perMinute} picture changes a minute planned (${changes} in ${duration.toFixed(1)} s), under ${min}: plan more framings per line on the board`] : [];
+}

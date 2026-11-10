@@ -10,7 +10,8 @@ const root = path.resolve(import.meta.dirname, '../../../..');
 const args = process.argv.slice(2);
 const t0 = Date.now();
 const serveUrl = await bundle({ entryPoint: path.join(root, 'src/index.ts'), publicDir: path.join(root, 'public'), onProgress: () => {} });
-const inputProps = { audio: '' };
+// FILM_DEBUG=clean renders without cards, papers and bubbles (thumbnail frames)
+const inputProps = { audio: '', debug: process.env.FILM_DEBUG ?? '' };
 const chromiumOptions = { gl: 'angle' };
 const composition = await selectComposition({ serveUrl, id: '__FILM__', inputProps, chromiumOptions });
 if (args[0] === '--stills') {
