@@ -46,6 +46,14 @@ first build. Build it in from the start.
 | Sparkle and small moving things in every shot: glints, embers, dust, insects, birds | "We need a lot of sparkling here and there" |
 | Fire that reads as fire: tall flickering tongues, smoke columns, embers, flickering glow on the ground | "The village doesn't look like it's burning" |
 
+## The audit (before any render)
+
+The film's composition takes an `audit` flag: on each frame it logs one JSON sample (people with a pose signature,
+head and feet projected to the frame, held props with their holder's hand) instead of drawing the look stack, and a
+tool renders it tiny and fast, collects the samples, and runs toon-kit `acting.ts` (`actingStills`, `checkFraming`,
+`checkHeld`, `checkCues`, `checkSync`) with the story's cards, word times, picture events and sound cues. Fix what it
+reports, then render. The jungle holdout's `tools/audit.mjs` is the first.
+
 ## Checking it
 
 Half-size moving renders of each stretch (not stills) while building; then the full render, `pace.py` (still
