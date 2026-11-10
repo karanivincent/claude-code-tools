@@ -127,6 +127,20 @@ export function actingTooSmall(samples: Sample[], opts: { minHeight?: number } =
   return merge(raw);
 }
 
+/** the opening: for a Short the first frame IS the package (the feed plays the video; no thumbnail shows there). By
+ *  `by` seconds (default 0.2) there must be a named person at least `minHeight` of the frame high (default 0.3) or a
+ *  word card already up (a cue at or before 0.05 s). The jungle holdout opened on a small calm figure with its card at
+ *  0.3 s, and all three click critics called it the weakest frame. */
+export function checkOpening(samples: Sample[], cues: Cue[] = [], opts: { by?: number; minHeight?: number } = {}): Issue[] {
+  const by = opts.by ?? 0.2, minH = opts.minHeight ?? 0.3;
+  const early = samples.filter(s => s.t <= by);
+  const big = early.some(s => s.people.some(p => p.named !== false && (p.height ?? 0) >= minH));
+  const card = cues.some(c => c.at <= 0.05);
+  if (big || card) return [];
+  const best = Math.max(0, ...early.flatMap(s => s.people.map(p => p.height ?? 0)));
+  return [{ check: 'opening-weak', from: 0, to: by, shot: early[0]?.shot ?? '', what: `by ${by} s nobody is over ${(minH * 100).toFixed(0)}% of the frame (biggest ${(best * 100).toFixed(0)}%) and no word card is up: the first frame is the Short's package` }];
+}
+
 /** all issues as lines, sorted by time */
 export const report = (issues: Issue[]) => issues.sort((a, b) => a.from - b.from)
   .map(i => `${i.from.toFixed(2)}-${i.to.toFixed(2)}  ${i.check.padEnd(13)} ${(i.shot || '').padEnd(16)} ${i.who ? i.who + ': ' : ''}${i.what}`);

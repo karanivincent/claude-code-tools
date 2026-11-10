@@ -35,7 +35,11 @@ and effects cost money. This skill holds the craft. A project or channel can add
    the end. Write about 150 words for 60 s (narration runs about 3 words a second with pauses). Bring in
    every person and object before it matters: if the payoff needs a stone, show the stone early. The
    hook needs its payoff soon after it. Facts you cannot show stay out; an imagined feeling is said as
-   imagined.
+   imagined. **Design second 0 first** (Vincent, 10 November 2026): for a Short the opening frame and first line are
+   the package (the feed plays the video; no thumbnail shows there). Before the board, write what frame 0 shows: a
+   big face or a subject over 30% of the frame, motion or action from frame 1, and the hook's words on a card from
+   0.0 s. The jungle holdout opened on a small calm figure with its card at 0.3 s, and all three click critics called
+   it its weakest frame. The audit checks it (toon-kit `checkOpening`).
 2. **Voice.** The narrator is Laura (ElevenLabs `FGY2WhTYpPnrIDTdsKH5`, eleven_v3, stability 0.3, played
    at about 1.2× with `atempo`), chosen on 7 November 2026 for her energy. One voice per speaker, `say` with eleven_v3 tags, each line cached by a hash of its text
    and voice, so a rerun costs nothing. Check every line with whisper. Lines reused from an earlier
@@ -62,7 +66,10 @@ and effects cost money. This skill holds the craft. A project or channel can add
      place, drawn in code: `toon-world` "Looks, scene by scene"), the parts plan (which part comes from code, a
      picture, a 3D model or an effect), and one picture per place where the look uses pictures. Vincent picks; looks
      may differ scene by scene, never within one frame.
-   - d. **Still board.** Render it from the real parts, not AI pictures, wherever the places exist in code: a board
+   - d. **Still board.** Plan 2 to 3 framings per line (a wide, a medium, a close or an insert), not one: the pace
+     is set here, not in fix rounds. The jungle holdout planned one board shot per line and stayed at 22 to 24 picture
+     changes a minute through six cuts against Ricks Clips' 60; the audit prints the planned pace from the segment
+     list and warns under 40 (toon-kit `planPace`, `checkPace`). Render it from the real parts, not AI pictures, wherever the places exist in code: a board
      composition that renders any `{ place, shot }` through the look stack, one small place file per place (the
      Epiclings jungle holdout's `board/` and `places/` are the reference), so each still takes about a second and
      what is approved is what moves. Prove the mix on one place first, then brief agents with it. Show the board on
@@ -116,6 +123,15 @@ and effects cost money. This skill holds the craft. A project or channel can add
    (Vincent, 10 November 2026).
 10. **Fix rounds: three, not seven** (below, "Three rounds, not seven"). Each fix round fixes every finding the
    critique lists and checks each fix on a short full-size moving render of its stretch before the round ends.
+   **Stop rule** (Vincent, 10 November 2026): ship when the critic's forecast for the next round is under +0.1 overall,
+   or after three critic rounds, whichever comes first. The jungle holdout's last three rounds bought +0.14 for about
+   2.6M tokens; gains after that come from the next story's first build, not from more rounds on this one.
+11. **Learn from the audience.** Seven days after posting, record the Short's "viewed vs swiped away" share, its
+   average percentage viewed and the retention graph's dips (YouTube Studio, the video's Analytics, Engagement) with
+   `production_log.py audience`, and set the dips against the critic's per-second table: a dip on a second the critic
+   scored 4 means the critic is wrong there; a low-scored second with no dip means it does not matter to viewers.
+   Change the critic's anchors when they disagree (critic scores do not compare across stories or critics; the
+   audience is the yardstick).
 
 ## The backbone and the dynamics
 

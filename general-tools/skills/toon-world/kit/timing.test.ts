@@ -1,7 +1,7 @@
 // Run: node --test general-tools/skills/toon-world/kit/timing.test.ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { makeTimeline, resolveClocks, shotClock, frameAt, viewAt, pushed, filmTimeOf, checkSegs, intoOf, type Data, type Seg, type View } from './timing.ts';
+import { makeTimeline, resolveClocks, shotClock, frameAt, viewAt, pushed, filmTimeOf, checkSegs, intoOf, type Data, type Seg, type View, planPace, checkPace } from './timing.ts';
 
 const words = (text: string, t0: number) => text.split(' ').map((w, i) => ({ w, s: +(t0 + i * 0.3).toFixed(2), e: +(t0 + i * 0.3 + 0.25).toFixed(2) }));
 const data: Data = { fps: 30, duration: 12, lines: [
@@ -103,4 +103,12 @@ test('checkSegs names gaps, backwards segments and unknown shots', () => {
     { place: 'a', shot: 'list', a: 2.5, b: 2.4 },
   ], () => ['list']);
   assert.equal(issues.length, 3);
+});
+
+test('one segment per line plans a slow film; more framings per line raise the planned pace', () => {
+  const oneEach = Array.from({ length: 27 }, (_, i) => ({ a: i * 2.5, b: (i + 1) * 2.5 }));
+  const slow = planPace(oneEach, 67.5);
+  assert.ok(slow.perMinute < 50 && checkPace(oneEach, 67.5, 60).length === 1);
+  const three = Array.from({ length: 81 }, (_, i) => ({ a: i * 0.83, b: (i + 1) * 0.83 }));
+  assert.ok(planPace(three, 67.5).perMinute >= 60);
 });

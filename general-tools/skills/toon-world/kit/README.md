@@ -85,6 +85,7 @@ that holds them; plus its cards and its picture events and sound cues. Run it af
 | Block | What it does |
 |---|---|
 | `actingStills` | Stretches over 1 s (`maxStill`) where nobody on screen changes pose. Camera moves do not count. |
+| `checkOpening` | The first frame is the Short's package: by 0.2 s a named person over 30% of the frame or a word card already up. |
 | `actingTooSmall` | A named person changing pose while under 25% of the frame high: acting a phone cannot read. Frame it close or push in on the action word. |
 | `checkFraming` | Named heads cut by any edge; named people under 8% of the frame high. A person whose head and feet are both outside the frame is skipped (off screen, not cut); the film template's sampler also drops people behind the lens. |
 | `checkHeld` | Props further than 5% of the frame from the hand that should hold them, or with no hand at all. |
@@ -108,3 +109,10 @@ The voice timeline and the film's segments, pure, shared by `shots.ts` and the s
 | `frameAt`, `whipAt`, `intoOf` | The camera, the shot's clock and the whip blur at film time t: a swing from the last framing inside a place, a whip between places. |
 | `segAt`, `shotClock`, `filmTimeOf` | Which segment plays; a shot's own clock; the film time of a moment in a shot's clock (picture events for the audit and the sound). |
 | `checkSegs` | Gaps, overlaps, backwards segments and unknown shots in the list (the audit prints them). |
+
+
+## timing.ts: pace
+
+`planPace(segs, duration)` counts the planned picture changes (segment starts and mid-shot punch-ins) per minute from
+the segment list alone; `checkPace` warns under 40. The pace is set on the board (2 to 3 framings per line), not in fix
+rounds.
