@@ -437,6 +437,13 @@ hours spent to reach each one, and ends with the count of rounds against the aim
 the video. **Count the rounds: the aim is three** critiques from the first cut to the owner's yes. Gibeon took six and
 the Mona Lisa seven; the levers below are what would have saved the rest.
 
+**Say what kind of video it is, and log each area.** At the start of every story, `production_log.py profile <log>
+--story S --channel C --look L --methods ...` records how it is made (picture backdrops, picture-to-3D props, code 3D,
+painted textures, drawn 2D, bean cards, clay 3D, AI video). Every critique row carries `--areas world=..,camera=..,
+people=..,light=..,story=..,sound=..` and `--judge`. `production_log.py areas <log>` then shows each story's weakest
+area and each area's average with and without each method, so after a few videos the weak area and the method behind
+it are plain, and that one piece gets the work (Vincent, 10 November 2026).
+
 ## After every critique: fix the making
 
 The critic finds faults; the build is changed so the next video cannot make them. Before the next fix round, sort
