@@ -354,9 +354,10 @@ written in one project (bible-shorts) and never reached the next (Epiclings), wh
   alignment marks a plosive's vowel, not its burst, so a shorter lead cuts the burst off. Why: a 0.04 s lead cut the P
   off "Paris", heard as "Chris" (Mona Lisa, Ember take, 9 November 2026). Check with whisper on the cut line, not the
   raw take.
-- **A whispered or hushed line needs room to be lifted.** Level each line to the film's line loudness with a gain
-  clamp wide enough for it (up to +16 dB); a clamp of +8 left a whispered reveal at −31 LUFS, far under its neighbours
-  (Wald bombers, 9 November 2026).
+- **No whispered lines.** Never tag a line `[whispers]` or `[hushed]`: Vincent does not like them (Wald bombers'
+  reveal, 10 November 2026). Mark a reveal with a pause before it and a slower, lower read in full voice. If a quiet
+  line is ever kept, level it with a gain clamp wide enough (up to +16 dB); a clamp of +8 left the whispered reveal
+  at −31 LUFS, far under its neighbours.
 - **A new narrator re-runs the mix check.** A quieter or more dynamic narrator (Ember at stability 0) changes every
   line's margin over the same bed: the Mona Lisa's bed, levelled while Laura narrated and left as it was, sat 1.2 dB
   over Ember's plumber line at its loudest.
