@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { AbsoluteFill, Audio, staticFile, useCurrentFrame, useVideoConfig } from 'remotion';
 import { ThreeCanvas } from '@remotion/three';
-import { Stage, Take, useLoaded, loadPlace } from './Stage';
+import { Stage, Take, Relight, useLoaded, loadPlace } from './Stage';
 import { Card, Paper, Thought, cuesOf } from './overlays';
 import { SEGS, CARDS, PAPERS, THOUGHTS, DURATION } from './shots';
 import { STORY } from './story';
@@ -21,7 +21,7 @@ function logAuditConfig() {
   console.log('AUDITCFG ' + JSON.stringify({ events: STORY.events(SEGS), cues: cuesOf(CARDS, PAPERS, THOUGHTS), segs: [...checkSegs(SEGS), ...checkPace(SEGS, DURATION)] }));
 }
 
-export const Film: React.FC<{ at?: number; debug?: string; audio?: string }> = ({ at, debug = '', audio = STORY.audio }) => {
+export const Film: React.FC<{ at?: number; debug?: string; audio?: string; relight?: Relight }> = ({ at, debug = '', audio = STORY.audio, relight }) => {
   const { fps, width, height } = useVideoConfig();
   const frame = useCurrentFrame();
   const t = at ?? frame / fps;
@@ -30,7 +30,7 @@ export const Film: React.FC<{ at?: number; debug?: string; audio?: string }> = (
   const r = useLoaded(s.place);
   useEffect(() => { if (next && next.place !== s.place) loadPlace(next.place).catch(() => undefined); }, [next, s.place]);
 
-  const take: Take = { people: s.act ? (base) => s.act!(t, base) : undefined, blur: s.blur };
+  const take: Take = { people: s.act ? (base) => s.act!(t, base) : undefined, blur: s.blur, relight };
   const blur = 60 * whipAt(SEGS, t) * (width / 1080);
   const k = width / 1080;
   return (

@@ -2,6 +2,8 @@
 // then tiles them into a labelled sheet (sheet.jpg) for the owner's yes before anything is animated.
 //   TMPDIR=$HOME/remotion-tmp/__SLUG__ node src/stories/__SLUG__/tools/stills.mjs jobs.json outDir [scale] [cols]
 // jobs.json: [{ "name": "hook", "props": { "place": "lookout", "shot": "hook-a" } }, ...]
+// A job may name another composition ("id") and re-light a thumbnail still: { "name": "thumb", "id": "<Film>", "frame": 1398,
+//   "props": { "debug": "clean", "audio": "", "relight": { "key": 2.6, "pictures": 3, "fog": "#a0a0c4", "sky": ["#9a90e0", "#ffd08a"], "skyMix": 0.75, "light": {...} } } }
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -19,7 +21,7 @@ const browser = await openBrowser('chrome', { chromiumOptions: { gl: 'angle' } }
 const files = [];
 for (const j of jobs) {
   const inputProps = { ...(j.props ?? {}) };
-  const comp = await selectComposition({ serveUrl, id: '__BOARD__', inputProps, puppeteerInstance: browser });
+  const comp = await selectComposition({ serveUrl, id: j.id ?? '__BOARD__', inputProps, puppeteerInstance: browser });
   const out = path.join(outDir, `${j.name}.png`);
   const s = Date.now();
   await renderStill({ composition: comp, serveUrl, output: out, frame: j.frame ?? 0, inputProps, puppeteerInstance: browser, scale, chromiumOptions: { gl: 'angle' }, timeoutInMilliseconds: 240000 });
