@@ -71,6 +71,33 @@ Before building a scene, give each part of the picture its source; this is where
 | Fire, smoke, dust, water | A raymarched volume in code (`fx.ts` in the railroads practice); a Higgsfield element only if code fails | The railroads fireball cost no credits |
 | Words on screen | Code | |
 
+### The blend: pictures far, code 3D in the middle, a drawn detail layer (decided 10 November 2026)
+
+Vincent wants every place mixed, band by band, because pictures alone cannot hold the small things that make a place
+feel real ("we need to have a lot of details everywhere"):
+
+| Band | Source |
+|---|---|
+| Far (sky, sea, distant forest, mountains) | One picture on a curved screen that follows the camera, blurred by the lens behind people |
+| Middle (trunks, walls, huts, shelves) | Simple code 3D with a painted tileable texture (bark, thatch, plaster, book spines) |
+| Ground | Code 3D with a painted tile, plus scattered 2D litter decals |
+| Detail layer | Code: vines, fallen leaves, mushrooms, butterflies, moths, sun shafts with motes, shells, embers, a cat, a pencil on a desk. Small, alive, often moving |
+| Hero props | Image-to-3D when it only needs to look rich (a rock, a boat); code when it moves (a plane, a rifle) |
+| People | Bean-head cards, always in focus |
+
+Rules that came with it:
+- **Blur behind people by default** (about 11 px in medium shots, more in close ones); only flat shots (a map, a
+  chalkboard) stay sharp. Vincent: the most important thing is that the characters stay in focus.
+- **A calm area right behind every face.** A busy cut-out (tree roots, many trunks) behind a person was rejected as
+  clutter; put the detail round the edges, on the ground and in the air.
+- **Painted pictures on code shapes beat both alone**: a painted leaf picture on a bent 3D blade read as real; plain
+  green code leaves read as plastic. Never leave plain code colour where a painted texture can go.
+- **Pictures rich, saturated, crisp, no haze.** A hazy cut-out of hills was rejected as fake. Clean every cut-out's
+  white fringe (erode the alpha 2 px, fill the edge colour from inside) and never cut a picture through a subject.
+- **Card textures without mipmaps**: with them a far person's alpha averaged under alphaTest and the person vanished.
+- A backdrop screen is extended below its picture, and a low camera gets a sky dome, or flat colour shows.
+- The look of the world is designed fresh for each story; only the bean-head people carry over.
+
 **Invented things around a small subject stay near its size, and the subject gets its own light.** Size the neighbours
 from the subject, not from the picture: a master picture invents its own furniture at its own scale. Give the subject a
 soft pool of light of its own so the eye lands on it. Why: the Mona Lisa's master picture brought two invented canvases

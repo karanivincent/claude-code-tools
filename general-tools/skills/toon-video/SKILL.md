@@ -62,7 +62,12 @@ and effects cost money. This skill holds the craft. A project or channel can add
      place, drawn in code: `toon-world` "Looks, scene by scene"), the parts plan (which part comes from code, a
      picture, a 3D model or an effect), and one picture per place where the look uses pictures. Vincent picks; looks
      may differ scene by scene, never within one frame.
-   - d. **Still board.** One Higgsfield still per beat (`gpt_image_2_6`, 9:16, with `resolution: "2k"` and `quality:
+   - d. **Still board.** Render it from the real parts, not AI pictures, wherever the places exist in code: a board
+     composition that renders any `{ place, shot }` through the look stack, one small place file per place (the
+     Epiclings jungle holdout's `board/` and `places/` are the reference), so each still takes about a second and
+     what is approved is what moves. Prove the mix on one place first, then brief agents with it. Show the board on
+     a web page (an Artifact) that works on a phone: at most three stills per row, each with its line, the words on
+     screen, what is shown and a note, known flaws in red (Vincent, 10 November 2026). Otherwise: one Higgsfield still per beat (`gpt_image_2_6`, 9:16, with `resolution: "2k"` and `quality:
      "high"` for any picture that becomes a texture; without them the result comes back about 750 px wide), each made with the place's master
      picture and the cast sheet as image references, the prompt saying the people and animals stay flat 2D cartoon
      cards exactly as on the cast sheet, lit by the place, never realistic or 3D. Check every still at full size: a
