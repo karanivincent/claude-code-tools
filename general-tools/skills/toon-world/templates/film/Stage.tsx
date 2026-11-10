@@ -66,7 +66,6 @@ export interface Take { t?: number; view?: View; people?: (base: Person[]) => Pe
 export interface Relight { light?: Partial<LightPreset>; key?: number; pictures?: number; fog?: string;
   /** a lighter sky over the place's own picture: [top colour, horizon colour], screened on at `skyMix` (0 to 1) */
   sky?: [string, string]; skyMix?: number }
-type FrameView = (shotView: Shot['view'], other: (shot: string) => Shot['view'], shotT: number) => { view: Shot['view']; t: number };
 
 /** the film's camera and clock for this frame, from the shot's own view, any shot's view, and the shot's start time */
 export type FrameView = (shotView: View, other: (shot: string) => View, shotT: number) => { view: View; t: number };

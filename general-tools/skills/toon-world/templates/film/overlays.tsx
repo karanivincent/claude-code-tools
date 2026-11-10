@@ -6,6 +6,9 @@ import { staticFile } from 'remotion';
 //  - Card: a year or a number, with an optional small label above ("THE WAR ENDED" / "1945"). grey: a date in the past.
 //  - Paper: a typed paper for orders or a list; each line types on as it is said.
 //  - Thought: a bubble with a picture for any word the viewer may not picture (an animal, a creature, a machine).
+//  - Captions: the narration one word at a time, white with a black outline, at 70% of the height (every story has
+//    them: the jungle holdout went out without; the audit's checkCaptions fails a film with none). Keep faces and
+//    must-see subjects out of the caption band (toon-kit checkMustSee's captions option).
 
 const INK = '#241726';
 export interface CardDef { text: string; a: number; b: number; label?: string; grey?: boolean }
@@ -71,6 +74,25 @@ export const Thought: React.FC<{ h: ThoughtDef; t: number }> = ({ h, t }) => {
 };
 
 /** every overlay as a cue for the audit's checkCues: a card's text, each paper line, each thought's word */
+export interface CaptionDef { text: string; s: number; e: number; size: number }
+export const CAPTION_Y = 1344;
+/** one caption per spoken word, from the voice timeline: on 0.04 s before its word, held to the next word when the gap
+ *  is under 0.5 s (no flicker), else 0.2 s after it; sized to fit 900 px */
+export const captionsOf = (tl: { lines: { words: { w: string; s: number; e: number }[] }[] }): CaptionDef[] => {
+  const out = tl.lines.flatMap(l => l.words).map(w => ({ text: w.w.replace(/[“”"]/g, '').replace(/[.,!?;:]+$/, ''), s: w.s - 0.04, e: w.e, size: 0 }));
+  out.forEach((c, i) => { const n = out[i + 1]; c.e = n && n.s - c.e < 0.5 ? n.s - 0.04 : c.e + 0.2; c.size = Math.min(118, 900 / (c.text.length * 0.66)); });
+  return out;
+};
+export const Captions: React.FC<{ captions: CaptionDef[]; t: number; y?: number }> = ({ captions, t, y = CAPTION_Y }) => {
+  const c = captions.find(x => t >= x.s && t < x.e);
+  if (!c) return null;
+  return (
+    <div style={{ position: 'absolute', left: 90, width: 900, top: y - 120, height: 240, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontFamily: '"Arial Black", "Helvetica Neue", Arial, sans-serif', fontWeight: 900, fontSize: c.size, lineHeight: 1, whiteSpace: 'nowrap', color: '#FFFFFF',
+      textShadow: '0 5px 16px rgba(0,0,0,0.4)', WebkitTextStroke: `${Math.round(c.size * 0.17)}px #000`, paintOrder: 'stroke fill' }}>{c.text}</div>
+  );
+};
+
 export const cuesOf = (cards: CardDef[], papers: PaperDef[], thoughts: ThoughtDef[]) => [
   ...cards.map(c => ({ text: c.text, at: c.a, until: c.b })),
   ...papers.flatMap(p => p.lines.map(l => ({ text: l.text, at: l.at }))),

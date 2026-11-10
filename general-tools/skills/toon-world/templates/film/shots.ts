@@ -2,7 +2,7 @@ import full from './full.json';
 import { makeTimeline, resolveClocks, type Data, type Seg } from '../../toon-kit/timing';
 import type { PlaceName } from './places';
 import type { Person } from './cast';
-import type { CardDef, PaperDef, ThoughtDef } from './overlays';
+import { captionsOf, type CardDef, type PaperDef, type ThoughtDef } from './overlays';
 
 // The story told shot by shot on the approved board. Every segment is a board shot played for a stretch of the voice
 // (a and b from word times): its camera eases from the shot's framing towards `to` (another shot of the same place,
@@ -29,4 +29,6 @@ export const SEGS = resolveClocks<Seg<PlaceName, Act>>([
 export const CARDS: CardDef[] = [];
 export const PAPERS: PaperDef[] = [];
 export const THOUGHTS: ThoughtDef[] = [];
+/** the running captions: one word at a time from the voice (never remove; the audit fails a film without them) */
+export const CAPTIONS = captionsOf(full as unknown as Parameters<typeof captionsOf>[0]);
 export const DURATION = END;

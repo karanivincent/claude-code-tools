@@ -53,6 +53,7 @@ word lookup and segment maths. Do not rebuild these from the jungle holdout's co
 | A gesture the story turns on is held about 1 s and framed close enough to read: a salute, a handover, a tick on a list | The salute and the sword "missing" in cut 4 |
 | People who leave fall or walk out, in clear view, never vanish | Three men popped out of existence |
 | Gunfire is seen (flash, recoil, smoke, dust where it hits) and heard on top of the mix | "If he's still fighting we should hear gunshots" |
+| Running captions, one word at a time (the template's `CAPTIONS`; the audit's `checkCaptions`) | The jungle holdout was posted without them; nobody noticed until after |
 | Dates and orders on screen as cards; unfamiliar words as thought bubbles | "A panda and a yeti, but I don't know what those are" |
 | A place sized to the story (an island worth a 29-year hunt), its moving parts moving (boat, wake, waves) | "That island is too small" |
 | Sparkle and small moving things in every shot: glints, embers, dust, insects, birds | "We need a lot of sparkling here and there" |
@@ -63,7 +64,7 @@ word lookup and segment maths. Do not rebuild these from the jungle holdout's co
 The film's composition takes an `audit` flag: on each frame it logs one JSON sample (people with a pose signature,
 head and feet projected to the frame, held props with their holder's hand) instead of drawing the look stack, and a
 tool renders it tiny and fast, collects the samples, and runs toon-kit `acting.ts` (`actingStills`, `checkFraming`,
-`checkHeld`, `checkCues`, `checkSync`) with the story's cards, word times, picture events and sound cues. Fix what it
+`checkHeld`, `checkCues`, `checkSync`, `checkCaptions`) with the story's cards, word times, picture events and sound cues. Fix what it
 reports, then render. The template's `tools/audit.mjs` does this; it also prints the segment list's gaps and unknown shots, and skips
 people behind the lens or wholly off screen.
 
