@@ -123,10 +123,20 @@ export function gate(storyDir, stage, opts = {}) {
   if (!fs.existsSync(stills)) refusals.push(`measure: no out/${slug}/look/stills.mp4 (look.mjs makes it)`);
   else {
     const ref = story.reference ? [path.join(root, story.reference)] : [];
+    // a measured miss the owner has seen and accepts passes as STORY.acknowledged { check: 'measure-<name>', reason }
+    // (the name as the MISS line gives it: measure-sharpness, measure-saturation ...); any other miss refuses
+    const acks = new Map((story.acknowledged ?? []).filter(a => /^measure-/.test(a.check) && a.reason?.trim()).map(a => [a.check, a.reason]));
+    const measure = (script, out, code) => {
+      if (code === 0) return;
+      if (code !== 1) { refusals.push(`${script}: could not run`, ...tail(out)); return; }
+      const misses = out.split('\n').filter(l => /^\s*MISS /.test(l)), open = misses.filter(l => !acks.has('measure-' + l.trim().split(/\s+/)[1]));
+      for (const l of misses.filter(x => !open.includes(x))) log(`gate ${stage}: passed (owner accepts: ${acks.get('measure-' + l.trim().split(/\s+/)[1])}): ${l.trim()}`);
+      if (open.length || !misses.length) refusals.push(`${script}: outside the targets`, ...(open.length ? open.map(l => '      ' + l.trim()) : tail(out)));
+    };
     const sh = run(py, [path.join(tools, 'measure_sharp.py'), stills, ...ref], root);
-    if (sh.code !== 0) refusals.push(`measure_sharp.py: ${sh.code === 1 ? 'outside the targets' : 'could not run'}`, ...tail(sh.out));
+    measure('measure_sharp.py', sh.out, sh.code);
     const lo = run(py, [path.join(tools, 'measure_look.py'), stills], root);
-    if (lo.code !== 0) refusals.push(`measure_look.py: ${lo.code === 1 ? 'outside the targets' : 'could not run'}`, ...tail(lo.out));
+    measure('measure_look.py', lo.out, lo.code);
   }
   const result = { stage, at: new Date().toISOString(), ok: !refusals.length, refusals };
   fs.mkdirSync(path.join(root, 'out', slug), { recursive: true });

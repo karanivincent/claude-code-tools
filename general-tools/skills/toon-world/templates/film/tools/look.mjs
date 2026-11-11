@@ -86,10 +86,10 @@ for (const x of checkDetail(frames)) issues.push(asIssue(x, firstT(x.shot)));
 
 // ---- 2. the stills ------------------------------------------------------------------------------------------------------
 const browser = await openBrowser('chrome', { chromiumOptions });
-const still = async (frame, debug, file) => {
+const still = async (frame, debug, file, scale = 0.5) => {
   const inputProps = { audio: '', debug };
   const composition = await selectComposition({ serveUrl, id: '__FILM__', inputProps, puppeteerInstance: browser, chromiumOptions });
-  await renderStill({ composition, serveUrl, output: file, frame, inputProps, puppeteerInstance: browser, scale: 0.5, chromiumOptions, timeoutInMilliseconds: 240000 });
+  await renderStill({ composition, serveUrl, output: file, frame, inputProps, puppeteerInstance: browser, scale, chromiumOptions, timeoutInMilliseconds: 240000 });
 };
 const flats = [];
 const plan = cfg.plan ?? [];
@@ -98,7 +98,9 @@ for (let i = 0; i < plan.length; i++) {
   if (i && plan[i - 1].place === plan[i].place && plan[i - 1].shot === plan[i].shot) continue;
   const s = plan[i], t = (s.a + s.b) / 2, frame = Math.round(t * fps), n = String(flats.length).padStart(3, '0');
   const post = path.join(lookDir, `post-${n}.png`), world = path.join(lookDir, `world-${n}.png`), bare = path.join(lookDir, `bare-${n}.png`);
-  await still(frame, 'clean', post);
+  // the look-stack still at full size: measure_sharp.py reads it, and a half-size still scaled back up measured about
+  // a fifth of a real frame's sharpness (Elijah and the widow, 11 November 2026: 60 against 238 at full size)
+  await still(frame, 'clean', post, 1);
   await still(frame, 'clean nopost', world);
   await still(frame, 'clean nopost nocards nofar', bare);
   const a = readRgb(world), b = readRgb(bare), mask = cardMask(a, b);
