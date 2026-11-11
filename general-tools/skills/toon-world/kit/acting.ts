@@ -17,7 +17,9 @@ export interface PersonSample {
   named?: boolean;
 }
 export interface PropSample { name: string; at: XY; holder?: string; hand?: XY }
-export interface Sample { t: number; shot: string; people: PersonSample[]; props?: PropSample[] }
+/** the camera this frame (world metres, degrees), when the film logs it: the opening's motion and the camera checks */
+export interface CamSample { pos: [number, number, number]; look: [number, number, number]; fov: number }
+export interface Sample { t: number; shot: string; people: PersonSample[]; props?: PropSample[]; cam?: CamSample }
 export interface Issue { check: string; from: number; to: number; shot: string; who?: string; what: string }
 
 /** stretches longer than `maxStill` seconds where nobody on screen changes pose (default 1 s). Camera moves do not
@@ -80,6 +82,9 @@ const norm = (x: string) => x.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
 export function checkCues(cues: Cue[], words: Word[], opts: { lead?: number; late?: number } = {}): Issue[] {
   const lead = opts.lead ?? 0.4, late = opts.late ?? 0.2, out: Issue[] = [];
   for (const c of cues) {
+    // the hook card is up from frame 0 by rule (checkOpening), before any word can be said: not judged against words
+    // (Elijah and the widow 2D: the opening card at 0.0 s was flagged "0.65 s before 'one'")
+    if (c.at <= OPENING_CARD) continue;
     const parts = c.text.split(/\s+/).map(norm).filter(p => p.length > 2 || /\d/.test(p));
     const hits = words.filter(w => parts.includes(norm(w.w)));
     if (!hits.length) continue;
@@ -138,18 +143,65 @@ export function actingTooSmall(samples: Sample[], opts: { minHeight?: number } =
   return merge(raw);
 }
 
-/** the opening: for a Short the first frame IS the package (the feed plays the video; no thumbnail shows there). By
- *  `by` seconds (default 0.2) there must be a named person at least `minHeight` of the frame high (default 0.3) or a
- *  word card already up (a cue at or before 0.05 s). The jungle holdout opened on a small calm figure with its card at
- *  0.3 s, and all three click critics called it the weakest frame. */
-export function checkOpening(samples: Sample[], cues: Cue[] = [], opts: { by?: number; minHeight?: number } = {}): Issue[] {
-  const by = opts.by ?? 0.2, minH = opts.minHeight ?? 0.3;
-  const early = samples.filter(s => s.t <= by);
-  const big = early.some(s => s.people.some(p => p.named !== false && (p.height ?? 0) >= minH));
-  const card = cues.some(c => c.at <= 0.05);
-  if (big || card) return [];
-  const best = Math.max(0, ...early.flatMap(s => s.people.map(p => p.height ?? 0)));
-  return [{ check: 'opening-weak', from: 0, to: by, shot: early[0]?.shot ?? '', what: `by ${by} s nobody is over ${(minH * 100).toFixed(0)}% of the frame (biggest ${(best * 100).toFixed(0)}%) and no word card is up: the first frame is the Short's package` }];
+/** a cue at or before this film time (one frame at 30 fps) is the opening card */
+export const OPENING_CARD = 1 / 30;
+/** The opening: for a Short the first frame IS the package (the feed plays the video; no thumbnail shows there). All
+ *  three are required, each its own issue:
+ *  - a big subject: by `by` seconds (default 0.2) a named person at least `minHeight` of the frame high (default 0.3).
+ *    Why: the jungle holdout opened on a small calm figure and all three click critics called it the weakest frame.
+ *  - motion from frame 1: between the first sample and the next (within `by`), a person changes pose or the camera
+ *    moves (by `minMove` metres, default 0.002, or its look point, or `fov`). A still first frame reads as a paused
+ *    video (Elijah and the widow 2D: a held insert of the jar opened the film).
+ *  - the word card up at 0.0 s (a cue at or before OPENING_CARD), drawn whole on frame 0 (overlays.tsx Card: a hook
+ *    card with a <= 0 never pops in). Elijah's card popped in from nothing over 0.35 s, so frame 0 showed no card. */
+export function checkOpening(samples: Sample[], cues: Cue[] = [], opts: { by?: number; minHeight?: number; minMove?: number } = {}): Issue[] {
+  const by = opts.by ?? 0.2, minH = opts.minHeight ?? 0.3, minMove = opts.minMove ?? 0.002, out: Issue[] = [];
+  const early = samples.filter(s => s.t <= by), shot = early[0]?.shot ?? '';
+  if (!early.some(s => s.people.some(p => p.named !== false && (p.height ?? 0) >= minH))) {
+    const best = Math.max(0, ...early.flatMap(s => s.people.map(p => p.height ?? 0)));
+    out.push({ check: 'opening-small', from: 0, to: by, shot, what: `by ${by} s nobody named is over ${(minH * 100).toFixed(0)}% of the frame (biggest ${(best * 100).toFixed(0)}%): the first frame is the Short's package` });
+  }
+  const [a, b] = early;
+  const d3 = (p: number[], q: number[]) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]);
+  const camMoved = !!(a?.cam && b?.cam) && (d3(a.cam.pos, b.cam.pos) > minMove || d3(a.cam.look, b.cam.look) > minMove || Math.abs(a.cam.fov - b.cam.fov) > 0.01);
+  const acted = !!(a && b) && b.people.some(p => { const q = a.people.find(x => x.key === p.key); return !q || q.sig !== p.sig; });
+  if (!camMoved && !acted) out.push({ check: 'opening-still', from: 0, to: b?.t ?? 0, shot, what: b ? 'nothing moves between the first two frames sampled (no pose change, no camera move): motion from frame 1' : 'only one sample in the opening: cannot tell whether it moves' });
+  if (!cues.some(c => c.at <= OPENING_CARD)) out.push({ check: 'opening-card', from: 0, to: 0, shot, what: 'no word card up at 0.0 s: the hook card starts at a = 0 (overlays.tsx draws it whole on frame 0)' });
+  return out;
+}
+
+/** Issues the story lets through, each with its reason: an `acknowledged` entry matches an issue by its check, and
+ *  when given by a time inside it (0.05 s either side), its shot and its person. An entry without a reason passes
+ *  nothing and is itself an issue ('ack-no-reason'), and one that matches nothing is reported ('ack-unused') so stale
+ *  entries are dropped. Why: the gate fails on every issue (toon-video's audit used to print and pass); a fault the
+ *  owner has seen and accepted needs a way through that says why, not an edit to the gate. */
+export interface Ack { check: string; at?: number; shot?: string; who?: string; reason: string }
+export function acknowledge(issues: Issue[], acks: Ack[]): { open: Issue[]; passed: { issue: Issue; reason: string }[] } {
+  const open: Issue[] = [], passed: { issue: Issue; reason: string }[] = [], used = new Set<number>();
+  const valid = acks.map(a => !!(a.reason && a.reason.trim()));
+  for (const i of issues) {
+    const k = acks.findIndex((a, n) => valid[n] && a.check === i.check && (a.at === undefined || (a.at >= i.from - 0.05 && a.at <= i.to + 0.05))
+      && (!a.shot || a.shot === i.shot) && (!a.who || a.who === i.who));
+    if (k >= 0) { used.add(k); passed.push({ issue: i, reason: acks[k].reason }); } else open.push(i);
+  }
+  acks.forEach((a, n) => {
+    if (!valid[n]) open.push({ check: 'ack-no-reason', from: a.at ?? 0, to: a.at ?? 0, shot: a.shot ?? '', what: `acknowledged "${a.check}" has no reason: say why it may pass, or fix it` });
+    else if (!used.has(n)) open.push({ check: 'ack-unused', from: a.at ?? 0, to: a.at ?? 0, shot: a.shot ?? '', what: `acknowledged "${a.check}"${a.at !== undefined ? ` at ${a.at} s` : ''} matches no issue: drop it` });
+  });
+  return { open, passed };
+}
+
+/** per-frame findings (a camera check's `{ f, kind, detail }`) as audit issues in seconds, consecutive frames of the
+ *  same check and the same first words of detail merged into one run (frames at most `gap` apart, default 4: the audit
+ *  samples every third frame) */
+export function fromFrames(found: { f: number; kind: string; detail: string; layer?: string }[], fps: number, shotAt: (f: number) => string, gap = 4): Issue[] {
+  const out: (Issue & { f1: number })[] = [], key = (d: string) => d.split(':')[0].split(' ').slice(0, 4).join(' ');
+  for (const x of [...found].sort((a, b) => a.f - b.f)) {
+    const check = 'cam-' + x.kind.replace(/ /g, '-'), last = out.find(o => o.check === check && key(o.what) === key(x.detail) && x.f - o.f1 <= gap);
+    if (last) { last.f1 = x.f; last.to = x.f / fps; }
+    else out.push({ check, from: x.f / fps, to: x.f / fps, f1: x.f, shot: shotAt(x.f), what: x.detail });
+  }
+  return out.map(({ f1: _f, ...i }) => { void _f; return i; });
 }
 
 /** all issues as lines, sorted by time */

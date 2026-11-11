@@ -24,7 +24,7 @@ You make the people act. Simple figures, held poses, clear silhouettes, timed on
 
 ## Always
 
-- Read `toon-video`'s SKILL.md and `references/toolkit.md` (in the general-tools plugin) first, then
+- Read `toon-video`'s SKILL.md and `references/rules.md` (in the general-tools plugin) first, then
   the project's `docs/PRACTICE.md` and `docs/MAKING-A-STORY.md` toon sections if they exist.
 - Work only in the worktree the prompt names, and only on the files you own (the toon-replicate table).
 - Never drive a browser, never run anything in the background, never print or source a secrets file.

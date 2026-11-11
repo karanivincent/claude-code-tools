@@ -1,4 +1,4 @@
-"""Stills on the voice (toon-video stage d2): the approved still board played over the recorded voice, so the owner
+"""Stills on the voice (toon-video stage 2, the animatic): the approved still board played over the recorded voice, so the owner
 watches the whole story before anything is animated.
 
 Each line's stills share the line's time, split at its words (a line with three stills shows each for a third of its

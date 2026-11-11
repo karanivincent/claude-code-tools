@@ -29,7 +29,9 @@ export interface ThoughtDef {
 const popIn = (k: number, over = 0.08) => (k < 1 ? 0.6 + 0.4 * (1 - Math.pow(1 - k, 3)) + over * Math.sin(k * Math.PI) : 1);
 
 export const Card: React.FC<{ c: CardDef; t: number; top?: number }> = ({ c, t, top = 110 }) => {
-  const k = Math.min(1, (t - c.a) / 0.35), out = Math.max(0, 1 - (c.b - t) / 0.12);
+  // the hook card (a <= 0) is fully drawn on frame 0, never popping in from nothing: for a Short the first frame is
+  // the package (the feed plays it; no thumbnail shows), and the audit's checkOpening wants the card up at 0.0 s
+  const k = c.a <= 0 ? 1 : Math.min(1, (t - c.a) / 0.35), out = Math.max(0, 1 - (c.b - t) / 0.12);
   return (
     <div style={{ position: 'absolute', left: 0, right: 0, top, display: 'flex', justifyContent: 'center', opacity: Math.min(k * 4, 1) }}>
       <div style={{ transform: `scale(${popIn(k) * (1 - out)}) rotate(-3deg)`, background: '#f4ead2', border: `10px solid ${INK}`, borderRadius: 26, padding: '10px 46px',

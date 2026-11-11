@@ -2,20 +2,24 @@ import * as THREE from 'three';
 
 // A kit for 2D-in-code sets: geometry that the camera can orbit, drawn like a TV cartoon background. Three pieces:
 //
-//   toonify(root, o)      every lit material under root becomes a flat cel material (MeshToonMaterial, three tones),
+//   toonify(root, o)      every lit material under root becomes a cel material (MeshToonMaterial, three tones),
 //                         maps kept or swapped (o.remap), and every opaque mesh joins the ink layer
 //   makeInk(gl)           the outline pass: a normals-and-depth render of the ink layer, edges found on screen (depth
 //                         creases and silhouettes, normal creases) and laid over the picture as bold dark lines that
 //                         thin with distance and fade into the fog; things off the ink layer (the jar) hide the lines
 //                         behind them; the cards are drawn last, over everything, as in the plain composition
-//   flatTex(...)          a canvas texture helper, and flat stone and flagstone painters (outlined blocks, two tones)
+//   paintedTex(...)       a canvas texture at 2048, mipmapped, 16x anisotropic (the look check's floor near the lens)
+//
+// The flat one-colour material and the two-tone stone and flagstone painters are gone (decision 1, 11 November 2026:
+// no plain code colour; tools/look.mjs fails it within 8 m of a camera). Paint surfaces with the film template's
+// paint.ts (plaster, ground, stone, wood, cloth with grain at every scale) or paintedTex.
 //
 // Layers: 0 everything the main picture draws, INK (1) what gets outlines, OVER (3) the cards and props drawn after
 // the outlines (the lights join OVER so lit props there still light).
 
 export const INK = 1, OVER = 3;
 
-// ---- flat materials ------------------------------------------------------------------------------------------------
+// ---- cel materials ------------------------------------------------------------------------------------------------
 let ramp: THREE.DataTexture | null = null;
 /** the cel ramp: the shadow side, the turned side, the lit side; three flat tones, nothing in between */
 export function celRamp() {
@@ -25,20 +29,6 @@ export function celRamp() {
   ramp.minFilter = ramp.magFilter = THREE.NearestFilter; ramp.generateMipmaps = false; ramp.needsUpdate = true;
   return ramp;
 }
-const flatCache = new Map<string, THREE.MeshToonMaterial>();
-/** a flat cel material of one colour (cached by colour and side) */
-export function flat(color: string, o: { side?: THREE.Side; map?: THREE.Texture; emissive?: string; emissiveIntensity?: number } = {}) {
-  const k = `${color}|${o.side ?? 0}|${o.map?.uuid ?? ''}|${o.emissive ?? ''}|${o.emissiveIntensity ?? 0}`;
-  let m = flatCache.get(k);
-  if (!m) {
-    m = new THREE.MeshToonMaterial({ color, gradientMap: celRamp(), side: o.side ?? THREE.FrontSide, map: o.map ?? null });
-    if (o.emissive) { m.emissive.set(o.emissive); m.emissiveIntensity = o.emissiveIntensity ?? 1; }
-    else { m.emissive.set(color).multiplyScalar(0.3); m.emissiveMap = o.map ?? null; }   // the flat base tone, as toonify
-    flatCache.set(k, m);
-  }
-  return m;
-}
-
 export interface ToonifyOptions {
   /** subtrees left exactly as they are (and off the ink layer): the realistic jar, the balls */
   skip?: THREE.Object3D[];
@@ -84,60 +74,17 @@ export const inked = <T extends THREE.Object3D>(o: T, shadows = true) => {
   return o;
 };
 
-// ---- flat canvas textures -----------------------------------------------------------------------------------------
-export function flatTex(w: number, h: number, paint: (g: CanvasRenderingContext2D) => void, repeat?: [number, number]) {
-  const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
-  paint(cv.getContext('2d')!);
-  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8;
+// ---- painted canvas textures ---------------------------------------------------------------------------------------
+/** a canvas texture painted by `paint` at `size` px (default 2048: toon-kit look.ts TEX_MIN), mipmapped, 16x anisotropic */
+export function paintedTex(paint: (g: CanvasRenderingContext2D, size: number) => void, repeat?: [number, number], size = 2048) {
+  const cv = document.createElement('canvas'); cv.width = cv.height = size;
+  paint(cv.getContext('2d')!, size);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 16;
+  t.generateMipmaps = true; t.minFilter = THREE.LinearMipmapLinearFilter;
   if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...repeat); }
   return t;
 }
 export function rand(seed: number) { let s = seed * 9301 + 49297; return () => { s = (s * 9301 + 49297) % 233280; return s / 233280; }; }
-const rgb = (c: number[], k = 0) => `rgb(${c[0] + k},${c[1] + k},${c[2] + k})`;
-/** a crack: a short dark zigzag */
-function crack(g: CanvasRenderingContext2D, r: () => number, x: number, y: number, len: number, ink: string) {
-  g.strokeStyle = ink; g.lineWidth = 2.2; g.lineCap = 'round'; g.beginPath(); g.moveTo(x, y);
-  let a = r() * Math.PI * 2;
-  for (let i = 0; i < 4; i++) { a += (r() - 0.5) * 1.4; x += Math.cos(a) * len / 4; y += Math.sin(a) * len / 4; g.lineTo(x, y); }
-  g.stroke();
-}
-/** outlined stone blocks in staggered courses: a flat fill per block, a lit top-left edge, a shaded bottom-right edge,
- * a bold dark joint, now and then a crack. One tile is 512 px; `rows` courses per tile. */
-export function stoneBlocks(g: CanvasRenderingContext2D, seed: number, o: { base?: number[]; rows?: number; ink?: string; S?: number } = {}) {
-  const r = rand(seed), S = o.S ?? 512, rows = o.rows ?? 9, rh = S / rows, base = o.base ?? [156, 150, 168], ink = o.ink ?? '#3A3346';
-  g.fillStyle = ink; g.fillRect(0, 0, S, S);
-  const J = 3;   // half the joint width
-  for (let row = 0; row < rows; row++) {
-    let x = -(row % 2) * rh * 0.9 - r() * rh * 0.4;
-    const y = row * rh;
-    while (x < S) {
-      const w = rh * (1.6 + r() * 1.2), v = Math.round((r() - 0.5) * 18), c = base.map(b => b + v);
-      for (const xx of [x, x - S, x + S]) {
-        g.fillStyle = rgb(c); g.fillRect(xx + J, y + J, w - 2 * J, rh - 2 * J);
-        g.fillStyle = rgb(c, 22); g.fillRect(xx + J, y + J, w - 2 * J, 5); g.fillRect(xx + J, y + J, 4, rh - 2 * J);
-        g.fillStyle = rgb(c, -26); g.fillRect(xx + J, y + rh - J - 6, w - 2 * J, 6); g.fillRect(xx + w - J - 5, y + J, 5, rh - 2 * J);
-        if (r() < 0.12) crack(g, r, xx + w * (0.3 + 0.4 * r()), y + rh * (0.3 + 0.4 * r()), rh * 0.6, ink);
-      }
-      x += w;
-    }
-  }
-}
-/** flagstones: `n` by `n` per tile, staggered, outlined, a sheen stroke on some, cracks */
-export function flagstones(g: CanvasRenderingContext2D, seed: number, o: { base?: number[]; n?: number; ink?: string } = {}) {
-  const r = rand(seed), S = 512, n = o.n ?? 4, q = S / n, base = o.base ?? [150, 146, 164], ink = o.ink ?? '#3A3346';
-  g.fillStyle = ink; g.fillRect(0, 0, S, S);
-  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-    const v = Math.round((r() - 0.5) * 20), c = base.map(b => b + v), ox = (y % 2) * q / 2;
-    for (const dx of [0, -S]) {
-      const X = x * q + ox + dx, Y = y * q;
-      g.fillStyle = rgb(c); g.fillRect(X + 3, Y + 3, q - 6, q - 6);
-      g.fillStyle = rgb(c, 18); g.fillRect(X + 3, Y + 3, q - 6, 4);
-      g.fillStyle = rgb(c, -18); g.fillRect(X + 3, Y + q - 8, q - 6, 5);
-      if (r() < 0.35) { g.strokeStyle = 'rgba(255,255,255,0.18)'; g.lineWidth = 3; g.beginPath(); const a = X + q * (0.2 + 0.4 * r()), b = Y + q * (0.25 + 0.4 * r()); g.moveTo(a, b); g.lineTo(a + q * 0.25, b - q * 0.12); g.stroke(); }
-      if (r() < 0.25) crack(g, r, X + q * (0.2 + 0.6 * r()), Y + q * (0.2 + 0.6 * r()), q * 0.45, ink);
-    }
-  }
-}
 
 // ---- the ink pass -------------------------------------------------------------------------------------------------
 const INK_FRAG = /* glsl */ `

@@ -1,163 +1,153 @@
 import * as THREE from 'three';
-import { twoTone } from '../../look/shade';
 import { NOINK } from '../../look/ink';
+import { cloth as clothTex, lit } from './paint';
 
-// The detail layer: the small things a picture cannot hold and that make a place feel lived in. Code 3D where it has
-// form (trunks, vines, mushrooms), flat 2D drawn in code where it is small or alive (butterflies, fallen leaves),
-// and light in code (shafts, floating motes, glints). Everything here is cheap and placed by the place file. Every
-// shot wants some small moving thing (glints, embers, dust, insects, birds): the owner asked for "a lot of sparkling
-// here and there" after a cut without it. Colours default to a forest; pass your own for another place.
+// The detail layer: small real things that move, so a place feels lived in (decision 1, Vincent 11 November 2026:
+// "flies, smoke, dust in light shafts, cloth, birds, a goat, not dots"). Each maker returns one object tagged
+// `userData.detail = '<kind>'` with `userData.tick(t, cam)`; the place calls every tick from its `update` (`ticks`). The
+// look check (tools/look.mjs, toon-kit look.ts checkDetail) counts the tagged things in frame per shot and how many of
+// them change while in frame, against floors by shot size (a wide: 6 in frame, 3 moving). Motes, sparkles and other
+// dots do not count. Animals and birds are cards drawn in the cast's ink; they are lit like the world
+// (MeshLambertMaterial), never MeshBasicMaterial, so they sit in the place's light. Add the story's own (a goat chewing,
+// hens pecking: Elijah's critters.ts) with the same tag and tick.
 
 type V3 = [number, number, number];
-/** deterministic random in [0, 1) */
+export type Tick = (t: number, cam: THREE.Camera) => void;
 export const hash = (i: number, s = 0) => { const v = Math.sin(i * 127.1 + s * 311.7) * 43758.5453; return v - Math.floor(v); };
-const cv = (w: number, h: number) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
-const ctex = (c: HTMLCanvasElement) => { const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
+const INK = '#241726';
+const tag = <T extends THREE.Object3D>(o: T, kind: string, tick: Tick): T => { o.userData.detail = kind; o.userData.tick = tick; return o; };
+/** every detail tick under root, for the place's update: `const tick = ticks(root)` once, then `tick(t, cam)` */
+export const ticks = (root: THREE.Object3D): Tick => {
+  const fs: Tick[] = []; root.traverse(o => { if (typeof o.userData.tick === 'function') fs.push(o.userData.tick); });
+  return (t, cam) => fs.forEach(f => f(t, cam));
+};
 
-/** a tree trunk in code: tapered, slightly bent, with a painted bark texture wrapped round it and a flared foot */
-export function trunk(bark: THREE.Texture, at: V3, h: number, r: number, lean = 0, seed = 0) {
-  const seg = 24, geo = new THREE.CylinderGeometry(r * 0.72, r, h, 18, seg, true);
-  geo.translate(0, h / 2, 0);
-  const p = geo.attributes.position as THREE.BufferAttribute;
-  for (let i = 0; i < p.count; i++) {
-    const y = p.getY(i), k = y / h, x = p.getX(i), z = p.getZ(i), a = Math.atan2(z, x);
-    const flare = 1 + 0.9 * Math.max(0, 1 - y / (r * 3)) ** 2 * (0.7 + 0.3 * Math.sin(a * 5 + seed));   // buttress foot
-    const bump = 1 + 0.05 * Math.sin(a * 3 + y * 1.7 + seed);
-    p.setXYZ(i, x * flare * bump + lean * k * k * h * 0.15, y, z * flare * bump);
+/** a card drawn on a canvas each frame (an animal, a bird, a fly), lit by the scene, writing depth, its own outline */
+function drawnCard(size: number, px: number, draw: (g: CanvasRenderingContext2D, t: number) => void) {
+  const c = document.createElement('canvas'); c.width = c.height = px;
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 16;
+  const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size), new THREE.MeshLambertMaterial({ map: tex, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide }));
+  m.layers.set(NOINK); m.frustumCulled = false; m.userData.card = true;
+  const g = c.getContext('2d')!;
+  const redraw = (t: number) => { g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, px, px); g.setTransform(px / 256, 0, 0, px / 256, 0, 0); draw(g, t); tex.needsUpdate = true; };
+  return { m, redraw };
+}
+const face = (m: THREE.Object3D, cam: THREE.Camera) => { const p = new THREE.Vector3(); cam.getWorldPosition(p); const q = m.getWorldPosition(new THREE.Vector3()); m.rotation.set(0, Math.atan2(p.x - q.x, p.z - q.z), 0); };
+
+/** a few flies looping round a point (food, a jar, a doorway): tiny dark cards with a wing blur */
+export function flies(at: V3, n = 4, r = 0.35, seed = 0) {
+  const g = new THREE.Group(), ms: THREE.Mesh[] = [];
+  for (let i = 0; i < n; i++) {
+    const { m, redraw } = drawnCard(0.05, 64, (cx) => {
+      cx.fillStyle = 'rgba(220,235,255,0.75)'; cx.beginPath(); cx.ellipse(100, 96, 50, 26, -0.5, 0, 6.28); cx.ellipse(156, 96, 50, 26, 0.5, 0, 6.28); cx.fill();
+      cx.fillStyle = INK; cx.beginPath(); cx.ellipse(128, 140, 34, 46, 0, 0, 6.28); cx.fill();
+    });
+    redraw(0); ms.push(m); g.add(m);
   }
-  geo.computeVertexNormals();
-  const t = bark.clone(); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(2, h / (2 * Math.PI * r) * 2);
-  const m = new THREE.Mesh(geo, twoTone(new THREE.MeshLambertMaterial({ map: t })));
-  m.position.set(...at); m.rotation.y = 6.28 * hash(seed, 3); m.castShadow = true; m.receiveShadow = true;
-  return m;
+  return tag(g, 'flies', (t, cam) => ms.forEach((m, i) => {
+    const w = 2.2 + 1.7 * hash(i, seed), ph = 6.28 * hash(i, seed + 1);
+    m.position.set(at[0] + r * Math.sin(w * t + ph) * (0.6 + 0.4 * Math.sin(3.1 * t + i)), at[1] + 0.15 * Math.sin(1.7 * w * t + i), at[2] + r * Math.cos(1.3 * w * t + ph));
+    face(m, cam);
+  }));
 }
 
-/** a hanging vine: a thin curved tube with small heart leaves along it (code 3D) */
-export function vine(top: V3, len: number, seed = 0, stemColour = '#4d6a2a', leafColour = '#4f8a34') {
-  const g = new THREE.Group();
-  const pts: THREE.Vector3[] = [];
-  for (let i = 0; i <= 12; i++) { const k = i / 12; pts.push(new THREE.Vector3(top[0] + 0.25 * Math.sin(k * 3 + seed), top[1] - len * k, top[2] + 0.2 * Math.cos(k * 2.3 + seed))); }
-  const line = new THREE.CatmullRomCurve3(pts);
-  g.add(new THREE.Mesh(new THREE.TubeGeometry(line, 40, 0.018, 5), twoTone(new THREE.MeshLambertMaterial({ color: stemColour }))));
-  const leafMat = twoTone(new THREE.MeshLambertMaterial({ color: leafColour, side: THREE.DoubleSide }));
-  const heart = new THREE.Shape(); heart.moveTo(0, 0); heart.bezierCurveTo(0.09, 0.05, 0.08, 0.16, 0, 0.13); heart.bezierCurveTo(-0.08, 0.16, -0.09, 0.05, 0, 0);
-  const hg = new THREE.ShapeGeometry(heart);
-  for (let i = 1; i < 14; i++) {
-    const k = i / 14, q = line.getPoint(k), m = new THREE.Mesh(hg, leafMat);
-    m.position.copy(q); m.rotation.set(Math.PI + 0.6 * (hash(i, seed) - 0.5), 6.28 * hash(i, seed + 1), 0.8 * (hash(i, seed + 2) - 0.5));
-    m.scale.setScalar(0.8 + 0.6 * hash(i, seed + 3)); m.castShadow = true;
-    g.add(m);
+/** a wisp of smoke rising from a fire, a lamp or a chimney: soft puffs that rise, swell, drift and fade (lit, soft
+ *  edged, no outline, no depth written, like the look's light volumes) */
+export function smoke(at: V3, height = 2.4, n = 7, colour = '#d9d2c8', seed = 0) {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const cg = c.getContext('2d')!, gr = cg.createRadialGradient(128, 128, 10, 128, 128, 124);
+  gr.addColorStop(0, 'rgba(255,255,255,0.8)'); gr.addColorStop(0.55, 'rgba(255,255,255,0.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
+  cg.fillStyle = gr; cg.fillRect(0, 0, 256, 256);
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const g = new THREE.Group(), ms: THREE.Mesh[] = [];
+  for (let i = 0; i < n; i++) {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshLambertMaterial({ map: tex, color: colour, transparent: true, depthWrite: false, opacity: 0.6 }));
+    m.layers.set(NOINK); m.frustumCulled = false; m.userData.card = true; ms.push(m); g.add(m);
   }
-  return g;
+  return tag(g, 'smoke', (t, cam) => ms.forEach((m, i) => {
+    const life = 3.2, k = ((((t + (i / n) * life + hash(i, seed) * 0.4) % life) + life) % life) / life;
+    m.position.set(at[0] + 0.25 * Math.sin(k * 4 + i) + 0.4 * k, at[1] + height * k, at[2] + 0.15 * Math.cos(k * 3 + i));
+    m.scale.setScalar(0.25 + 0.9 * k);
+    (m.material as THREE.MeshLambertMaterial).opacity = 0.65 * Math.sin(Math.PI * Math.min(1, k * 1.2));
+    m.quaternion.copy(cam.quaternion); m.rotateZ(i + t * 0.3);
+  }));
 }
 
-/** fallen leaves and twigs scattered flat on the ground: one canvas sheet of litter, many small decals */
-function litterSheet(cols: string[]) {
-  const c = cv(512, 512), g = c.getContext('2d')!;
-  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
-    const cx = 64 + i * 128, cy = 64 + j * 128, col = cols[(i * 4 + j) % cols.length], a = hash(i * 4 + j, 9) * 6.28;
-    g.save(); g.translate(cx, cy); g.rotate(a);
-    if ((i + j) % 5 === 4) { g.strokeStyle = '#5a3a20'; g.lineWidth = 5; g.beginPath(); g.moveTo(-50, 0); g.lineTo(50, 4); g.moveTo(10, 2); g.lineTo(30, -16); g.stroke(); }
-    else {
-      g.fillStyle = col; g.beginPath(); g.ellipse(0, 0, 46, 20, 0, 0, 6.28); g.fill();
-      g.strokeStyle = 'rgba(40,25,10,0.55)'; g.lineWidth = 2; g.beginPath(); g.moveTo(-44, 0); g.lineTo(44, 0); g.stroke();
-      for (let k = -3; k <= 3; k++) { g.beginPath(); g.moveTo(k * 11, 0); g.lineTo(k * 11 + 9, k % 2 ? 14 : -14); g.stroke(); }
+/** a cloth hung from a line or a doorway, moving in the breeze: a painted woven plane whose free end waves */
+export function hangingCloth(top: V3, w = 0.9, h = 1.2, a = '#C8402E', b = '#F2E2C2', yaw = 0, seed = 0) {
+  const geo = new THREE.PlaneGeometry(w, h, 12, 16); geo.translate(0, -h / 2, 0);
+  const base = (geo.attributes.position as THREE.BufferAttribute).array.slice();
+  const m = new THREE.Mesh(geo, lit(clothTex(a, b, seed), { side: THREE.DoubleSide }));
+  m.position.set(...top); m.rotation.y = yaw; m.castShadow = true; m.receiveShadow = true;
+  return tag(m, 'cloth', (t) => {
+    const p = geo.attributes.position as THREE.BufferAttribute;
+    for (let i = 0; i < p.count; i++) {
+      const x = base[i * 3], y = base[i * 3 + 1], k = -y / h;   // 0 at the line, 1 at the free end
+      p.setZ(i, k * k * (0.12 * Math.sin(2.1 * t + x * 3 + seed) + 0.05 * Math.sin(5.3 * t + x * 7)));
+      p.setX(i, x + k * 0.03 * Math.sin(1.7 * t + seed));
     }
-    g.restore();
-  }
-  return ctex(c);
+    p.needsUpdate = true; geo.computeVertexNormals();
+    // the transform stays put while the cloth moves: the version tells the look check it changed
+    m.userData.version = Math.round(t * 10);
+  });
 }
-/** fallen leaves and twigs on the ground round `centre`, sitting on `groundY`; `keepClear` leaves paths and marks bare */
-export function litter(n: number, centre: V3, radius: number, groundY: (x: number, z: number) => number, seed = 0, keepClear?: (x: number, z: number) => boolean,
-  cols = ['#8a5a2a', '#a8742e', '#6a7a2a', '#c49a3a', '#7a4a24', '#5a6a2a']) {
-  const g = new THREE.Group(), t = litterSheet(cols);
-  const mat = twoTone(new THREE.MeshLambertMaterial({ map: t, transparent: true, alphaTest: 0.4, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }));
+
+/** birds crossing or circling far off (seen against the far band): flapping ink cards on loops of radius `r` */
+export function birds(centre: V3, n = 3, r = 6, size = 0.5, seed = 0) {
+  const g = new THREE.Group(), cards: { m: THREE.Mesh; redraw: (t: number) => void }[] = [];
   for (let i = 0; i < n; i++) {
-    const a = 6.28 * hash(i, seed), r = radius * Math.sqrt(hash(i, seed + 1)), x = centre[0] + Math.cos(a) * r, z = centre[2] + Math.sin(a) * r;
-    if (keepClear?.(x, z)) continue;
-    const cell = Math.floor(hash(i, seed + 2) * 16), geo = new THREE.PlaneGeometry(0.22, 0.22);
-    const uv = geo.attributes.uv as THREE.BufferAttribute, u0 = (cell % 4) / 4, v0 = Math.floor(cell / 4) / 4;
-    for (let k = 0; k < uv.count; k++) uv.setXY(k, u0 + uv.getX(k) / 4, v0 + uv.getY(k) / 4);
-    const m = new THREE.Mesh(geo, mat); m.rotation.set(-Math.PI / 2, 0, 6.28 * hash(i, seed + 3));
-    m.position.set(x, groundY(x, z) + 0.012, z); m.scale.setScalar(0.7 + 0.8 * hash(i, seed + 4)); m.receiveShadow = true;
-    g.add(m);
+    const card = drawnCard(size, 128, (cx, t) => {
+      const f = Math.sin(t * 9 + i * 2) * 34;
+      cx.lineCap = 'round'; cx.lineJoin = 'round';
+      cx.beginPath(); cx.moveTo(30, 128 + f); cx.lineTo(88, 120); cx.lineTo(128, 132); cx.lineTo(168, 120); cx.lineTo(226, 128 + f);
+      cx.strokeStyle = '#ffffff'; cx.lineWidth = 14; cx.stroke();
+      cx.strokeStyle = INK; cx.lineWidth = 5; cx.stroke();
+    });
+    cards.push(card); g.add(card.m);
   }
-  return g;
+  return tag(g, 'birds', (t, cam) => cards.forEach(({ m, redraw }, i) => {
+    const w = 0.35 + 0.15 * hash(i, seed), a = w * t + 6.28 * hash(i, seed + 1);
+    m.position.set(centre[0] + r * Math.cos(a), centre[1] + 0.6 * Math.sin(2 * a + i), centre[2] + r * 0.5 * Math.sin(a));
+    redraw(t); face(m, cam);
+  }));
 }
 
-/** small mushrooms in a clump (code 3D) */
-export function mushrooms(at: V3, n = 5, seed = 0, capColour = '#c8642e') {
-  const g = new THREE.Group(), stem = twoTone(new THREE.MeshLambertMaterial({ color: '#efe4cc' })), cap = twoTone(new THREE.MeshLambertMaterial({ color: capColour }));
-  for (let i = 0; i < n; i++) {
-    const h = 0.05 + 0.08 * hash(i, seed), x = at[0] + 0.12 * (hash(i, seed + 1) - 0.5), z = at[2] + 0.12 * (hash(i, seed + 2) - 0.5);
-    const s = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.012, h, 6), stem); s.position.set(x, at[1] + h / 2, z);
-    const c = new THREE.Mesh(new THREE.SphereGeometry(0.03 + 0.02 * hash(i, seed + 3), 10, 6, 0, 6.28, 0, Math.PI / 2), cap); c.position.set(x, at[1] + h, z); c.scale.y = 0.6;
-    g.add(s, c);
-  }
-  return g;
-}
-
-/** a flat 2D butterfly drawn in code, as a card; flap it in update by scaling x (|sin|) and move it along a path */
-export function butterfly(colour = '#f2a12e', seed = 0) {
-  const c = cv(256, 256), g = c.getContext('2d')!;
-  g.translate(128, 128);
-  for (const s of [-1, 1]) {
-    g.fillStyle = colour; g.strokeStyle = '#241726'; g.lineWidth = 6;
-    g.beginPath(); g.ellipse(s * 52, -26, 50, 40, s * 0.5, 0, 6.28); g.fill(); g.stroke();
-    g.beginPath(); g.ellipse(s * 40, 34, 34, 28, -s * 0.4, 0, 6.28); g.fill(); g.stroke();
-    g.fillStyle = '#241726'; g.beginPath(); g.arc(s * 62, -34, 9, 0, 6.28); g.fill();
-  }
-  g.fillStyle = '#241726'; g.beginPath(); g.ellipse(0, 4, 8, 44, 0, 0, 6.28); g.fill();
-  g.strokeStyle = '#241726'; g.lineWidth = 4; g.beginPath(); g.moveTo(0, -38); g.lineTo(-18, -70); g.moveTo(0, -38); g.lineTo(18, -70); g.stroke();
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.16), new THREE.MeshBasicMaterial({ map: ctex(c), alphaTest: 0.5, side: THREE.DoubleSide }));
-  m.layers.set(NOINK); m.userData.seed = seed;
-  return m;
-}
-
-/** a soft shaft of sunlight through the canopy (additive cone, code) */
+/** dust turning in a shaft of light (through a window, a door, a gap in a roof): the shaft is the detail; its light
+ *  breathes and its dust drifts along it. Counts as one thing ('shaft'); dust alone (motes) does not. */
 export function shaft(from: V3, to: V3, r0: number, r1: number, strength = 0.18, colour = '#fff0c8') {
   const a = new THREE.Vector3(...from), b = new THREE.Vector3(...to), len = a.distanceTo(b);
   const geo = new THREE.CylinderGeometry(r0, r1, len, 24, 1, true); geo.translate(0, -len / 2, 0);
   const mat = new THREE.ShaderMaterial({
-    uniforms: { uCol: { value: new THREE.Color(colour) }, uK: { value: strength } },
-    vertexShader: `varying float vY; varying vec3 vN; varying vec3 vV; void main(){ vY = uv.y; vec4 mv = modelViewMatrix * vec4(position,1.0); vN = normalize(normalMatrix*normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix*mv; }`,
-    fragmentShader: `uniform vec3 uCol; uniform float uK; varying float vY; varying vec3 vN; varying vec3 vV; void main(){ float edge = pow(abs(dot(vN, vV)), 1.5); gl_FragColor = vec4(uCol * uK * edge * smoothstep(0.0, 0.5, vY), 1.0); }`,
+    uniforms: { uCol: { value: new THREE.Color(colour) }, uK: { value: strength }, uT: { value: 0 } },
+    vertexShader: `varying float vY; varying vec3 vN; varying vec3 vV; varying vec2 vUv; void main(){ vY = uv.y; vUv = uv; vec4 mv = modelViewMatrix * vec4(position,1.0); vN = normalize(normalMatrix*normal); vV = normalize(-mv.xyz); gl_Position = projectionMatrix*mv; }`,
+    fragmentShader: `uniform vec3 uCol; uniform float uK; uniform float uT; varying float vY; varying vec3 vN; varying vec3 vV; varying vec2 vUv;
+      float h(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      void main(){ float edge = pow(abs(dot(vN, vV)), 1.5); vec2 q = vec2(vUv.x * 40.0, vUv.y * 60.0 + uT * 0.8); float dust = step(0.985, h(floor(q))) * 0.8;
+        gl_FragColor = vec4(uCol * uK * (edge * (0.85 + 0.15 * sin(uT * 1.3)) + dust) * smoothstep(0.0, 0.5, vY), 1.0); }`,
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false,
   });
   const m = new THREE.Mesh(geo, mat); m.position.copy(a); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), b.clone().sub(a).normalize());
-  m.layers.set(NOINK);
-  return m;
+  m.layers.set(NOINK); m.userData.emissive = true;
+  return tag(m, 'shaft', (t) => { mat.uniforms.uT.value = t; m.userData.version = Math.round(t * 10); });
 }
 
-/** floating motes in a shaft of light (points, code) */
-export function motes(centre: V3, size: V3, n = 120, seed = 0) {
-  const pos = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) { pos[i * 3] = centre[0] + size[0] * (hash(i, seed) - 0.5); pos[i * 3 + 1] = centre[1] + size[1] * (hash(i, seed + 1) - 0.5); pos[i * 3 + 2] = centre[2] + size[2] * (hash(i, seed + 2) - 0.5); }
-  const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const p = new THREE.Points(geo, new THREE.PointsMaterial({ color: '#fff4cc', size: 0.025, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending }));
-  p.layers.set(NOINK);
-  return p;
-}
-
-/** twinkling glints (sun on water, dew, metal, embers' sparks): small four-point stars that flash on and off by time.
- *  Call `.userData.tick(t, cam)` every frame from the place's update. */
+/** twinkling glints (sun on water, metal): a finishing touch only. They do not count as detail (look.ts NOT_DETAIL). */
 export function sparkles(centre: V3, size: V3, n = 24, seed = 0, colour = '#fff8dc', scale = 0.12): THREE.Group {
-  const c = cv(128, 128), g = c.getContext('2d')!;
-  const grd = g.createRadialGradient(64, 64, 0, 64, 64, 64); grd.addColorStop(0, 'rgba(255,255,255,1)'); grd.addColorStop(0.25, 'rgba(255,255,255,0.5)'); grd.addColorStop(1, 'rgba(255,255,255,0)');
+  const c = document.createElement('canvas'); c.width = c.height = 128;
+  const g = c.getContext('2d')!, grd = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grd.addColorStop(0, 'rgba(255,255,255,1)'); grd.addColorStop(0.25, 'rgba(255,255,255,0.5)'); grd.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = grd; g.fillRect(0, 0, 128, 128);
-  g.fillStyle = '#fff'; g.beginPath(); g.moveTo(64, 0); g.lineTo(70, 58); g.lineTo(128, 64); g.lineTo(70, 70); g.lineTo(64, 128); g.lineTo(58, 70); g.lineTo(0, 64); g.lineTo(58, 58); g.closePath(); g.fill();
-  const mat = new THREE.MeshBasicMaterial({ map: ctex(c), color: colour, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
+  const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.MeshBasicMaterial({ map: tex, color: colour, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false });
   const grp = new THREE.Group(), geo = new THREE.PlaneGeometry(1, 1), ms: THREE.Mesh[] = [];
   for (let i = 0; i < n; i++) {
     const m = new THREE.Mesh(geo, mat);
     m.position.set(centre[0] + size[0] * (hash(i, seed) - 0.5), centre[1] + size[1] * (hash(i, seed + 1) - 0.5), centre[2] + size[2] * (hash(i, seed + 2) - 0.5));
     m.layers.set(NOINK); ms.push(m); grp.add(m);
   }
-  grp.userData.tick = (t: number, cam: THREE.Camera) => ms.forEach((m, i) => {
-    const period = 0.7 + 1.1 * hash(i, seed + 3), ph = ((t + hash(i, seed + 4) * period) % period) / period;
-    const k = Math.max(0, Math.sin(ph * Math.PI)) ** 6;                                     // a short flash each period
+  return tag(grp, 'sparkle', (t, cam) => ms.forEach((m, i) => {
+    const period = 0.7 + 1.1 * hash(i, seed + 3), ph = ((t + hash(i, seed + 4) * period) % period) / period, k = Math.max(0, Math.sin(ph * Math.PI)) ** 6;
     m.quaternion.copy(cam.quaternion); m.rotateZ(t * 0.8 + i);
     m.scale.setScalar(scale * (0.4 + 0.8 * hash(i, seed + 5)) * (0.15 + k)); m.visible = k > 0.02;
-  });
-  return grp;
+  }));
 }

@@ -92,8 +92,11 @@ export function pushed(v: View, m: Move): View {
 
 // ---- segments -----------------------------------------------------------------------------------------------------
 
-/** how a segment joins the one before: the camera flies from the last framing (same place), a whip pan with motion
- *  blur (between places), or a hard cut (a swing that would pass through a prop, or a shock) */
+/** how a segment joins the one before: the camera swings from the last framing (same place: the default), or a hard
+ *  cut (the default between places; inside a place only for a change of time). Decision 4 (Vincent, 11 November 2026):
+ *  joins by default, a hard cut only for a change of place or time, at most 3 plus the loop, each with its reason
+ *  (`why`). 'whip' is kept only so older stories still type-check: a whip pan is drawn with motion blur, which is
+ *  banned (decision 6), so the film draws it as a cut and checkJoins fails it. */
 export type Into = 'swing' | 'whip' | 'cut';
 export interface Seg<P extends string = string, A = unknown> {
   place: P; shot: string;
@@ -103,8 +106,10 @@ export interface Seg<P extends string = string, A = unknown> {
   to?: string | Move;
   /** where the camera starts, as a move from the shot's own view (default: the view itself) */
   from?: Move;
-  /** default: swing inside a place, whip between places */
+  /** default: swing inside a place, cut between places */
   into?: Into;
+  /** why this segment opens on a hard cut (a change of place or of time): checkJoins asks for it on every cut */
+  why?: string;
   /** film time the shot's clock starts from. Default: a segment of the same place and shot as the one before it
    *  continues that one's clock (one shot split into several camera moves keeps acting); any other segment starts
    *  its own at `a`. 'own' restarts it here; a number shares a clock with other shots (three angles on one standoff). */
@@ -169,22 +174,44 @@ export function viewAt(s: Seg, base: View, other: (shot: string) => View, t: num
 
 /** how segment i joins the one before it */
 export const intoOf = (segs: Seg[], i: number): Into =>
-  segs[i].into ?? (i > 0 && segs[i - 1].place === segs[i].place ? 'swing' : i > 0 ? 'whip' : 'cut');
+  segs[i].into ?? (i > 0 && segs[i - 1].place === segs[i].place ? 'swing' : 'cut');
+
+/** The joins against decision 4: every hard cut (after the first segment) has its reason in `why`; there are at most
+ *  `max` of them (default 3; the loop back to the start is not a segment and not counted); a cut inside one place
+ *  says why (a change of time); no whip pans (motion blur, decision 6). Why: the jungle holdout's whips and Elijah's
+ *  eight place-to-place whips read as hard cuts, and the owner asked for joins. */
+export function checkJoins(segs: Seg[], max = 3): string[] {
+  const out: string[] = [], cuts: number[] = [];
+  segs.forEach((s, i) => {
+    if (i === 0) return;
+    const into = intoOf(segs, i), name = `${i} ${s.place}/${s.shot} at ${s.a.toFixed(2)} s`;
+    if (into === 'whip') out.push(`${name}: a whip pan (motion blur is banned, decision 6): join by a swing, or cut with a reason`);
+    if (into === 'cut' || into === 'whip') {
+      cuts.push(i);
+      if (!s.why || !s.why.trim()) out.push(`${name}: a hard cut with no reason; give \`why\` (a change of place or time) or join by a swing`);
+    }
+  });
+  if (cuts.length > max) out.push(`joins: ${cuts.length} hard cuts (at ${cuts.map(i => segs[i].a.toFixed(1)).join(', ')} s), over ${max}: join the rest by swings inside a place`);
+  return out;
+}
 
 export interface FilmTiming { swing?: number; whip?: number }
 /** the camera at film time t: the segment's framing, swung from the last segment's final framing for the first
- *  `swing` seconds (default 0.45) when it joins by a swing; plus the shot's clock and how strong the whip blur is
- *  (0..1, on both sides of a whip join, `whip` seconds each way, default 0.16) */
+ *  `swing` seconds (default 0.45) when it joins by a swing; plus the shot's clock. The swing is a straight blend of the
+ *  two framings, so it never rises above the higher of them into empty sky (there is no lift; the old 14 m swingAt
+ *  lift is gone). `whip` is always 0 now: a whip join is drawn as a cut (see Into). */
 export function frameAt(segs: Resolved<Seg>[], t: number, base: (shot: string) => View, shotT0: (shot: string) => number, o: FilmTiming = {}) {
   const SWING = o.swing ?? 0.45, WHIP = o.whip ?? 0.16;
   const i = segAt(segs, t), s = segs[i], prev = segs[i - 1];
   let view = viewAt(s, base(s.shot), base, t, i);
   const into = intoOf(segs, i);
   if (into === 'swing' && prev && t - s.a < SWING) view = lerpView(viewAt(prev, base(prev.shot), base, prev.b, i - 1), view, sm((t - s.a) / SWING));
-  return { i, seg: s, view, clock: shotClock(s, t, shotT0(s.shot)), whip: whipAt(segs, t, WHIP) };
+  void WHIP;
+  return { i, seg: s, view, clock: shotClock(s, t, shotT0(s.shot)), whip: 0 };
 }
 
-/** how strong the whip pan's motion blur is at t (0..1): on both sides of a whip join, `whip` seconds each way */
+/** how strong a whip pan's motion blur would be at t (0..1), on both sides of a whip join. Deprecated: motion blur is
+ *  banned (decision 6) and the film template no longer draws it; kept so older stories still build. */
 export function whipAt(segs: Seg[], t: number, whip = 0.16) {
   const i = segAt(segs, t), s = segs[i], next = segs[i + 1];
   const wIn = intoOf(segs, i) === 'whip' && Math.abs(t - s.a) < whip ? 1 - Math.abs(t - s.a) / whip : 0;
@@ -218,8 +245,10 @@ export function planPace(segs: { a: number; b: number; punch?: boolean }[], dura
   const changes = segs.length + segs.filter(s => s.b - s.a > 1.8 && s.punch !== false).length;
   return { changes, perMinute: +(changes / Math.max(1, duration) * 60).toFixed(1) };
 }
-/** a line for the audit when the planned pace is under `min` changes a minute (default 40) */
-export function checkPace(segs: { a: number; b: number; punch?: boolean }[], duration: number, min = 40): string[] {
+/** a line for the audit when the planned pace is under `min` changes a minute. Default 25: the dynamics profile's
+ *  floor (toon-video, the pace a story's profile asks for at least); 40 was the jungle holdout's own target and failed
+ *  calmer stories the profile allows. */
+export function checkPace(segs: { a: number; b: number; punch?: boolean }[], duration: number, min = 25): string[] {
   const { changes, perMinute } = planPace(segs, duration);
   return perMinute < min ? [`pace: ${perMinute} picture changes a minute planned (${changes} in ${duration.toFixed(1)} s), under ${min}: plan more framings per line on the board`] : [];
 }

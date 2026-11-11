@@ -19,8 +19,8 @@ Copy the folder into a story, rename, and replace what is story-specific. Never 
 
 Gotchas found building it:
 - Leave `glslVersion` unset on the volume's `ShaderMaterial`; `THREE.GLSL3` makes it draw nothing, silently.
-- Motion blur (`@remotion/motion-blur` at the exact Remotion version) on the camera only and the fastest move only;
-  on cards it doubles arms. 10 samples timed out a frame in a heavy place; 6 is enough.
+- No motion blur (decision 6, 11 November 2026: banned in every toon film). `PracticeRailroads.tsx` still wraps its
+  fastest move in `CameraMotionBlur` from the practice copy; take that wrapper out when you reuse the pattern.
 - A hot rail that also reflects the sky turns into a white smear; switch the reflection off while it glows.
 - Keep the camera at least 1.5 ball radii outside a fireball volume; from inside it reads as a flat face.
 - Render at concurrency 2 when other agents render too. Most frames take 0.25 to 1.2 s.

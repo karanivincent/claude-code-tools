@@ -28,3 +28,12 @@ test('a faint fringe below the alpha threshold is not a cut; an allowed side is 
   assert.equal(lines.length, 1);
   assert.match(lines[0], /^envoy card: the drawing touches its canvas at the bottom/);
 });
+
+test('clampHand keeps a sideways hand inside the 600-unit card, along its arm', async () => {
+  const { clampHand } = await import('./cards.ts');
+  assert.deepEqual(clampHand([300, 500]), [300, 500]);
+  const h = clampHand([700, 400], { shoulder: [380, 400] });
+  assert.equal(h[0], 555); assert.equal(h[1], 400);
+  const up = clampHand([-40, -60]);
+  assert.deepEqual(up, [45, 45]);
+});

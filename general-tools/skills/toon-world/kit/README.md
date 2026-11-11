@@ -60,6 +60,7 @@ It never draws a wall: each video draws its own from the spans.
 
 | Block | What it does |
 |---|---|
+| `clampHand(hand, { shoulder })` | A hand point kept inside the card's 600 x 1000 design canvas (45 units in), pulled back along the arm: no hand runs off its canvas leaving a stub (Elijah critic round 2). |
 | `edgeTouches(pixels)`, `checkCanvases` | The sides of a card or word canvas its drawing touches (opaque pixels at the border): a drawing cut by its own canvas, which shows as a straight edge in the film. Run on every card and word canvas right after it is drawn (`ctx.getImageData`); a side meant to run off the frame is allowed by name. Worked example: Gibeon's `src/stories/gibeon-2d/edges.ts` (called from `Card.set`) and `scripts/gibeon-2d-edges.mjs` (renders every frame at 0.1 scale and collects the reports): 16 cut sides in 9 cards. |
 
 ## light.ts
@@ -85,15 +86,17 @@ that holds them; plus its cards and its picture events and sound cues. Run it af
 | Block | What it does |
 |---|---|
 | `actingStills` | Stretches over 1 s (`maxStill`) where nobody on screen changes pose. Camera moves do not count. |
-| `checkOpening` | The first frame is the Short's package: by 0.2 s a named person over 30% of the frame or a word card already up. |
+| `checkOpening` | The first frame is the Short's package, all three required: by 0.2 s a named person over 30% of the frame, something moving from frame 1 (a pose change or the camera), and the word card up at 0.0 s. |
 | `actingTooSmall` | A named person changing pose while under 25% of the frame high: acting a phone cannot read. Frame it close or push in on the action word. |
 | `checkFraming` | Named heads cut by any edge; named people under 8% of the frame high. A person whose head and feet are both outside the frame is skipped (off screen, not cut); the film template's sampler also drops people behind the lens. |
 | `checkHeld` | Props further than 5% of the frame from the hand that should hold them, or with no hand at all. |
 | `checkCues` | A card whose text is spoken must arrive 0.4 s before to 0.2 s after that word (the 1972 card on the wrong "by"). |
 | `checkSync` | Every picture event (a shot, a fall) has its sound within 0.1 s, and every sound its event. |
+| `acknowledge` | Splits issues into open and passed: a story's `acknowledged` entry (check, optional time, shot, person, and a reason) lets one through; an entry with no reason, or matching nothing, is itself an issue. |
+| `fromFrames` | A camera check's per-frame findings as audit issues in seconds, consecutive frames merged into runs. |
 | `report` | All issues as time-sorted lines. |
 
-Wiring it into a story: `toon-video` references/film-from-board.md, "The audit".
+Wiring it into a story: `toon-video` references/acting.md, "The acting audit".
 
 ## timing.ts
 
@@ -116,3 +119,15 @@ The voice timeline and the film's segments, pure, shared by `shots.ts` and the s
 `planPace(segs, duration)` counts the planned picture changes (segment starts and mid-shot punch-ins) per minute from
 the segment list alone; `checkPace` warns under 40. The pace is set on the board (2 to 3 framings per line), not in fix
 rounds.
+
+## look.ts
+
+The look checks, pure: the film template's `tools/look.mjs` walks the scene in the browser and logs plain numbers;
+these judge them. Each threshold carries its source in the code.
+
+| Block | What it does |
+|---|---|
+| `plainMeshes` | Meshes within 8 m of a shot camera with no map and not emissive: plain code colour. Cards and `userData.plainOk` (with a reason) are skipped. |
+| `smallTextures` | Maps under 2048 px, without mipmaps, or under 16x anisotropy, within 8 m of a shot camera (cards and glows skipped). |
+| `detailCount`, `checkDetail` | Detail things (`userData.detail`) in frame per shot and how many change, against floors by shot size (wide 6 and 3, medium 4 and 2, close 2 and 1). Motes, sparkles and dots do not count. |
+| `flatShare`, `cardMask`, `FLAT` | The share of a still's world pixels in 16 px blocks with a luma deviation under 3; over 0.40 fails. `cardMask` masks what differs between a render with and without the cards and far band. |

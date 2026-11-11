@@ -16,8 +16,8 @@ one by one, just so that we can learn the process."
   script, art and timing belong to the reference's maker. It lives in `out/` and on a `practice/*`
   branch only. The skill it teaches is ours to use on our own stories.
 - One reference video per session. Its own worktree: `git -C /Users/vince/Projects/bible-shorts
-  worktree add ../bible-shorts-practice-<slug> -b practice/<slug> <newest toon branch>` (today
-  `story/david-jonathan-2d`), then `npm ci` and copy Chrome as `clay-story-video` says.
+  worktree add ../bible-shorts-practice-<slug> -b practice/<slug> main` (the toon kit lives on `main`; S0-1 in
+  `toon-video/references/rules.md`), then `npm ci` and copy Chrome as `clay-story-video` says.
 - The reference video is downloaded once to `out/practice/<slug>/ref.mp4` with `yt-dlp` (video only;
   captions hit HTTP 429), never committed.
 - The voice: we copy the timing, not the speaker. Write our own narration of the same events at the
@@ -55,20 +55,23 @@ the same one.
    (different files), plus the animator. Then the camera, which goes last because it frames what the others
    built. Each works from `shotlist.md`, `meaning.md` and the previous round's `critique.md`; resume the same
    agents each round so they keep their knowledge of the code. Shared wiring files take only small, marked edits.
-3. **Render and compare.** You render (the coordinator, not an agent): the contact sheet first, a full
-   render once the sheet scores well. Then
+3. **Render and compare.** You render (the coordinator, not an agent). Practice copies only: the contact sheet
+   first, a full render once the sheet scores well. A real story follows `toon-video`'s cycle instead (three critic
+   rounds on the beat board, then one render; S5-1, S5-13). Then
    `bash <skill>/scripts/side-by-side.sh ref.mp4 ours.mp4 out/practice/<slug>/round-N/` makes a sheet
    of matching seconds, theirs on the left, ours on the right, plus the measures.
 4. **Critic.** It scores each second's pair 1 to 5 (1 missing, 5 as good as theirs) on six counts: the
    world (props, background, extras), camera (move and angle), people and acting, light, story told by
    picture (jokes, signs, state kept), sound. It names the ten biggest gaps, each with the second and
    the owning agent.
-5. **Repeat** from step 2 with the gaps. Stop when the average is 4.2 or more and no second scores 1,
-   or after five rounds; say which.
+5. **Repeat** from step 2 with the gaps. Practice copies only: stop when the average is 4.2 or more and no
+   second scores 1, or after five rounds; say which. A real story stops by `toon-video`'s rule instead (4.2, or a
+   cycle that gains under +0.1; S5-23).
 6. **Learn.** Write what this copy taught to `docs/PRACTICE.md` in bible-shorts (newest first): the
-   score each round, what moved it, and which helpers were added. Lessons that would help any toon
-   video go into `toon-video` (a PR here). New drawing helpers stay additive: render Baby Moses 2D's
-   frames 200 and 1500 and byte-compare.
+   score each round, what moved it, and which helpers were added. A lesson that would help any toon
+   video goes into `toon-video/references/rules.md` as a rule with the next free id, its proof and its why
+   (a PR here), not as prose in a skill body (X-7). New drawing helpers stay additive: render Baby Moses 2D's
+   frames 200 and 1500 and byte-compare (X-8).
 7. **Show Vincent.** Publish the final side-by-side sheet and the two videos on one private Artifact
    page, with the score per round. He judges; the next reference waits for his word.
 
@@ -86,5 +89,5 @@ in the same table. Matching them is part of matching the video.
 | Building before the shot list is complete | Breakdown first, checked against the reference sheet |
 | Camera agent working before the sets exist | Camera goes last in each round |
 | Two agents editing one file | Each agent owns its files (table above) |
-| Judging from the full render | Score the contact sheet first; full render only when it scores well |
-| Keeping lessons in the practice branch | `docs/PRACTICE.md`, and `toon-video` for the general ones |
+| Judging from the full render (practice copies) | Score the contact sheet first; full render once it scores well. Real stories use the cycle (S5-1) |
+| Keeping lessons in the practice branch | `docs/PRACTICE.md`, and a rule with an id in `rules.md` for the general ones |
