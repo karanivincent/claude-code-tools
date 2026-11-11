@@ -135,6 +135,10 @@ export interface Rgb { width: number; height: number; data: Uint8Array | Uint8Cl
  *    band skipped (cards included: no mask on a finished video); the template's textured courtyard measures 0.22 and
  *    0.26 on the look check's own stills (cards and far band masked); the same courtyard in plain colours 0.89. */
 export const FLAT = { block: 16, std: 3.0, max: 0.40 };
+/** the checks look.mjs makes. STORY.acknowledged is one list for both tools: look.mjs judges the acknowledgements of
+ *  these checks and audit.mjs the rest, so neither reports the other's as unused (Elijah and the widow, 11 November
+ *  2026: two look acknowledgements failed the audit as "ack-unused"). */
+export const LOOK_CHECKS = new Set(['plain-mesh', 'small-texture', 'detail-thin', 'flat-share']);
 
 /** The share of judged pixels lying in flat blocks (see FLAT). `skip(x, y)` leaves out pixels that are not the world:
  *  cards (the toon people are flat fills by design) and the caption band. A block is judged when most of it is kept. */

@@ -16,7 +16,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { plainMeshes, smallTextures, checkDetail, detailCount, flatShare, cardMask, FLAT, CAPTION_BAND } from '../../../toon-kit/look.ts';
+import { plainMeshes, smallTextures, checkDetail, detailCount, flatShare, cardMask, FLAT, CAPTION_BAND, LOOK_CHECKS } from '../../../toon-kit/look.ts';
 import { acknowledge, report } from '../../../toon-kit/acting.ts';
 
 /** a picture as RGB bytes, through ffmpeg (any format ffmpeg reads: png, jpg, a video's first frame) */
@@ -112,7 +112,7 @@ fs.rmSync(serveUrl, { recursive: true, force: true });
 // the stills with the look stack as one short video, two a second, for measure_sharp.py and measure_look.py
 execFileSync('ffmpeg', ['-v', 'error', '-y', '-framerate', '2', '-i', path.join(lookDir, 'post-%03d.png'), '-vf', 'scale=1080:1920:flags=lanczos', '-c:v', 'libx264', '-crf', '12', '-pix_fmt', 'yuv420p', path.join(lookDir, 'stills.mp4')]);
 
-const { open, passed } = acknowledge(issues, cfg.story?.acknowledged ?? []);
+const { open, passed } = acknowledge(issues, (cfg.story?.acknowledged ?? []).filter(a => LOOK_CHECKS.has(a.check)));   // the audit judges the rest
 const detail = detailCount(frames).map(d => `detail        ${d.shot.padEnd(28)} ${d.size.padEnd(6)} ${d.present} in frame, ${d.moving} moving  ${d.kinds.join(', ')}`);
 const flatLines = flats.map(f => `flat          ${f.shot.padEnd(28)} ${f.t.toFixed(2).padStart(6)} s  ${f.flat.toFixed(3)}`);
 const lines = [...report(open), ...passed.map(p => `passed        ${p.issue.check} ${p.issue.shot}: ${p.reason}`), ...detail, ...flatLines];
