@@ -6,6 +6,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { bundle } from '@remotion/bundler';
 import { renderMedia, renderStill, selectComposition } from '@remotion/renderer';
+import { renderGate } from './gate.mjs';
 const root = path.resolve(import.meta.dirname, '../../../..');
 const args = process.argv.slice(2);
 const t0 = Date.now();
@@ -24,6 +25,8 @@ if (args[0] === '--stills') {
 } else {
   const [out, conc, scale, range] = args;
   if (!out) { console.error('usage: node render.mjs out.mp4 [concurrency] [scale] [from-to]'); process.exit(1); }
+  const [f0, f1] = range ? range.split('-').map(Number) : [0, composition.durationInFrames - 1];
+  renderGate(path.resolve(import.meta.dirname, '..'), (f1 - f0 + 1) / composition.fps);   // toon-video "The order"
   let last = 0;
   await renderMedia({ composition, serveUrl, codec: 'h264', outputLocation: out, inputProps, concurrency: Math.min(5, Number(conc ?? 4)), muted: true, crf: 18,
     scale: Number(scale ?? 1), frameRange: range ? range.split('-').map(Number) : undefined, chromiumOptions, timeoutInMilliseconds: 300000,

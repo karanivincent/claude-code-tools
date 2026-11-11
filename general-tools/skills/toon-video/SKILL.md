@@ -31,6 +31,14 @@ and effects cost money. This skill holds the craft. A project or channel can add
 
 ## The order
 
+This numbered list is the only order. A stage named anywhere else (in this skill, a handover, a brief or a story's
+task list) follows it; when two lines disagree, this list wins and the other line is fixed the same day. A handover or
+a story's task list copies these steps word for word as a checklist and ticks them off; it never retells them in its
+own words (a retelling is how the clips line above outlived its change). **The render gate:** the film template's
+`tools/render.mjs` refuses any render longer than 8 s until `src/stories/<slug>/gates.json` records the owner's yes to
+the beat board and the critic's score for it, `{ "beatBoard": { "ownerYes": "<date>: <his words>", "critic": 3.9 } }`.
+Nobody edits the gate or the file to get past it; only the owner's yes and a scored critic pass fill it.
+
 1. **Script.** Open on the strangest true thing within three seconds, build in steps, land the turn at
    the end. Write about 150 words for 60 s (narration runs about 3 words a second with pauses). Bring in
    every person and object before it matters: if the payoff needs a stone, show the stone early. The
@@ -84,12 +92,13 @@ and effects cost money. This skill holds the craft. A project or channel can add
      and how the thing the line names is shown (seen happening, or only told). Why: the owner's six Mona Lisa notes
      (French signs, a painting dwarfed by invented landscapes, the 28 hours as a number, the empty spots told, a cut
      head, half a roof) came after round 6, and every one would have been seen on a still board; each cost a round.
-   - e. **Clips.** Build and render the video in clips of 15 to 20 seconds (about four for a minute), cut at story
-     beats, and show each clip before building the next. A clip reaches the owner once the measured checks below
-     pass. The owner reviews first; then, with the owner's notes fixed, a critic agent scores it against the meaning
-     sheet (and a reference when there is one) and opens one full-size frame of every shot to ask whether the place
-     could exist ("Could this place exist", below). Its fixes come after.
-     (Vincent, 10 November 2026: "I review first and then the critic"; he sees things a critic does not.)
+   - e. **Beat board, then one render. There is no clip stage.** After the still board come the sets, the cold read,
+     the shots, the music and mix, the code audit and then the beat board (2 to 3 full-size stills per shot at its
+     action words): the owner reviews it first, a critic scores it after his notes are fixed, and the fixes are made
+     there. Then one render, which the owner reviews first and a critic after (step 9). A fix is checked on a short
+     moving render of its stretch, 8 s or less, never by rendering the film in clips. Why (Vincent, 11 November
+     2026): an older line here said "render in clips of 15 to 20 s, critic after each clip"; Elijah and the widow
+     followed it from the approved still board straight to a render, with no cold read, no beat board and no critic.
    (Vincent, 7 November 2026, after the train heist: "before any of this is animated ... I can review them fast.")
 5. **Sets.** A set list per place before any shot: 8 or more props, a full background, extras.
    People are small inside a big place. Crowds are painted once and reused. Build only what the
@@ -437,9 +446,9 @@ written in one project (bible-shorts) and never reached the next (Epiclings), wh
 
 ## Building as a team
 
-For anything longer than a few seconds, build each clip with specialist agents that own separate files: places and
+For anything longer than a few seconds, build the film with specialist agents that own separate files: places and
 track, effects, people and props that act (a train), sound at the same time; then the camera last, because it frames
-what the others built; then a critic that scores the clip, from the sheets and from one full-size frame of every shot
+what the others built; then a critic that scores the beat board, from the sheets and from one full-size frame of every shot
 (below). Brief each place agent from `references/place-agent-brief.md`. Resume the same agents for the next round so they keep
 their knowledge of the code. The railroads practice went from 2.0 to 3.0 out of 5 (1.2 to 1.8 on the old 0–3 scale) in three rounds this way, where
 one lead builder alone stopped at 1.2. Each agent writes a short report with notes for the camera.
