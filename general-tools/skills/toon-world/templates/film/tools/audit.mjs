@@ -108,7 +108,7 @@ issues.push(...fromFrames(cam, fps, shotAt));
 for (const e of edges) issues.push({ check: 'card-cut', from: e.t, to: e.t, shot: '', who: e.key, what: `${e.who}'s card drawing touches its canvas at the ${e.sides.join(', ')}: a straight cut in the film (keep hands inside: toon-kit clampHand)` });
 
 // ---- the verdict ----------------------------------------------------------------------------------------------------
-const { open, passed } = acknowledge(issues, (story.acknowledged ?? []).filter(a => !LOOK_CHECKS.has(a.check)));   // look.mjs judges its own
+const { open, passed } = acknowledge(issues, (story.acknowledged ?? []).filter(a => !LOOK_CHECKS.has(a.check) && !/^measure-/.test(a.check)));   // look.mjs and the gate's measures judge their own
 const lines = [...report(open), ...passed.map(p => `passed        ${p.issue.check} ${p.issue.from.toFixed(2)}-${p.issue.to.toFixed(2)} ${p.issue.shot}: ${p.reason}`), ...(lens.framed ?? []).map(x => `framed        ${x}`)];
 const text = `audit: ${S.length} samples, ${open.length} open issue(s), ${passed.length} acknowledged, ${((Date.now() - t0) / 1000).toFixed(0)} s\n` + lines.join('\n') + '\n';
 fs.writeFileSync(path.join(outDir, 'audit.txt'), text);

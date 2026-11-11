@@ -37,6 +37,7 @@ export const STORY = {
    *  against the absolute targets only */
   reference: '',
   /** an issue the gate lets through, each with its reason (said to the owner at hand-back). Matched by the check's
-   *  name and, when given, a time inside the issue, its shot and its person. No reason, no pass. */
+   *  name and, when given, a time inside the issue, its shot and its person. No reason, no pass. A measured miss the
+   *  owner accepts after seeing the frames is `{ check: 'measure-<name>', reason }` (measure-sharpness ...). */
   acknowledged: [] as { check: string; at?: number; shot?: string; who?: string; reason: string }[],
 };
