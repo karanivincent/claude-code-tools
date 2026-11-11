@@ -10,6 +10,7 @@ re-scores only what changed.
 
 | Mode | When | Input | Scores |
 |---|---|---|---|
+| **Story** | On the animatic, before any build (stage d3) | The still board's stills in order, the voice timeline, the script and meaning sheet | Each line 1 to 5 on story by picture and acting; for every beat, the must-see thing shown or missing, and the gesture, look or action each person needs on which word |
 | **Beat board** | After the build and the audit, before any full render (where most of the reviewing happens) | 2 to 3 full-size stills per shot at its action words, the audit report, the voice timeline, the meaning sheet | Each beat 1 to 5 on world, people, light, story by picture |
 | **Full** | Once, after the one full render | Frames every 2.4 s, sheets at 2 a second, the video for pulling frames and measuring audio | Each second 1 to 5 on world, camera, people, light, story by picture, sound |
 | **Delta** | After a fix round | Last round's table, the list of changed seconds | Only the changed seconds; the rest keep last round's score |

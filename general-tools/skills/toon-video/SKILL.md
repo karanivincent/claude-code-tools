@@ -92,7 +92,20 @@ Nobody edits the gate or the file to get past it; only the owner's yes and a sco
      and how the thing the line names is shown (seen happening, or only told). Why: the owner's six Mona Lisa notes
      (French signs, a painting dwarfed by invented landscapes, the 28 hours as a number, the empty spots told, a cut
      head, half a roof) came after round 6, and every one would have been seen on a still board; each cost a round.
-   - e. **Beat board, then one render. There is no clip stage.** After the still board come the sets, the cold read,
+   - d2. **Stills on the voice (the animatic).** The approved still board played over the recorded voice, each still
+     on screen for its share of its line's words, the words under it and each still's name in a corner, so the owner
+     watches the whole story in one minute before anything is animated (`scripts/animatic.py`). The script, the
+     voice and the board can all still change here, and cheaply. Why (Vincent, 11 November 2026): "voice it so that
+     you see it voicing from one still to another, so that we can see how the story is going to go".
+   - d3. **Story critic.** With the owner's notes on the animatic fixed, a critic scores it in story mode
+     (`references/critic-brief.md`): for every beat, whether the stills show what the meaning sheet says must be
+     seen, and how each person acts it (hands and gestures on their words, who faces whom, the action the line
+     names shown happening, not standing still). Its acting notes go into the board and the shot plan before any
+     build. Why: Elijah and the widow's first beat-board critique (2.78) was mostly acting the board never planned (no
+     hand on "bread", no finger on "first", the three stretches never shown, the widow blaming Elijah with her back
+     to him), each found only after the build.
+   - e. **Beat board, then one render. There is no clip stage.** After the story critic's notes are on the board
+     come the sets, the cold read,
      the shots, the music and mix, the code audit and then the beat board (2 to 3 full-size stills per shot at its
      action words): the owner reviews it first, a critic scores it after his notes are fixed, and the fixes are made
      there. Then one render, which the owner reviews first and a critic after (step 9). A fix is checked on a short
