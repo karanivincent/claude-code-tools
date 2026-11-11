@@ -58,6 +58,8 @@ const makeBloom = () => {
   return b;
 };
 const fwd = new THREE.Vector3(), fpt = new THREE.Vector3();
+/** places whose meshes the look walk has logged (once each) */
+const LOOKED = new Set<string>(), AUDITED = new Set<string>();
 
 /** what the board leaves alone and the film may change on a shot: people (the segment's acting) and the blur */
 export interface Take { t?: number; view?: View; people?: (base: Person[]) => Person[]; focus?: Shot['focus']; blur?: number; relight?: Relight }
@@ -106,7 +108,7 @@ function relightSky(scene: THREE.Scene, sky: [string, string], mix: number) {
   });
 }
 
-export const Stage: React.FC<{ def: PlaceDef; a: Loaded; shot: string; take?: Take; frameView?: FrameView; debug?: string; filmT?: number }> = ({ def, a, shot, take = {}, frameView, debug = '', filmT }) => {
+export const Stage: React.FC<{ def: PlaceDef; a: Loaded; shot: string; take?: Take; frameView?: FrameView; debug?: string; filmT?: number; place?: string; seg?: number }> = ({ def, a, shot, take = {}, frameView, debug = '', filmT, place = '', seg = 0 }) => {
   const { camera, scene, size } = useThree();
   const W = useMemo(() => {
     const built: Built = def.build(scene, a);
@@ -170,41 +172,114 @@ export const Stage: React.FC<{ def: PlaceDef; a: Loaded; shot: string; take?: Ta
   W.built.update?.(shot, t, cam);
   if (take.relight?.sky) relightSky(scene, take.relight.sky, take.relight.skyMix ?? 0.5);
   W.cast.update(t, cam, sunDir, S.people ?? []);
-  // the acting audit (toon-kit acting.ts): one sample per frame, logged instead of judged by eye after a render
+  // the look check's still variants (tools/look.mjs): without the cards and the far band, so the two renders differ
+  // exactly on what the flat share must not judge
+  W.cast.root.visible = !debug.includes('nocards');
+  if (debug.includes('nofar')) scene.traverse(o => { if (o.userData.far || o.renderOrder === -10) o.visible = false; });
+  (globalThis as { TOON_AUDIT?: boolean }).TOON_AUDIT = debug.includes('audit');
+  // people on screen: their projected height decides how close the shot is (wide, medium, close) for the blur and the
+  // look check's detail floors
+  const pr = (p: THREE.Vector3): [number, number] => { const q = p.clone().project(cam); return [+((q.x + 1) / 2).toFixed(3), +((1 - q.y) / 2).toFixed(3)]; };
+  // only people in front of the lens and at least partly in frame: one behind the camera or wholly off screen
+  // would read as a cut head with a negative height
+  const inView = (p: Person) => {
+    const sc = SCALE[p.who] ?? 1, y0 = p.at[1] + (p.lift ?? 0);
+    const feetW = new THREE.Vector3(p.at[0], y0, p.at[2]);
+    if (feetW.clone().applyMatrix4(cam.matrixWorldInverse).z >= -0.05) return false;
+    const f = pr(feetW), c = pr(new THREE.Vector3(p.at[0], y0 + STORY.topY * sc, p.at[2]));
+    const x0 = Math.min(f[0], c[0]), x1 = Math.max(f[0], c[0]), ya = Math.min(f[1], c[1]), yb = Math.max(f[1], c[1]);
+    return x1 > 0 && x0 < 1 && yb > 0 && ya < 1;
+  };
+  const shown = (S.people ?? []).filter(p => p.vis !== false && inView(p));
+  const heightOf = (p: Person) => { const sc = SCALE[p.who] ?? 1, y0 = p.at[1] + (p.lift ?? 0); return pr(new THREE.Vector3(p.at[0], y0, p.at[2]))[1] - pr(new THREE.Vector3(p.at[0], y0 + STORY.topY * sc, p.at[2]))[1]; };
+  const tallest = Math.max(0, ...shown.map(heightOf));
+  /** wide under 0.35 of the frame high, close over 0.6 (look-targets: close-ups, medium shots, wides) */
+  const shotSize: 'wide' | 'medium' | 'close' = tallest > 0.6 ? 'close' : tallest >= 0.35 ? 'medium' : 'wide';
+  // the acting audit (toon-kit acting.ts) and the camera checks: one sample per frame, logged instead of judged by eye
   if (debug.includes('audit') && filmT !== undefined) {
-    const pr = (p: THREE.Vector3): [number, number] => { const q = p.clone().project(cam); return [+((q.x + 1) / 2).toFixed(3), +((1 - q.y) / 2).toFixed(3)]; };
-    // only people in front of the lens and at least partly in frame: one behind the camera or wholly off screen
-    // would read as a cut head with a negative height
-    const inView = (p: Person) => {
-      const sc = SCALE[p.who] ?? 1, y0 = p.at[1] + (p.lift ?? 0);
-      const feetW = new THREE.Vector3(p.at[0], y0, p.at[2]);
-      if (feetW.clone().applyMatrix4(cam.matrixWorldInverse).z >= -0.05) return false;
-      const f = pr(feetW), c = pr(new THREE.Vector3(p.at[0], y0 + STORY.topY * sc, p.at[2]));
-      const x0 = Math.min(f[0], c[0]), x1 = Math.max(f[0], c[0]), ya = Math.min(f[1], c[1]), yb = Math.max(f[1], c[1]);
-      return x1 > 0 && x0 < 1 && yb > 0 && ya < 1;
-    };
-    const people = (S.people ?? []).filter(p => p.vis !== false && inView(p)).map(p => {
+    if (!AUDITED.has(place)) { AUDITED.add(place); console.log('AUDITPLACE ' + JSON.stringify({ place, blockers: def.blockers ?? [] })); }
+    const people = shown.map(p => {
       const sc = SCALE[p.who] ?? 1, { blink: _b, light: _l, ...fo } = p.fo as Record<string, unknown>;
       void _b; void _l;
       const r = (x: number) => Math.round(x / 0.03);
       const sig = JSON.stringify([fo, p.at.map(r), p.roll ? Math.round(p.roll * 20) : 0, p.lift ? r(p.lift) : 0]);
       const y0 = p.at[1] + (p.lift ?? 0);
       const head = pr(new THREE.Vector3(p.at[0], y0 + STORY.headY * sc, p.at[2]));
-      const top = pr(new THREE.Vector3(p.at[0], y0 + STORY.topY * sc, p.at[2]));
       const feet = pr(new THREE.Vector3(p.at[0], y0, p.at[2]));
-      return { key: p.key, sig, head, feet, height: +(feet[1] - top[1]).toFixed(3), named: STORY.named.has(String(p.who)) };
+      return { key: p.key, sig, head, feet, height: +heightOf(p).toFixed(3), named: STORY.named.has(String(p.who)), w: [p.at[0], y0, p.at[2]].map(x => +x.toFixed(3)), h: +(STORY.topY * sc).toFixed(3) };
     });
     const props = (S.props ?? []).map(q => ({ name: q.name, holder: q.holder, at: pr(new THREE.Vector3(...q.at)), hand: q.hand ? pr(new THREE.Vector3(...q.hand)) : undefined }));
-    console.log('AUDIT ' + JSON.stringify({ t: +filmT.toFixed(3), shot, people, props }));
+    // the empty-sky share (toon-kit checkSky's test, cast on the real geometry): 24 rays down the frame's centre
+    // column; a row is sky when it meets nothing but the far band within 3000 m. And the ground under the camera.
+    const solids: THREE.Object3D[] = [];
+    scene.traverse(o => {
+      const mt = (o as THREE.Mesh).material as THREE.Material | undefined;
+      const see = mt && !Array.isArray(mt) && (mt.blending === THREE.AdditiveBlending || mt.blending === THREE.CustomBlending || (mt.transparent && !mt.depthWrite));
+      if ((o as THREE.Mesh).isMesh && o.visible && !o.userData.far && o.renderOrder !== -10 && !see) solids.push(o);
+    });
+    const ray = new THREE.Raycaster(); ray.far = 3000; let skyRows = 0;
+    for (let k = 0; k < 24; k++) { ray.setFromCamera(new THREE.Vector2(0, 1 - (2 * k + 1) / 24), cam); if (!ray.intersectObjects(solids, false).length) skyRows++; }
+    ray.set(cam.position, new THREE.Vector3(0, -1, 0)); ray.far = 1000;
+    const below = ray.intersectObjects(solids, false)[0];
+    const camS = { pos: cam.position.toArray().map(x => +x.toFixed(4)), look: v.look.map(x => +x.toFixed(4)), fov: +v.fov.toFixed(3) };
+    console.log('AUDIT ' + JSON.stringify({ t: +filmT.toFixed(3), shot, place, seg, people, props, cam: camS, sky: +(skyRows / 24).toFixed(3), above: below ? +below.distance.toFixed(3) : null }));
+  }
+  if (debug.includes('look') && filmT !== undefined) {
+    // the look walk (tools/look.mjs, toon-kit look.ts): every mesh's material once per place, the detail things every frame
+    const L = LOOKED as Set<string>;
+    if (!L.has(place)) {
+      L.add(place);
+      const meshes: unknown[] = [];
+      scene.traverse(o => {
+        const m = o as THREE.Mesh;
+        if (!m.isMesh && !(o as THREE.Points).isPoints) return;
+        const mats = (Array.isArray(m.material) ? m.material : [m.material]) as (THREE.Material & Record<string, unknown>)[];
+        let card = false, far = false, plainOk: string | undefined, glow = false;
+        for (let q: THREE.Object3D | null = o; q; q = q.parent) { card ||= !!q.userData.card; far ||= !!q.userData.far || q.renderOrder === -10; plainOk ??= q.userData.plainOk; glow ||= !!q.userData.emissive; }
+        if (far || (o as THREE.Points).isPoints) return;
+        m.geometry.computeBoundingSphere();
+        const sph = m.geometry.boundingSphere!.clone().applyMatrix4(m.matrixWorld);
+        const maps: unknown[] = [];
+        let hasMap = false, emissive = glow;
+        for (const mt of mats) {
+          const e = mt.emissive as THREE.Color | undefined, ei = (mt.emissiveIntensity as number | undefined) ?? 1;
+          emissive ||= !!(e && ei > 0 && e.getHex() !== 0) || (mt as { isShaderMaterial?: boolean }).isShaderMaterial === true || mt.blending === THREE.AdditiveBlending || mt.blending === THREE.CustomBlending;
+          for (const slot of ['map', 'emissiveMap']) {
+            const tx = mt[slot] as THREE.Texture | null | undefined;
+            if (!tx) continue;
+            if (slot === 'map') hasMap = true;
+            const im = tx.image as { width?: number; height?: number } | undefined;
+            maps.push({ slot, w: im?.width ?? 0, h: im?.height ?? 0, mipmaps: tx.generateMipmaps || (tx.mipmaps?.length ?? 0) > 1, anisotropy: tx.anisotropy });
+          }
+        }
+        meshes.push({ name: o.name || (o.parent?.name ? `${o.parent.name}/${o.type}` : o.type), c: sph.center.toArray().map(x => +x.toFixed(2)), r: +sph.radius.toFixed(2), map: hasMap, emissive, card, plainOk, maps });
+      });
+      console.log('LOOKMESH ' + JSON.stringify({ place, meshes }));
+    }
+    const things: unknown[] = [];
+    const frustum = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
+    let n = 0;
+    scene.traverse(o => {
+      if (!o.userData.detail) return;
+      const box = new THREE.Box3().setFromObject(o), c = box.getCenter(new THREE.Vector3());
+      const inFrame = o.visible && !box.isEmpty() && frustum.intersectsBox(box) && c.clone().applyMatrix4(cam.matrixWorldInverse).z < 0;
+      // moved: its box, or anything under it moved or redrew (a texture version, a shader clock)
+      let ver = Number(o.userData.version ?? 0);
+      o.traverse(q => { const mt = (q as THREE.Mesh).material as THREE.MeshBasicMaterial | undefined; if (mt && !Array.isArray(mt) && mt.map) ver += mt.map.version; ver += Number(q.userData.version ?? 0); });
+      const sig = [...box.min.toArray(), ...box.max.toArray()].map(x => Math.round(x * 100)).join(',') + '|' + ver;
+      things.push({ id: `${place}:${o.userData.detail}:${n++}`, kind: String(o.userData.detail), inFrame, sig });
+    });
+    console.log('LOOK ' + JSON.stringify({ t: +filmT.toFixed(3), shot: `${place}/${shot}`, size: shotSize, cam: { pos: cam.position.toArray() }, things }));
   }
   gradeFor(fx.grade, def.grade);
   noInkFallback(scene);
   cam.getWorldDirection(fwd);
   fpt.copy(focus);
   fx.lens.focus = Math.max(0.3, fpt.sub(cam.position).dot(fwd));
-  // background blur: every shot with people blurs what is behind them (at least 11 px, close shots more), so the
-  // characters stay the sharpest thing in frame; blur: 0 keeps a flat or map shot sharp
-  const blurPx = S.blur === 0 ? 0 : Math.max(S.blur ?? 12, 11) * (S.blur && S.blur >= 6 ? 1.6 : 1.1);
+  // background blur behind people in medium shots and close-ups, wides sharp (decision 5, Vincent 11 November 2026).
+  // Defaults from the look targets: close-ups 12 to 14 px at 1080 wide, medium shots 10 to 12; a shot's own `blur`
+  // overrides them (0 = sharp), never in a wide
+  const blurPx = shotSize === 'wide' ? 0 : S.blur ?? (shotSize === 'close' ? 13 : 11);
   fx.lens.cInf = blurPx * (size.width / 1080);
   return debug.includes('nopost') ? null : <>{post}</>;
 };
@@ -215,7 +290,7 @@ export const Board: React.FC<{ place: PlaceName; shot: string; debug?: string }>
   return (
     <AbsoluteFill style={{ backgroundColor: STORY.background }}>
       {r && <ThreeCanvas width={1080} height={1920} shadows gl={{ antialias: false, stencil: false, powerPreference: 'high-performance' }} camera={{ fov: 40, near: 0.05, far: 3000 }}>
-        <Stage def={r.def} a={r.a} shot={shot} debug={debug} />
+        <Stage def={r.def} a={r.a} shot={shot} debug={debug} place={place} />
       </ThreeCanvas>}
     </AbsoluteFill>
   );

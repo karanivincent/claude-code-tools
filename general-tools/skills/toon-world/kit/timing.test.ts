@@ -1,7 +1,7 @@
 // Run: node --test general-tools/skills/toon-world/kit/timing.test.ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { makeTimeline, resolveClocks, shotClock, frameAt, viewAt, pushed, filmTimeOf, checkSegs, intoOf, type Data, type Seg, type View, planPace, checkPace } from './timing.ts';
+import { makeTimeline, resolveClocks, shotClock, frameAt, viewAt, pushed, filmTimeOf, checkSegs, intoOf, checkJoins, type Data, type Seg, type View, planPace, checkPace } from './timing.ts';
 
 const words = (text: string, t0: number) => text.split(' ').map((w, i) => ({ w, s: +(t0 + i * 0.3).toFixed(2), e: +(t0 + i * 0.3 + 0.25).toFixed(2) }));
 const data: Data = { fps: 30, duration: 12, lines: [
@@ -83,18 +83,32 @@ test('pushed moves along the view; aim moves the look point with the camera', ()
   assert.ok(Math.abs(v.pos[2] - 4) < 1e-9);
 });
 
-test('joins: swing inside a place, whip between places, blur on both sides of a whip', () => {
+test('joins: swing inside a place, cut between places (no whip, no blur); checkJoins wants a reason for every cut', () => {
   const R = resolveClocks([
     { place: 'a', shot: 'list', a: 0, b: 2, punch: false },
     { place: 'a', shot: 'wide', a: 2, b: 4, punch: false },
     { place: 'b', shot: 'list', a: 4, b: 6, punch: false },
   ]);
-  assert.equal(intoOf(R, 1), 'swing'); assert.equal(intoOf(R, 2), 'whip');
+  assert.equal(intoOf(R, 1), 'swing'); assert.equal(intoOf(R, 2), 'cut');
   const atJoin = frameAt(R, 2, base, () => 0).view;
   assert.deepEqual(atJoin.pos, V0.pos, 'a swing starts from the last framing');
-  assert.ok(frameAt(R, 3.95, base, () => 0).whip > 0.5);
-  assert.ok(frameAt(R, 4.05, base, () => 0).whip > 0.3);
-  assert.equal(frameAt(R, 1.95, base, () => 0).whip, 0);
+  assert.equal(frameAt(R, 3.95, base, () => 0).whip, 0, 'no motion blur at a change of place');
+  assert.equal(checkJoins(R).length, 1, 'the cut to place b has no reason');
+  const why = R.map((s, i) => (i === 2 ? { ...s, why: 'to the gate: a change of place' } : s));
+  assert.equal(checkJoins(why).length, 0);
+  const whip = R.map((s, i) => (i === 2 ? { ...s, into: 'whip' as const, why: 'old default' } : s));
+  assert.match(checkJoins(whip)[0], /whip/);
+  const many = resolveClocks([0, 1, 2, 3, 4].map(k => ({ place: k % 2 ? 'a' : 'b', shot: 'list', a: k, b: k + 1, why: 'a change of place' })));
+  assert.equal(checkJoins(many).length, 1, 'four cuts are over three');
+});
+
+test('a swing never rises above the higher of its two framings (no lift into empty sky)', () => {
+  const R = resolveClocks([{ place: 'a', shot: 'list', a: 0, b: 2, punch: false }, { place: 'a', shot: 'wide', a: 2, b: 4, punch: false }]);
+  const hi = Math.max(base('list').pos[1], base('wide').pos[1]), lookHi = Math.max(base('list').look[1], base('wide').look[1]);
+  for (let t = 2; t < 2.5; t += 0.02) {
+    const v = frameAt(R, t, base, () => 0).view;
+    assert.ok(v.pos[1] <= hi + 1e-9 && v.look[1] <= lookHi + 1e-9, `t ${t.toFixed(2)}: the swing rose`);
+  }
 });
 
 test('checkSegs names gaps, backwards segments and unknown shots', () => {

@@ -16,14 +16,18 @@ const root = path.resolve(import.meta.dirname, '..');
 // ==== the story's part: edit from here to the engine ================================================================
 const SLUG = '__SLUG__';
 const TL = makeTimeline(JSON.parse(fs.readFileSync(path.join(root, `src/stories/${SLUG}/full.json`), 'utf8')));
-const TAIL = 1.4;                                            // the film runs this long past the last word (shots.ts END)
+const TAIL = 0.5;          // the film runs this long past the last word (shots.ts END); levels.mjs fails over 0.6 s of dead air (S3-157)
 const VOICES = path.join(root, `public/${SLUG}/full/voices.wav`);   // the voice track the story's voice script wrote
-const MIX = path.join(root, `public/${SLUG}/laura/mix.wav`);        // public/<slug>/<narrator>/mix.wav
+const MIX = path.join(root, `public/${SLUG}/full/mix.wav`);         // story.ts plays this; voice.wav and bed.wav go beside it for levels.mjs
 const OUT = path.join(root, `public/${SLUG}/sound`);
 const D = +(TL.duration + TAIL).toFixed(3);
 // Word times: L(id).start, W(id, word, nth) when the word is said. W throws when a word is said twice in its line
 // and you did not say which (the same rule as shots.ts), so an effect cannot land on the wrong "the".
 const L = TL.L, W = TL.W;
+// The bed is held down through every whole line, not ducked word by word: a ducker let the music swell inside a
+// line's pauses (Elijah 2D, S3-153). HOLD is the bed's gain while a line is spoken; 0.24 (about -12 dB) passed the
+// floor (10 dB under) and the ceiling (24 dB under) on Elijah. PAD holds a little before and after each line.
+const HOLD = 0.24, PAD = 0.15;
 
 // Music: one section per turn of the story. Cut a little before the line that turns it.
 const turns = [/* e.g. L('twist').start - 0.1 */];
@@ -87,10 +91,17 @@ const layer = (list, tag, offset) => list.map(([n, at, gain, fin, fout, len], i)
 });
 const bedIn = layer(bed, 'b', 0), actIn = layer(action, 'p', bed.length);
 filters.push(`${bedIn.join('')}amix=inputs=${bedIn.length}:normalize=0:duration=longest,apad=whole_dur=${D},atrim=0:${D}[bedpre]`);
-filters.push('[bedpre][key]sidechaincompress=threshold=0.02:ratio=4:attack=15:release=250:makeup=1[bed]');   // the bed ducks under her voice
-const top = ['[vo]', '[bed]'];
+const spans = TL.lines.map(l => `between(t,${Math.max(0, l.start - PAD).toFixed(3)},${(l.end + PAD).toFixed(3)})`).join('+') || '0';
+filters.push(`[key]anullsink`);
+filters.push(`[bedpre]volume='if(gt(${spans},0),${HOLD},1)':eval=frame,asplit=2[bed][bedstem]`);   // the bed held under every whole line
+filters.push('[vo]asplit=2[vo2][vostem]');
+const top = ['[vo2]', '[bed]'];
 if (actIn.length) { filters.push(`${actIn.join('')}amix=inputs=${actIn.length}:normalize=0:duration=longest,apad=whole_dur=${D},atrim=0:${D}[act]`); top.push('[act]'); }
 filters.push(`${top.join('')}amix=inputs=${top.length}:normalize=0:duration=longest,apad=whole_dur=${D},atrim=0:${D},alimiter=limit=0.5:attack=1:release=60:level=false,loudnorm=I=-14:TP=-1.5:LRA=11[out]`);
 fs.mkdirSync(path.dirname(MIX), { recursive: true });
-execFileSync('ffmpeg', ['-y', '-v', 'error', '-i', VOICES, ...inputs, '-filter_complex', filters.join(';'), '-map', '[out]', '-ar', '48000', '-ac', '2', MIX]);
-console.log('mix ->', path.relative(root, MIX), D, 's');
+const stem = n => path.join(path.dirname(MIX), n);
+execFileSync('ffmpeg', ['-y', '-v', 'error', '-i', VOICES, ...inputs, '-filter_complex', filters.join(';'),
+  '-map', '[out]', '-ar', '48000', '-ac', '2', MIX,
+  '-map', '[vostem]', '-ar', '48000', '-ac', '2', stem('voice.wav'),
+  '-map', '[bedstem]', '-ar', '48000', '-ac', '2', stem('bed.wav')]);
+console.log('mix ->', path.relative(root, MIX), D, 's; stems voice.wav and bed.wav beside it. Next: node tools/levels.mjs (the gate runs it).');

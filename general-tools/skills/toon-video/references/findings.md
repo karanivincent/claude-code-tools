@@ -1,8 +1,8 @@
 # Findings: what the critic found, and what changed in the making
 
 One row per kind of fault, not per video. Level: 1 made impossible (kit), 2 the right way made easy (kit block),
-3 a rule with a picture (skill), 4 a check. When a kind comes back, its fix was too weak: move it up a level. Rules in
-`toon-video` SKILL.md, "After every critique: fix the making".
+3 a rule with a picture (skill), 4 a check. When a kind comes back, its fix was too weak: move it up a level. How to sort a
+finding: rules S5-27 and S5-28 in `rules.md`.
 
 This record is how the rounds come down: every kind of fault fixed in the making here is one the next video's critic
 never has to find, and the aim is three rounds from the first critique to the owner's yes (Gibeon took six, the Mona

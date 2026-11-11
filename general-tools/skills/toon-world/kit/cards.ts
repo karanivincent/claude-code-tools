@@ -33,3 +33,24 @@ export function checkCanvases(canvases: { name: string; px: Pixels; allow?: Side
     return t.length ? [`${c.name}: the drawing touches its canvas at the ${t.map(e => `${e.side} (${e.x}, ${e.y})`).join(', ')}; it will show as a straight cut`] : [];
   });
 }
+
+/** A hand point kept inside its card's design canvas (the bean cards: 600 x 1000 units), `margin` units in from every
+ *  side (default 45: the mitten's radius plus its outline at the adult build). Pulled straight back toward the shoulder
+ *  when given (the arm keeps its direction and shortens), else clamped to the box. Why: an arm held out sideways ran
+ *  its hand off the card's own canvas, so only the arm showed and the critic saw "an arm ending in a stub" (Elijah and
+ *  the widow 2D, critic round 2, 11 November 2026). The canvas border check (`edgeTouches`) then has nothing to find. */
+export function clampHand(hand: [number, number], opts: { w?: number; h?: number; margin?: number; shoulder?: [number, number] } = {}): [number, number] {
+  const w = opts.w ?? 600, h = opts.h ?? 1000, m = opts.margin ?? 45, [x, y] = hand;
+  const inside = (p: [number, number]) => p[0] >= m && p[0] <= w - m && p[1] >= m && p[1] <= h - m;
+  if (inside(hand)) return hand;
+  const s = opts.shoulder;
+  if (s && inside(s)) {
+    // the largest k in [0, 1] with shoulder + k (hand - shoulder) inside the box
+    let k = 1;
+    const dx = x - s[0], dy = y - s[1];
+    if (dx > 0) k = Math.min(k, (w - m - s[0]) / dx); else if (dx < 0) k = Math.min(k, (m - s[0]) / dx);
+    if (dy > 0) k = Math.min(k, (h - m - s[1]) / dy); else if (dy < 0) k = Math.min(k, (m - s[1]) / dy);
+    return [s[0] + dx * k, s[1] + dy * k];
+  }
+  return [Math.min(w - m, Math.max(m, x)), Math.min(h - m, Math.max(m, y))];
+}

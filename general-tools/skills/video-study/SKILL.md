@@ -56,7 +56,7 @@ video; a practice copy is `toon-replicate`, and only when Vincent asks for one.
      README giving the title, views, link and the `prepare.py` line that rebuilds the frames (the video and frames
      stay out of git);
    - add the video's timed moments to `docs/studies/<channel>/index.md` under each technique it shows (joins by
-     their names in `toon-video` references/joins.md), and a new join to that stack with where it was seen;
+     their names in `toon-video` references/camera.md, "The joins stack"), and a new join to that stack with where it was seen;
    - add the one-paragraph result and the page link to `docs/STUDIES.md` (newest first);
    then push and merge through a PR. The Ricks Clips library (20 Shorts, 7–9 November 2026) is in bible-shorts
    `docs/studies/ricks-clips/`.

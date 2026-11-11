@@ -1,0 +1,29 @@
+name: Toon rules lint
+
+# Every rule in the toon skills lives once, numbered, in toon-video/references/rules.md (rule X-12). This fails a PR
+# that adds a rule line without an id, cites an id that does not exist, or defines an id twice, and runs the kit tests.
+on:
+  pull_request:
+    paths:
+      - "general-tools/skills/toon-video/**"
+      - "general-tools/skills/toon-world/**"
+      - "general-tools/skills/toon-story-video/**"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"  # runs .ts tests without a flag
+      - name: Rule ids
+        run: node general-tools/skills/toon-video/scripts/lint_rules.mjs general-tools/skills
+      - name: SKILL.md under 500 lines (Anthropic skill guidance)
+        run: |
+          for f in general-tools/skills/toon-video/SKILL.md general-tools/skills/toon-world/SKILL.md general-tools/skills/toon-story-video/SKILL.md; do
+            n=$(wc -l < "$f"); echo "$f: $n lines"; [ "$n" -lt 500 ] || { echo "::error file=$f::$n lines, over 500"; exit 1; }
+          done
+      - name: Kit tests
+        working-directory: general-tools/skills/toon-world
+        run: node --test kit/*.test.ts

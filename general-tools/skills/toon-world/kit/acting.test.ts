@@ -56,12 +56,25 @@ test('acting at 20% of the frame high is too small to read; at 40% it reads', ()
   assert.equal(actingTooSmall(big).length, 0);
 });
 
-test('an opening with only a small calm figure and no card is weak; a big face or a card at 0 s passes', () => {
-  const small = [0, 0.1, 0.2].map(t => ({ t, shot: 'hook', people: [{ key: 'onoda', sig: 'x', height: 0.15, named: true }] }));
-  assert.equal(checkOpening(small).length, 1);
-  assert.equal(checkOpening(small, [{ text: '1974', at: 0 }]).length, 0);
-  const big = [0, 0.1].map(t => ({ t, shot: 'hook', people: [{ key: 'onoda', sig: 'x', height: 0.45, named: true }] }));
-  assert.equal(checkOpening(big).length, 0);
+test('the opening needs all three: a big subject, motion from frame 1 and the card at 0.0 s', () => {
+  const cam = (z: number) => ({ pos: [0, 1.6, z] as [number, number, number], look: [0, 1.2, 0] as [number, number, number], fov: 40 });
+  const card = [{ text: 'NO RAIN', at: 0 }];
+  // Elijah's opening: a held insert, a small calm figure, the card popping in at 0.35 s
+  const weak = [0, 0.1, 0.2].map(t => ({ t, shot: 'hook', cam: cam(5), people: [{ key: 'widow', sig: 'x', height: 0.15, named: true }] }));
+  assert.deepEqual(checkOpening(weak, [{ text: 'NO RAIN', at: 0.35 }]).map(i => i.check), ['opening-small', 'opening-still', 'opening-card']);
+  // a card alone no longer passes (it used to: big OR card)
+  assert.deepEqual(checkOpening(weak, card).map(i => i.check), ['opening-small', 'opening-still']);
+  // big, the camera pushing in from frame 0, the card up: passes
+  const good = [0, 0.1, 0.2].map(t => ({ t, shot: 'hook', cam: cam(5 - t), people: [{ key: 'widow', sig: 'x', height: 0.45, named: true }] }));
+  assert.equal(checkOpening(good, card).length, 0);
+  // a held camera passes when the person acts from frame 1
+  const acts = [0, 0.1].map((t, i) => ({ t, shot: 'hook', cam: cam(5), people: [{ key: 'widow', sig: `p${i}`, height: 0.45, named: true }] }));
+  assert.equal(checkOpening(acts, card).length, 0);
+});
+
+test('checkCues leaves the opening card alone (it is up before any word)', () => {
+  assert.equal(checkCues([{ text: 'one handful', at: 0 }], [{ w: 'one', s: 0.65 }]).length, 0);
+  assert.equal(checkCues([{ text: 'one handful', at: 2 }], [{ w: 'one', s: 0.65 }]).length, 1);
 });
 
 test('checkCaptions: a film without captions fails; every word must be on screen as it is said', () => {
@@ -69,4 +82,21 @@ test('checkCaptions: a film without captions fails; every word must be on screen
   assert.equal(checkCaptions([], words)[0].check, 'no-captions');
   assert.equal(checkCaptions([{ text: 'In', s: 0.31, e: 0.37 }, { text: '1974', s: 0.37, e: 1.48 }, { text: 'a', s: 1.48, e: 1.75 }], words).length, 0);
   assert.equal(checkCaptions([{ text: 'In', s: 0.31, e: 0.37 }], words).length, 2);
+});
+
+test('acknowledge lets through only issues the story names with a reason', async () => {
+  const { acknowledge } = await import('./acting.ts');
+  const issues = [{ check: 'head-cut', from: 3, to: 3.4, shot: 'gate', who: 'widow', what: 'head cut by the top edge' }, { check: 'opening-still', from: 0, to: 0.1, shot: 'hook', what: '' }];
+  const r = acknowledge(issues, [{ check: 'head-cut', at: 3.2, reason: 'she rises out of frame on purpose (the owner saw it)' }]);
+  assert.deepEqual(r.open.map(i => i.check), ['opening-still']);
+  assert.equal(r.passed.length, 1);
+  const bad = acknowledge(issues, [{ check: 'head-cut', reason: ' ' }, { check: 'acting-still', reason: 'old' }]);
+  assert.deepEqual(bad.open.map(i => i.check).sort(), ['ack-no-reason', 'ack-unused', 'head-cut', 'opening-still']);
+});
+
+test('fromFrames merges a camera finding over neighbouring frames into one run in seconds', async () => {
+  const { fromFrames } = await import('./acting.ts');
+  const f = [0, 3, 6, 30].map(k => ({ f: 60 + k, kind: 'empty sky', detail: '52% of the frame is empty sky' }));
+  const r = fromFrames(f, 30, () => 'gate/wide');
+  assert.equal(r.length, 2); assert.equal(r[0].check, 'cam-empty-sky'); assert.equal(r[0].from, 2); assert.equal(r[0].to, 2.2);
 });
