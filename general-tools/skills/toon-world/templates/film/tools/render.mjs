@@ -3,7 +3,7 @@
 //   TMPDIR=$HOME/remotion-tmp/__SLUG__ node src/stories/__SLUG__/tools/render.mjs out.mp4 [concurrency] [scale] [from-to frames]
 //   stills: node render.mjs --stills out/dir t1,t2,...  [scale]   (one png per time in seconds)
 import path from 'node:path';
-import { storyPublic } from './public.mjs';
+import { storyPublic, toolTime } from './public.mjs';
 import fs from 'node:fs';
 import { bundle } from '@remotion/bundler';
 import { renderMedia, renderStill, selectComposition } from '@remotion/renderer';
@@ -12,6 +12,8 @@ const root = path.resolve(import.meta.dirname, '../../../..');
 const args = process.argv.slice(2);
 const t0 = Date.now();
 const serveUrl = await bundle({ entryPoint: path.join(root, 'src/index.ts'), publicDir: storyPublic(root), onProgress: () => {} });
+toolTime(root, 'render', 'bundle', t0);
+let t1 = Date.now();
 // FILM_DEBUG=clean renders without cards, papers and bubbles (thumbnail frames)
 const inputProps = { audio: '', debug: process.env.FILM_DEBUG ?? '' };
 const chromiumOptions = { gl: 'angle' };
@@ -29,11 +31,14 @@ if (args[0] === '--stills') {
   const [f0, f1] = range ? range.split('-').map(Number) : [0, composition.durationInFrames - 1];
   // the gate (toon-video "The order"): a render over 8 s waits until every check passes and the owner has approved the
   // story and the direction on the review page; a fix check of 8 s or less renders at once
+  // (the gate times itself)
   if ((f1 - f0 + 1) / composition.fps > 8 && !gate(path.resolve(import.meta.dirname, '..'), 'render').ok) { fs.rmSync(serveUrl, { recursive: true, force: true }); process.exit(2); }
+  t1 = Date.now();
   let last = 0;
   await renderMedia({ composition, serveUrl, codec: 'h264', outputLocation: out, inputProps, concurrency: Math.min(5, Number(conc ?? 4)), muted: true, crf: 18,
     scale: Number(scale ?? 1), frameRange: range ? range.split('-').map(Number) : undefined, chromiumOptions, timeoutInMilliseconds: 300000,
     onProgress: ({ renderedFrames }) => { if (renderedFrames - last >= 100) { last = renderedFrames; console.log(renderedFrames, ((Date.now() - t0) / 1000).toFixed(0) + 's'); } } });
 }
 fs.rmSync(serveUrl, { recursive: true, force: true });
+toolTime(root, 'render', args[0] === '--stills' ? 'stills' : 'render', t1);
 console.log('done', ((Date.now() - t0) / 1000).toFixed(0) + 's');

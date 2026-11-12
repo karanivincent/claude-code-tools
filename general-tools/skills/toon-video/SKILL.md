@@ -76,10 +76,11 @@ rule-by-rule lines for each step. Do not retell a step in other words (S0-8, X-7
 - [ ] Cold read: out/<slug>/coldread.json (S4-13..S4-15)
 - [ ] node src/stories/<slug>/tools/gate.mjs critic passes (S4-1..S4-12, S4-16)
 ### Stage 5. Cycle <n>                              stop: score 4.2, or a cycle gains under +0.1
-- [ ] Critic round 1, fixed: out/<slug>/critic-<n>-1.md (S5-1..S5-12, S5-25..S5-28, S5-33, S5-34)
+- [ ] Each round logged as it ends: critique row with --file, fix row with --cycle and --round, findings section (S5-38)
+- [ ] Critic round 1, fixed: out/<slug>/critic-<n>-1.md (S5-1..S5-12, S5-25..S5-28, S5-33, S5-34, S5-37)
 - [ ] Critic round 2, fixed: out/<slug>/critic-<n>-2.md
 - [ ] Critic round 3, fixed: out/<slug>/critic-<n>-3.md
-- [ ] gate.mjs render passes; one render: out/<slug>/render-<n>.mp4 (S5-13..S5-19)
+- [ ] gate.mjs render passes; one render: out/<slug>/render-<n>.mp4 (S5-13..S5-19); log report and rounds beside it (S5-35)
 - [ ] Owner's render notes pulled from the review page (S5-20)
 - [ ] Render critic: out/<slug>/critic-<n>-render.md (S5-31)
 - [ ] Stop rule checked; next cycle starts from both sets of notes (S5-22, S5-32)
@@ -171,18 +172,24 @@ the owner sees each one (S5-13, S5-20).
 2. Brief a fresh critic agent from `references/critic-brief.md`, pre-render mode. It scores each scene 1 to 5 in
    world, people, light and story, and gives each scene its path to 5: what would take it there, each item with its
    predicted gain, then a forecast (S5-2..S5-5). Faults come after the path (S5-3).
-3. The critic replies with its report as text; save it to `out/<slug>/critic-<n>-<round>.md` (S5-9). Log the scores
-   (S5-12).
+3. The critic replies with its report as text; save it to `out/<slug>/critic-<n>-<round>.md` (S5-9). Log it at once:
+   `production_log.py add ... --stage critique --cycle <n> --round <round> --mode stills --file critic-<n>-<round>.md`
+   with `--score`, `--areas` and `--judge` (S5-12). From round 2 on, write its `## <n>-<round>` section in
+   `stories/<slug>/findings.md`: each prediction against the result, each finding with what allowed it, the change
+   and its level (S5-11, S5-27). The gate refuses without them (S5-38).
 4. Fix the top five path items and faults by gain (S5-33), the rest first on the next list, at the strongest level
    that fits (S5-27). Two builders at once, split by place, each owning its files. Check each fix on a short moving
    render of its stretch (S5-25) and against the last two cuts (S5-26).
-5. Run the gate once, at the end of the round (`gate.mjs critic`), and fix until it passes (S5-34).
+5. End the round on one full-size frame of every shot, each asked whether the place could exist (S5-37):
+   `stills.mjs <a job a shot>.json out/<slug>/fix-<n>-<round> 1`. Log the fix row with `--cycle <n> --round <round>`
+   and the round's `production_log.py tooltime` line in `--note`. Run the gate once (`gate.mjs critic`) and fix until it passes (S5-34).
 6. Repeat for rounds 2 and 3. Rounds 2 and 3 re-score what changed and compare each prediction with the
-   result (S5-10, S5-11).
+   result (S5-10, S5-11). The aim is three rounds from the first cut to the owner's yes; `rounds` counts them (S5-36).
 
 **b. One render** (S5-13..S5-19). Run `node src/stories/<slug>/tools/gate.mjs render`; when it passes, render with
 `node src/stories/<slug>/tools/render.mjs out/<slug>/render-<n>.mp4`, mux the mix, and run the render checks in
-`references/checks.md` (`frame_motion.py`, `short_qa.py`, `pace.py`).
+`references/checks.md` (`frame_motion.py`, `short_qa.py`, `pace.py`). Save `production_log.py report` and `rounds` for
+the story to `out/<slug>/log-<n>.txt`; it goes on the review page with the render (S5-35).
 
 **c. The owner's notes** (S5-20). Publish the render on the review page at stage `render-<n>` and wait for his
 notes. Pull them (see Approvals). His notes lead the next cycle.
@@ -190,7 +197,8 @@ notes. Pull them (see Approvals). His notes lead the next cycle.
 **d. The render critic, once** (S5-31). With his notes in, brief a critic in render mode
 (`references/critic-brief.md`): the four areas on the moving film plus motion and sound (pops, swings, sync,
 levels); its film score is the cycle's score. Save its report to
-`out/<slug>/critic-<n>-render.md`.
+`out/<slug>/critic-<n>-render.md`, log it with `--mode render --round render --file critic-<n>-render.md`, and write
+its `## <n>-render` findings section (S5-38).
 
 **e. The stop rule** (S5-32). Stop when the render critic's score is 4.2 or more, or when it rose by under
 +0.1 over the last cycle's. Otherwise start the next cycle from his notes and the render critic's (S5-22): build, run the

@@ -3,7 +3,7 @@
 Start a story here: `node <toon-world>/scripts/new-film.mjs <project> <slug> <CompositionId>`. It copies these files
 into `src/stories/<slug>/`, `../sound/story-sound.mjs` to `scripts/<slug>-sound.mjs`, syncs the toon-kit, and prints the
 two compositions to register. It also writes the paperwork the gate reads (`stories/<slug>/meaning.md`, `parts.md`,
-`checklist.md`, `src/stories/<slug>/approvals.json`), copies the look stack to `src/look/` when missing, and copies
+`checklist.md`, `findings.md`, `src/stories/<slug>/approvals.json`), copies the look stack to `src/look/` when missing, and copies
 `levels.mjs`, `measure_sharp.py` and `measure_look.py` into `tools/`. The story brings `full.json`, its places and
 segments, and replaces the stand-in cast. Needs TypeScript 5, `@react-three/postprocessing@3.0.4` and
 `postprocessing@6.39.5`. Built from the jungle holdout (Epiclings) and Elijah and the widow 2D (November 2026).
@@ -20,7 +20,7 @@ segments, and replaces the stand-in cast. Needs TypeScript 5, `@react-three/post
 | `Film.tsx` | The film: one place canvas at a time, swings and reasoned cuts (no whips), overlays, audit config |
 | `overlays.tsx` | `Card` (with a label), `Paper` (typed lines), `Thought` (a bubble with a picture), `cuesOf` |
 | `detail.ts` | The detail layer: flies, smoke, a hanging cloth, birds, a light shaft with dust (tagged and ticked); sparkles, which do not count |
-| `tools/` | `gate.mjs` (critic and render gates: runs every check), `audit.mjs` (acting and camera audit), `look.mjs` (look checks), `render.mjs`, `stills.mjs`, `public.mjs` (bundles with the story's own public folder only) |
+| `tools/` | `gate.mjs` (critic and render gates: runs every check, and refuses unlogged critic rounds, S5-38), `audit.mjs` (acting and camera audit), `look.mjs` (look checks), `render.mjs`, `stills.mjs`, `public.mjs` (bundles with the story's own public folder only; `toolTime` writes `out/<slug>/tool-times.jsonl`) |
 
 ## What each default prevents
 

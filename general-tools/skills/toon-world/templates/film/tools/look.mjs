@@ -14,7 +14,7 @@
 //   TMPDIR=$HOME/remotion-tmp/__SLUG__ node src/stories/__SLUG__/tools/look.mjs [concurrency]
 //   node src/stories/__SLUG__/tools/look.mjs --flat a.png b.png ...   (the flat share of any pictures, no render)
 import path from 'node:path';
-import { storyPublic } from './public.mjs';
+import { storyPublic, toolTime } from './public.mjs';
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { plainMeshes, smallTextures, checkDetail, detailCount, flatShare, cardMask, FLAT, CAPTION_BAND, LOOK_CHECKS } from '../../../toon-kit/look.ts';
@@ -51,6 +51,8 @@ fs.rmSync(lookDir, { recursive: true, force: true }); fs.mkdirSync(lookDir, { re
 let serveUrl;
 try { serveUrl = await bundle({ entryPoint: path.join(root, 'src/index.ts'), publicDir: storyPublic(root), onProgress: () => {} }); }
 catch (e) { console.error(`look: the bundle failed: ${e.message}`); process.exit(2); }
+toolTime(root, 'look', 'bundle', t0);
+const t1 = Date.now();
 const chromiumOptions = { gl: 'angle' };
 
 // ---- 1. the scene walk ------------------------------------------------------------------------------------------------
@@ -123,4 +125,5 @@ const text = `look: ${frames.length} samples, ${[...meshes.values()].reduce((n, 
 fs.writeFileSync(path.join(outDir, 'look.txt'), text);
 fs.writeFileSync(path.join(outDir, 'look.json'), JSON.stringify({ at: new Date().toISOString(), open, passed, flats, detail: detailCount(frames), stills: path.relative(root, path.join(lookDir, 'stills.mp4')) }, null, 1));
 console.log(text);
+toolTime(root, 'look', 'look', t1);
 process.exit(open.length ? 1 : 0);

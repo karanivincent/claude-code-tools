@@ -379,6 +379,7 @@ must, never, always, every or only without an id.
 - **S5-10** After a fix, the critic re-scores only what changed and compares each prediction with the result. Proof: file `out/<slug>/critic-<cycle>-<round>.md` (new). Why: unchanged seconds drift with critic noise.
 - **S5-11** A fix that missed its prediction by a point or more is itself a finding. Proof: file `references/findings.md`. Why: the miss shows why the fix failed.
 - **S5-12** Every critique row is logged with `--score`, `--areas` and `--judge`. Proof: check `production_log.py areas`. Why: the weakest area and its method show after a few videos.
+- **S5-36** The aim is three critique rounds from the first cut to the owner's yes; production_log.py rounds counts them. Proof: check production_log.py rounds. Why: Gibeon took six rounds and the Mona Lisa seven.
 
 ### The render
 
@@ -389,6 +390,7 @@ must, never, always, every or only without an id.
 - **S5-17** `screenMotion` before a render only points; it never clears a stretch. Proof: check `frame_motion.py`. Why: it cannot see texture or acting.
 - **S5-18** On every render run `short_qa.py`: black, white, frozen and popping frames, and loudness. Proof: check `short_qa.py`. Why: pops show only in the encode.
 - **S5-19** On every render run `pace.py` and the hard-cut count; both sit within the story's profile. Proof: check `pace.py`. Why: pace measured on the picture, not the plan.
+- **S5-35** Each render goes on the review page with the output of production_log.py report and rounds for the story. Proof: file out/<slug>/log-<cycle>.txt (new). Why: The owner sees what each step cost beside the video.
 
 ### Owner notes and the render critic
 
@@ -407,6 +409,8 @@ must, never, always, every or only without an id.
 - **S5-28** A kind of finding that comes back moves its fix up a level. Proof: file `references/findings.md`. Why: repeat findings prove the fix too weak.
 - **S5-29** A fix true of any video goes into the kit or the skills through the skills repo; a story fix stays in the story. Proof: check `critic: kit PR`. Why: lessons in one story never reach the next.
 - **S5-30** Never put a look into the kit. Proof: check `critic: kit PR`. Why: a shared look makes videos alike.
+- **S5-37** Every fix round ends on one full-size frame of every shot, asked whether each place could exist. Proof: file out/<slug>/fix-<cycle>-<round>/ (new). Why: Fixes made new faults the next critic had to find.
+- **S5-38** The gate refuses a critic report without its critique row (--file), a fixed round without its fix row, or a later round without its findings section. Proof: check gate.mjs: loggingOf. Why: On Elijah nobody logged anything for two days.
 
 ## S6 Hand-back
 

@@ -11,7 +11,7 @@
 // Exit 0 clean, 1 an unacknowledged issue, 2 the audit could not run.
 //   TMPDIR=$HOME/remotion-tmp/__SLUG__ node src/stories/__SLUG__/tools/audit.mjs [concurrency]
 import path from 'node:path';
-import { storyPublic } from './public.mjs';
+import { storyPublic, toolTime } from './public.mjs';
 import fs from 'node:fs';
 import { bundle } from '@remotion/bundler';
 import { renderMedia, selectComposition } from '@remotion/renderer';
@@ -26,6 +26,8 @@ let serveUrl;
 try {
   serveUrl = await bundle({ entryPoint: path.join(root, 'src/index.ts'), publicDir: storyPublic(root), onProgress: () => {} });
 } catch (e) { console.error(`audit: the bundle failed: ${e.message}`); process.exit(2); }
+toolTime(root, 'audit', 'bundle', t0);
+const t1 = Date.now();
 const inputProps = { audio: '', debug: 'audit nopost' }, chromiumOptions = { gl: 'angle' };
 const composition = await selectComposition({ serveUrl, id: '__FILM__', inputProps, chromiumOptions });
 const fps = composition.fps;
@@ -115,4 +117,5 @@ const text = `audit: ${S.length} samples, ${open.length} open issue(s), ${passed
 fs.writeFileSync(path.join(outDir, 'audit.txt'), text);
 fs.writeFileSync(path.join(outDir, 'audit.json'), JSON.stringify({ at: new Date().toISOString(), open, passed, story, plan, duration: cfg.duration, fps }, null, 1));
 console.log(text);
+toolTime(root, 'audit', 'audit', t1);
 process.exit(open.length ? 1 : 0);

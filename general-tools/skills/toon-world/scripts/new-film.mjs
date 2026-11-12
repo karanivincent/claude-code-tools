@@ -4,7 +4,7 @@
 // shots.ts, places/, tools/) and templates/sound/story-sound.mjs to scripts/<slug>-sound.mjs, filling in the slug,
 // the film's composition id and the board's (<CompositionId>Board). Then syncs the toon-kit (sync-kit.mjs), which the
 // templates import from src/toon-kit/. Files that already exist are left alone unless --force.
-// It also writes the story's paperwork the gate reads (stories/<slug>/meaning.md, parts.md, checklist.md and
+// It also writes the story's paperwork the gate reads (stories/<slug>/meaning.md, parts.md, checklist.md, findings.md and
 // src/stories/<slug>/approvals.json as {}), copies the look stack (templates/look/ without the practice cast.ts) to
 // src/look/ when the project has none, and the measuring scripts the gate runs (levels.mjs, measure_sharp.py,
 // measure_look.py) into the story's tools/. The story still brings its full.json (the voice script writes it).
@@ -54,6 +54,7 @@ write(`stories/${slug}/parts.md`, `# ${slug}: parts plan\n\n<!-- One section a p
 approves it on the review page before the place is built. The gate wants a "## <place>" section for every place and no
 TODO left. -->\n\n## <fill: place name>\n\n- Far band (one picture): TODO\n- Middle band (code 3D, painted textures at 2048): TODO\n- Ground (code 3D, painted textures at 2048): TODO\n- Props (code 3D; a Higgsfield model only when the owner asks): TODO\n- Detail layer (small real things that move: flies, smoke, cloth, birds, an animal; not dots): TODO\n- The story's state this place shows (a drought, night, a crowd): TODO\n`);
 write(`stories/${slug}/checklist.md`, 'Built from toon-video/references/rules.md at start\n');
+write(`stories/${slug}/findings.md`, `# ${slug}: findings per critic round\n\n<!-- One section a critic report from round 2 on, and one for every render report: "## <cycle>-<round>" (## 1-2,\n## 1-render). In each: the predicted gain against the result, then each finding as fault, what allowed it, the change, and its\nlevel (impossible, easy, rule with a picture, check; S5-11, S5-27). A kind that comes back moves up a level (S5-28).\nThe gate refuses a report without its section (S5-38). -->\n`);
 write(`src/stories/${slug}/approvals.json`, '{}\n');
 console.log(`wrote ${wrote.length}: ${wrote.join(', ')}`);
 if (kept.length) console.log(`kept (exist already; --force to overwrite): ${kept.join(', ')}`);

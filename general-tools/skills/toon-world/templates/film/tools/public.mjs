@@ -12,3 +12,15 @@ export function storyPublic(root) {
   if (!fs.existsSync(link)) fs.symlinkSync(path.join(root, 'public', slug), link);
   return dir;
 }
+
+// Tool timings for speed work: each tool appends one line a step to out/<slug>/tool-times.jsonl, the bundle timed on
+// its own ({ tool, step, seconds, at }; step is bundle, stills, render, audit, look or gate).
+// `production_log.py tooltime out/<slug>/tool-times.jsonl --since <round start>` sums them per tool and step.
+export function toolTime(root, tool, step, since) {
+  try {
+    const dir = path.join(root, 'out', slug);
+    fs.mkdirSync(dir, { recursive: true });
+    const row = { tool, step, seconds: Math.round((Date.now() - since) / 100) / 10, at: new Date().toISOString() };
+    fs.appendFileSync(path.join(dir, 'tool-times.jsonl'), JSON.stringify(row) + '\n');
+  } catch { /* a timing never stops a tool */ }
+}

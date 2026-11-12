@@ -2,12 +2,14 @@
 """How long each step of making a video takes, kept as data (Vincent, 9 November 2026: "keep data ... it would be
 very interesting to see it").
 
-    python3 production_log.py add <log> --story S --stage STAGE --step "what was done" [--round N]
+    python3 production_log.py add <log> --story S --stage STAGE --step "what was done" [--cycle C] [--round N|render]
                                   [--by "opus agent"] [--minutes M] [--tokens T] [--at ISO] [--note "..."]
+                                  [--mode stills|render] [--file critic-C-R.md] [--score X --areas ... --judge J]
     python3 production_log.py report <log> [--story S]
     python3 production_log.py rounds <log> [--story S]
     python3 production_log.py profile <log> --story S --channel C --look L --methods m1,m2 [--note "..."]
     python3 production_log.py areas <log>
+    python3 production_log.py tooltime out/<slug>/tool-times.jsonl [--since ISO]
     python3 production_log.py audience <log> --story S --days 7 --viewed 0.62 --avg-viewed 0.78 [--views N]
                                        [--dips 9.5,38,61] [--url U]
 
@@ -28,10 +30,21 @@ A critique row can carry --areas world=3.5,camera=3.2,... (each area's average, 
 those that do not, so the weakest area and the method behind it show up after a few videos.
 
 A critique row carries --score (the critic's average, 1-5; rows logged before 11 November 2026 were 0-3 and carry no
-`scale`, so `rounds` shows them times 5/3). `rounds` lists each story's critiques in order with the
-score, the change from the round before, and the agent hours and calendar hours spent up to that point, so the cost of
-each step up is plain, and ends with the count of rounds against the aim of three (toon-video "Three rounds, not
-seven").
+`scale`, so `rounds` shows them times 5/3), --mode (stills: a critic round on the beat board; render: the render
+critic), --cycle and --round, and --file, the critic report's name (critic-<cycle>-<round>.md or
+critic-<cycle>-render.md): the story's tools/gate.mjs matches each report in out/<slug>/ to its row by that name and
+refuses without one. A fix row carries the --cycle and --round of the critique it fixes (--round render after a render
+critic); the gate refuses a fixed round with no fix row. Rows from before 12 November 2026 carry no mode: a step or
+note that says "render" reads as render mode, the rest as stills. `rounds` lists each story's critiques in order with
+the cycle, round and mode, the score, the change from the last score of the same mode (a render score is never read as
+a drop from a stills score), and the agent hours and calendar hours spent up to that point, so the cost of each step up
+is plain, and ends with the count of rounds against the aim of three from the first cut to the owner's yes.
+
+--at takes an ISO time; one without a time zone is read in this machine's zone.
+
+`tooltime` sums the tool timings the story's tools write to out/<slug>/tool-times.jsonl (one line a step: tool,
+step, seconds, at; the bundle is its own step): the total seconds and the count per tool and step, from --since on.
+A fix round's log row carries that summary in --note, so the speed work can see where the round's minutes went.
 
 <log> is the project's docs/production-log.jsonl, one JSON line per step. Stages:
   study     studying a reference video          script    choosing the story, writing the script
@@ -45,19 +58,63 @@ seven").
 `report` sums each story by stage (runs, minutes, tokens), says how long the story took from its first step to its
 last (calendar time, with the overnight wait in it), and averages each stage across stories.
 """
-import argparse, json, sys
+import argparse, json, re, sys
 from collections import defaultdict
 from datetime import datetime, timezone
 
 STAGES = ['study', 'script', 'voice', 'plan', 'world', 'people', 'camera', 'build', 'render', 'critique', 'fix',
           'spike', 'review', 'other', 'profile', 'audience']
 METHODS = ['picture-backdrop', 'picture-to-3d', 'code-3d', 'painted-texture', 'drawn-2d', 'bean-cards', 'clay-3d', 'ai-video']
-AREAS = ['world', 'camera', 'people', 'light', 'story', 'sound']
+AREAS = ['world', 'camera', 'people', 'light', 'story', 'sound', 'motion']
+MODES = ['stills', 'render']
+
+
+def when(s):
+    """a stored time as an aware datetime; old rows were written in UTC"""
+    d = datetime.fromisoformat(s)
+    return d if d.tzinfo else d.replace(tzinfo=timezone.utc)
+
+
+def stamp(at):
+    """the time a row is stamped with: now in UTC, or --at, read in this machine's zone when it names none"""
+    if not at:
+        return datetime.now(timezone.utc).isoformat(timespec='minutes')
+    try:
+        d = datetime.fromisoformat(at)
+    except ValueError:
+        sys.exit(f'--at {at!r} is not an ISO time (2026-11-12T14:05 or 2026-11-12T14:05+03:00)')
+    return (d if d.tzinfo else d.astimezone()).isoformat(timespec='minutes')
+
+
+def round_arg(v):
+    if v == 'render':
+        return v
+    try:
+        return int(v)
+    except ValueError:
+        raise argparse.ArgumentTypeError('a round is a number, or "render" for the render critic')
+
+
+def mode_of(r):
+    """a critique's mode; rows from before --mode say "render" in their step or note when they were the render critic"""
+    if r.get('mode'):
+        return r['mode']
+    return 'render' if re.search(r'\brender\b', f"{r.get('step', '')} {r.get('note', '')}", re.I) else 'stills'
 
 
 def add(a):
-    row = {'at': a.at or datetime.now(timezone.utc).isoformat(timespec='minutes'), 'story': a.story, 'stage': a.stage,
-           'round': a.round, 'step': a.step, 'by': a.by, 'minutes': a.minutes, 'tokens': a.tokens}
+    row = {'at': stamp(a.at), 'story': a.story, 'stage': a.stage}
+    if a.cycle is not None:
+        row['cycle'] = a.cycle
+    row.update({'round': a.round, 'step': a.step, 'by': a.by, 'minutes': a.minutes, 'tokens': a.tokens})
+    if a.mode:
+        if a.stage != 'critique': sys.exit('--mode is for critique rows')
+        row['mode'] = a.mode
+    if a.file:
+        row['file'] = a.file.split('/')[-1]
+    if a.stage == 'critique' and not a.mode:
+        print('note: a critique row wants --mode stills|render and --file <critic report>; the gate matches on --file',
+              file=sys.stderr)
     if a.score is not None:
         row['score'] = a.score
         row['scale'] = 5
@@ -87,9 +144,9 @@ def report(a):
         by_story[r['story']].append(r)
     stage_all = defaultdict(lambda: [0, 0.0, 0])
     for story, rs in by_story.items():
-        rs.sort(key=lambda r: r['at'])
+        rs.sort(key=lambda r: when(r['at']))
         first, last = rs[0]['at'], rs[-1]['at']
-        span = (datetime.fromisoformat(last) - datetime.fromisoformat(first)).total_seconds() / 3600
+        span = (when(last) - when(first)).total_seconds() / 3600
         mins = sum(r.get('minutes') or 0 for r in rs)
         toks = sum(r.get('tokens') or 0 for r in rs)
         print(f'\n## {story}: {len(rs)} steps, {mins / 60:.1f} h of work, {fmt_t(toks)} tokens, '
@@ -114,26 +171,34 @@ def report(a):
 
 
 def rounds(a):
-    rows = sorted((json.loads(l) for l in open(a.log) if l.strip()), key=lambda r: r['at'])
+    rows = sorted((json.loads(l) for l in open(a.log) if l.strip()), key=lambda r: when(r['at']))
     stories = [a.story] if a.story else sorted({r['story'] for r in rows if r['stage'] == 'critique' and 'score' in r})
     for story in stories:
         rs = [r for r in rows if r['story'] == story]
         if not rs:
             continue
-        t0, mins, prev = datetime.fromisoformat(rs[0]['at']), 0.0, None
+        t0, mins, prev = when(rs[0]['at']), 0.0, {}
         print(f'\n## {story}')
-        print(f'{"critique":>8s} {"score":>5s} {"gain":>6s} {"agent h":>7s} {"calendar h":>10s}  at')
-        n = 0
+        print(f'{"critique":>8s} {"cycle":>5s} {"round":>6s} {"mode":>6s} {"score":>5s} {"gain":>6s} {"agent h":>7s} '
+              f'{"calendar h":>10s}  at                file')
+        n, by_mode = 0, defaultdict(int)
         for r in rs:
             mins += r.get('minutes') or 0
             if r['stage'] == 'critique' and 'score' in r:
                 n += 1
+                mode = mode_of(r)
+                by_mode[mode] += 1
                 sc = r['score'] * (5 / 3 if r.get('scale', 3) == 3 else 1)   # old rows were 0-3: shown out of 5
-                gain = '' if prev is None else f'{sc - prev:+.2f}'
-                cal = (datetime.fromisoformat(r['at']) - t0).total_seconds() / 3600
-                print(f'{n:8d} {sc:5.2f} {gain:>6s} {mins / 60:7.1f} {cal:10.1f}  {r["at"][:16]}')
-                prev = sc
-        print(f'{n} round(s) of critique; the aim is three'
+                # each gain against the last score of the same mode: a render score is not a drop from a stills score
+                gain = '' if mode not in prev else f'{sc - prev[mode]:+.2f}'
+                cal = (when(r['at']) - t0).total_seconds() / 3600
+                cyc = '' if r.get('cycle') is None else str(r['cycle'])
+                rnd = '' if r.get('round') is None else str(r['round'])
+                print(f'{n:8d} {cyc:>5s} {rnd:>6s} {mode:>6s} {sc:5.2f} {gain:>6s} {mins / 60:7.1f} {cal:10.1f}  '
+                      f'{r["at"][:16]}  {r.get("file", "")}')
+                prev[mode] = sc
+        split = ', '.join(f'{by_mode[m]} on {"the beat board" if m == "stills" else "the render"}' for m in MODES if by_mode[m])
+        print(f'{n} round(s) of critique ({split}); the aim is three from the first cut to the owner\'s yes'
               + ('' if n <= 3 else f', {n - 3} over: read the findings for what came back, and why each extra round was needed'))
 
 
@@ -141,7 +206,7 @@ def profile(a):
     methods = [m for m in a.methods.split(',') if m]
     bad = [m for m in methods if m not in METHODS]
     if bad: sys.exit(f'unknown method(s) {bad}; use {METHODS}')
-    row = {'at': a.at or datetime.now(timezone.utc).isoformat(timespec='minutes'), 'story': a.story, 'stage': 'profile',
+    row = {'at': stamp(a.at), 'story': a.story, 'stage': 'profile',
            'step': 'what kind of video', 'channel': a.channel, 'look': a.look, 'methods': methods}
     if a.note: row['note'] = a.note
     with open(a.log, 'a') as f:
@@ -150,7 +215,7 @@ def profile(a):
 
 
 def audience(a):
-    row = {'at': a.at or datetime.now(timezone.utc).isoformat(timespec='minutes'), 'story': a.story, 'stage': 'audience',
+    row = {'at': stamp(a.at), 'story': a.story, 'stage': 'audience',
            'step': f'audience after {a.days} days', 'days': a.days, 'viewed': a.viewed, 'avgViewed': a.avg_viewed}
     if a.views is not None: row['views'] = a.views
     if a.dips: row['dips'] = [float(x) for x in a.dips.split(',') if x]
@@ -174,7 +239,7 @@ def per_second(path):
 
 
 def areas(a):
-    rows = sorted((json.loads(l) for l in open(a.log) if l.strip()), key=lambda r: r['at'])
+    rows = sorted((json.loads(l) for l in open(a.log) if l.strip()), key=lambda r: when(r['at']))
     prof = {r['story']: r for r in rows if r['stage'] == 'profile'}
     last = {}
     for r in rows:
@@ -207,16 +272,46 @@ def areas(a):
         if wo: print(f'{"  without":18s} {len(wo):5d} ' + ' '.join(f'{mean([x[k] for x in wo if k in x]):6.2f}' for k in AREAS))
 
 
+def tooltime(a):
+    since = None
+    if a.since:
+        since = datetime.fromisoformat(a.since)
+        since = since if since.tzinfo else since.astimezone()
+    rows = []
+    for l in open(a.file):
+        if not l.strip():
+            continue
+        r = json.loads(l)
+        if since is None or when(r['at']) >= since:
+            rows.append(r)
+    if not rows:
+        print('no tool timings' + (f' since {a.since}' if a.since else '')); return
+    agg = defaultdict(lambda: [0, 0.0])
+    for r in rows:
+        g = agg[(r['tool'], r['step'])]
+        g[0] += 1; g[1] += r.get('seconds') or 0
+    total = sum(g[1] for g in agg.values())
+    first, last = min(r['at'] for r in rows), max(r['at'] for r in rows)
+    print(f'{len(rows)} timings, {total / 60:.1f} min in all ({first[:16]} to {last[:16]})')
+    print(f'{"tool":8s} {"step":8s} {"runs":>4s} {"seconds":>8s} {"each":>6s} {"share":>6s}')
+    for (tool, step), (n, s) in sorted(agg.items(), key=lambda kv: -kv[1][1]):
+        print(f'{tool:8s} {step:8s} {n:4d} {s:8.0f} {s / n:6.1f} {s / total if total else 0:6.0%}')
+    bundles = sum(s for (t, st), (n, s) in agg.items() if st == 'bundle')
+    print('note: ' + '; '.join(f'{t} {st} x{n} {s / 60:.1f} min' for (t, st), (n, s) in sorted(agg.items(), key=lambda kv: -kv[1][1]))
+          + f'; bundles {bundles / 60:.1f} min of {total / 60:.1f}')
+
+
 def main():
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest='cmd', required=True)
     pa = sub.add_parser('add')
     pa.add_argument('log'); pa.add_argument('--story', required=True)
     pa.add_argument('--stage', required=True, choices=STAGES); pa.add_argument('--step', required=True)
-    pa.add_argument('--round', type=int); pa.add_argument('--by', default='coordinator')
+    pa.add_argument('--cycle', type=int); pa.add_argument('--round', type=round_arg); pa.add_argument('--by', default='coordinator')
     pa.add_argument('--minutes', type=float); pa.add_argument('--tokens', type=int)
     pa.add_argument('--at'); pa.add_argument('--note'); pa.add_argument('--score', type=float)
     pa.add_argument('--areas'); pa.add_argument('--judge')
+    pa.add_argument('--mode', choices=MODES); pa.add_argument('--file')
     pr = sub.add_parser('report')
     pr.add_argument('log'); pr.add_argument('--story')
     pd = sub.add_parser('rounds')
@@ -230,8 +325,10 @@ def main():
     pu.add_argument('log'); pu.add_argument('--story', required=True); pu.add_argument('--days', type=int, default=7)
     pu.add_argument('--viewed', type=float, required=True); pu.add_argument('--avg-viewed', type=float, required=True)
     pu.add_argument('--views', type=int); pu.add_argument('--dips'); pu.add_argument('--url'); pu.add_argument('--at')
+    pt = sub.add_parser('tooltime')
+    pt.add_argument('file'); pt.add_argument('--since')
     a = p.parse_args()
-    {'add': add, 'report': report, 'rounds': rounds, 'profile': profile, 'areas': areas, 'audience': audience}[a.cmd](a)
+    {'tooltime': tooltime, 'add': add, 'report': report, 'rounds': rounds, 'profile': profile, 'areas': areas, 'audience': audience}[a.cmd](a)
 
 
 if __name__ == '__main__':
