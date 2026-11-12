@@ -3,6 +3,7 @@
 //   TMPDIR=$HOME/remotion-tmp/__SLUG__ node src/stories/__SLUG__/tools/render.mjs out.mp4 [concurrency] [scale] [from-to frames]
 //   stills: node render.mjs --stills out/dir t1,t2,...  [scale]   (one png per time in seconds)
 import path from 'node:path';
+import { storyPublic } from './public.mjs';
 import fs from 'node:fs';
 import { bundle } from '@remotion/bundler';
 import { renderMedia, renderStill, selectComposition } from '@remotion/renderer';
@@ -10,7 +11,7 @@ import { gate } from './gate.mjs';
 const root = path.resolve(import.meta.dirname, '../../../..');
 const args = process.argv.slice(2);
 const t0 = Date.now();
-const serveUrl = await bundle({ entryPoint: path.join(root, 'src/index.ts'), publicDir: path.join(root, 'public'), onProgress: () => {} });
+const serveUrl = await bundle({ entryPoint: path.join(root, 'src/index.ts'), publicDir: storyPublic(root), onProgress: () => {} });
 // FILM_DEBUG=clean renders without cards, papers and bubbles (thumbnail frames)
 const inputProps = { audio: '', debug: process.env.FILM_DEBUG ?? '' };
 const chromiumOptions = { gl: 'angle' };

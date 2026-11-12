@@ -361,6 +361,8 @@ must, never, always, every or only without an id.
 - **S4-17** Bible in Clay: run sight-check.mjs so nobody whose verses have them seeing is drawn blind. Proof: check sight-check.mjs. Why: closed eyes read as blind on a phone.
 
 ## S5 Cycle
+- **S5-33** A fix round takes the critic's top five items by gain; the rest go first on the next round's list. Two builders work at once, split by place, each owning its own files; one builder alone when a change spans both. Proof: file `out/<slug>/critic-<cycle>-<round>.md` (new). Why: on Elijah and the widow one builder fixing nine items took 64 minutes a round and landed about a third of the forecast; fixes kept making new faults (Vincent, 12 Nov 2026).
+- **S5-34** Tools bundle the film with the story's own public folder linked (`tools/public.mjs`), and a builder runs the full gate once, at the end of its round, with quick stills in between. Proof: check `grep storyPublic src/stories/<slug>/tools/*.mjs`. Why: bundle() copies its publicDir into every bundle: the project's 3.5 GB public made each bundle 23 s and 1 GB, against 5.5 s for the story's own folder (Elijah and the widow, 12 Nov 2026).
 - **S5-32** Stop when the render critic's score reaches 4.2, or rises under +0.1 from the last cycle's. Proof: check production_log.py rounds. Why: more rounds then buy little; the next story gains more.
 
 ### Critic rounds
@@ -398,7 +400,7 @@ must, never, always, every or only without an id.
 
 ### Fixing
 
-- **S5-24** A fix round fixes every item the critic lists, not only the top ten. Proof: file `out/<slug>/critic-<cycle>-<round>.md` (new). Why: left items came back in the next critique.
+- ~~**S5-24** A fix round fixes every item the critic lists, not only the top ten. Proof: file `out/<slug>/critic-<cycle>-<round>.md` (new). Why: left items came back in the next critique.~~ Replaced by S5-33.
 - **S5-25** Check each fix on a short full-size moving render of its stretch (about 2 s either side), with the measured checks. Proof: check `render.mjs --from --to`. Why: fixes judged on stills landed only partly.
 - **S5-26** Compare each fix with the last two cuts at the same seconds before committing it. Proof: check `stills.mjs: compare` (new). Why: one fix undid another's gain; the score stayed flat.
 - **S5-27** Sort each finding by what allowed it and fix at the strongest level: impossible, easy, rule with a picture, check. Proof: file `references/findings.md`. Why: a weak fix lets the fault come back.
