@@ -1,6 +1,8 @@
 // From the cartoon-3d-short skill, github.com/mromidev/claude-animated-shorts (commit e3b817b), MIT licence: see
 // LICENSE-cartoon-3d-short beside this file. Adapted for Bible in Clay's ancient jar test (an interior grade preset,
-// extra hats and props in toon.ts, our cast in cast.ts); lights.ts is unchanged from the original.
+// extra hats and props in toon.ts, our cast in cast.ts). The scene loop (November 2026) added options, each off by
+// default so an existing story renders the same: free poses, talk, secondary motion (toon.ts), the dusk place light
+// (lights.ts), its rims (cardshade.ts) and grade (grade.ts).
 // Colour grade for the bridge short (post agent): references/grade/GradeEffect.ts (reports/grade.md) verbatim,
 // plus GRADES / GRADE_STRENGTH / gradeFor() so the lead can re-fit the presets after the lighting merge.
 // The presets were fitted to the OLD unlit stills: after the WORLD lighting lands they will over-correct; re-fit
@@ -169,13 +171,22 @@ export const GRADE_GOLDEN2: GradeParams = {
   tintS: [0.02, 0.002], tintM: [0, 0], tintH: [-0.012, 0.006],
   vig: [0.2, 0.4],
 };
-export const GRADES: Record<"day" | "golden", GradeParams> = { day: GRADE_DAY2, golden: GRADE_GOLDEN2 };
+/** Dusk (cliff spike 5, which lifted world and light two points with every judge): more contrast and deep blacks, teal
+ *  shadows and warm highlights, so a warm subject sits on a cool field. */
+export const GRADE_DUSK: GradeParams = {
+  ky: [0, 0.075, 0.28, 0.63, 0.89, 0.978, 1],
+  sat: [1.0, 1.04, 0.96],
+  tintS: [0.014, -0.01], tintM: [-0.002, 0.004], tintH: [-0.016, 0.012],
+  vig: [0.34, 0.28],
+};
+export type GradeName = "day" | "golden" | "dusk";
+export const GRADES: Record<GradeName, GradeParams> = { day: GRADE_DAY2, golden: GRADE_GOLDEN2, dusk: GRADE_DUSK };
 /** One strength (0..1, the effect's `amount`) per preset, set against the NEW world (bridge_world, 2026-10-31): full-strength
  *  presets overshot (day median Y' .59-.67 vs target .571, golden .58 vs .52); day 0.65 / golden 0.45 land at
  *  .54-.62 / ~.52. Re-fit the presets (grade.md 5.C) after the merge and raise these again. */
-export const GRADE_STRENGTH: Record<"day" | "golden", number> = { day: 1, golden: 1 };
+export const GRADE_STRENGTH: Record<GradeName, number> = { day: 1, golden: 1, dusk: 1 };
 /** Apply the preset of a light to the effect (only touches uniforms when the light changes). */
-export function gradeFor(fx: GradeEffect, light: "day" | "golden") {
+export function gradeFor(fx: GradeEffect, light: GradeName) {
   const tag = fx as unknown as { _light?: string };
   if (tag._light !== light) { fx.set(GRADES[light]); tag._light = light; }
   fx.amount = GRADE_STRENGTH[light];

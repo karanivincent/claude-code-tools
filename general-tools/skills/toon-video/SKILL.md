@@ -1,6 +1,6 @@
 ---
 name: toon-video
-description: Makes short animated videos in a drawn 2D toon look - flat cartoon people drawn in code as cards inside 3D places, rendered with Remotion and Three.js, voiced and scored with ElevenLabs - for any subject, such as a story, an explainer, a product demo, a history piece, a kids' tale or a brand clip. Runs the whole order - script, voice and meaning sheet; cast, parts plan and animatic; the build; the gate; then cycles of critic rounds and one render each until the score reaches 4.2 - with the owner's approvals read from a review page. Use when asked for a "toon video", a "2D animated short", a "cartoon explainer", a "drawn video", to "make it in 2D", something "like Ricks Clips", or to "animate this story". For a Bible in Clay story in the toon look, use toon-story-video, which adds that channel's rules on top of this one; for places, the look and the people, load toon-world beside it.
+description: Makes short animated videos in a drawn 2D toon look - flat cartoon people drawn in code as cards inside 3D places, rendered with Remotion and Three.js, voiced and scored with ElevenLabs - for any subject, such as a story, an explainer, a product demo, a history piece, a kids' tale or a brand clip. Runs the whole order - script, voice and meaning sheet; cast, parts plan and animatic; then the film built as 5 to 10 second scenes, up to four at once, each in four passes (world and light, people, motion, sound) where three AI reviewers watch each round and a blind judge keeps or undoes it; then the scenes joined and shown to the owner - with the owner's approvals read from a review page. Use when asked for a "toon video", a "2D animated short", a "cartoon explainer", a "drawn video", to "make it in 2D", something "like Ricks Clips", or to "animate this story". For a Bible in Clay story in the toon look, use toon-story-video, which adds that channel's rules on top of this one; for places, the look and the people, load toon-world beside it.
 ---
 
 # Toon video (2D cards in 3D places)
@@ -19,9 +19,9 @@ A project can add its own layer on top: Bible in Clay does, in `toon-story-video
 
 One word per idea, as in the register's Terms table: **still board** (stage 2 stills from the real parts),
 **animatic** (the still board on the voice), **beat board** (2 to 3 full-size stills per shot from the built film),
-**critic round** (a scored beat board with each scene's path to 5), **render** (the whole film at full size; 8 s or
-less is a fix check), **cycle** (three critic rounds, one render, owner notes, one render critic), **the blend**,
-**parts plan**, **detail layer**.
+**scene** (5 to 10 s, its own composition), **pass** (one area worked on a scene in rounds), **round** (up to five
+changes, a render, reviewers, a blind judge), **join card** (the shared frame at a cut between scenes), **render** (the
+joined film), **the blend**, **parts plan**, **detail layer**.
 
 ## Where the scripts are
 
@@ -66,24 +66,19 @@ rule-by-rule lines for each step. Do not retell a step in other words (S0-8, X-7
 - [ ] Still board with planner notes: out/<slug>/board/, stories/<slug>/board.md (S2-15, S2-16, S2-18..S2-20)
 - [ ] Animatic: out/<slug>/animatic.mp4 (S2-21)
 - [ ] Review page at stage "direction" and one "parts-<place>" per place; all approved (S2-30, S2-22, S2-23)
-### Stage 3. Build
-- [ ] Places in the blend, light and look stack (S3-1..S3-54)
-- [ ] People, props and effects (S3-55..S3-80)
-- [ ] Shots and joins from the meaning sheet (S3-81..S3-133)
-- [ ] Acting, action and words on screen (S3-134..S3-151)
-- [ ] Sound: pauses, music, mix with stems (S3-152..S3-165)
-### Stage 4. Audit                                  stop: the gate passes
-- [ ] Cold read: out/<slug>/coldread.json (S4-13..S4-15)
-- [ ] node src/stories/<slug>/tools/gate.mjs critic passes (S4-1..S4-12, S4-16)
-### Stage 5. Cycle <n>                              stop: score 4.2, or a cycle gains under +0.1
-- [ ] Each round logged as it ends: critique row with --file, fix row with --cycle and --round, findings section (S5-38)
-- [ ] Critic round 1, fixed: out/<slug>/critic-<n>-1.md (S5-1..S5-12, S5-25..S5-28, S5-33, S5-34, S5-37)
-- [ ] Critic round 2, fixed: out/<slug>/critic-<n>-2.md
-- [ ] Critic round 3, fixed: out/<slug>/critic-<n>-3.md
-- [ ] gate.mjs render passes; one render: out/<slug>/render-<n>.mp4 (S5-13..S5-19); log report and rounds beside it (S5-35)
-- [ ] Owner's render notes pulled from the review page (S5-20)
-- [ ] Render critic: out/<slug>/critic-<n>-render.md (S5-31)
-- [ ] Stop rule checked; next cycle starts from both sets of notes (S5-22, S5-32)
+### Stage 3. Set up the scenes
+- [ ] Scenes listed: stories/<slug>/scenes.md (S5-39)
+- [ ] Join cards: stories/<slug>/joins.json (S5-51)
+- [ ] Shared once: cast, the one mix, each place's world and light (S5-50, S3-152..S3-165)
+### Stage 4. Each scene, up to four at once         stop: each pass at 4, two rounds with no win, or six rounds
+- [ ] Rig check: out/<slug>/scenes/<scene>/poses.jpg (S5-54..S5-56)
+- [ ] Pass 1 world and light (S5-57..S5-62)
+- [ ] Pass 2 people and acting (S5-63..S5-66)
+- [ ] Pass 3 motion and staging (S5-67..S5-69)
+- [ ] Pass 4 sound (S5-70)
+### Stage 5. Join                                    stop: owner's notes taken into the scenes
+- [ ] Film joined; joins.sh clean; three judges against the last film (S5-52)
+- [ ] Render on the review page; notes sent to their scenes (S5-53)
 ### Stage 6. Hand-back                               stop: owner "Looks good"
 - [ ] Captions, package, hand-back checklist with numbers (S6-1..S6-4)
 - [ ] Times logged; lessons written; balance difference reported (S6-9..S6-11)
@@ -126,86 +121,56 @@ As in Start above. Proof is the branch base and the files `new-film.mjs` writes.
   place (its parts plan and stills). Wait for every Approve (S2-30, S2-22). He judges direction: colours, people,
   anything missing in the story; he does not review frame by frame (S0-13). Nothing is built before then (S2-23).
 
-### Stage 3. Build
+### Stage 3. Set up the scenes
 
-Build what the approved animatic shows (S3-1), as a team when the film is longer than a few seconds (X-4;
-`references/team-and-log.md`). Order of work:
+The film is built as scenes, not as one film (S5-39). Template and layout: `<toon-world>/templates/scene/README.md`
+and `<toon-world>/templates/film-scenes/README.md`; the loop scripts: `<toon-video>/scripts/loop/README.md`.
 
-1. Places in the blend with their detail layer, light and the look stack (S3-1..S3-54; `toon-world`).
-2. People, props and effects (S3-55..S3-80; `references/acting.md`).
-3. Shots by subject from the meaning sheet's must-see entries (S3-83), timed on words, and joins from the stack with a
-   reason each (S3-81..S3-133; `references/camera.md`).
-4. Acting on every beat, action beats, words on screen and captions (S3-134..S3-151; `references/acting.md`).
-5. Sound: pauses settled, music in sections, the mix with voice and bed stems (S3-152..S3-165;
-   `references/voice-and-sound.md`). Run `node scripts/<slug>-sound.mjs`, then
-   `node <toon-video>/scripts/levels.mjs out/<slug>/voice.wav out/<slug>/bed.wav full.json`.
+1. Split the approved animatic into scenes of 5 to 10 s, cutting where the story changes place or beat. List them in
+   `stories/<slug>/scenes.md`: name, seconds, place, the meaning-sheet beats it holds, and at most three shots per 5 s
+   (S5-39).
+2. Write a join card for each cut between scenes in `stories/<slug>/joins.json` (S5-51).
+3. Do the shared parts once (S5-50): the cast in `src/stories/<slug>/cast.ts`, the one mix (S3-152..S3-165;
+   `references/voice-and-sound.md`), and each place's world-and-light pass in `src/stories/<slug>/places/<place>.ts`,
+   run as pass 1 below on that place's first scene.
 
-While building, check moving stretches with short renders of 8 s or less (S5-25), not the whole film.
+### Stage 4. Build each scene in passes
 
-### Stage 4. Audit
+Run up to four scenes at once, one builder each (S5-49). Say the cost before starting them (X-3): about 2 to 3 million
+tokens a scene. Each scene runs these passes in order (S5-40); `node <toon-video>/scripts/loop/step.mjs
+out/<slug>/scenes/<scene>` says what comes next and refuses when an input is missing (S5-48).
 
-Run the cold read first (S4-13..S4-15): one clean still per new place, prop, effect, material and face, read by a
-fresh cheap agent with `<toon-world>/references/cold-read-brief.md`; save the answers to `out/<slug>/coldread.json`.
+| Pass | Works on | Rules |
+|---|---|---|
+| Rig check | A pose sheet of every pose and prop the scene's words need | S5-54..S5-56 |
+| 1. World and light | The blend, the light, the sky seam, water | S5-57..S5-62; `toon-world` |
+| 2. People and acting | Faces per beat, others acting toward the hero, paths that clear | S5-63..S5-66; `references/acting.md` |
+| 3. Motion and staging | Camera speed, the fall, secondary motion, cuts | S5-67..S5-69; `references/camera.md` |
+| 4. Sound | Each effect heard at its cue, levels | S5-70 |
 
-Then the gate, as a loop:
+A round (S5-41), with the scene's loop folder as `$D` and the pass's round folder as `$R`:
 
-1. Run `node src/stories/<slug>/tools/gate.mjs critic`.
-2. Read what it names: each failure gives its check, the rule id and the frame or file.
-3. Fix that cause. Do not touch the gate, its thresholds or `approvals.json` (X-6).
-4. Run the gate again. Go on to stage 5 only when it passes (S4-1).
+1. The builder makes at most five changes, from `faults.md` and the judge's blame.
+2. Stills sheet of the changed seconds (`templates/scene/` README), looked at before any render.
+3. Render the scene (about 15 s), taking a render slot as the project says.
+4. `scripts/loop/jumps.sh` and, in the sound pass, `scripts/loop/audible.py` for the two code facts (S5-47).
+5. `scripts/loop/look.sh $R/clip.mp4 $R --focus <area>`: three reviewers, writing `faults.md` (S5-47).
+6. `scripts/loop/abjudge.sh $D/best/clip.mp4 $R/clip.mp4 $R`: keep, revert or keep the credited parts (S5-42).
 
-The gate runs the acting and camera audit, the sound levels, the look checks, brightness and sharpness, and checks
-the files and approvals (S4-2..S4-11). What each check measures, its script and its rule are in
-`references/checks.md`.
+After a lost or tied round, skip step 5 next time (S5-46). The same top fault twice running means restaging that beat
+(S5-45). A pass stops at 4 on its area, two rounds in a row with no win, or six rounds (S5-43). Compare clips side by
+side within one judging (S5-44).
 
-### Stage 5. The cycle
+### Stage 5. Join and show the owner
 
-A cycle is three critic rounds on the frames, one render, the owner's notes, and one look by the critic at the
-render. Repeat cycles until the score is 4.2 or a cycle gains under +0.1 (S5-32). There is no cap on renders, and
-the owner sees each one (S5-13, S5-20).
-
-**a. Three critic rounds before the render** (S5-1..S5-12):
-
-1. Make the beat board: 2 to 3 full-size stills per shot at its action words
-   (`node src/stories/<slug>/tools/stills.mjs beat-jobs.json out/<slug>/beat-<n>-<round>`), plus the gate's report and
-   the meaning sheet (S5-7).
-2. Brief a fresh critic agent from `references/critic-brief.md`, pre-render mode. It scores each scene 1 to 5 in
-   world, people, light and story, and gives each scene its path to 5: what would take it there, each item with its
-   predicted gain, then a forecast (S5-2..S5-5). Faults come after the path (S5-3).
-3. The critic replies with its report as text; save it to `out/<slug>/critic-<n>-<round>.md` (S5-9). Log it at once:
-   `production_log.py add ... --stage critique --cycle <n> --round <round> --mode stills --file critic-<n>-<round>.md`
-   with `--score`, `--areas` and `--judge` (S5-12). From round 2 on, write its `## <n>-<round>` section in
-   `stories/<slug>/findings.md`: each prediction against the result, each finding with what allowed it, the change
-   and its level (S5-11, S5-27). The gate refuses without them (S5-38).
-4. Fix the top five path items and faults by gain (S5-33), the rest first on the next list, at the strongest level
-   that fits (S5-27). Two builders at once, split by place, each owning its files. Check each fix on a short moving
-   render of its stretch (S5-25) and against the last two cuts (S5-26).
-5. End the round on one full-size frame of every shot, each asked whether the place could exist (S5-37):
-   `stills.mjs <a job a shot>.json out/<slug>/fix-<n>-<round> 1`. Log the fix row with `--cycle <n> --round <round>`
-   and the round's `production_log.py tooltime` line in `--note`. Run the gate once (`gate.mjs critic`) and fix until it passes (S5-34).
-6. Repeat for rounds 2 and 3. Rounds 2 and 3 re-score what changed and compare each prediction with the
-   result (S5-10, S5-11). The aim is three rounds from the first cut to the owner's yes; `rounds` counts them (S5-36).
-
-**b. One render** (S5-13..S5-19). Run `node src/stories/<slug>/tools/gate.mjs render`; when it passes, render with
-`node src/stories/<slug>/tools/render.mjs out/<slug>/render-<n>.mp4`, mux the mix, and run the render checks in
-`references/checks.md` (`frame_motion.py`, `short_qa.py`, `pace.py`). Save `production_log.py report` and `rounds` for
-the story to `out/<slug>/log-<n>.txt`; it goes on the review page with the render (S5-35).
-
-**c. The owner's notes** (S5-20). Publish the render on the review page at stage `render-<n>` and wait for his
-notes. Pull them (see Approvals). His notes lead the next cycle.
-
-**d. The render critic, once** (S5-31). With his notes in, brief a critic in render mode
-(`references/critic-brief.md`): the four areas on the moving film plus motion and sound (pops, swings, sync,
-levels); its film score is the cycle's score. Save its report to
-`out/<slug>/critic-<n>-render.md`, log it with `--mode render --round render --file critic-<n>-render.md`, and write
-its `## <n>-render` findings section (S5-38).
-
-**e. The stop rule** (S5-32). Stop when the render critic's score is 4.2 or more, or when it rose by under
-+0.1 over the last cycle's. Otherwise start the next cycle from his notes and the render critic's (S5-22): build, run the
-gate, then critic round 1 again.
-
-Why the path to 5 leads: on Elijah and the widow, fixing the fault list alone moved the beat board from 2.78 to 3.06
-over three rounds (S5-2). A fault list lifts a 2 to a 3; the path says what makes a scene a 4 or a 5.
+1. Render the Film composition, which plays the scenes in order over the one mix (S5-52).
+2. `node src/stories/<slug>/tools/join-times.mjs > out/<slug>/join-times.json`, then `scripts/loop/joins.sh <film>
+   out/<slug>/join-times.json out/<slug>/film-<n>/joins` over the joins (S5-52); a bad join goes back to the scene that owns its
+   card (S5-51).
+3. `scripts/loop/abjudge.sh <last film> <new film> out/<slug>/film-<n> --judges 3` against the last film the owner saw
+   (S5-52), plus `short_qa.py`, `brightness` and `levels.mjs` on the full film (S5-18, S4-8, S4-4).
+4. Publish it on the review page at stage `render-<n>` (S5-53). Each of his notes goes to the scene it names and runs
+   as a round there, then the film is joined again.
 
 ### Stage 6. Hand-back
 
@@ -217,7 +182,7 @@ week, log the audience numbers (S6-12, S6-13).
 
 ## Approvals
 
-The owner's yes is his click on a review page; the gate reads it from `src/stories/<slug>/approvals.json` (S0-14).
+The owner's yes is his click on a review page; `step.mjs` reads it from `src/stories/<slug>/approvals.json` (S0-14, S5-48).
 Agents read the page's store and copy it; they never create or change an approval row (S0-14, X-6).
 
 **Publish the page.** One review page per story, republished at each stage, so one store holds each approval.
@@ -239,7 +204,7 @@ Agents read the page's store and copy it; they never create or change an approva
    copy of the store; do not add, edit or infer a row.
 3. For notes, `list` collection `notes` (rows `notes/<stage>-<ms>` with `{ stage, text, at }`) and write them
    unchanged to `src/stories/<slug>/notes.json` as `{ "<id>": { ...row } }`. Close each in `stories/<slug>/lessons.md`
-   as `<id>: story-only` or `<id>: <rule id>` (S6-15); the gate refuses while a note is open.
+   as `<id>: story-only` or `<id>: <rule id>` (S6-15).
 
 Silence is not a yes at stages 1 and 2 (S0-15). A finished Short at its posting deadline follows the project's own
 rule.
@@ -247,8 +212,8 @@ rule.
 ## The dynamics profile
 
 Each video keeps the same backbone (hook and loop, meaning sheet, the blend, one cast style, captions, the mix, the
-owner's stages, the gate) and picks its own dynamics in `profile.md` at stage 1 (S1-23). The gate's pace and hold
-checks read the profile (S4-9).
+owner's stages, the scene loop) and picks its own dynamics in `profile.md` at stage 1 (S1-23). The reviewers' pace and hold
+checks read the profile (S1-23).
 
 | Dial | Range seen in the studies | Pick by |
 |---|---|---|
@@ -266,13 +231,13 @@ needs.
 
 The register grows from every story: a lesson that stays a sentence in a chat is lost (X-12, S6-15).
 
-1. At each owner note and each critic finding, write a line in `stories/<slug>/lessons.md` (S6-15): `story-only` (a fix for
+1. At each owner note and each judge's or reviewer's finding, write a line in `stories/<slug>/lessons.md` (S6-15): `story-only` (a fix for
    this video) or the rule id it became.
 2. A finding true of any video becomes a rule. Run
    `node scripts/add_rule.mjs --stage <S0-S6|X> [--section "<name>"] --text "<one sentence>" --proof "<check|file|owner ...>" --why "<reason>" --source "<story, whose note>"`.
    It picks the next id, refuses a rule with no proof or reason, refuses a near-duplicate (change that rule with
    `--replaces <id>`, or say how it differs with `--differs <id> "<how>"`), and logs it in `references/rules-log.md`.
-3. Prefer a check over a critic proof: if a script could see the fault, name it and mark it `(new)`, then build it in
+3. Prefer a check over a reviewer proof: if a script could see the fault, name it and mark it `(new)`, then build it in
    the same PR. `node scripts/add_rule.mjs --unbuilt` lists the checks still waiting.
 4. Cite the new id where the skill mentions it, run `node scripts/lint_rules.mjs <skills-root>`, and ship it by PR
    to the skills repo the same day. The next story's checklist is built from the register, so it carries the rule.
@@ -289,11 +254,12 @@ Read each when its stage comes up; none links on to another.
 | `references/voice-and-sound.md` | Stage 1 narrator and voicing; stage 3 music and the mix |
 | `references/team-and-log.md` | Stage 3 when briefing agents (with the place agent brief), and for logging times and tool gotchas |
 | `references/checks.md` | Stage 4 and 5: each measured check, its script, its aim and its rule id |
-| `references/critic-brief.md` | Stage 5: brief each critic from it (S5-2) |
+| `references/reviewer-brief.md` | Stage 4: the brief `look.sh` gives the three reviewers (S5-41) |
+| `references/judge-brief.md` | Stages 4 and 5: the blind judge's brief for `abjudge.sh` (S5-44) |
 | `references/playbook.md` | Stage 1 and 2: techniques from studied videos, for the profile and the plan |
-| `references/findings.md` | After a critic round: past faults and the level each was fixed at (S5-27, S5-28) |
+| `references/findings.md` | After a round: past faults and the level each was fixed at (S5-27, S5-28) |
 | `references/why.md` | When asked why a rule exists, or for old patterns you meet in an older story |
 | `templates/review/index.html` | Stages 1, 2 and 5c: the review page with the owner's Approve button |
 
-Scripts in `scripts/`: run `pitch.mjs`, `levels.mjs`, `animatic.py` and `production_log.py` as shown above; `lint_rules.mjs`
+The scene loop's scripts sit in `scripts/loop/` (its README lists them). Scripts in `scripts/`: run `pitch.mjs`, `levels.mjs`, `animatic.py` and `production_log.py` as shown above; `lint_rules.mjs`
 is run by whoever edits these skills (`node scripts/lint_rules.mjs <skills-root>`).

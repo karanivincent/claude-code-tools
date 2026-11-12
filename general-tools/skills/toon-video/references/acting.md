@@ -112,7 +112,7 @@ The film's composition takes an `audit` flag: on each frame it logs one sample (
 and feet projected to the frame, held props with their holder's hand) instead of drawing the look stack.
 `tools/audit.mjs` renders it tiny, one frame in three, and runs toon-kit `acting.ts` (`actingStills`, `actingTooSmall`,
 `checkFraming`, `checkHeld`, `checkCues`, `checkSync`, `checkOpening`, `checkCaptions`) with the story's cards, word
-times, picture events and sound cues. The gate runs it (S4-2); `references/checks.md` lists what each check fails on.
+times, picture events and sound cues. The reviewers get its frame facts (S5-47); `references/checks.md` lists what each check fails on.
 
 ## Pose and card gotchas
 

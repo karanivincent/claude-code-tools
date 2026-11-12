@@ -203,9 +203,10 @@ def rounds(a):
 
 
 def profile(a):
-    methods = [m for m in a.methods.split(',') if m]
+    # "code 3D", "Code_3d" and "code-3d" are one method (Elijah 2D wrote "code 3D" and was refused)
+    methods = [re.sub(r'[\s_]+', '-', m.strip().lower()) for m in a.methods.split(',') if m.strip()]
     bad = [m for m in methods if m not in METHODS]
-    if bad: sys.exit(f'unknown method(s) {bad}; use {METHODS}')
+    if bad: sys.exit(f'unknown method(s) {", ".join(bad)}; the accepted names are: {", ".join(METHODS)} (comma-separated, e.g. --methods code-3d,bean-cards)')
     row = {'at': stamp(a.at), 'story': a.story, 'stage': 'profile',
            'step': 'what kind of video', 'channel': a.channel, 'look': a.look, 'methods': methods}
     if a.note: row['note'] = a.note
@@ -318,7 +319,7 @@ def main():
     pd.add_argument('log'); pd.add_argument('--story')
     pp = sub.add_parser('profile')
     pp.add_argument('log'); pp.add_argument('--story', required=True); pp.add_argument('--channel', required=True)
-    pp.add_argument('--look', required=True); pp.add_argument('--methods', required=True); pp.add_argument('--at'); pp.add_argument('--note')
+    pp.add_argument('--look', required=True); pp.add_argument('--methods', required=True, help=f'comma-separated, any of: {", ".join(METHODS)}'); pp.add_argument('--at'); pp.add_argument('--note')
     pr2 = sub.add_parser('areas')
     pr2.add_argument('log'); pr2.add_argument('--scores')
     pu = sub.add_parser('audience')

@@ -13,7 +13,7 @@
 //              yes by button, read from the page's store; no agent writes it)
 //   audit.mjs  the acting and camera audit, exit 0 (every issue fails unless acknowledged)
 //   look.mjs   plain meshes, small textures, the detail layer, the flat share of every shot's still
-//   levels.mjs the voice over the bed (floor 10 dB, ceiling 24 dB) and no dead air over 0.6 s, on the stems beside
+//   levels.mjs the voice over the bed (floor 10 dB, ceiling 20 dB), no dead air over 0.6 s and no silent tail, on the stems beside
 //              STORY.audio (voice.wav and bed.wav)
 //   measure_sharp.py and measure_look.py on look.mjs's stills (out/<slug>/look/stills.mp4), against STORY.reference
 //              when set: sharpness, fine edges, saturation, brightness, luma and chroma inside their targets
