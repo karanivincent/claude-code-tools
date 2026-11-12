@@ -16,3 +16,7 @@ Every rule added or replaced, newest last. Written by `scripts/add_rule.mjs`; ne
 | 2026-11-11 | S2-30 | replaces S2-10 | toon evals 11 Nov 2026 (Haiku, Sonnet, Opus all asked) |
 | 2026-11-11 | S5-31 | replaces S5-21 | toon evals 11 Nov 2026 (Haiku, Sonnet, Opus all asked) |
 | 2026-11-11 | S5-32 | replaces S5-23 | toon evals 11 Nov 2026 (Haiku, Sonnet, Opus all asked) (Vincent's rule, 11 Nov 2026) |
+| 2026-11-12 | S5-35 | new | elijah-widow-2d: nothing logged 10-12 Nov until Vincent asked; lines lost in the 11 Nov rewrite (1fb0a56) |
+| 2026-11-12 | S5-36 | new | elijah-widow-2d: nothing logged 10-12 Nov until Vincent asked; lines lost in the 11 Nov rewrite (1fb0a56) |
+| 2026-11-12 | S5-37 | new, differs from S5-8: the builder at the end of each fix round, not the critic in its round | elijah-widow-2d: nothing logged 10-12 Nov until Vincent asked; lines lost in the 11 Nov rewrite (1fb0a56) |
+| 2026-11-12 | S5-38 | new | elijah-widow-2d: nothing logged 10-12 Nov until Vincent asked; lines lost in the 11 Nov rewrite (1fb0a56) |

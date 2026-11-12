@@ -87,8 +87,17 @@ python3 <toon-video>/scripts/production_log.py add docs/production-log.jsonl --s
 - Stages: study, script, voice, plan, world, people, camera, build, render, critique, fix, spike, review.
 - An agent's minutes and tokens are in its finish notice (`duration_ms`, `subagent_tokens`); a resumed agent reports
   its running total, so log what this run added. A render prints its minutes.
-- A critique row carries `--score`, `--areas world=..,camera=..,people=..,light=..,story=..,sound=..` and `--judge`
-  (S5-12).
+- A critique row carries `--cycle`, `--round` (`render` for the render critic), `--mode stills|render`, `--file`
+  (the report's name, `critic-<cycle>-<round>.md`), `--score`, `--areas world=..,camera=..,people=..,light=..,story=..,sound=..`
+  (`motion=..` too in render mode) and `--judge` (S5-12). `rounds` sets each score against the last of the same mode.
+- A fix row carries the `--cycle` and `--round` of the critique it fixes, and the round's tool timings in `--note`:
+  the `note:` line of `production_log.py tooltime out/<slug>/tool-times.jsonl --since <round start>`. The story's
+  tools (gate, stills, render, audit, look) each append one line a step to that file, the bundle timed on its own.
+- From round 2 on, and on each render, a critique gets its `## <cycle>-<round>` section in `stories/<slug>/findings.md`
+  (S5-11, S5-27, S5-38).
+- The gate refuses a report with no critique row, a fixed round with no fix row, or a missing findings section, and
+  prints the command to run (S5-38).
+- `--at` without a time zone is read in the machine's zone.
 - At the start, `production_log.py profile` records how the video is made (S0-11).
 
 Reports:
@@ -96,9 +105,12 @@ Reports:
 | Command | Shows |
 |---|---|
 | `production_log.py report <log>` | each story by stage, and each stage's average across stories |
-| `production_log.py rounds <log>` | each story's scores with the hours to reach each one (the stop rule reads it, S5-32) |
+| `production_log.py rounds <log>` | each story's scores by cycle, round and mode, with the hours to reach each one; counts rounds against the aim of three (S5-32, S5-36) |
+| `production_log.py tooltime <file>` | seconds and runs per tool and step from `out/<slug>/tool-times.jsonl`, `--since` a round's start |
 | `production_log.py areas <log>` | each story's weakest area, and each area's average with and without each method |
 | `production_log.py audience <log>` | a week after posting: viewed against swiped away, average viewed, retention dips (S6-12) |
+
+`report` and `rounds` go on the review page with each render (S5-35).
 
 Set the audience's dips against the critic's scores: a dip on a scene the critic scored 4 means the critic is wrong
 there. Change the critic's anchors when they disagree (S6-13).

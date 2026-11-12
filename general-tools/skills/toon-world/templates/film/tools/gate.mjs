@@ -17,10 +17,16 @@
 //              STORY.audio (voice.wav and bed.wav)
 //   measure_sharp.py and measure_look.py on look.mjs's stills (out/<slug>/look/stills.mp4), against STORY.reference
 //              when set: sharpness, fine edges, saturation, brightness, luma and chroma inside their targets
+//   the log    (rule S5-38) every critic report in out/<slug>/ (critic-<cycle>-<round>.md, critic-<cycle>-render.md) has
+//              its critique row in docs/production-log.jsonl, matched by --file; every report but the newest was
+//              followed by fixes, so it has a fix row with its --cycle and --round; every report from round 2 on, and
+//              every render report, has its "## <cycle>-<round>" section in stories/<slug>/findings.md
+// Times itself into out/<slug>/tool-times.jsonl (tool gate, step gate).
 // Exit 0 open, 2 refused. Writes out/<slug>/gate-<stage>.json.
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { toolTime } from './public.mjs';
 // The measure scripts need numpy and scipy; macOS's system Python refuses pip installs (PEP 668), so they live in one
 // shared venv: python3 -m venv ~/.cache/toon-tools/venv && ~/.cache/toon-tools/venv/bin/pip install numpy scipy
 const VENV = path.join(process.env.HOME ?? '', '.cache/toon-tools/venv/bin/python');
@@ -83,6 +89,72 @@ export function filesOf(root, slug, places) {
   return out;
 }
 
+/** the production log's script, from the newest toon-video in the plugin cache (rule S6-10) */
+function logScript() {
+  const cache = path.join(process.env.HOME ?? '', '.claude/plugins/cache/vince-tools-marketplace/general-tools');
+  const num = v => v.split('.').map(n => n.padStart(6, '0')).join('.');
+  try {
+    const v = fs.readdirSync(cache).filter(d => /^\d+\.\d+\.\d+$/.test(d)).sort((a, b) => num(a) < num(b) ? -1 : 1).pop();
+    const f = v && path.join(cache, v, 'skills/toon-video/scripts/production_log.py');
+    if (f && fs.existsSync(f)) return f;
+  } catch { /* no cache here */ }
+  return '<toon-video>/scripts/production_log.py';
+}
+
+/** the critic reports in out/<slug>/, in the order they were made: by cycle, then round, the render report last */
+export function reportsOf(root, slug) {
+  const dir = path.join(root, 'out', slug);
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir).map(f => f.match(/^critic-(\d+)-(\d+|render)\.md$/)).filter(Boolean)
+    .map(m => ({ file: m[0], cycle: Number(m[1]), round: m[2] === 'render' ? 'render' : Number(m[2]) }))
+    .sort((a, b) => a.cycle - b.cycle || (a.round === 'render' ? 1e9 : a.round) - (b.round === 'render' ? 1e9 : b.round));
+}
+
+/** the logging the cycle asks for (rule S5-38: S6-10, S5-11, S5-12, S5-27): a critique row for every critic report, a
+ *  fix row for every report that was fixed, a findings section for every report from round 2 on and every render */
+export function loggingOf(root, slug) {
+  const out = [], reports = reportsOf(root, slug);
+  if (!reports.length) return out;
+  const logF = path.join(root, 'docs', 'production-log.jsonl'), py = logScript();
+  let rows = [];
+  if (!fs.existsSync(logF)) out.push(`docs/production-log.jsonl: missing; every step is logged there with ${py} add (S6-10)`);
+  else fs.readFileSync(logF, 'utf8').split('\n').forEach((l, i) => {
+    if (!l.trim()) return;
+    try { rows.push(JSON.parse(l)); } catch { out.push(`docs/production-log.jsonl: line ${i + 1} is not JSON`); }
+  });
+  rows = rows.filter(r => r.story === slug);
+  const add = `python3 ${py} add docs/production-log.jsonl --story ${slug}`;
+  const logged = new Set(rows.filter(r => r.stage === 'critique' && r.file).map(r => path.basename(r.file)));
+  // a row logged before --file and --cycle existed: name it, so the fields go onto it rather than a second row
+  const isRender = x => (x.mode ?? (/\brender\b/i.test(`${x.step ?? ''} ${x.note ?? ''}`) ? 'render' : 'stills')) === 'render';
+  const unfiled = (r, stage) => rows.find(x => x.stage === stage && !x.file && (x.cycle == null || x.cycle === r.cycle) &&
+    (stage === 'fix' ? x.cycle == null && String(x.round) === String(r.round) : r.round === 'render' ? isRender(x) : !isRender(x) && x.round === r.round));
+  for (const r of reports) if (!logged.has(r.file)) {
+    const mode = r.round === 'render' ? 'render' : 'stills', old = unfiled(r, 'critique');
+    if (old) { out.push(`docs/production-log.jsonl: the critique row logged ${old.at} ("${old.step}") names no report: add "cycle": ${r.cycle}, "round": ${JSON.stringify(r.round)}, "mode": "${mode}", "file": "${r.file}" to that line`); continue; }
+    out.push(`docs/production-log.jsonl: no critique row for out/${slug}/${r.file}. Log it: ${add} --stage critique --cycle ${r.cycle} --round ${r.round} --mode ${mode} --file ${r.file} --step "cycle ${r.cycle} ${mode === 'render' ? 'render critic' : 'critic round ' + r.round}" --score <average> --areas world=..,camera=..,people=..,light=..,story=..,sound=..${mode === 'render' ? ',motion=..' : ''} --judge <critic model> --minutes <m> --tokens <t>`);
+  }
+  // every report but the newest was followed by a fix round
+  for (const r of reports.slice(0, -1)) {
+    if (rows.some(x => x.stage === 'fix' && x.cycle === r.cycle && String(x.round) === String(r.round))) continue;
+    const old = unfiled(r, 'fix');
+    if (old) { out.push(`docs/production-log.jsonl: the fix row logged ${old.at} ("${old.step}") for round ${r.round} has no cycle: add "cycle": ${r.cycle} to that line`); continue; }
+    out.push(`docs/production-log.jsonl: ${r.file} was fixed, but no fix row has cycle ${r.cycle} round ${r.round}. Log it: ${add} --stage fix --cycle ${r.cycle} --round ${r.round} --step "<what the round fixed>" --by <builders> --minutes <m> --tokens <t> --note "<production_log.py tooltime out/${slug}/tool-times.jsonl --since <round start>: its note line>"`);
+  }
+  // the findings, from round 2 on and on every render (S5-11, S5-27)
+  const fF = path.join(root, 'stories', slug, 'findings.md'), findings = fs.existsSync(fF) ? fs.readFileSync(fF, 'utf8') : null;
+  const format = 'each predicted gain against the result, then each finding as fault, what allowed it, the change and its level: impossible, easy, rule with a picture, check (S5-11, S5-27)';
+  const need = reports.filter(r => r.round === 'render' || r.round >= 2);
+  if (need.length && findings === null) out.push(`stories/${slug}/findings.md: missing. Write a "## <cycle>-<round>" section (## 1-2, ## 1-render) for every critic report from round 2 on and every render report: ${format}`);
+  else for (const r of need) {
+    const key = `${r.cycle}-${r.round}`, m = findings.match(new RegExp(`^##\\s+${key}[ \\t]*$([\\s\\S]*?)(?=^##\\s|(?![\\s\\S]))`, 'm'));
+    const body = m ? m[1].replace(/<!--[\s\S]*?-->/g, '').trim() : '';
+    if (!m) out.push(`stories/${slug}/findings.md: no "## ${key}" section for ${r.file}. Write it: ${format}`);
+    else if (body.length < 40) out.push(`stories/${slug}/findings.md: "## ${key}" is empty. Fill it: ${format}`);
+  }
+  return out;
+}
+
 const run = (cmd, args, cwd) => {
   const r = spawnSync(cmd, args, { cwd, encoding: 'utf8', maxBuffer: 1 << 28, env: { ...process.env } });
   return { code: r.status ?? (r.error ? 127 : 1), out: `${r.stdout ?? ''}${r.stderr ?? ''}${r.error ? r.error.message : ''}` };
@@ -94,9 +166,10 @@ export function gate(storyDir, stage, opts = {}) {
   if (!STAGES[stage]) throw new Error(`gate: stage must be ${Object.keys(STAGES).join(' or ')}, not "${stage}"`);
   storyDir = path.resolve(storyDir);
   const slug = path.basename(storyDir), root = path.resolve(storyDir, '../../..'), tools = path.join(storyDir, 'tools');
-  const refusals = [], log = m => opts.quiet || console.log(m);
+  const refusals = [], log = m => opts.quiet || console.log(m), t0 = Date.now();
   const places = placesOf(storyDir);
   refusals.push(...filesOf(root, slug, places));
+  refusals.push(...loggingOf(root, slug));
   for (const st of Object.keys(APPROVALS)) { const a = approvalOf(storyDir, st); if (!a.ok) refusals.push(`approval: ${a.why}`); }
   // each place's parts plan has its own Approve button (rule S2-10): stage "parts-<place>"
   for (const pl of places.filter(x => x !== 'example')) { const a = approvalOf(storyDir, `parts-${pl}`); if (!a.ok) refusals.push(`approval: ${a.why}`); }
@@ -141,6 +214,7 @@ export function gate(storyDir, stage, opts = {}) {
   const result = { stage, at: new Date().toISOString(), ok: !refusals.length, refusals };
   fs.mkdirSync(path.join(root, 'out', slug), { recursive: true });
   fs.writeFileSync(path.join(root, 'out', slug, `gate-${stage}.json`), JSON.stringify(result, null, 1));
+  toolTime(root, 'gate', 'gate', t0);
   if (refusals.length) {
     console.error(`gate ${stage} (${STAGES[stage]}): refused, ${refusals.filter(r => !r.startsWith(' ')).length} reason(s):`);
     for (const r of refusals) console.error(r.startsWith(' ') ? r : `  - ${r}`);
