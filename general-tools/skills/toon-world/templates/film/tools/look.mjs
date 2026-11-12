@@ -14,6 +14,7 @@
 //   TMPDIR=$HOME/remotion-tmp/__SLUG__ node src/stories/__SLUG__/tools/look.mjs [concurrency]
 //   node src/stories/__SLUG__/tools/look.mjs --flat a.png b.png ...   (the flat share of any pictures, no render)
 import path from 'node:path';
+import { storyPublic } from './public.mjs';
 import fs from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { plainMeshes, smallTextures, checkDetail, detailCount, flatShare, cardMask, FLAT, CAPTION_BAND, LOOK_CHECKS } from '../../../toon-kit/look.ts';
@@ -48,7 +49,7 @@ const conc = Math.min(5, Number(args[0] ?? 4)), t0 = Date.now();
 const outDir = path.join(root, 'out/__SLUG__'), lookDir = path.join(outDir, 'look');
 fs.rmSync(lookDir, { recursive: true, force: true }); fs.mkdirSync(lookDir, { recursive: true });
 let serveUrl;
-try { serveUrl = await bundle({ entryPoint: path.join(root, 'src/index.ts'), publicDir: path.join(root, 'public'), onProgress: () => {} }); }
+try { serveUrl = await bundle({ entryPoint: path.join(root, 'src/index.ts'), publicDir: storyPublic(root), onProgress: () => {} }); }
 catch (e) { console.error(`look: the bundle failed: ${e.message}`); process.exit(2); }
 const chromiumOptions = { gl: 'angle' };
 

@@ -11,6 +11,7 @@
 // Exit 0 clean, 1 an unacknowledged issue, 2 the audit could not run.
 //   TMPDIR=$HOME/remotion-tmp/__SLUG__ node src/stories/__SLUG__/tools/audit.mjs [concurrency]
 import path from 'node:path';
+import { storyPublic } from './public.mjs';
 import fs from 'node:fs';
 import { bundle } from '@remotion/bundler';
 import { renderMedia, selectComposition } from '@remotion/renderer';
@@ -23,7 +24,7 @@ const conc = Math.min(5, Number(process.argv[2] ?? 4)), t0 = Date.now();
 const outDir = path.join(root, 'out/__SLUG__');
 let serveUrl;
 try {
-  serveUrl = await bundle({ entryPoint: path.join(root, 'src/index.ts'), publicDir: path.join(root, 'public'), onProgress: () => {} });
+  serveUrl = await bundle({ entryPoint: path.join(root, 'src/index.ts'), publicDir: storyPublic(root), onProgress: () => {} });
 } catch (e) { console.error(`audit: the bundle failed: ${e.message}`); process.exit(2); }
 const inputProps = { audio: '', debug: 'audit nopost' }, chromiumOptions = { gl: 'angle' };
 const composition = await selectComposition({ serveUrl, id: '__FILM__', inputProps, chromiumOptions });

@@ -5,6 +5,7 @@
 // A job may name another composition ("id") and re-light a thumbnail still: { "name": "thumb", "id": "<Film>", "frame": 1398,
 //   "props": { "debug": "clean", "audio": "", "relight": { "key": 2.6, "pictures": 3, "fog": "#a0a0c4", "sky": ["#9a90e0", "#ffd08a"], "skyMix": 0.75, "light": {...} } } }
 import fs from 'node:fs';
+import { storyPublic } from './public.mjs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { bundle } from '@remotion/bundler';
@@ -16,7 +17,7 @@ if (!jobsFile || !outDir) { console.error('usage: node stills.mjs jobs.json outD
 const jobs = JSON.parse(fs.readFileSync(jobsFile, 'utf8')), scale = Number(scaleArg ?? 0.5), cols = Number(colsArg ?? 6);
 fs.mkdirSync(outDir, { recursive: true });
 const t0 = Date.now();
-const serveUrl = await bundle({ entryPoint: path.join(root, 'src/index.ts'), publicDir: path.join(root, 'public'), onProgress: () => {} });
+const serveUrl = await bundle({ entryPoint: path.join(root, 'src/index.ts'), publicDir: storyPublic(root), onProgress: () => {} });
 const browser = await openBrowser('chrome', { chromiumOptions: { gl: 'angle' } });
 const files = [];
 for (const j of jobs) {

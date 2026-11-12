@@ -20,7 +20,7 @@ segments, and replaces the stand-in cast. Needs TypeScript 5, `@react-three/post
 | `Film.tsx` | The film: one place canvas at a time, swings and reasoned cuts (no whips), overlays, audit config |
 | `overlays.tsx` | `Card` (with a label), `Paper` (typed lines), `Thought` (a bubble with a picture), `cuesOf` |
 | `detail.ts` | The detail layer: flies, smoke, a hanging cloth, birds, a light shaft with dust (tagged and ticked); sparkles, which do not count |
-| `tools/` | `gate.mjs` (critic and render gates: runs every check), `audit.mjs` (acting and camera audit), `look.mjs` (look checks), `render.mjs`, `stills.mjs` |
+| `tools/` | `gate.mjs` (critic and render gates: runs every check), `audit.mjs` (acting and camera audit), `look.mjs` (look checks), `render.mjs`, `stills.mjs`, `public.mjs` (bundles with the story's own public folder only) |
 
 ## What each default prevents
 

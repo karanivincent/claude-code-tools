@@ -76,7 +76,7 @@ rule-by-rule lines for each step. Do not retell a step in other words (S0-8, X-7
 - [ ] Cold read: out/<slug>/coldread.json (S4-13..S4-15)
 - [ ] node src/stories/<slug>/tools/gate.mjs critic passes (S4-1..S4-12, S4-16)
 ### Stage 5. Cycle <n>                              stop: score 4.2, or a cycle gains under +0.1
-- [ ] Critic round 1, fixed: out/<slug>/critic-<n>-1.md (S5-1..S5-12, S5-24..S5-28)
+- [ ] Critic round 1, fixed: out/<slug>/critic-<n>-1.md (S5-1..S5-12, S5-25..S5-28, S5-33, S5-34)
 - [ ] Critic round 2, fixed: out/<slug>/critic-<n>-2.md
 - [ ] Critic round 3, fixed: out/<slug>/critic-<n>-3.md
 - [ ] gate.mjs render passes; one render: out/<slug>/render-<n>.mp4 (S5-13..S5-19)
@@ -173,9 +173,10 @@ the owner sees each one (S5-13, S5-20).
    predicted gain, then a forecast (S5-2..S5-5). Faults come after the path (S5-3).
 3. The critic replies with its report as text; save it to `out/<slug>/critic-<n>-<round>.md` (S5-9). Log the scores
    (S5-12).
-4. Fix the path items and the faults, all of them (S5-24), at the strongest level that fits (S5-27); check each fix
-   on a short moving render of its stretch (S5-25) and against the last two cuts (S5-26).
-5. Run the gate again (`gate.mjs critic`) and fix until it passes.
+4. Fix the top five path items and faults by gain (S5-33), the rest first on the next list, at the strongest level
+   that fits (S5-27). Two builders at once, split by place, each owning its files. Check each fix on a short moving
+   render of its stretch (S5-25) and against the last two cuts (S5-26).
+5. Run the gate once, at the end of the round (`gate.mjs critic`), and fix until it passes (S5-34).
 6. Repeat for rounds 2 and 3. Rounds 2 and 3 re-score what changed and compare each prediction with the
    result (S5-10, S5-11).
 
