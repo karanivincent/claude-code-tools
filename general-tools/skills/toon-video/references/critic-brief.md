@@ -26,7 +26,7 @@ each scene's path to 5, each item with its predicted gain, and the faults come s
 | Mode | When | Input | Scores |
 |---|---|---|---|
 | Pre-render | Three times a cycle, before the render (S5-1) | The beat board: 2 to 3 full-size stills per shot at its action words (S5-7); the gate's report; the meaning sheet; the voice timeline; the owner's latest notes | Each scene 1 to 5 in world, people, light and story |
-| Render | Once a cycle, after the owner's notes on the render (S5-31) | The render; frames every 2.4 s; sheets at 2 a second; the stems and timeline | Motion and sound alone: pops, swings, sync, levels, holds |
+| Render | Once a cycle, after the owner's notes on the render (S5-31) | The render and `critic_prep.py`'s folder (S5-40): frames every 2.4 s, sheets at 2 a second, the motion table with spikes and cuts, each cue's effect against the voice; the stems and timeline | Motion and sound alone: pops, swings, sync, levels, holds |
 
 The pre-render critic also opens one full-size frame (1080 wide) of each shot and asks of each place whether it could
 exist (S5-8).
@@ -71,7 +71,13 @@ forecast.
 
 ## Render mode: what the critic returns
 
-Once a cycle, after the owner's notes (S5-31), on what stills cannot show:
+Once a cycle, after the owner's notes (S5-31), on what stills cannot show. Before the critic starts, the lead runs
+`python3 <toon-video>/scripts/critic_prep.py out/<slug>/render-<n>.mp4 out/<slug>/critic-prep-<n> --stems <dir of STORY.audio>`
+and hands the critic the folder (S5-40): `frames/` (one full-size frame every 2.4 s), `sheets/` (2 frames a second,
+each stamped with its time), `motion.txt` (motion_probe.py: one-frame spikes flagged as a camera jump or a pop inside
+the frame, the hard cuts, fast runs and still stretches), `cuts.txt`, and `sound.txt` (each cue's effect at its
+loudest 100 ms against the voice at the same moment and within 0.25 s, with UNDER, NEAR and FAINT flags). The critic
+starts from these and listens and looks where they point; it writes no scripts of its own for them.
 
 1. **Motion**: pops, one-frame snaps, swings and joins that jolt, holds longer than the profile's, people who freeze,
    each with its seconds.
@@ -97,5 +103,7 @@ Read: <toon-video>/references/critic-brief.md, the anchors in docs/critic-anchor
 the beat board in out/<slug>/beat-<n>-<round>/, the gate report out/<slug>/gate.txt, the meaning sheet
 stories/<slug>/meaning.md, the timeline src/stories/<slug>/full.json, the owner's notes out/<slug>/notes-*.md.
 <Rounds 2 and 3: the last report out/<slug>/critic-<n>-<round-1>.md and the changed shots: ...>
+<Render mode: the render out/<slug>/render-<n>.mp4 and its prep folder out/<slug>/critic-prep-<n>/ (README.txt says
+what each file is), the stems beside STORY.audio, cues.json.>
 Return your report as text in the order the brief gives. Do not write a file; the lead saves it.
 ```

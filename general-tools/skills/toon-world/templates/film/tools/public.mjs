@@ -9,7 +9,8 @@ export function storyPublic(root) {
   if (process.env.FULL_PUBLIC) return path.join(root, 'public');
   const dir = path.join(root, 'out', slug, 'pub'), link = path.join(dir, slug);
   fs.mkdirSync(dir, { recursive: true });
-  if (!fs.existsSync(link)) fs.symlinkSync(path.join(root, 'public', slug), link);
+  // the gate runs the audit and the look checks at once: both may make the link, so one finding it made is fine
+  if (!fs.existsSync(link)) try { fs.symlinkSync(path.join(root, 'public', slug), link); } catch (e) { if (e.code !== 'EEXIST') throw e; }
   return dir;
 }
 
@@ -23,4 +24,13 @@ export function toolTime(root, tool, step, since) {
     const row = { tool, step, seconds: Math.round((Date.now() - since) / 100) / 10, at: new Date().toISOString() };
     fs.appendFileSync(path.join(dir, 'tool-times.jsonl'), JSON.stringify(row) + '\n');
   } catch { /* a timing never stops a tool */ }
+}
+
+/** runs async jobs `n` at a time (several stills on one browser); resolves to their results in order */
+export async function pool(jobs, n) {
+  const out = new Array(jobs.length); let next = 0;
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(n, jobs.length)) }, async () => {
+    while (next < jobs.length) { const i = next++; out[i] = await jobs[i](); }
+  }));
+  return out;
 }

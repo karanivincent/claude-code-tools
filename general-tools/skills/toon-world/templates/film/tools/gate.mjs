@@ -12,7 +12,8 @@
 //              { "stage", "approved": true, "by": "page", "doc", "version", "at" } (decisions 3 and 11: an explicit
 //              yes by button, read from the page's store; no agent writes it)
 //   audit.mjs  the acting and camera audit, exit 0 (every issue fails unless acknowledged)
-//   look.mjs   plain meshes, small textures, the detail layer, the flat share of every shot's still
+//   look.mjs   plain meshes, small textures, the detail layer, the flat share of every shot's still (at the same time as
+//              the audit: rule S5-39)
 //   levels.mjs the voice over the bed (floor 10 dB, ceiling 24 dB) and no dead air over 0.6 s, on the stems beside
 //              STORY.audio (voice.wav and bed.wav)
 //   measure_sharp.py and measure_look.py on look.mjs's stills (out/<slug>/look/stills.mp4), against STORY.reference
@@ -25,7 +26,7 @@
 // Exit 0 open, 2 refused. Writes out/<slug>/gate-<stage>.json.
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { toolTime } from './public.mjs';
 // The measure scripts need numpy and scipy; macOS's system Python refuses pip installs (PEP 668), so they live in one
 // shared venv: python3 -m venv ~/.cache/toon-tools/venv && ~/.cache/toon-tools/venv/bin/pip install numpy scipy
@@ -155,14 +156,20 @@ export function loggingOf(root, slug) {
   return out;
 }
 
-const run = (cmd, args, cwd) => {
-  const r = spawnSync(cmd, args, { cwd, encoding: 'utf8', maxBuffer: 1 << 28, env: { ...process.env } });
-  return { code: r.status ?? (r.error ? 127 : 1), out: `${r.stdout ?? ''}${r.stderr ?? ''}${r.error ? r.error.message : ''}` };
-};
+/** runs a check as its own process; resolves to its exit code and everything it printed */
+const run = (cmd, args, cwd) => new Promise(done => {
+  let out = '', err = null;
+  const p = spawn(cmd, args, { cwd, env: { ...process.env } });
+  p.stdout.on('data', d => { out += d; }); p.stderr.on('data', d => { out += d; });
+  p.on('error', e => { err = e; });
+  p.on('close', code => done({ code: code ?? (err ? 127 : 1), out: out + (err ? err.message : '') }));
+});
 const tail = (s, n = 12) => s.trim().split('\n').filter(l => /SHORT|BURIED|DEAD|MISS|FLAT|^\d+\.\d+-|could not|error|failed|missing|No module|pip install/i.test(l)).slice(0, n).map(l => '      ' + l.trim());
 
-/** runs every check for the stage; returns { ok, refusals } and writes out/<slug>/gate-<stage>.json */
-export function gate(storyDir, stage, opts = {}) {
+/** runs every check for the stage; resolves to { ok, refusals } and writes out/<slug>/gate-<stage>.json. The audit and
+ *  the look checks run at the same time (rule S5-39: neither reads the other's output), the levels as soon as the audit
+ *  is done, the measures when the look checks are; the refusals come out in the same order as one after another. */
+export async function gate(storyDir, stage, opts = {}) {
   if (!STAGES[stage]) throw new Error(`gate: stage must be ${Object.keys(STAGES).join(' or ')}, not "${stage}"`);
   storyDir = path.resolve(storyDir);
   const slug = path.basename(storyDir), root = path.resolve(storyDir, '../../..'), tools = path.join(storyDir, 'tools');
@@ -174,24 +181,29 @@ export function gate(storyDir, stage, opts = {}) {
   // each place's parts plan has its own Approve button (rule S2-10): stage "parts-<place>"
   for (const pl of places.filter(x => x !== 'example')) { const a = approvalOf(storyDir, `parts-${pl}`); if (!a.ok) refusals.push(`approval: ${a.why}`); }
   const conc = String(opts.concurrency ?? 4);
-  log(`gate ${stage}: running the audit`);
-  const au = run(process.execPath, [path.join(tools, 'audit.mjs'), conc], root);
-  if (au.code !== 0) refusals.push(`audit.mjs: ${au.code === 1 ? 'open issues (out/' + slug + '/audit.txt)' : 'could not run'}`, ...tail(au.out));
-  log(`gate ${stage}: running the look checks`);
-  const lk = run(process.execPath, [path.join(tools, 'look.mjs'), conc], root);
-  if (lk.code !== 0) refusals.push(`look.mjs: ${lk.code === 1 ? 'open issues (out/' + slug + '/look.txt)' : 'could not run'}`, ...tail(lk.out));
-  // the story's sound settings, as the audit read them from STORY
+  log(`gate ${stage}: running the audit and the look checks`);
+  const lookRun = run(process.execPath, [path.join(tools, 'look.mjs'), conc], root);
+  const au = await run(process.execPath, [path.join(tools, 'audit.mjs'), conc], root);
+  log(`gate ${stage}: the audit is done${au.code === 0 ? '' : ` (exit ${au.code})`}`);
+  const auditRefusals = au.code !== 0 ? [`audit.mjs: ${au.code === 1 ? 'open issues (out/' + slug + '/audit.txt)' : 'could not run'}`, ...tail(au.out)] : [];
+  // the story's sound settings, as the audit read them from STORY; the levels run while the look checks go on
+  const soundRefusals = [];
   let story = {};
-  try { story = JSON.parse(fs.readFileSync(path.join(root, 'out', slug, 'audit.json'), 'utf8')).story ?? {}; } catch { refusals.push('audit.json: missing, so the sound stems and the reference are unknown'); }
+  try { story = JSON.parse(fs.readFileSync(path.join(root, 'out', slug, 'audit.json'), 'utf8')).story ?? {}; } catch { soundRefusals.push('audit.json: missing, so the sound stems and the reference are unknown'); }
   if (story.audio) {
     const dir = path.join(root, 'public', path.dirname(story.audio)), voice = path.join(dir, 'voice.wav'), bed = path.join(dir, 'bed.wav');
-    if (!fs.existsSync(voice) || !fs.existsSync(bed)) refusals.push(`levels: no voice.wav and bed.wav beside ${story.audio} (the sound script writes both stems)`);
+    if (!fs.existsSync(voice) || !fs.existsSync(bed)) soundRefusals.push(`levels: no voice.wav and bed.wav beside ${story.audio} (the sound script writes both stems)`);
     else {
       const pauses = (story.pauses ?? []).flatMap(([a, b]) => ['--pause', `${a}-${b}`]);
-      const lv = run(process.execPath, [path.join(tools, 'levels.mjs'), voice, bed, path.join(storyDir, 'full.json'), ...pauses], root);
-      if (lv.code !== 0) refusals.push(`levels.mjs: ${lv.code === 3 ? 'the mix fails' : 'could not run'}`, ...tail(lv.out));
+      const lv = await run(process.execPath, [path.join(tools, 'levels.mjs'), voice, bed, path.join(storyDir, 'full.json'), ...pauses], root);
+      if (lv.code !== 0) soundRefusals.push(`levels.mjs: ${lv.code === 3 ? 'the mix fails' : 'could not run'}`, ...tail(lv.out));
     }
   }
+  const lk = await lookRun;
+  log(`gate ${stage}: the look checks are done${lk.code === 0 ? '' : ` (exit ${lk.code})`}`);
+  refusals.push(...auditRefusals);
+  if (lk.code !== 0) refusals.push(`look.mjs: ${lk.code === 1 ? 'open issues (out/' + slug + '/look.txt)' : 'could not run'}`, ...tail(lk.out));
+  refusals.push(...soundRefusals);
   const stills = path.join(root, 'out', slug, 'look', 'stills.mp4'), py = process.env.TOON_PYTHON ?? (fs.existsSync(VENV) ? VENV : 'python3');
   if (!fs.existsSync(stills)) refusals.push(`measure: no out/${slug}/look/stills.mp4 (look.mjs makes it)`);
   else {
@@ -206,9 +218,8 @@ export function gate(storyDir, stage, opts = {}) {
       for (const l of misses.filter(x => !open.includes(x))) log(`gate ${stage}: passed (owner accepts: ${acks.get('measure-' + l.trim().split(/\s+/)[1])}): ${l.trim()}`);
       if (open.length || !misses.length) refusals.push(`${script}: outside the targets`, ...(open.length ? open.map(l => '      ' + l.trim()) : tail(out)));
     };
-    const sh = run(py, [path.join(tools, 'measure_sharp.py'), stills, ...ref], root);
+    const [sh, lo] = await Promise.all([run(py, [path.join(tools, 'measure_sharp.py'), stills, ...ref], root), run(py, [path.join(tools, 'measure_look.py'), stills], root)]);
     measure('measure_sharp.py', sh.out, sh.code);
-    const lo = run(py, [path.join(tools, 'measure_look.py'), stills], root);
     measure('measure_look.py', lo.out, lo.code);
   }
   const result = { stage, at: new Date().toISOString(), ok: !refusals.length, refusals };
@@ -226,5 +237,5 @@ export function gate(storyDir, stage, opts = {}) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const [stage, conc] = process.argv.slice(2);
   if (!STAGES[stage]) { console.error('usage: node gate.mjs critic|render [concurrency]'); process.exit(1); }
-  process.exit(gate(path.resolve(import.meta.dirname, '..'), stage, { concurrency: conc }).ok ? 0 : 2);
+  process.exit((await gate(path.resolve(import.meta.dirname, '..'), stage, { concurrency: conc })).ok ? 0 : 2);
 }

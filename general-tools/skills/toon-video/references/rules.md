@@ -411,6 +411,8 @@ must, never, always, every or only without an id.
 - **S5-30** Never put a look into the kit. Proof: check `critic: kit PR`. Why: a shared look makes videos alike.
 - **S5-37** Every fix round ends on one full-size frame of every shot, asked whether each place could exist. Proof: file out/<slug>/fix-<cycle>-<round>/ (new). Why: Fixes made new faults the next critic had to find.
 - **S5-38** The gate refuses a critic report without its critique row (--file), a fixed round without its fix row, or a later round without its findings section. Proof: check gate.mjs: loggingOf. Why: On Elijah nobody logged anything for two days.
+- **S5-39** The gate runs the audit and the look check at once, and the beat board and the fix round's frame of every shot reuse the look check's stills. Proof: check gate.mjs: audit and look in parallel; file out/<slug>/beat-<cycle>-<round>/beat.json. Why: On Elijah the gate took 560 s one check after another, and each round rendered a frame of every shot twice.
+- **S5-40** Builders check every join and acting change with ranges.mjs and motion_probe.py; the lead runs critic_prep.py before the render critic starts. Proof: file out/<slug>/critic-prep-<cycle>/README.txt; check ranges.mjs --probe. Why: On Elijah each builder and critic wrote its own range, probe and sound scripts every round.
 
 ## S6 Hand-back
 

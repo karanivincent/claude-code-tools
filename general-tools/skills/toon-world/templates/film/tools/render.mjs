@@ -32,7 +32,7 @@ if (args[0] === '--stills') {
   // the gate (toon-video "The order"): a render over 8 s waits until every check passes and the owner has approved the
   // story and the direction on the review page; a fix check of 8 s or less renders at once
   // (the gate times itself)
-  if ((f1 - f0 + 1) / composition.fps > 8 && !gate(path.resolve(import.meta.dirname, '..'), 'render').ok) { fs.rmSync(serveUrl, { recursive: true, force: true }); process.exit(2); }
+  if ((f1 - f0 + 1) / composition.fps > 8 && !(await gate(path.resolve(import.meta.dirname, '..'), 'render')).ok) { fs.rmSync(serveUrl, { recursive: true, force: true }); process.exit(2); }
   t1 = Date.now();
   let last = 0;
   await renderMedia({ composition, serveUrl, codec: 'h264', outputLocation: out, inputProps, concurrency: Math.min(5, Number(conc ?? 4)), muted: true, crf: 18,

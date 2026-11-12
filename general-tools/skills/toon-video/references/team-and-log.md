@@ -7,6 +7,7 @@ How to build with agents at stage 3, how to log each step, and the tool gotchas 
 
 - [Building as a team](#building-as-a-team)
 - [The place agent brief](#the-place-agent-brief)
+- [Quick checks for builders](#quick-checks-for-builders)
 - [Logging each step](#logging-each-step)
 - [A series](#a-series)
 - [Tool gotchas](#tool-gotchas)
@@ -68,12 +69,36 @@ vis; a salute's hand point; how a held 3D prop gets drawn fists.>
 
 ## Checking your work
 - The typecheck passes.
-- Take a render slot if the project uses them; render a short moving stretch of your shots at half size; look at 2
-  to 3 full-size stills at your action beats. Free the slot.
+- Take a render slot if the project uses them. For every join and acting change you made, run
+  `tools/ranges.mjs <dir> --ranges <a-b,...> --stills <action beats> --probe` (a short moving stretch at half size,
+  the motion probe on it, 2 to 3 full-size stills at your action beats; S5-40), and look at every SPIKE it names.
+  Free the slot.
 
 ## Report
 Per shot: what now moves, and what is still off. Under 400 words.
 ```
+
+## Quick checks for builders
+
+Builders check each join and acting change on a short moving render with the motion probe (S5-25, S5-40), before the
+round's gate. One command does a whole round's checks on one bundle:
+
+```
+TMPDIR=$HOME/remotion-tmp/<slug> node src/stories/<slug>/tools/ranges.mjs out/<slug>/check-<n>-<round> \
+  --ranges 12.4-15.0,30.1-33.0 --stills 13.1,31.2 --probe        # [--scale 0.5] [--still-scale 1] [--debug board]
+```
+
+- `--ranges` are seconds (`--frames` frame numbers), each 8 s or less: about 2 s either side of the join or action.
+  Each renders to `r<from>-<to>.mp4` at half size; `--stills` render full size, several at once, into `s<t>.png`
+  and `sheet.jpg`. The bundle is made once and deleted at the end.
+- `--probe` runs `<toon-video>/scripts/motion_probe.py` on each stretch, in film time, into `r<from>-<to>.motion.txt`:
+  a SPIKE is one frame jumping against its neighbours (a camera jump when the whole picture shifts, a pop inside the
+  frame when it does not); a CUT changes the picture outright. Exit 3 means a spike: look at it before handing back.
+- On any video: `python3 <toon-video>/scripts/motion_probe.py <video> [--from S --to S] [--offset S] [--json f]`
+  (the shared venv's python, which has numpy).
+- Take a render slot first where the project uses them.
+
+The place agent brief's "Checking your work" asks for these.
 
 ## Logging each step
 

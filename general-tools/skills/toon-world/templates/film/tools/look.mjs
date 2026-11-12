@@ -115,6 +115,8 @@ for (let i = 0; i < plan.length; i++) {
 await browser.close({ silent: true });
 fs.rmSync(serveUrl, { recursive: true, force: true });
 // the stills with the look stack as one short video, two a second, for measure_sharp.py and measure_look.py
+// which frame each post still is, so beat.mjs and the fix round's frame of every shot reuse it (rule S5-39)
+fs.writeFileSync(path.join(lookDir, 'stills.json'), JSON.stringify(flats.map((f, k) => ({ file: `post-${String(k).padStart(3, '0')}.png`, shot: f.shot, t: f.t, frame: Math.round(((plan[f.seg].a + plan[f.seg].b) / 2) * fps), debug: 'clean', scale: 1 })), null, 1));
 execFileSync('ffmpeg', ['-v', 'error', '-y', '-framerate', '2', '-i', path.join(lookDir, 'post-%03d.png'), '-vf', 'scale=1080:1920:flags=lanczos', '-c:v', 'libx264', '-crf', '12', '-pix_fmt', 'yuv420p', path.join(lookDir, 'stills.mp4')]);
 
 const { open, passed } = acknowledge(issues, (cfg.story?.acknowledged ?? []).filter(a => LOOK_CHECKS.has(a.check)));   // the audit judges the rest

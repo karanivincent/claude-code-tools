@@ -167,8 +167,8 @@ the owner sees each one (S5-13, S5-20).
 **a. Three critic rounds before the render** (S5-1..S5-12):
 
 1. Make the beat board: 2 to 3 full-size stills per shot at its action words
-   (`node src/stories/<slug>/tools/stills.mjs beat-jobs.json out/<slug>/beat-<n>-<round>`), plus the gate's report and
-   the meaning sheet (S5-7).
+   (`node src/stories/<slug>/tools/beat.mjs out/<slug>/beat-<n>-<round>`), plus the gate's report and the meaning
+   sheet (S5-7). It renders several stills at once and copies any frame the look check already rendered (S5-39).
 2. Brief a fresh critic agent from `references/critic-brief.md`, pre-render mode. It scores each scene 1 to 5 in
    world, people, light and story, and gives each scene its path to 5: what would take it there, each item with its
    predicted gain, then a forecast (S5-2..S5-5). Faults come after the path (S5-3).
@@ -179,10 +179,12 @@ the owner sees each one (S5-13, S5-20).
    and its level (S5-11, S5-27). The gate refuses without them (S5-38).
 4. Fix the top five path items and faults by gain (S5-33), the rest first on the next list, at the strongest level
    that fits (S5-27). Two builders at once, split by place, each owning its files. Check each fix on a short moving
-   render of its stretch (S5-25) and against the last two cuts (S5-26).
-5. End the round on one full-size frame of every shot, each asked whether the place could exist (S5-37):
-   `stills.mjs <a job a shot>.json out/<slug>/fix-<n>-<round> 1`. Log the fix row with `--cycle <n> --round <round>`
-   and the round's `production_log.py tooltime` line in `--note`. Run the gate once (`gate.mjs critic`) and fix until it passes (S5-34).
+   render of its stretch (S5-25) and against the last two cuts (S5-26): every join and acting change with
+   `ranges.mjs <dir> --ranges <a-b,...> --stills <t,...> --probe`, which runs the motion probe on each stretch (S5-40).
+5. Run the gate once (`gate.mjs critic`) and fix until it passes (S5-34); it runs the audit and the look check at
+   once (S5-39). End the round on one full-size frame of every shot, each asked whether the place could exist (S5-37): the look check's own `out/<slug>/look/post-<NNN>.png` are that frame (listed in
+   `look/stills.json`); copy them to `out/<slug>/fix-<n>-<round>/` rather than render them again. Log the fix row with
+   `--cycle <n> --round <round>` and the round's `production_log.py tooltime` line in `--note`.
 6. Repeat for rounds 2 and 3. Rounds 2 and 3 re-score what changed and compare each prediction with the
    result (S5-10, S5-11). The aim is three rounds from the first cut to the owner's yes; `rounds` counts them (S5-36).
 
@@ -194,9 +196,11 @@ the story to `out/<slug>/log-<n>.txt`; it goes on the review page with the rende
 **c. The owner's notes** (S5-20). Publish the render on the review page at stage `render-<n>` and wait for his
 notes. Pull them (see Approvals). His notes lead the next cycle.
 
-**d. The render critic, once** (S5-31). With his notes in, brief a critic in render mode
-(`references/critic-brief.md`): the four areas on the moving film plus motion and sound (pops, swings, sync,
-levels); its film score is the cycle's score. Save its report to
+**d. The render critic, once** (S5-31). With his notes in, first run
+`python3 <toon-video>/scripts/critic_prep.py out/<slug>/render-<n>.mp4 out/<slug>/critic-prep-<n> --stems public/<dir of STORY.audio>`
+(S5-40: frames every 2.4 s, sheets at 2 a second, the motion probe's spikes and cuts, each cue's effect against the
+voice). Then brief a critic in render mode (`references/critic-brief.md`) and hand it that folder. It scores the
+four areas on the moving film plus motion and sound (pops, swings, sync, levels); its film score is the cycle's score. Save its report to
 `out/<slug>/critic-<n>-render.md`, log it with `--mode render --round render --file critic-<n>-render.md`, and write
 its `## <n>-render` findings section (S5-38).
 
@@ -295,5 +299,6 @@ Read each when its stage comes up; none links on to another.
 | `references/why.md` | When asked why a rule exists, or for old patterns you meet in an older story |
 | `templates/review/index.html` | Stages 1, 2 and 5c: the review page with the owner's Approve button |
 
-Scripts in `scripts/`: run `pitch.mjs`, `levels.mjs`, `animatic.py` and `production_log.py` as shown above; `lint_rules.mjs`
+Scripts in `scripts/`: run `pitch.mjs`, `levels.mjs`, `animatic.py`, `production_log.py`, `motion_probe.py` and
+`critic_prep.py` as shown above; `lint_rules.mjs`
 is run by whoever edits these skills (`node scripts/lint_rules.mjs <skills-root>`).

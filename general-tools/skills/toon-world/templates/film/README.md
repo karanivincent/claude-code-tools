@@ -20,7 +20,7 @@ segments, and replaces the stand-in cast. Needs TypeScript 5, `@react-three/post
 | `Film.tsx` | The film: one place canvas at a time, swings and reasoned cuts (no whips), overlays, audit config |
 | `overlays.tsx` | `Card` (with a label), `Paper` (typed lines), `Thought` (a bubble with a picture), `cuesOf` |
 | `detail.ts` | The detail layer: flies, smoke, a hanging cloth, birds, a light shaft with dust (tagged and ticked); sparkles, which do not count |
-| `tools/` | `gate.mjs` (critic and render gates: runs every check, and refuses unlogged critic rounds, S5-38), `audit.mjs` (acting and camera audit), `look.mjs` (look checks), `render.mjs`, `stills.mjs`, `public.mjs` (bundles with the story's own public folder only; `toolTime` writes `out/<slug>/tool-times.jsonl`) |
+| `tools/` | `gate.mjs` (critic and render gates: runs every check, the audit and the look check at once, and refuses unlogged critic rounds, S5-38, S5-39), `audit.mjs` (acting and camera audit), `look.mjs` (look checks; lists its stills in `look/stills.json`), `render.mjs`, `stills.mjs`, `beat.mjs` (the beat board, reusing the look check's stills, S5-39), `ranges.mjs` (a builder's quick checks: short stretches, stills and the motion probe on one bundle, S5-40), `public.mjs` (bundles with the story's own public folder only; `toolTime` writes `out/<slug>/tool-times.jsonl`; `pool` runs stills several at once) |
 
 ## What each default prevents
 

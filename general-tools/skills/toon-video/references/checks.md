@@ -58,6 +58,9 @@ passes (S4-1). Scripts under `<toon-world>/scripts/` and `<toon-video>/scripts/`
 | Pace and hard cuts | project `pace.py <video>` | within about 10 of the profile's pace; hard cuts within the count | S5-19, S3-121 |
 | Face close-ups | a sheet at 0.4 fps (`ffmpeg -vf fps=0.4,tile=7x4`) | at most 1 frame in 4 | S3-105 |
 | Fix checks | `tools/render.mjs out.mp4 4 1 <from>-<to>` (frames) | 8 s or less around each fix, the checks above on it | S5-25 |
+| Joins and acting changes | `tools/ranges.mjs <dir> --ranges a-b,... --stills t,... --probe` (one bundle; seconds; each 8 s or less) | each stretch's one-frame spikes (pops, snaps, jumps) and cuts from `motion_probe.py`, in film time; exit 3 on a spike | S5-25, S5-40 |
+| Frame-to-frame motion | `<toon-video>/scripts/motion_probe.py <video> [--from S --to S] [--offset S]` | spikes over 4 and 2.5 x the local median, cuts, fast runs, still stretches | S5-40 |
+| Render critic's inputs | `<toon-video>/scripts/critic_prep.py <render> <dir> --stems <dir of STORY.audio>` | frames every 2.4 s, sheets at 2 a second, the motion table, the cuts, each cue's effect against the voice | S5-40 |
 
 ## Judgement: the critic and the cold read
 
