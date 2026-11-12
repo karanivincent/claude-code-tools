@@ -22,7 +22,7 @@ must, never, always, every or only without an id.
   - [Words on screen](#words-on-screen)
   - [Sound](#sound)
 - [S4 Audit](#s4-audit)
-- [S5 Cycle](#s5-cycle)
+- [S5 Scene loop](#s5-scene-loop)
   - [Critic rounds](#critic-rounds)
   - [The render](#the-render)
   - [Owner notes and the render critic](#owner-notes-and-the-render-critic)
@@ -328,7 +328,7 @@ must, never, always, every or only without an id.
 - **S3-152** Settle every pause first, then music in sections with a coda, then the mix. Proof: check `story-sound.mjs: order` (new). Why: a moved pause re-times the music.
 - **S3-153** Music sections are 3 s or longer; merge a shorter beat and mark the change with an effect. Proof: check `story-sound.mjs: section length` (new). Why: ElevenLabs refuses shorter sections (HTTP 422).
 - **S3-154** The mix writes `voice.wav` and `bed.wav` stems on the film's clock, before the final loudness gain. Proof: file `out/<slug>/voice.wav`. Why: `levels.mjs` measures the stems.
-- **S3-155** The bed is held under each whole line: 0.2 gain under word runs, 0.4 in pauses inside the line, full between lines. Proof: check `levels.mjs`. Why: a compressor alone let hits through.
+- **S3-155** The bed is held under each whole line: 0.2 gain through the line, pauses included, 0.4 between lines closer than 0.9 s, full in longer gaps. Proof: check `levels.mjs`. Why: a compressor alone let hits through.
 - **S3-156** The hold is a 1 kHz gain track smoothed over 0.16 s, `amultiply`d into the bed, then `sidechaincompress` ratio 6, 150 ms release. Proof: check `levels.mjs`. Why: the template's ratio 4 / 250 ms let hits through.
 - **S3-157** Under every line the bed's loudest 400 ms sits at least 10 dB below the voice, the last 30 s included. Proof: check `levels.mjs`. Why: the narrator was drowned by the bed.
 - **S3-158** The music stays audible: no more than 20 dB under the voice, aiming at 15 to 20 dB. Proof: check `levels.mjs: ceiling` (new). Why: music 35 to 40 dB under was inaudible.
@@ -342,75 +342,134 @@ must, never, always, every or only without an id.
 
 ## S4 Audit
 
-- **S4-1** `tools/gate.mjs` runs before the first critic round and before every render, and refuses on any failure. Proof: check `gate.mjs` (new). Why: checks that only print were skipped nine times.
-- **S4-2** `audit.mjs` runs the acting audit and the camera checks (`audit`, `checkMustSee`, `checkLens`, `checkHeads`, `checkSky`) over every frame and layer, with a failing exit code. Proof: check `audit.mjs` (new: exit code, camera checks). Why: camera checks existed, but no tool called them.
-- **S4-3** The camera checks run over every layer of a dissolve, through `layerRuns`. Proof: check `layerRuns`. Why: a fault in the outgoing layer passes a one-camera check.
+- ~~**S4-1** `tools/gate.mjs` runs before the first critic round and before every render, and refuses on any failure. Proof: check `gate.mjs` (new). Why: checks that only print were skipped nine times.~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S4-2** `audit.mjs` runs the acting audit and the camera checks (`audit`, `checkMustSee`, `checkLens`, `checkHeads`, `checkSky`) over every frame and layer, with a failing exit code. Proof: check `audit.mjs` (new: exit code, camera checks). Why: camera checks existed, but no tool called them.~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S4-3** The camera checks run over every layer of a dissolve, through `layerRuns`. Proof: check `layerRuns`. Why: a fault in the outgoing layer passes a one-camera check.~~ Replaced by the scene loop (S5-39 to S5-70).
 - **S4-4** `levels.mjs` runs on the stems with its floor, ceiling and silent-tail checks, and again whenever the narrator, music or an effect's level changes. Proof: check `levels.mjs` (new: ceiling, tail). Why: a new narrator shifted every line's margin.
-- **S4-5** The look checks run: `plainMeshes`, `smallTextures`, `detailCount`, `flatShare`. Proof: check `tools/look.mjs` (new). Why: nothing looked at materials or textures.
-- **S4-6** `measure_sharp.py` and `measure_look.py` run against the reference with exit codes. Proof: check `measure_sharp`, `measure_look` (new: exit codes). Why: they were never run on Elijah.
-- **S4-7** Measure sharpness on a short real encode, not on stills. Proof: check `measure_sharp` (new: exit code). Why: stills measured 897, the encode 796.
+- ~~**S4-5** The look checks run: `plainMeshes`, `smallTextures`, `detailCount`, `flatShare`. Proof: check `tools/look.mjs` (new). Why: nothing looked at materials or textures.~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S4-6** `measure_sharp.py` and `measure_look.py` run against the reference with exit codes. Proof: check `measure_sharp`, `measure_look` (new: exit codes). Why: they were never run on Elijah.~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S4-7** Measure sharpness on a short real encode, not on stills. Proof: check `measure_sharp` (new: exit code). Why: stills measured 897, the encode 796.~~ Replaced by the scene loop (S5-39 to S5-70).
 - **S4-8** `brightness.mjs` passes: opening 120 or more, nothing too dark on a phone. Proof: check `brightness.mjs`. Why: a dark opening loses the swipe.
-- **S4-9** The planned pace is checked against the story's profile, not a fixed 40. Proof: check `checkPace` (new: reads profile). Why: the profile ranges from 25 to 50 changes a minute.
-- **S4-10** The gate refuses without the meaning sheet, a parts plan per place and the cold-read result. Proof: file `stories/<slug>/meaning.md`, `stories/<slug>/parts.md`, `out/<slug>/coldread.json`. Why: Elijah skipped the cold read and parts plan.
-- **S4-11** The gate refuses without both stage buttons in `approvals.json`. Proof: check `gate.mjs: approvals` (new). Why: the owner's direction comes before the build.
-- **S4-12** Every gate threshold carries a comment saying where its number came from. Proof: check `critic: kit PR`. Why: a number without a source gets changed to pass.
+- ~~**S4-9** The planned pace is checked against the story's profile, not a fixed 40. Proof: check `checkPace` (new: reads profile). Why: the profile ranges from 25 to 50 changes a minute.~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S4-10** The gate refuses without the meaning sheet, a parts plan per place and the cold-read result. Proof: file `stories/<slug>/meaning.md`, `stories/<slug>/parts.md`, `out/<slug>/coldread.json`. Why: Elijah skipped the cold read and parts plan.~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S4-11** The gate refuses without both stage buttons in `approvals.json`. Proof: check `gate.mjs: approvals` (new). Why: the owner's direction comes before the build.~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S4-12** Every gate threshold carries a comment saying where its number came from. Proof: check `critic: kit PR`. Why: a number without a source gets changed to pass.~~ Replaced by the scene loop (S5-39 to S5-70).
 - **S4-13** Every new place, prop, effect, material and face gets one clean still read cold by a fresh cheap agent with `cold-read-brief.md`. Proof: file `out/<slug>/coldread.json`. Why: hail read as fire, fear as cheering.
 - **S4-14** Cold-read stills carry no captions or labels. Proof: check `stills.mjs: --clean` (new). Why: labels told the reader the story.
 - **S4-15** Anything misread is redrawn and read again by a new fresh agent until it reads; "cannot tell" is a miss. Proof: file `out/<slug>/coldread.json`. Why: a guess that passes is not a read.
-- **S4-16** The template's example place passes the gate, and a flat-colour test place fails it. Proof: check `kit tests: template gate` (new). Why: templates teach by example. (Vincent, 11 Nov 2026)
+- ~~**S4-16** The template's example place passes the gate, and a flat-colour test place fails it. Proof: check `kit tests: template gate` (new). Why: templates teach by example. (Vincent, 11 Nov 2026)~~ Replaced by the scene loop (S5-39 to S5-70).
 - **S4-17** Bible in Clay: run sight-check.mjs so nobody whose verses have them seeing is drawn blind. Proof: check sight-check.mjs. Why: closed eyes read as blind on a phone.
 
-## S5 Cycle
-- **S5-33** A fix round takes the critic's top five items by gain; the rest go first on the next round's list. Two builders work at once, split by place, each owning its own files; one builder alone when a change spans both. Proof: file `out/<slug>/critic-<cycle>-<round>.md` (new). Why: on Elijah and the widow one builder fixing nine items took 64 minutes a round and landed about a third of the forecast; fixes kept making new faults (Vincent, 12 Nov 2026).
-- **S5-34** Tools bundle the film with the story's own public folder linked (`tools/public.mjs`), and a builder runs the full gate once, at the end of its round, with quick stills in between. Proof: check `grep storyPublic src/stories/<slug>/tools/*.mjs`. Why: bundle() copies its publicDir into every bundle: the project's 3.5 GB public made each bundle 23 s and 1 GB, against 5.5 s for the story's own folder (Elijah and the widow, 12 Nov 2026).
-- **S5-32** Stop when the render critic's score reaches 4.2, or rises under +0.1 from the last cycle's. Proof: check production_log.py rounds. Why: more rounds then buy little; the next story gains more.
+## S5 Scene loop
+
+Spikes 3 to 7 (12 November 2026) built a 5 s clip this way and lifted each area it worked on: world and light 2 to 4,
+story 3 to 4, at 25 to 40 minutes a pass. The cycle rules below the loop are replaced by it.
+
+### The loop
+
+- **S5-39** Build the film as scenes of 5 to 10 s, each its own composition playing its slice of the one mix (`templates/scene/`), with at most three shots in 5 s. Proof: file `src/stories/<slug>/scenes/`. Why: a scene renders in about 15 s, so a round takes minutes; five beats in 5 s needed hard cuts the judges docked (spikes 3-7, 12 Nov 2026).
+- **S5-40** Each scene runs the passes in order, one area a pass: rig check, world and light, people and acting, motion and staging, sound. Proof: check `scripts/loop/step.mjs`. Why: each pass moved its own area, and a round that restaged the whole clip lost by 1.2 (spikes 4-7).
+- **S5-41** A round is: at most five changes from `faults.md`, a stills sheet before the render, the render, three reviewers at 6 fps (`look.sh`, `reviewer-brief.md`), then one blind A/B judge against the best so far (`abjudge.sh`). Proof: file `out/<slug>/scenes/<scene>/<pass>-r<n>/verdict.json`. Why: the stills sheet caught a fault before the render in five rounds of six (spike 4).
+- **S5-42** Keep a win and snapshot it to `best/`; revert a loss by copying `best/` back; on a tie keep what the judge credited and drop what it blamed. Proof: check `step.mjs`. Why: one judge scored the same clip 3.4, 3.0 and 2.6 (spike 3).
+- **S5-43** A pass stops when its area reaches 4 on the three-judge average, after two rounds in a row with no win, or after six rounds. Proof: file `verdict.json`. Why: a fixed 4.5 was never reached; extra rounds after two losses moved nothing (spikes 3-7).
+- **S5-44** Compare clips only side by side in one judging; a score from one judging is never set against another's. Proof: check `abjudge.sh`. Why: spike 4's best scored 3.60 beside its round 0 and 2.67 beside spike 5's best.
+- **S5-45** When reviewers or the judge name the same top fault in two rounds running, the next round restages that one beat with a new pose drawing or a new shot; the whole scene is not restaged. Proof: file `faults.md`. Why: restaging the water entry alone won its round; restaging the clip lost by 1.2 (spike 4).
+- **S5-46** After a lost or tied round the reviewers are not run again; the next builder works from the best clip's `faults.md` and the judge's blame. Proof: check `step.mjs`. Why: the best clip is unchanged, so its notes still stand (spike 3).
+- **S5-47** Reviewers and judges run in the foreground with `claude -p`. Code gives them two facts: one-frame jumps (`jumps.sh`) and effect loudness at each cue (`audible.py`); no gate and no look scripts. Proof: check `scripts/loop/look.sh`. Why: the gate found none of 9 known faults in 27 minutes, Sonnet at 6 fps found 8.5 in 2 minutes, and background agents died when a turn ended (12 Nov 2026).
+- **S5-48** `step.mjs` runs before each step and refuses when the step's input file or the owner's approvals are missing; each phase logs one line with its minutes. Proof: check `step.mjs`. Why: rules with no check were skipped on Elijah and the widow (10-12 Nov 2026).
+
+### Scenes in parallel and the join
+
+- **S5-49** Up to four scenes are built at once, one builder each; renders queue for the project's render slots. Proof: owner `scene count`. Why: building, not rendering, takes the time; Vincent chose four (12 Nov 2026).
+- **S5-50** Before scenes split, the cast, the one mix and each place's world-and-light pass are done once; a place file in `src/stories/<slug>/places/` has one owner. Proof: file `src/stories/<slug>/places/`. Why: scenes in one place built apart would not match.
+- **S5-51** Every cut between scenes has a join card in `stories/<slug>/joins.json` (camera, and each person's place, pose and face); the scene before ends on it and the scene after starts on it, and no scene changes a card alone. Proof: file `stories/<slug>/joins.json`. Why: scenes built in parallel jump at their joins without a shared frame.
+- **S5-52** The Film composition joins the scenes over the one mix; `joins.sh` runs on every join, then three blind judges score the film against the last film the owner saw. A bad join goes back to the scene that owns its card. Proof: file `out/<slug>/film-<n>/verdict.json`. Why: a join is only seen in the joined film.
+- **S5-53** The owner sees the joined film on the review page; each note goes to the scene it names and runs as a round there. Proof: owner `Render notes`. Why: his notes lead the work (Vincent, 11 Nov 2026).
+
+### Rig check
+
+- **S5-54** Before pass 1, list every pose and prop the scene's words need and draw them on one pose sheet (`PoseSheet.tsx`); a card turned on its side is not a pose. Proof: file `out/<slug>/scenes/<scene>/poses.jpg`. Why: the rig check moved the score more than any round (spike 3).
+- **S5-55** Draw each repeated action differently, and rest feet, knees and shins on what they touch. Proof: file `poses.jpg`. Why: judges docked "the same pose with the card changing" in every round (spike 3).
+- **S5-56** Draw limbs wide of the body: knees up, arms back and hands overhead clear the torso and head, and a hand at the face is drawn after the face. Proof: file `poses.jpg`. Why: the pose sheet caught four hidden limbs before a render (spike 6).
+
+### Pass 1: world and light
+
+- **S5-57** Dress each place with the blend before round 1: a far picture on a curved screen, a surface displaced in code, a middle band and a moving detail layer. Proof: file `src/stories/<slug>/places/`. Why: world went from 2 to 4 with every judge in one pass (spike 5).
+- **S5-58** Light each place for a time of day: a warm key from the side, a cool fill, warm and cool rims on the cards, a cool fog, and a grade with teal shadows and warm highlights. Proof: file `src/stories/<slug>/places/`. Why: light went from 2 to 4; a key from behind the camera gives the cards no rim (spike 5).
+- **S5-59** Change the light one step a round, and keep a warm subject against a cool or dark field, never cool on cool. Proof: file `verdict.json`. Why: moving the sun behind the figures lost by 0.4 (spike 5).
+- **S5-60** Fade the sky picture into a dome of its own colour and check the seam on a full-size still. Proof: file `stills.jpg`. Why: judges named a "cut-out sky band" in two rounds (spike 5).
+- **S5-61** A water effect is see-through, narrower than the frame and over in under a second. Proof: file `stills.jpg`. Why: a white crown filling the frame read as a paper cup to every reviewer (spikes 4-5).
+- **S5-62** Where a figure must read clear of a wall, the camera is side-on so the space behind him is sky or water, and props near the action's path are cleared. Proof: file `stills.jpg`. Why: a three-quarter view read as "pasted on the wall" to every judge, and boulders read as landing on rocks (spike 7).
+
+### Pass 2: people and acting
+
+- **S5-63** Give each face beat its own expression with a soft change between; hold a shocked face open, and let the eyes carry it when a brim hides the brows. Proof: file `poses.jpg`. Why: the "dare" face was credited, and shut eyes on a shocked friend read as a yawn (spike 6).
+- **S5-64** Other people act toward the hero and never mirror him. Proof: file `verdict.json`. Why: a friend pointing at Josh was credited; both men with arms up was blamed (spike 6).
+- **S5-65** Before a render, project the action's path onto the screen with the shot's camera to check it clears every other figure. Proof: check `templates/scene/` path projection. Why: moving a figure on a hunch twice did not clear the jump; the projection fixed it at once (spike 6).
+- **S5-66** Keep the hero's silhouette through the action, and keep a story image a judge credited when restaging around it. Proof: file `verdict.json`. Why: Josh read as a different boy once his cap flew off, and the lone cap on the water told "never came up" better than a prettier world (spike 7).
+
+### Pass 3: motion and staging
+
+- **S5-67** Measure the camera per frame and keep it under about 0.3 m and 1.5 degrees a frame, easing every start and stop. Proof: check `templates/scene/` camera-speed probe. Why: faster moves read as a whip or a snap on 6 fps sheets, and a camera stopping dead on a beat read as a jolt (spike 7).
+- **S5-68** A fall tips over with bent, kicking legs. Secondary motion is kept where it reads at phone size (hair, a cap) and dropped where it does not (hem flaps). Proof: file `verdict.json`. Why: a straight fall read as "lowered on a wire", and hem flaps read as a spiky skirt (spikes 6-7).
+- **S5-69** The front card turns as one piece, so motion tops out near 3.3; the motion pass stops at its two-loss rule and does not chase 4. Proof: file `verdict.json`. Why: people work and a restage each left motion at 3.3, and Vincent chose to keep the flat card (12 Nov 2026).
+
+### Pass 4: sound
+
+- **S5-70** Run `audible.py` on the scene's slice: every effect is heard at its cue, and `levels.mjs` passes. The sound pass has no blind judge (judges see frames alone) and stops when no cue is masked or just heard, or at six rounds. Proof: check `scripts/loop/audible.py`. Why: half of Elijah's effects sat 11-14 dB under the mix and passed the old bed check (12 Nov 2026).
+
+### Replaced cycle rules
+
+- ~~**S5-33** A fix round takes the critic's top five items by gain; the rest go first on the next round's list. Two builders work at once, split by place, each owning its own files; one builder alone when a change spans both. Proof: file `out/<slug>/critic-<cycle>-<round>.md` (new). Why: on Elijah and the widow one builder fixing nine items took 64 minutes a round and landed about a third of the forecast; fixes kept making new faults (Vincent, 12 Nov 2026).~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S5-34** Tools bundle the film with the story's own public folder linked (`tools/public.mjs`), and a builder runs the full gate once, at the end of its round, with quick stills in between. Proof: check `grep storyPublic src/stories/<slug>/tools/*.mjs`. Why: bundle() copies its publicDir into every bundle: the project's 3.5 GB public made each bundle 23 s and 1 GB, against 5.5 s for the story's own folder (Elijah and the widow, 12 Nov 2026).~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S5-32** Stop when the render critic's score reaches 4.2, or rises under +0.1 from the last cycle's. Proof: check production_log.py rounds. Why: more rounds then buy little; the next story gains more.~~ Replaced by the scene loop (S5-39 to S5-70).
 
 ### Critic rounds
 
-- **S5-1** Each cycle runs three critic rounds on the beat board before any render, fixing after each. Proof: file `out/<slug>/critic-<cycle>-<round>.md` (new). Why: still fixes are cheaper than render fixes. (Vincent, 11 Nov 2026)
-- **S5-2** The critic gives every scene its path to 5, split by world, people, light and story, each item with its predicted gain. Proof: file `out/<slug>/critic-<cycle>-<round>.md` (new). Why: fixing the fault list moved Elijah only 2.78 to 3.06. (Vincent, 11 Nov 2026)
-- **S5-3** The critic's fault list is secondary to the path to 5. Proof: check `critic-brief.md` structure. Why: faults lift a 2 to a 3, never to 5.
-- **S5-4** Each critic round ends with a forecast: the score if every path item is done, and if the top five are. Proof: file `out/<slug>/critic-<cycle>-<round>.md` (new). Why: the forecast decides when to stop.
-- **S5-5** Every critic scores 1 to 5: 1 broken, 2 weak, 3 fine, 4 good, 5 great; never round up. Proof: check `production_log.py rounds`. Why: one scale lets rounds compare. (Vincent, 10 Nov 2026)
-- **S5-6** The critic scores against the project's anchor stills (`docs/critic-anchors/`), started from the first scored round. Proof: file `docs/critic-anchors/`. Why: a 3 then means the same every round.
-- **S5-7** The beat board is 2 to 3 full-size stills per shot at its action words, plus the audit report and meaning sheet. Proof: check `stills.mjs`. Why: 540 px sheets hid doors and cut heads.
-- **S5-8** The critic opens one full-size frame (1080 wide) of every shot and asks whether each place could exist. Proof: check `critic: world`. Why: five critic rounds on sheets missed a floating door.
-- **S5-9** A critic subagent replies with its report; the lead saves it to the story's critic file. Proof: file `out/<slug>/critic-<cycle>-<round>.md` (new). Why: subagents cannot write files.
-- **S5-10** After a fix, the critic re-scores only what changed and compares each prediction with the result. Proof: file `out/<slug>/critic-<cycle>-<round>.md` (new). Why: unchanged seconds drift with critic noise.
-- **S5-11** A fix that missed its prediction by a point or more is itself a finding. Proof: file `references/findings.md`. Why: the miss shows why the fix failed.
-- **S5-12** Every critique row is logged with `--score`, `--areas` and `--judge`. Proof: check `production_log.py areas`. Why: the weakest area and its method show after a few videos.
-- **S5-36** The aim is three critique rounds from the first cut to the owner's yes; production_log.py rounds counts them. Proof: check production_log.py rounds. Why: Gibeon took six rounds and the Mona Lisa seven.
+- ~~**S5-1** Each cycle runs three critic rounds on the beat board before any render, fixing after each. Proof: file `out/<slug>/critic-<cycle>-<round>.md` (new). Why: still fixes are cheaper than render fixes. (Vincent, 11 Nov 2026)~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S5-2** The critic gives every scene its path to 5, split by world, people, light and story, each item with its predicted gain. Proof: file `out/<slug>/critic-<cycle>-<round>.md` (new). Why: fixing the fault list moved Elijah only 2.78 to 3.06. (Vincent, 11 Nov 2026)~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S5-3** The critic's fault list is secondary to the path to 5. Proof: check `critic-brief.md` structure. Why: faults lift a 2 to a 3, never to 5.~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S5-4** Each critic round ends with a forecast: the score if every path item is done, and if the top five are. Proof: file `out/<slug>/critic-<cycle>-<round>.md` (new). Why: the forecast decides when to stop.~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S5-5** Every critic scores 1 to 5: 1 broken, 2 weak, 3 fine, 4 good, 5 great; never round up. Proof: check `production_log.py rounds`. Why: one scale lets rounds compare. (Vincent, 10 Nov 2026)~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S5-6** The critic scores against the project's anchor stills (`docs/critic-anchors/`), started from the first scored round. Proof: file `docs/critic-anchors/`. Why: a 3 then means the same every round.~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S5-7** The beat board is 2 to 3 full-size stills per shot at its action words, plus the audit report and meaning sheet. Proof: check `stills.mjs`. Why: 540 px sheets hid doors and cut heads.~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S5-8** The critic opens one full-size frame (1080 wide) of every shot and asks whether each place could exist. Proof: check `critic: world`. Why: five critic rounds on sheets missed a floating door.~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S5-9** A critic subagent replies with its report; the lead saves it to the story's critic file. Proof: file `out/<slug>/critic-<cycle>-<round>.md` (new). Why: subagents cannot write files.~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S5-10** After a fix, the critic re-scores only what changed and compares each prediction with the result. Proof: file `out/<slug>/critic-<cycle>-<round>.md` (new). Why: unchanged seconds drift with critic noise.~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S5-11** A fix that missed its prediction by a point or more is itself a finding. Proof: file `references/findings.md`. Why: the miss shows why the fix failed.~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S5-12** Every critique row is logged with `--score`, `--areas` and `--judge`. Proof: check `production_log.py areas`. Why: the weakest area and its method show after a few videos.~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S5-36** The aim is three critique rounds from the first cut to the owner's yes; production_log.py rounds counts them. Proof: check production_log.py rounds. Why: Gibeon took six rounds and the Mona Lisa seven.~~ Replaced by the scene loop (S5-39 to S5-70).
 
 ### The render
 
-- **S5-13** One render per cycle, after the third critic round; no render cap across cycles. Proof: check `render.mjs` (counts renders per cycle, new). Why: renders are for motion and sound, not framing. (Vincent, 11 Nov 2026)
-- **S5-14** A render over 8 s needs the gate's pass; a check of 8 s or less is a fix check. Proof: check `render.mjs` (calls `gate.mjs`). Why: fix checks stay cheap; renders stay gated.
+- ~~**S5-13** One render per cycle, after the third critic round; no render cap across cycles. Proof: check `render.mjs` (counts renders per cycle, new). Why: renders are for motion and sound, not framing. (Vincent, 11 Nov 2026)~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S5-14** A render over 8 s needs the gate's pass; a check of 8 s or less is a fix check. Proof: check `render.mjs` (calls `gate.mjs`). Why: fix checks stay cheap; renders stay gated.~~ Replaced by the scene loop (S5-39 to S5-70).
 - **S5-15** Before trusting a long render, check `df` and the output file's time. Proof: check `render.mjs: disk and mtime` (new). Why: a full disk failed every frame and kept the old file.
-- **S5-16** On every render run `frame_motion.py`; no still run longer than the profile's longest hold where it wants pace. Proof: check `frame_motion.py` (exit 3). Why: path-based motion called a still picture fast.
-- **S5-17** `screenMotion` before a render only points; it never clears a stretch. Proof: check `frame_motion.py`. Why: it cannot see texture or acting.
+- ~~**S5-16** On every render run `frame_motion.py`; no still run longer than the profile's longest hold where it wants pace. Proof: check `frame_motion.py` (exit 3). Why: path-based motion called a still picture fast.~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S5-17** `screenMotion` before a render only points; it never clears a stretch. Proof: check `frame_motion.py`. Why: it cannot see texture or acting.~~ Replaced by the scene loop (S5-39 to S5-70).
 - **S5-18** On every render run `short_qa.py`: black, white, frozen and popping frames, and loudness. Proof: check `short_qa.py`. Why: pops show only in the encode.
-- **S5-19** On every render run `pace.py` and the hard-cut count; both sit within the story's profile. Proof: check `pace.py`. Why: pace measured on the picture, not the plan.
-- **S5-35** Each render goes on the review page with the output of production_log.py report and rounds for the story. Proof: file out/<slug>/log-<cycle>.txt (new). Why: The owner sees what each step cost beside the video.
+- ~~**S5-19** On every render run `pace.py` and the hard-cut count; both sit within the story's profile. Proof: check `pace.py`. Why: pace measured on the picture, not the plan.~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S5-35** Each render goes on the review page with the output of production_log.py report and rounds for the story. Proof: file out/<slug>/log-<cycle>.txt (new). Why: The owner sees what each step cost beside the video.~~ Replaced by the scene loop (S5-39 to S5-70).
 
 ### Owner notes and the render critic
 
 - **S5-20** Vincent watches every render first and gives notes on the review page. Proof: owner `Render notes`. Why: his notes lead the next cycle. (Vincent, 11 Nov 2026)
 - ~~**S5-21** After his notes the critic reviews the render once, for what only motion and sound show: pops, swings, sync, levels. Proof: file `out/<slug>/critic-<cycle>-render.md` (new). Why: stills cannot show motion or sound.~~ Replaced by S5-31.
-- **S5-22** The next cycle starts from his notes and the render critic's, then build, audit, critic rounds. Proof: check `gate.mjs` (new). Why: notes skipped come back as notes.
+- ~~**S5-22** The next cycle starts from his notes and the render critic's, then build, audit, critic rounds. Proof: check `gate.mjs` (new). Why: notes skipped come back as notes.~~ Replaced by the scene loop (S5-39 to S5-70).
 - ~~**S5-23** Stop at a score of 4.2, or when a cycle gains under +0.1. Proof: check `production_log.py rounds`. Why: more rounds then buy little; the next story gains more. (Vincent, 11 Nov 2026)~~ Replaced by S5-32.
-- **S5-31** After his notes the critic scores the render once: the four areas on the moving film, plus motion and sound. Proof: file out/<slug>/critic-<cycle>-render.md (new). Why: stills cannot show motion or sound.
+- ~~**S5-31** After his notes the critic scores the render once: the four areas on the moving film, plus motion and sound. Proof: file out/<slug>/critic-<cycle>-render.md (new). Why: stills cannot show motion or sound.~~ Replaced by the scene loop (S5-39 to S5-70).
 
 ### Fixing
 
 - ~~**S5-24** A fix round fixes every item the critic lists, not only the top ten. Proof: file `out/<slug>/critic-<cycle>-<round>.md` (new). Why: left items came back in the next critique.~~ Replaced by S5-33.
-- **S5-25** Check each fix on a short full-size moving render of its stretch (about 2 s either side), with the measured checks. Proof: check `render.mjs --from --to`. Why: fixes judged on stills landed only partly.
-- **S5-26** Compare each fix with the last two cuts at the same seconds before committing it. Proof: check `stills.mjs: compare` (new). Why: one fix undid another's gain; the score stayed flat.
+- ~~**S5-25** Check each fix on a short full-size moving render of its stretch (about 2 s either side), with the measured checks. Proof: check `render.mjs --from --to`. Why: fixes judged on stills landed only partly.~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S5-26** Compare each fix with the last two cuts at the same seconds before committing it. Proof: check `stills.mjs: compare` (new). Why: one fix undid another's gain; the score stayed flat.~~ Replaced by the scene loop (S5-39 to S5-70).
 - **S5-27** Sort each finding by what allowed it and fix at the strongest level: impossible, easy, rule with a picture, check. Proof: file `references/findings.md`. Why: a weak fix lets the fault come back.
 - **S5-28** A kind of finding that comes back moves its fix up a level. Proof: file `references/findings.md`. Why: repeat findings prove the fix too weak.
 - **S5-29** A fix true of any video goes into the kit or the skills through the skills repo; a story fix stays in the story. Proof: check `critic: kit PR`. Why: lessons in one story never reach the next.
 - **S5-30** Never put a look into the kit. Proof: check `critic: kit PR`. Why: a shared look makes videos alike.
-- **S5-37** Every fix round ends on one full-size frame of every shot, asked whether each place could exist. Proof: file out/<slug>/fix-<cycle>-<round>/ (new). Why: Fixes made new faults the next critic had to find.
-- **S5-38** The gate refuses a critic report without its critique row (--file), a fixed round without its fix row, or a later round without its findings section. Proof: check gate.mjs: loggingOf. Why: On Elijah nobody logged anything for two days.
+- ~~**S5-37** Every fix round ends on one full-size frame of every shot, asked whether each place could exist. Proof: file out/<slug>/fix-<cycle>-<round>/ (new). Why: Fixes made new faults the next critic had to find.~~ Replaced by the scene loop (S5-39 to S5-70).
+- ~~**S5-38** The gate refuses a critic report without its critique row (--file), a fixed round without its fix row, or a later round without its findings section. Proof: check gate.mjs: loggingOf. Why: On Elijah nobody logged anything for two days.~~ Replaced by the scene loop (S5-39 to S5-70).
 
 ## S6 Hand-back
 
@@ -438,7 +497,7 @@ must, never, always, every or only without an id.
 - **X-3** Say the cost of a round of agents before starting it (about 0.5M tokens an agent call). Proof: check `production_log.py report`. Why: parallel agents burned a week's usage in hours.
 - **X-4** Build as a team: each agent owns its files, the camera goes last, the same agents resume each round. Proof: check `critic: kit PR`. Why: the team took a score from 2.0 to 3.0.
 - **X-5** Brief each place agent from the place agent brief in `team-and-log.md`, every bracket filled. Proof: check `critic: kit PR`. Why: a placeholder brief leaves the agent guessing.
-- **X-6** Nobody edits the gate, its thresholds or `approvals.json` to get past them. Proof: check `gate.mjs` (new: self-hash). Why: a gate that bends proves nothing.
+- **X-6** Nobody edits `step.mjs`, the judge and reviewer briefs or `approvals.json` to get past them. Proof: check `critic: kit PR`. Why: a check that bends proves nothing.
 - **X-7** This register is the only order; a stage named anywhere else follows it, and a clashing line is fixed the same day. Proof: check `lint_rules.mjs`. Why: two orders let agents pick the easy one.
 - **X-8** A change to shared drawing code adds an option and never changes a default; byte-compare two frames of an earlier video. Proof: check `kit tests`. Why: a changed default silently changes old videos.
 - **X-9** A practice copy of another channel's video is never posted, drafted or catalogued. Proof: check `catalog-refresh.mjs` (new: no practice keys). Why: its script and art belong to its maker.

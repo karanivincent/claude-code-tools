@@ -99,8 +99,8 @@ All from `src/toon-kit/camera` (synced by `sync-kit.mjs`); a story keeps no copy
 
 ## The camera checks
 
-`audit.mjs` runs these over each frame and each layer of a dissolve (through `layerRuns`, S4-3), and the gate runs
-`audit.mjs` (S4-2). Build the blockers from the same list the scene draws its rocks and bushes from; people who are not
+`audit.mjs` runs these over each frame and each layer of a dissolve (through `layerRuns`); in the scene loop they are facts for the
+reviewers, not a gate (S5-47). Build the blockers from the same list the scene draws its rocks and bushes from; people who are not
 the subject are blockers too (S3-97).
 
 | Check | Fails on | Rule |
@@ -111,7 +111,7 @@ the subject are blockers too (S3-97).
 | `checkLens` | anything near the lens over its group's share; indoors, groups and framed spans carry reasons | S3-96 |
 | `checkHeads` | a named person's head cut by any edge | S3-95 |
 | `checkSky` | over 45% empty sky in the centre column, or over 12 degrees up with nothing whole; planned looks at the sky are declared | S3-98, S3-99, S3-124 |
-| `screenMotion` | points at camera-still stretches before a render; it never clears one (S5-17) | S5-16 |
+| `screenMotion` | points at camera-still stretches before a render; it clears none (S5-47) | S5-47 |
 
 Indoors, give `checkLens` groups (wall pictures and furniture at 6 m and 30%, floor props at 3 m and 15% worked), and
 declare each span framed on purpose with its reason (`framed`).

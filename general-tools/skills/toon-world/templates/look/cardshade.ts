@@ -1,6 +1,8 @@
 // From the cartoon-3d-short skill, github.com/mromidev/claude-animated-shorts (commit e3b817b), MIT licence: see
 // LICENSE-cartoon-3d-short beside this file. Adapted for Bible in Clay's ancient jar test (an interior grade preset,
-// extra hats and props in toon.ts, our cast in cast.ts); lights.ts is unchanged from the original.
+// extra hats and props in toon.ts, our cast in cast.ts). The scene loop (November 2026) added options, each off by
+// default so an existing story renders the same: free poses, talk, secondary motion (toon.ts), the dusk place light
+// (lights.ts), its rims (cardshade.ts) and grade (grade.ts).
 // Character card shading (lighting.md 9.2 / 9.5). Replaces the flat emissive "pasted-on" look: the card takes the
 // scene light colour as a tint, keeps a bright floor where a cast shadow falls on it (charShade ~.86), and gets a soft
 // side gradient toward the real sun (head ~charGrad, torso ~bodyGrad) with a lavender far side.
@@ -43,10 +45,10 @@ vec3 outgoingLight = diffuseColor.rgb * tintK;
     // INNER warm rim, golden only: the outermost ~2 px (at 1080 wide) of the HEAD skin / TORSO silhouette on the
     // sun-facing edge. No offset copy: we only test whether the next pixels toward the sun are outside the card.
     // Hats, legs, rifles and other thin parts are skipped (inner sample must be skin, or torso at least ~40 units thick).
-    float warm = smoothstep( 0.2, 0.4, 1.0 - uCharTint.b );
+    float warm = max( uRimOn, smoothstep( 0.2, 0.4, 1.0 - uCharTint.b ) );
     float sl = length( sunV.xy );
     vec2 d2 = sunV.xy / max( sl, 1e-4 );
-    vec2 duv = 2.0 * uPx * ( d2.x * dFdx( vMapUv ) + d2.y * dFdy( vMapUv ) );
+    vec2 duv = uRimW * uPx * ( d2.x * dFdx( vMapUv ) + d2.y * dFdy( vMapUv ) );
     float edge = step( texture2D( map, vMapUv + duv ).a, 0.5 );
     vec2 dirU = normalize( duv + vec2( 1e-9 ) );
     vec4 c1 = texture2D( map, vMapUv - dirU * vec2( 0.027, 0.016 ) );   // ~16 design units inward (past the ink line)
@@ -54,7 +56,17 @@ vec3 outgoingLight = diffuseColor.rgb * tintK;
     float skin = step( 0.5, c1.a ) * step( 0.3, c1.r ) * step( c1.b + 0.12, c1.r ) * step( c1.g, c1.r + 0.02 );
     float torso = step( 0.27, vMapUv.y ) * step( vMapUv.y, 0.57 ) * step( 0.5, c1.a ) * step( 0.5, c2.a ) * step( 0.04, max( c1.r, max( c1.g, c1.b ) ) );
     float rim = warm * smoothstep( 0.1, 0.4, sl ) * edge * max( skin * head, torso ) * mix( 0.6, 1.0, sunVis );
-    outgoingLight += vec3( 0.95, 0.52, 0.16 ) * rim;
+    outgoingLight += uRimCol * rim;
+    // a cool sky rim on the edge away from the key (the fill side), so the card separates from a warm wall (cliff
+    // spike 5); off by default (uCoolRim 0)
+    if ( uCoolRim > 0.0 ) {
+      float edge2 = step( texture2D( map, vMapUv - duv ).a, 0.5 );
+      vec4 c3 = texture2D( map, vMapUv + dirU * vec2( 0.027, 0.016 ) );
+      vec4 c4 = texture2D( map, vMapUv + dirU * vec2( 0.067, 0.04 ) );
+      float skin2 = step( 0.5, c3.a ) * step( 0.3, c3.r ) * step( c3.b + 0.12, c3.r ) * step( c3.g, c3.r + 0.02 );
+      float torso2 = step( 0.27, vMapUv.y ) * step( vMapUv.y, 0.57 ) * step( 0.5, c3.a ) * step( 0.5, c4.a );
+      outgoingLight += uCoolRimCol * uCoolRim * edge2 * smoothstep( 0.1, 0.4, sl ) * max( skin2 * head, torso2 );
+    }
   }
   #endif
 }
@@ -62,21 +74,37 @@ vec3 outgoingLight = diffuseColor.rgb * tintK;
 `;
 
 const DECL = "#include <common>\nuniform vec3 uCharTint; uniform float uCharShade; uniform float uGrad; uniform float uBodyGrad; uniform vec3 uSideTint;"
-  + " uniform float uGradK; uniform float uGradKB; uniform float uTintK; uniform float uNorm; uniform float uGain; uniform float uPx;";
+  + " uniform float uGradK; uniform float uGradKB; uniform float uTintK; uniform float uNorm; uniform float uGain; uniform float uPx;"
+  + " uniform float uRimOn; uniform float uRimW; uniform vec3 uRimCol; uniform float uCoolRim; uniform vec3 uCoolRimCol;";
 /** card-only constants (not per light): gradient share, tint share, overall gain (calibrated: faces ~.93 V) */
 export const CARD_K = { uGradK: { value: GRAD_K }, uGradKB: { value: GRAD_KB }, uTintK: { value: TINT_K }, uNorm: { value: 0.7 }, uGain: { value: 1.03 }, uPx: { value: 0.5 } }; // uPx = render height / 1920 (set per draw in cast.ts)
+
+/** The cards' rims. The defaults are the original look: a warm inner rim on the key side only when the light is warm
+ *  (golden), 2 px wide, orange. RIM_DUSK is the cliff spikes' winner: a warm rim always on, 3 px, brighter, and a cool
+ *  sky rim on the fill side. Set with `setRims(RIM_DUSK)` (lights.ts applyPlaceLight does it from the place light). */
+export type Rims = { on: number; width: number; col: [number, number, number]; cool: number; coolCol: [number, number, number] };
+export const RIM_DEFAULT: Rims = { on: 0, width: 2, col: [0.95, 0.52, 0.16], cool: 0, coolCol: [0.32, 0.45, 0.85] };
+export const RIM_DUSK: Rims = { on: 1, width: 3, col: [1.1, 0.6, 0.2], cool: 0.55, coolCol: [0.32, 0.45, 0.85] };
+export const CARD_RIM = {
+  uRimOn: { value: RIM_DEFAULT.on }, uRimW: { value: RIM_DEFAULT.width }, uRimCol: { value: new THREE.Vector3(...RIM_DEFAULT.col) },
+  uCoolRim: { value: RIM_DEFAULT.cool }, uCoolRimCol: { value: new THREE.Vector3(...RIM_DEFAULT.coolCol) },
+};
+export const setRims = (r: Rims) => {
+  CARD_RIM.uRimOn.value = r.on; CARD_RIM.uRimW.value = r.width; CARD_RIM.uRimCol.value.set(...r.col);
+  CARD_RIM.uCoolRim.value = r.cool; CARD_RIM.uCoolRimCol.value.set(...r.coolCol);
+};
 
 /** MeshLambertMaterial -> lit card: no emissive, scene tint, bright floor, side gradient toward the sun. */
 export function cardShade(m: THREE.MeshLambertMaterial) {
   m.emissive.set(0x000000); m.emissiveIntensity = 0; m.emissiveMap = null;
   m.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, CHAR, CARD_K);
+    Object.assign(sh.uniforms, CHAR, CARD_K, CARD_RIM);
     sh.fragmentShader = sh.fragmentShader
       .replace("#include <common>", DECL)
       .replace("#include <lights_fragment_begin>", "float sunVis = 1.0;\n" + LFB)
       .replace("vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;", CARD);
   };
-  m.customProgramCacheKey = () => "card9";
+  m.customProgramCacheKey = () => "card10";
   return m;
 }
 

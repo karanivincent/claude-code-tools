@@ -46,7 +46,7 @@ Stage 2, cast, look and animatic
 - [ ] God and the angel of the LORD as a voice and a light (S2-26)
 - [ ] Crowds match the text's numbers (S2-27)
 - [ ] Parts plan per place approved by button (S2-30); Direction yes by button (S2-22)
-Stage 4, audit (beside the gate)
+Stage 4, checks (beside the scene loop)
 - [ ] node scripts/sight-check.mjs --story <slug>: nobody blind whose verses have them seeing
 - [ ] node scripts/brightness.mjs <video>: the brightness floor and dull stretches (S4-8)
 - [ ] Each check docs/REVIEW-LESSONS.md lists, after merging main
@@ -60,7 +60,7 @@ Stage 6, hand-back
 
 ## Approvals
 
-Vincent's yes is his button on the review page, read by the gate from `approvals.json`; no agent writes it (S0-14).
+Vincent's yes is his button on the review page, read by `step.mjs` from `approvals.json`; no agent writes it (S0-14).
 Stages 1 and 2 wait for his button (S1-24, S2-22). Silence counts as a yes for a finished Short at its posting
 deadline, and at no earlier stage (S0-15). Agents make drafts; posting waits for his yes (S6-2).
 
@@ -74,7 +74,7 @@ to render `stories/covers/<id>.jpg` (S6-5).
 
 Give the coordinator the video, the Publer draft id, the cost and the measured counts (S6-8): pace (`pace.py`), hard
 cuts with their reasons (S3-121), face close-up share (S3-105), brightness (S4-8), the sight check, whisper lines heard,
-quotes checked word for word (S1-26), and the critic's last score (S5-32). Name the branch the story lives on.
+quotes checked word for word (S1-26), and the film judges' last verdict (S5-52). Name the branch the story lives on.
 
 ## At the end
 

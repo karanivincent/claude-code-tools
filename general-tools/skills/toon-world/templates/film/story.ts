@@ -5,9 +5,11 @@ import type { Resolved, Seg } from '../../toon-kit/timing';
 export const STORY = {
   /** the folder under public/ that holds pictures/, models/, sound/ and the narrator's mix */
   slug: '__SLUG__',
-  /** the mixed sound (the film plays it unless rendered silent with audio: ''). The sound script writes voice.wav and
-   *  bed.wav beside it; the gate measures them (levels.mjs). Laura is the default narrator (decision 8). */
-  audio: '__SLUG__/laura/mix.wav',
+  /** the mixed sound (the film plays it unless rendered silent with audio: ''). The sound script reads this path, takes
+   *  the voice script's voices.wav from the same folder, and writes voice.wav and bed.wav beside it; the gate measures
+   *  them (levels.mjs). Keep it a single-quoted literal: the sound script reads it as text. A narrator's folder goes
+   *  here ('<slug>/george/mix.wav'); full/ is the default (S3-160). */
+  audio: '__SLUG__/full/mix.wav',
   /** behind the canvas while a place loads */
   background: '#1d2a22',
   /** the cast who must stay whole and readable in frame (extras may be cut): their `who` keys */

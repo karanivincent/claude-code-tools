@@ -53,7 +53,7 @@ through.
 
 Before building a place, write its parts plan in `stories/<slug>/parts.md` (S2-9). It names the source of each band
 above, the story's state for the place (S2-13), and what stands behind a gate, door or wall the story names (S2-14).
-Vincent approves each place's plan by his button on the review page (S2-30); the gate reads it from `approvals.json`,
+Vincent approves each place's plan by his button on the review page (S2-30); `step.mjs` reads it from `approvals.json`,
 and no agent writes it (S0-14).
 
 A concrete example, one place:
@@ -92,13 +92,14 @@ Copy this checklist into the story's `checklist.md` and tick it as you go (S0-8)
 - [ ] Doorways reach the floor; coplanar pieces offset (S3-23, S3-24)
 - [ ] Light and grade set (section below), checked on full-size frames
 - [ ] Cold read of each new place, prop, effect, material and face (S4-13)
-- [ ] Run `node tools/gate.mjs critic`; fix each failure; run it again until it passes (S4-1)
+- [ ] Pass 1 rounds on the place's first scene until world and light reach 4 (S5-43, S5-57..S5-62)
 ```
 
-The feedback loop is the gate. Run `node tools/gate.mjs critic` from the story's folder before the first critic round;
-it runs the look checks, the camera and acting audit, the sound levels and the file and approval checks, and refuses
-on any failure (S4-1, S4-5). Fix what it names and run it again; go on to the critic round when it passes. Nobody edits
-the gate, its thresholds or `approvals.json` to get past it (X-6).
+The feedback loop is the scene loop's pass 1 (`toon-video`, stage 4): the builder changes the place, a stills sheet
+is checked, the scene renders in about 15 s, three reviewers watch it at 6 fps with world and light first, and a blind
+judge keeps or undoes the round (S5-41, S5-42). What won in the spikes: the blend before round 1 (S5-57), a warm side
+key with cool fill and rims (S5-58), one light step a round (S5-59), a hidden sky seam (S5-60), see-through water
+(S5-61). Nobody edits `step.mjs`, the briefs or `approvals.json` to get past them (X-6).
 
 ### Keep the place simple
 
@@ -195,22 +196,17 @@ size with the check on, and collect the reports. A drawing whose outline dips un
 
 ## Checks: which script proves which rule
 
-The gate runs these; run one alone when fixing what it named.
+Reviewers judge the look (S5-47); these scripts give the facts they cannot see. `toon-video/references/checks.md`
+has the full list.
 
 | Run | Proves |
 |---|---|
-| `node tools/gate.mjs critic` | All of the below before the first critic round and each render (S4-1) |
-| `node tools/look.mjs` | `plainMeshes`, `smallTextures`, `detailCount`, `flatShare` (S3-7, S3-8, S3-9, S3-10, S4-5) |
-| `node tools/audit.mjs` | Acting audit and camera checks with an exit code (S4-2), `edgeTouches` (S3-62), sky (S3-98) |
-| `python3 scripts/measure_sharp.py ours.mp4 [ref.mp4]` | Sharpness, fine-edge share, saturation, brightness on a short real encode (S3-15, S4-6, S4-7) |
-| `python3 scripts/measure_look.py ours.mp4 [ref.mp4]` | Brightness, dark floor, highlights, saturation, chroma, vignette, ink share (S3-30, S3-31, S4-6) |
-| `python3 scripts/frame_motion.py video.mp4` | Still runs against the profile's longest hold; exit 3 on a flagged run (S5-16) |
+| `templates/scene/` pose sheet and stills sheet | Every pose drawn and visible; each change seen before a render (S5-54, S5-41) |
+| `templates/scene/` camera-speed probe | No move over about 0.3 m or 1.5 degrees a frame (S5-67) |
+| `templates/scene/` path projection | An action's path clears the other figures (S5-65) |
 | `python3 scripts/short_qa.py final.mp4 <qa dir> shots.json` | Black, white, frozen and popping frames, loudness (S5-18) |
 | `node scripts/fit-camera-example.mjs` | A master picture's camera, fit error under about 15 px (S3-19) |
 | Cold read with `references/cold-read-brief.md` | Each new place, prop, effect, material and face reads cold (S4-13, S4-14, S4-15) |
-
-For a side-by-side against a reference, run `python3 scripts/sbs_sheet.py out.jpg --ours ... --ref ...`; the critic
-scores it on the register's 1 to 5 scale (S5-5).
 
 ## The toon-kit and the templates
 

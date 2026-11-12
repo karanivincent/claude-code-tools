@@ -10,24 +10,32 @@
 // within 5.4 dB of the voice while every average looked fine. Ported from bible-shorts scripts/levels.mjs.
 //
 // Two more rules (11 November 2026, from Elijah and the widow 2D):
-//  - a ceiling: the bed's average under a line stays within --ceiling dB of the line (default 24), so the music is
-//    heard. Elijah's music sat 35 to 40 dB under the voice and passed the floor; nobody could hear it ("music
-//    inaudible", Vincent). 24 dB leaves the floor's 10 dB plus room for a quiet bed; the toon-video mix aims the music
-//    15 to 20 dB under the voice. A line over a planned pause (--pause) is not held to the ceiling.
+//  - a ceiling: the bed's average under a line stays within --ceiling dB of the line (default 20, S3-158), so the
+//    music is heard. Elijah's music sat 35 to 40 dB under the voice and passed the floor; nobody could hear it ("music
+//    inaudible", Vincent). The toon-video mix aims the music 15 to 20 dB under the voice. A line over a planned pause
+//    (--pause) is not held to the ceiling; a line meant to drop the music (a hard silence) is acknowledged in story.ts.
+//  - the hold: the bed is held through each whole line, its pauses included. A pause inside a line (the voice 10 dB
+//    or more under the line, before its last word) where the bed climbs 8 dB over its level under the line's words is
+//    a SWELL, reported as a warning, since an effect placed in a breath on purpose climbs too (a held bed measured up
+//    to 7 dB on Elijah, a bed ducked word by word 9 to 10). The floor below usually fails such a line as well. Elijah's
+//    first mix ducked word by word, and the music swelled in every breath of "listened ... and the boy lived".
 //  - dead air: no stretch of silence (voice and bed together under -50 dBFS, below any intended bed and above digital
-//    silence) longer than --dead seconds (default 0.6) between lines or at the end, outside a planned pause. Elijah's
+//    silence) longer than --dead seconds (default 0.6) between lines, outside a planned pause. Elijah's
 //    film ran 1.4 s past its last word after the music ended: dead air on a looping Short. 0.6 s is the longest gap
 //    the toon-video mix leaves between lines (its runs join words across gaps under 0.6 s).
+//  - a silent tail (S3-159): any silence of --tail seconds or more (default 0.25) that runs to the end of the stems
+//    fails, shorter than --dead or not: a looping Short plays it as a gap before the hook.
 //
-//   node levels.mjs <voice.wav> <bed.wav> <timeline.json> [--min 10] [--ceiling 24] [--dead 0.6] [--pause a-b ...] [--last 30] [--all]
+//   node levels.mjs <voice.wav> <bed.wav> <timeline.json> [--min 10] [--ceiling 20] [--dead 0.6] [--tail 0.25] [--pause a-b ...] [--last 30] [--all]
 //
 // voice.wav  the voice stem alone, on the film's clock (what the mix takes in, before the final loudness gain)
 // bed.wav    everything else, exactly as it goes into the mix under the voice (after any ducking or hold), same clock
 // timeline   JSON: { "duration": s, "lines": [{ "id": "hook", "start": s, "end": s }, ...] } (a bare array of lines
 //            also works; extra fields such as words are ignored). Lines under 0.6 s are skipped: no full window fits.
 // --min      the margin a line needs, in dB (default 10)
-// --ceiling  the most the bed's average may sit under a line, in dB (default 24)
+// --ceiling  the most the bed's average may sit under a line, in dB (default 20)
 // --dead     the longest silence allowed outside a planned pause, in seconds (default 0.6)
+// --tail     the longest silence allowed at the very end, in seconds (default 0.25)
 // --pause    a planned silent pause, film seconds a-b (repeat it; the timeline's "pauses": [[a, b]] are read too)
 // --last     also summarise the last N seconds (default 30), where a coda or a swell most often climbs
 // --all      print every line, not only the ones that fall short
@@ -37,7 +45,7 @@ import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
 
 const argv = process.argv.slice(2);
-const flags = new Set(['--min', '--last', '--ceiling', '--dead']);
+const flags = new Set(['--min', '--last', '--ceiling', '--dead', '--tail']);
 const pos = [];
 const opt = {}, pauses = [];
 for (let i = 0; i < argv.length; i++) {
@@ -47,11 +55,11 @@ for (let i = 0; i < argv.length; i++) {
   else pos.push(argv[i]);
 }
 const [voice, bed, timeline] = pos;
-const MIN = opt['--min'] ?? 10, LAST = opt['--last'] ?? 30, CEIL = opt['--ceiling'] ?? 24, DEAD = opt['--dead'] ?? 0.6;
+const MIN = opt['--min'] ?? 10, LAST = opt['--last'] ?? 30, CEIL = opt['--ceiling'] ?? 20, DEAD = opt['--dead'] ?? 0.6, TAILMAX = opt['--tail'] ?? 0.25;
 const fail = msg => { console.error(msg); process.exit(1); };
-if (!voice || !bed || !timeline) fail('usage: node levels.mjs <voice.wav> <bed.wav> <timeline.json> [--min 10] [--ceiling 24] [--dead 0.6] [--pause a-b ...] [--last 30] [--all]');
+if (!voice || !bed || !timeline) fail('usage: node levels.mjs <voice.wav> <bed.wav> <timeline.json> [--min 10] [--ceiling 20] [--dead 0.6] [--tail 0.25] [--pause a-b ...] [--last 30] [--all]');
 for (const f of [voice, bed, timeline]) if (!fs.existsSync(f)) fail(`not found: ${f}`);
-if (![MIN, LAST, CEIL, DEAD].every(Number.isFinite)) fail('--min, --last, --ceiling and --dead take numbers');
+if (![MIN, LAST, CEIL, DEAD, TAILMAX].every(Number.isFinite)) fail('--min, --last, --ceiling, --dead and --tail take numbers');
 if (pauses.some(([a, b]) => !(b > a))) fail('--pause takes a-b in seconds, b after a');
 
 // momentary loudness every 100 ms, read from ffmpeg's ebur128 metadata; a window ending at t covers t - 0.4 to t
@@ -77,7 +85,16 @@ const rows = lines.filter(l => l.end - l.start >= 0.6).map((l, i) => {
   const vs = inside(v, l), bs = inside(b, l);
   if (!vs.length || !bs.length) return null;
   const vo = power(vs), bedMax = Math.max(...bs), bedAvg = power(bs);
-  return { id: l.id ?? `line ${i + 1}`, t: l.start, end: l.end, voice: vo, bedMax, gap: vo - bedMax, under: vo - bedAvg };
+  // the hold through the line's pauses: the bed in windows where the voice is 10 dB under the line, against the bed
+  // where it speaks
+  const vAt = new Map(v.map(([t, m]) => [t.toFixed(1), m]));
+  const bin = b.filter(([t]) => t >= l.start + 0.4 && t <= l.end);
+  const said = bin.filter(([t]) => (vAt.get(t.toFixed(1)) ?? -120) >= vo - 10).map(([, m]) => m);
+  const lastSaid = Math.max(...(l.words ?? []).map(w => w.e).filter(Number.isFinite), -Infinity);
+  const gaps = bin.filter(([t]) => (vAt.get(t.toFixed(1)) ?? -120) < vo - 10 && (lastSaid === -Infinity || t <= lastSaid));
+  const peak = gaps.length && said.length ? gaps.reduce((a, x) => (x[1] > a[1] ? x : a)) : null;
+  const swell = peak && peak[1] - power(said) > 8 ? { at: peak[0], by: peak[1] - power(said) } : null;
+  return { id: l.id ?? `line ${i + 1}`, t: l.start, end: l.end, voice: vo, bedMax, gap: vo - bedMax, under: vo - bedAvg, swell };
 }).filter(Boolean);
 if (!rows.length) fail('no line long enough to measure, or the stems are shorter than the timeline');
 
@@ -99,20 +116,26 @@ for (const r of opt.all ? rows : [...new Set([...short, ...buried])]) {
   console.log(`  ${tagOf.padEnd(6)} ${r.id} at ${r.t.toFixed(1)} s: voice ${r.voice.toFixed(1)}, bed up to ${r.bedMax.toFixed(1)} (${r.gap.toFixed(1)} dB), bed on average ${r.under.toFixed(1)} dB under`);
 }
 
+for (const r of rows.filter(r => r.swell)) console.log(`  WARN   SWELL ${r.id}: the bed climbs ${r.swell.by.toFixed(1)} dB in a pause at ${r.swell.at.toFixed(1)} s; hold it through the whole line (an effect placed in the breath on purpose also shows here)`);
+
 // dead air: silence of voice and bed together, from ffmpeg's silencedetect on their sum
 const dur = f => Number(spawnSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', f], { encoding: 'utf8' }).stdout.trim());
-const sd = spawnSync('ffmpeg', ['-v', 'info', '-i', voice, '-i', bed, '-filter_complex', `[0:a][1:a]amix=inputs=2:normalize=0,silencedetect=noise=-50dB:d=${DEAD}`, '-f', 'null', '-'], { encoding: 'utf8', maxBuffer: 1 << 28 });
+const sd = spawnSync('ffmpeg', ['-v', 'info', '-i', voice, '-i', bed, '-filter_complex', `[0:a][1:a]amix=inputs=2:normalize=0,silencedetect=noise=-50dB:d=${Math.min(DEAD, TAILMAX)}`, '-f', 'null', '-'], { encoding: 'utf8', maxBuffer: 1 << 28 });
 if (sd.status !== 0) fail(`ffmpeg could not mix the stems: ${(sd.stderr || '').trim().split('\n').pop()}`);
 const fileEnd = Math.max(dur(voice), dur(bed));
 const silences = [];
 for (const m of sd.stderr.matchAll(/silence_(start|end): ([\d.]+)/g)) {
   if (m[1] === 'start') silences.push([Number(m[2]), fileEnd]); else if (silences.length) silences[silences.length - 1][1] = Number(m[2]);
 }
-const dead = silences.filter(([a, b]) => b - a > DEAD && !inPause(a, b));
-for (const [a, b] of dead) console.log(`  DEAD   ${(b - a).toFixed(2)} s of silence at ${a.toFixed(2)} to ${b.toFixed(2)} s${b >= fileEnd - 0.05 ? ' (the end: end 0.5 s after the last word, on the music)' : ''}`);
+const atEnd = ([, b]) => b >= fileEnd - 0.05;
+const dead = silences.filter(s => !atEnd(s) && s[1] - s[0] > DEAD && !inPause(...s));
+const tailSil = silences.filter(s => atEnd(s) && s[1] - s[0] >= TAILMAX);
+for (const [a, b] of dead) console.log(`  DEAD   ${(b - a).toFixed(2)} s of silence at ${a.toFixed(2)} to ${b.toFixed(2)} s`);
+for (const [a, b] of tailSil) console.log(`  TAIL   ${(b - a).toFixed(2)} s of silence at the end, ${a.toFixed(2)} to ${b.toFixed(2)} s: end 0.5 s after the last word, on the music's closing chord`);
 
 if (short.length) console.log(`${short.length} line(s) under ${MIN} dB: hold the bed down for the length of each line (toon-video "Music and mix")`);
 if (buried.length) console.log(`${buried.length} line(s) with the bed over ${CEIL} dB under on average: the music is not heard; bring it up to 15 to 20 dB under the voice`);
-if (dead.length) console.log(`${dead.length} silence(s) over ${DEAD} s outside a planned pause: hold the bed through pauses and end on the music`);
-if (short.length || buried.length || dead.length) process.exit(3);
-console.log(`ok: under every line the bed stays ${MIN} to ${CEIL} dB below the voice, and no silence over ${DEAD} s`);
+if (dead.length) console.log(`${dead.length} silence(s) over ${DEAD} s outside a planned pause: hold the bed through pauses`);
+if (tailSil.length) console.log(`a silent tail: the last ${(tailSil[0][1] - tailSil[0][0]).toFixed(2)} s are silent (S3-159)`);
+if (short.length || buried.length || dead.length || tailSil.length) process.exit(3);
+console.log(`ok: under every line the bed stays ${MIN} to ${CEIL} dB below the voice, no silence over ${DEAD} s and no silent tail`);

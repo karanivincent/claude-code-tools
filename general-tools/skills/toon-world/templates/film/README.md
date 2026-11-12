@@ -20,7 +20,7 @@ segments, and replaces the stand-in cast. Needs TypeScript 5, `@react-three/post
 | `Film.tsx` | The film: one place canvas at a time, swings and reasoned cuts (no whips), overlays, audit config |
 | `overlays.tsx` | `Card` (with a label), `Paper` (typed lines), `Thought` (a bubble with a picture), `cuesOf` |
 | `detail.ts` | The detail layer: flies, smoke, a hanging cloth, birds, a light shaft with dust (tagged and ticked); sparkles, which do not count |
-| `tools/` | `gate.mjs` (critic and render gates: runs every check, and refuses unlogged critic rounds, S5-38), `audit.mjs` (acting and camera audit), `look.mjs` (look checks), `render.mjs`, `stills.mjs`, `public.mjs` (bundles with the story's own public folder only; `toolTime` writes `out/<slug>/tool-times.jsonl`) |
+| `tools/` | `gate.mjs` (critic and render gates: runs every check, and refuses unlogged critic rounds, S5-38), `audit.mjs` (acting and camera audit), `look.mjs` (look checks), `render.mjs`, `stills.mjs`, `round_backdrop.py` (one 360-degree far strip from two pictures), `public.mjs` (bundles with the story's own public folder only; `toolTime` writes `out/<slug>/tool-times.jsonl`) |
 
 ## What each default prevents
 
@@ -37,7 +37,7 @@ segments, and replaces the stand-in cast. Needs TypeScript 5, `@react-three/post
 | The audit sample skips people behind the lens or wholly off screen | False "head cut" reports with a negative height |
 | The audit renders tiny, every 3rd frame, no look stack, before any render | Faults found only after a 15-minute render and a critic's round |
 | Picture events and sound cues are checked against each other within 0.1 s | Gunshots heard with no flash, or a flash with no sound |
-| The sound's action layer sits on top of the mix, not ducked | Gunfire buried under the narrator ("we should hear gunshots") |
+| Effects sit on their own layer, neither held nor sidechained | Gunfire buried under the narrator ("we should hear gunshots") |
 | Music cut into sections at the story's turns from word times | Music that ignores the story's turns |
 | ElevenLabs requests cached by their prompt | Paying again for an unchanged rerun |
 | Limiter, then loudnorm to -14 LUFS | A mix too quiet, or clipping on the shots |

@@ -23,7 +23,7 @@ const REGISTER = path.join('toon-video', 'references', 'rules.md');
 
 // Reference files the lint skips: the register itself (it states the rules), the findings table (a history of faults
 // in the words of the time) and why.md (history moved out of the skill bodies).
-const SKIP = new Set(['rules.md', 'rules-log.md', 'findings.md', 'why.md']);  // rules-log.md is add_rule.mjs's own record
+const SKIP = new Set(['rules.md', 'rules-log.md', 'findings.md', 'why.md', 'reviewer-brief.md', 'judge-brief.md']);  // the two briefs are prompts sent to agents, not skill text  // rules-log.md is add_rule.mjs's own record
 
 // Words that make a line a rule. Word boundaries, so "everything", "everyone" and "onlyx" do not count; the flag `i`
 // catches "Never" and "ALWAYS" at a sentence start or in a heading.

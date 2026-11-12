@@ -1,7 +1,7 @@
 # Cold read: the brief
 
 The cold read runs before the first critic round and the gate refuses without its result in `out/<slug>/coldread.json`
-(S4-10, S4-13). A reader who knows the story sees what it meant to draw; a reader who knows nothing sees what is
+(S4-13). A reader who knows the story sees what it meant to draw; a reader who knows nothing sees what is
 drawn. The misreads it was made for (hail as fire, fear as cheering) are in `why.md`.
 
 ## What gets a read

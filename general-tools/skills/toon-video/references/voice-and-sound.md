@@ -85,15 +85,16 @@ Hold the whole bed down for each run of words; a compressor alone reacts after a
 | Setting | Value |
 |---|---|
 | Words joined into a run | gap under 0.25 s |
-| Bed gain in a run | 0.2 (-14 dB), from 0.15 s before the run to 0.12 s after |
-| Bed gain in a pause under 0.9 s | 0.4 (-8 dB) |
-| Bed gain in a longer pause | full |
+| Bed gain through a whole line, pauses included | 0.2 (-14 dB), from 0.15 s before the line to 0.12 s after; per-line `HOLD` to tune |
+| Bed gain between lines closer than 0.9 s | 0.4 (-8 dB) |
+| Bed gain in a longer gap between lines | full |
+| Effects | their own layer, neither held nor sidechained, each levelled from its measured loudness |
 | Smoothing | 0.16 s |
 | Gain track | 1 kHz raw 32-bit floats, read with `-f f32le -ar 1000 -ac 1 -i gain.f32`, resampled, `amultiply`d into the bed |
 | Then | `sidechaincompress` keyed on the voice: threshold 0.02, ratio 6, attack 15 ms, release 150 ms |
 
-Runs, not whole lines: a fast read has many short pauses, and a bed held through them reads as holes. A hold per line
-also passes when the read is slower.
+Whole lines, not word runs: a bed that rose in each short pause inside a line made the music come and go under
+the voice on Elijah and the widow (11 Nov 2026). `levels.mjs` warns when the bed rises over 8 dB inside a line.
 
 ## Effects and loudness
 

@@ -11,7 +11,10 @@ import { staticFile } from 'remotion';
 //    must-see subjects out of the caption band (toon-kit checkMustSee's captions option).
 
 const INK = '#241726';
-export interface CardDef { text: string; a: number; b: number; label?: string; grey?: boolean }
+export interface CardDef { text: string; a: number; b: number; label?: string; grey?: boolean;
+  /** false: fully drawn from its first frame, no pop (the hook card at 0.0 s; a card already up across a cut). A card
+   *  with a <= 0 never pops either. Default true. */
+  pop?: boolean }
 export interface PaperDef { title: string; a: number; b: number; lines: { text: string; at: number }[]; bullet?: string }
 export interface ThoughtDef {
   /** the picture, under public/ */
@@ -29,9 +32,10 @@ export interface ThoughtDef {
 const popIn = (k: number, over = 0.08) => (k < 1 ? 0.6 + 0.4 * (1 - Math.pow(1 - k, 3)) + over * Math.sin(k * Math.PI) : 1);
 
 export const Card: React.FC<{ c: CardDef; t: number; top?: number }> = ({ c, t, top = 110 }) => {
-  // the hook card (a <= 0) is fully drawn on frame 0, never popping in from nothing: for a Short the first frame is
-  // the package (the feed plays it; no thumbnail shows), and the audit's checkOpening wants the card up at 0.0 s
-  const k = c.a <= 0 ? 1 : Math.min(1, (t - c.a) / 0.35), out = Math.max(0, 1 - (c.b - t) / 0.12);
+  // the hook card (a <= 0, or pop: false) is fully drawn on frame 0, never popping in from nothing: for a Short the
+  // first frame is the package (the feed plays it; no thumbnail shows), and the audit's checkOpening wants the card up
+  // at 0.0 s. Before `a` a pop: false card is not drawn at all.
+  const k = c.a <= 0 || (c.pop === false && t >= c.a) ? 1 : Math.max(0, Math.min(1, (t - c.a) / 0.35)), out = Math.max(0, 1 - (c.b - t) / 0.12);
   return (
     <div style={{ position: 'absolute', left: 0, right: 0, top, display: 'flex', justifyContent: 'center', opacity: Math.min(k * 4, 1) }}>
       <div style={{ transform: `scale(${popIn(k) * (1 - out)}) rotate(-3deg)`, background: '#f4ead2', border: `10px solid ${INK}`, borderRadius: 26, padding: '10px 46px',

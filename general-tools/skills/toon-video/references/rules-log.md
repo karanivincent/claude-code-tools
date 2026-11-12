@@ -20,3 +20,5 @@ Every rule added or replaced, newest last. Written by `scripts/add_rule.mjs`; ne
 | 2026-11-12 | S5-36 | new | elijah-widow-2d: nothing logged 10-12 Nov until Vincent asked; lines lost in the 11 Nov rewrite (1fb0a56) |
 | 2026-11-12 | S5-37 | new, differs from S5-8: the builder at the end of each fix round, not the critic in its round | elijah-widow-2d: nothing logged 10-12 Nov until Vincent asked; lines lost in the 11 Nov rewrite (1fb0a56) |
 | 2026-11-12 | S5-38 | new | elijah-widow-2d: nothing logged 10-12 Nov until Vincent asked; lines lost in the 11 Nov rewrite (1fb0a56) |
+| 2026-11-12 | S5-39 to S5-70 | new: the scene loop, replacing the gate (S4-1..3, 5..7, 9..12, 16) and the critic cycle (S5-1..14, 16, 17, 19, 22, 25, 26, 31..38) | spikes 3-7 on the Elijah and cliff clips, 12 Nov 2026 (Vincent: "Lets build the skill") |
+| 2026-11-12 | X-6 | changed: step.mjs and the briefs in place of the gate | the gate is retired by the scene loop |
