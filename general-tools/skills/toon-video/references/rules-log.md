@@ -50,3 +50,16 @@ Every rule added or replaced, newest last. Written by `scripts/add_rule.mjs`; ne
 | 2026-11-13 | S2-31 | new, differs from S2-16: sets the order: scenes split before the board | cliff film (cliff-josh) run log, stages 0-2, 13 Nov 2026 |
 | 2026-11-13 | S4-18 | replaces S4-8 | cliff film (cliff-josh) run log, stages 0-2, 13 Nov 2026 |
 | 2026-11-13 | S4-19 | new, differs from S3-53: the night case: faces lit whatever the frame's mean | cliff film (cliff-josh) run log, stages 0-2, 13 Nov 2026 |
+| 2026-11-13 | S2-32 | new | B-17 proof test (b17-checklist), Vincent's notes 13 Nov 2026 |
+| 2026-11-13 | S2-33 | new | B-17 proof test (b17-checklist), Vincent's notes 13 Nov 2026 |
+| 2026-11-13 | S3-166 | new | B-17 proof test (b17-checklist), Vincent's notes 13 Nov 2026 |
+| 2026-11-13 | S3-167 | new | B-17 proof test (b17-checklist), Vincent's notes 13 Nov 2026 |
+| 2026-11-13 | S3-168 | new | B-17 proof test (b17-checklist), Vincent's notes 13 Nov 2026 |
+| 2026-11-13 | S3-169 | new | B-17 proof test (b17-checklist), Vincent's notes 13 Nov 2026 |
+| 2026-11-13 | S5-91 | new | B-17 proof test (b17-checklist), Vincent's notes 13 Nov 2026 |
+| 2026-11-13 | S5-92 | new | B-17 proof test (b17-checklist), Vincent's notes 13 Nov 2026 |
+| 2026-11-13 | S5-93 | new | B-17 proof test (b17-checklist), Vincent's notes 13 Nov 2026 |
+| 2026-11-13 | S5-94 | new | B-17 proof test (b17-checklist), Vincent's notes 13 Nov 2026 |
+| 2026-11-13 | S5-95 | new | B-17 proof test (b17-checklist), Vincent's notes 13 Nov 2026 |
+| 2026-11-13 | S5-96 | new | B-17 proof test (b17-checklist), Vincent's notes 13 Nov 2026 |
+| 2026-11-13 | S6-17 | new | B-17 proof test (b17-checklist), Vincent's notes 13 Nov 2026 |

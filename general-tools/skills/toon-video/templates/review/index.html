@@ -3,7 +3,7 @@
 <!--
   Stage review page (toon-video, rules S1 and S2 approvals; S2-30: one page per story, one section per stage). Fill the
   JSON in #page-data, then publish with capabilities {"db":{"rules":[{"path":"","read":"view","write":"owner"}]},"user":{}}.
-  Each section is one stage (story, direction, parts-<place>, render-<n>) with its own Approve button and notes; a stage
+  Each section is one stage (story, direction, parts-<place>, picture-<place> (S2-33), shots, render-<n>) with its own Approve button and notes; a stage
   already approved can stay on the page with "done": true. Items: video, image, audio (the narration) and text (a
   script, a scene plan, a parts plan: { "kind": "text", "title", "text" }).
   Only the artifact's owner can write, so the Approve button records the owner's own click. Agents never write the
@@ -23,6 +23,8 @@
     "items": [ { "kind": "video", "src": "v/animatic.mp4", "caption": "Stills on the voice" }, { "kind": "image", "src": "c/cast.jpg", "caption": "The cast" } ] },
   { "stage": "parts-shore", "title": "Place: the shore", "ask": "How the shore is made.",
     "items": [ { "kind": "text", "title": "Parts plan", "text": "Sky: ...\nFar band: ..." }, { "kind": "image", "src": "c/shore.jpg", "caption": "The shore at dusk" } ] },
+  { "stage": "picture-shore", "title": "Picture: the shore", "ask": "The shore's background picture. Approve, or note what to change.",
+    "items": [ { "kind": "image", "src": "c/shore-far.jpg", "caption": "Far picture, golden hour" } ] },
   { "stage": "story", "title": "Story and narration (approved)", "done": true,
     "items": [ { "kind": "audio", "src": "v/narration.mp3", "caption": "The narration" } ] }
  ]

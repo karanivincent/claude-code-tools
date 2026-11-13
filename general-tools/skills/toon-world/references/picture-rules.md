@@ -4,6 +4,45 @@ How to ask an image model (Higgsfield `gpt_image_2_6`, `resolution: "2k"`, `qual
 pictures of a place: the sky, the far band, and an indoor master that paints the middle band. These prompts follow
 S3-21. Learned from two rounds of hall pictures on the ancient jar practice copy.
 
+## A picture worth looking at (S3-166, S3-167, S3-168)
+
+The far picture fills a large part of most frames, so a dull picture makes a dull film. Two far pictures from the
+same tool (Higgsfield), with very different results. The prompt and the approval made the difference.
+
+| | Before: the B-17 airfield (`library/places/airfield-1935/pictures/airfield-far.jpg`) | After: the cliff and lake (`library/places/cliff-lake/pictures/far.jpg`) |
+|---|---|---|
+| Light | Flat midday, no shadows, plain colours | Golden hour, warm sun low on the right, orange and violet sky |
+| Layers | One thin row of objects on a flat field | Lake, near shore, wooded hills, cliffs, far ridges, sky |
+| Sky | Two thirds of the picture, empty blue with four clouds | Big lit clouds that carry most of the colour |
+| Detail | A barn, a tower, two hangars, a house, all at one distance | Trees at three distances, cliff strata, a lit pavilion, birds, reflections |
+| Owner | Found it flat and dull | Loved it |
+
+### The prompt template
+
+Fill each slot (S3-166, S3-167). A slot left empty comes back as midday, empty sky and one row of things.
+
+```
+WORLD: <the place>, painted storybook film still, vivid modern cartoon colours.
+LIGHT: <golden hour | low sun | storm light | dramatic sky>, sun <low, from the left or right>, long shadows,
+  warm light on <what it catches>, cool <blue or violet> shade.
+LAYERS: near: <water, a field edge, rocks with detail>; middle: <buildings, trees, the working part of the place>;
+  far: <hills, ridges, a skyline, in two or three steps>; sky: <big lit clouds, colour toward the sun>.
+DETAIL: dense small things at each distance: <trees, rocks, fences, lamps, flags, birds, reflections>.
+FRAME: horizon at <the height the cameras need>; the sky takes about <a third> of the picture, no more.
+RULES: everything sharp, no haze, no fog, no vignette, no people, no text; nothing important cut by an edge.
+```
+
+Flat midday is allowed only when the story needs it, as at a scorching noon (S3-166). Then the prompt asks for raked
+light and strong, dark shadows, and the sky still has colour and clouds.
+
+The picture takes no more of the frame than its band (S3-168). Above the far band, the sky is the picture's sky or the
+dome; below it, the code middle, ground and detail layer fill the frame. A frame that is mostly picture reads flat
+however good the picture is.
+
+Each place's background picture is shown to the owner on the review page as its own `picture-<place>` item at stage 2
+(S2-33). He approves the picture, not only the parts plan. Make 2 or 3 versions when the first is not clearly rich, and
+show him the best one.
+
 ## A prompt that worked (the master wide)
 
 Four labelled blocks, the same words in each picture of the place:
