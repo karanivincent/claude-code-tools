@@ -69,11 +69,12 @@ rule-by-rule lines for each step. Do not retell a step in other words (S0-8, X-7
 - [ ] Review page published at stage "story"; approvals pulled; "story" approved (S1-24)
 ### Stage 2. Cast, look, parts plan, scenes, animatic  stop: owner "Direction yes" and "Parts plan yes" per place
 - [ ] Cast sheet: out/<slug>/cast.png (S2-1..S2-6, S2-24)
-- [ ] Parts plan per place, the blend proved on one place: stories/<slug>/parts.md (S2-7..S2-14, S2-17, S2-25)
+- [ ] Library checked first; parts plan per place, the blend proved on one place: stories/<slug>/parts.md (S2-32, S2-7..S2-14, S2-17, S2-25)
+- [ ] Each place's background picture rich by the template (S3-166..S3-168)
 - [ ] Scenes split and roughly built: stories/<slug>/scenes.md, references named (S5-39, S2-31, S5-76)
 - [ ] Still board from the rough scenes: out/<slug>/board/, stories/<slug>/board.md (S2-15, S2-16, S2-18..S2-20)
 - [ ] Animatic: out/<slug>/animatic.mp4 (S2-21)
-- [ ] Review page at stage "direction" and one "parts-<place>" per place; all approved (S2-30, S2-22, S2-23)
+- [ ] Review page at stage "direction", one "parts-<place>" and one "picture-<place>" per place; all approved (S2-30, S2-33, S2-22, S2-23)
 ### Stage 3. World stage (one agent, every place)    stop: places locked
 - [ ] Cast and the one mix done once (S3-152..S3-165); the film's captions on (S5-81)
 - [ ] Every place built and checked from every scene's planned cameras; world rounds (S5-71, S5-57..S5-62)
@@ -81,6 +82,8 @@ rule-by-rule lines for each step. Do not retell a step in other words (S0-8, X-7
 - [ ] Places locked: out/<slug>/locks.json "world" (S5-71)
 ### Stage 4. Shots stage (one agent, every scene)    stop: shots locked
 - [ ] Every scene's camera, beats and shot list in shots.ts, copying any reference (S5-73, S5-76, S5-88)
+- [ ] Spectacle: each shot's reason and what moves behind; hero moments staged big (S5-91, S5-92, S3-169)
+- [ ] 2 to 3 candidate stills per hero beat; owner's pick on the review page at stage "shots" (S5-93)
 - [ ] Each person's size once in sizes.ts; join cards written (S5-74, S5-51, S5-86)
 - [ ] shots-check, cam-speed and path-check clean (S5-72, S5-88, S5-67, S5-80)
 - [ ] Rough film rendered and judged against the animatic: out/<slug>/film-0/ (S5-84)
@@ -91,11 +94,12 @@ rule-by-rule lines for each step. Do not retell a step in other words (S0-8, X-7
 - [ ] Motion and staging rounds (S5-67..S5-69, S5-87)
 ### Stage 6. Join                                    stop: owner's notes taken into the scenes
 - [ ] Film joined; joins.sh clean; sound checked once on the mix (S5-52, S5-83)
-- [ ] Three judges against a film-length reference (S5-82)
+- [ ] Three judges against a film-length reference; owner's pick logged against theirs (S5-82, S5-96)
 - [ ] Render on the review page; notes sent to their scenes (S5-53)
 ### Stage 7. Hand-back                               stop: owner "Looks good"
 - [ ] Captions, package, hand-back checklist with numbers (S6-1..S6-4)
 - [ ] Times logged; lessons written; balance difference reported (S6-9..S6-11)
+- [ ] Improved library entries given back by PR (S6-17)
 ```
 
 ### Stage 0. Start
@@ -129,9 +133,13 @@ Template and layout: `<toon-world>/templates/film-scenes/README.md` and `<toon-w
 
 - Cast sheet `out/<slug>/cast.png`: each person and animal as a flat card in this story's own style
   (S2-1..S2-6): `npx remotion still src/index.ts <Film>-cast out/<slug>/cast.png`. Load `toon-world` for the cards.
+- Library first: read `<toon-world>/library/index.md` and copy any place, vehicle, prop or costume that fits, so the
+  budget goes on shots and acting (S2-32). Each copied entry is named in the parts plan.
 - Parts plan `stories/<slug>/parts.md`, one section per place: the source of sky, far band, middle, ground, detail
   layer, hero props, people, effects and words, and the story's state for the place (S2-7..S2-14). The blend is
   the look on every place (S2-7); prove it on one place (S2-17).
+- Background pictures by the template in `<toon-world>/references/picture-rules.md`: rich light, near, middle and
+  far layers, dense detail, a sky that adds colour (S3-166, S3-167).
 - Split the voice into scenes of 5 to 10 s before the board (S2-31), cutting where the story changes place, light or
   beat. List them in `stories/<slug>/scenes.md`: name, seconds, place, the meaning-sheet beats it holds, at most three
   shots per 5 s (S5-39), and its reference when an earlier build of the beat exists (S5-76). Same place in two
@@ -141,8 +149,9 @@ Template and layout: `<toon-world>/templates/film-scenes/README.md` and `<toon-w
   gesture on its word in `stories/<slug>/board.md` (S2-18, S2-19).
 - Animatic: `python3 <toon-video>/scripts/animatic.py out/<slug>/board/board.json src/stories/<slug>/full.json
   out/<slug>/board <voice.wav> out/<slug>/animatic.mp4` (S2-21), with a python that has Pillow.
-- **Stop.** Publish the review page with a section at stage `direction` (animatic, cast sheet) and one section
-  `parts-<place>` per place (its parts plan as a `text` item, and stills). Wait for every Approve (S2-30, S2-22); the
+- **Stop.** Publish the review page with a section at stage `direction` (animatic, cast sheet), one section
+  `parts-<place>` per place (its parts plan as a `text` item, and stills), and one section `picture-<place>` per place
+  with its background picture (S2-33). Wait for every Approve (S2-30, S2-22); the
   page says which stages still wait. He judges direction: colours, people, anything missing in the story; he does not
   review frame by frame (S0-13). Nothing is built before then (S2-23).
 
@@ -185,6 +194,10 @@ are done once; the Film plays captions from the first render (S5-81).
    shot list (S5-73). A beat with a face or an action holds the hero at a third of the frame height or more; wides
    only place the scene, and briefly (S5-88). A scene with a reference copies its shot sizes and camera side, and its
    loop is started with `--ref <clip>` (S5-76).
+   Choose each shot for size and drama by the spectacle brief in `references/camera.md`: each shot names why its
+   angle and what moves behind the hero (S5-91, S3-169); the hero moment reads as big (S5-92).
+   For each hero beat render 2 to 3 candidate stills, forced apart in angle and size, and publish them on the review
+   page at stage `shots`. The owner picks one by note; he does not rank many (S5-93).
 2. Each person's size goes once into `src/stories/<slug>/sizes.ts` (S5-74). The join cards go into
    `stories/<slug>/joins.json` (S5-51): `tools/join-card.mjs <scene>`, or `--jump --dip 8` for a jump in time (S5-86).
 3. Checks, on each scene: `tools/shots-check.mjs`, `tools/cam-speed.mjs` (planned cuts in `shots.ts CUTS`) and
@@ -232,6 +245,8 @@ clips side by side within one judging (S5-44).
    the last film the owner saw, else the rough film or the animatic: never a short clip (S5-82). Then `short_qa.py`
    on the full film (S5-18), faces bright enough for a phone, night included (S4-19), and the project's own brightness
    rule (Bible in Clay: S4-18).
+   The owner's pick outranks the judges. When his pick differs from a judge's, write the clips, the model and both
+   picks in `stories/<slug>/judge-vs-owner.md` (S5-96).
 5. Publish it on the review page at stage `render-<n>` (S5-53). Each of his notes goes to the scene it names and runs
    as a round there, then the film is joined again.
 
@@ -241,7 +256,8 @@ Work through the hand-back lines of `checklist.md` and give the measured numbers
 file: `python3 <toon-world>/templates/film/tools/srt.py src/stories/<slug>/full.json out/<slug>/captions.srt` (S6-3).
 Package with the `story-thumbnails` skill (S6-4). Drafts only; the owner's "Looks good" on the finished video comes
 before any post (S6-2). Log each step's time (S6-10), write the lessons (S6-11) and report the balance difference
-(S6-9). After a week, log the audience numbers (S6-12, S6-13).
+(S6-9). Give back each library entry the story improved, by PR to the skills repo (S6-17). After a week, log the
+audience numbers (S6-12, S6-13).
 
 ## Approvals
 
@@ -312,7 +328,7 @@ Read each when its stage comes up; none links on to another.
 | File | Read it when |
 |---|---|
 | `references/rules.md` | Always at stage 0, then for any id this skill cites (X-7) |
-| `references/camera.md` | Stage 4 shots and joins: shots by subject, the camera checks, the joins stack |
+| `references/camera.md` | Stage 4 shots and joins: the spectacle brief, shots by subject, the camera checks, the joins stack |
 | `references/acting.md` | Stage 5 people, props, action and words: faces and what each looks like, hands, held things, reaches, pose gotchas |
 | `references/voice-and-sound.md` | Stage 1 narrator and voicing; the music and the mix before stage 3 |
 | `references/team-and-log.md` | Stages 3 to 5 when briefing the world agent, the shots agent and the scene builders, and for logging times and tool gotchas |

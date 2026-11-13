@@ -45,7 +45,7 @@ Stage 1, script and voice
 Stage 2, cast, look and animatic
 - [ ] God and the angel of the LORD as a voice and a light (S2-26)
 - [ ] Crowds match the text's numbers (S2-27)
-- [ ] Parts plan per place approved by button (S2-30); Direction yes by button (S2-22)
+- [ ] Parts plan and background picture per place approved by button (S2-30, S2-33); Direction yes by button (S2-22)
 Stage 6, checks on the joined film
 - [ ] node scripts/sight-check.mjs --story <slug>: nobody blind whose verses have them seeing
 - [ ] node scripts/brightness.mjs <video>: the brightness floor and dull stretches (S4-18)

@@ -5,6 +5,7 @@ are in `why.md`.
 
 ## Contents
 
+- [The spectacle brief](#the-spectacle-brief)
 - [Shots in the film template](#shots-in-the-film-template)
 - [Shots by subject](#shots-by-subject)
 - [Kit camera blocks](#kit-camera-blocks)
@@ -15,6 +16,25 @@ are in `why.md`.
 - [The joins stack](#the-joins-stack)
 - [Not acceptable](#not-acceptable)
 - [Camera gotchas](#camera-gotchas)
+
+## The spectacle brief
+
+Vincent, after the B-17 proof test: "choose the shot wisely, make it bigger, put other things happening behind".
+Choose each shot for size and drama, as a big channel would, not for coverage.
+
+- **The hero big.** On its key moments the hero fills a third of the frame height or more (S5-88). A wide only places
+  the scene.
+- **The angle for a reason.** Each shot in `shots.ts` names why its angle was chosen (`why: 'low, so the plane climbs
+  over the stand'`) (S5-91). No reason means restage it.
+- **Something behind.** Each shot names what moves behind the hero (`behind: 'second plane taxiing, crew running'`):
+  other planes, vehicles, people working, flags, birds, dust, smoke, water, as the story fits (S3-169, S5-91).
+- **The hero moment reads as big.** Stage it high, wide or close enough: a plane climbs visibly high above the
+  ground and the people; a fall is seen whole, from the tip to the impact (S5-92).
+- **Light makes colour.** Shoot toward the low sun for rims, or across it for long shadows; a flat front light from
+  behind the camera gives plain colour (S3-166, S5-58).
+- **Few candidates, one pick.** For each hero beat render 2 to 3 candidate stills, forced apart: a different camera
+  side, height and shot size, not the same shot nudged. Put them on the review page at stage `shots`; Vincent picks
+  one by note, and he is not asked to rank many (S5-93).
 
 ## Shots in the film template
 

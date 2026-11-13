@@ -151,6 +151,8 @@ must, never, always, every or only without an id.
 - **S2-29** A flat 2D place is an exception the parts plan must justify and the owner approves. Proof: owner Approve direction. Why: flat places read as bare and toy-like.
 - **S2-30** Vincent approves each place's parts plan by button, and again whenever that plan changes. Proof: owner Parts plan yes (gate.mjs: parts-<place>). Why: he picks how each place is made.
 - **S2-31** Split the scenes before the still board; board.mjs renders the board from rough scenes in the real places. Proof: check tools/board.mjs. Why: the board needed places, cast and rough cameras first.
+- **S2-32** Before planning a place, look in toon-world/library/ for a place, vehicle, prop or costume to copy; the parts plan names each entry it copies. Proof: file stories/<slug>/parts.md (library line). Why: rebuilding the world spent the budget shots and acting needed.
+- **S2-33** Vincent approves each background picture itself by its own picture-<place> button at stage 2, beside the parts plan. Proof: owner Picture yes (gate.mjs: picture-<place>). Why: a flat midday picture passed under an approved parts plan.
 
 ## S3 Build
 
@@ -164,7 +166,7 @@ must, never, always, every or only without an id.
 - **S3-6** Far backdrop bands reach below the lowest point the ground's far edge reaches. Proof: check `checkSky`. Why: a sky strip under the hills read as a lake.
 - **S3-7** Middle and ground are code 3D with painted tileable textures; no plain-colour mesh near the camera. Proof: check `look.mjs: plainMeshes` (new). Why: painted pictures on code shapes read real. (Vincent, 11 Nov 2026)
 - **S3-8** Textures near the camera are 2048 px with mipmaps and 16x anisotropy. Proof: check `look.mjs: smallTextures` (new). Why: 1024 and 256 textures measured 5.5 times softer.
-- **S3-9** Every shot has a detail layer of real moving things (flies, smoke, dust in light shafts, cloth, birds, a goat), not dots. Proof: check `look.mjs: detailCount` (new). Why: speckle dots read as noise, not life. (Vincent, 11 Nov 2026)
+- **S3-9** Every shot has a detail layer of real moving things (flies, smoke, dust in light shafts, cloth, birds, a goat), not dots. Proof: check `look.mjs: detailCount` (new). Why: speckle dots read as noise, not life. (Vincent, 11 Nov 2026) Background life behind the hero: S3-169.
 - **S3-10** The flat-colour share of each beat-board still stays under the look threshold. Proof: check `look.mjs: flatShare` (new). Why: flat areas read as an unfinished place.
 - **S3-11** Scatter painted 2D litter decals on the ground band. Proof: check `look.mjs: detailCount` (new). Why: a bare ground reads as a stage floor.
 - **S3-12** A calm area stays right behind every face; detail goes round the edges, on the ground and in the air. Proof: check `critic: world`. Why: a busy cut-out behind a person read as clutter.
@@ -185,6 +187,10 @@ must, never, always, every or only without an id.
 - **S3-27** Invented things round a small subject stay near its size, and the subject gets its own light pool. Proof: check `critic: world`. Why: invented canvases dwarfed the Mona Lisa.
 - **S3-28** Cameras on uneven ground give heights above the ground under each point. Proof: check `safe`. Why: absolute heights put cameras underground.
 - **S3-29** Crowds are painted once and reused, their phase offsets kept positive (`frac = v => ((v % 1) + 1) % 1`). Proof: check `kit tests`. Why: a negative phase picked a missing picture and crashed three.js.
+- **S3-166** A background picture has rich light: golden hour, low sun, storm light or a dramatic sky; flat midday only when the story needs it, then raked light and strong shadows. Proof: owner Picture yes. Why: the B-17's flat midday picture gave plain, dull colour.
+- **S3-167** A background picture holds near, middle and far layers under a sky that adds colour, densely detailed, never a thin row on an empty field. Proof: owner Picture yes. Why: two thirds empty sky and one row of objects read flat.
+- **S3-168** The picture takes no more of the frame than its band; code middle, ground and detail layer fill the rest. Proof: check critic: world. Why: most of the B-17 frame was the dull generated picture.
+- **S3-169** Every shot has something moving behind the hero that fits the story: other planes, vehicles, people working, flags, birds, dust, smoke or water. Proof: check critic: world. Why: nothing moved behind the hero in all three B-17 builds.
 
 ### Light and the look stack
 
@@ -394,6 +400,9 @@ camera, shot size and person's size), then the scene stage (people and motion, s
 - **S5-77** A scene with a reference shows it to the judge every round; the scene stops only when best beats or ties it, or by S5-43's other stops. Proof: check scripts/loop/step.mjs (reference). Why: rounds judged only against their own best stalled at 3.3.
 - **S5-89** No brief caps a pass below S5-43's stop rules; a pass runs until its area reaches 4, two rounds without a win, or six rounds. Proof: check scripts/loop/step.mjs (pass stops). Why: two-round caps stopped passes at 2.5 to 3.1.
 - **S5-90** After a lost or tied round step.mjs writes faults.md from best's faults and the judge's credit and blame, so the next round always has one. Proof: file out/<slug>/scenes/<scene>/best/faults.md. Why: kept rounds after a loss left faults.md empty.
+- **S5-94** Reviewers and judges score Vincent's criteria: camera angle, effects landing well and not too fast, the hero big, background people's details, strong colour, ground detail, shadows, spectacle. Proof: file references/judge-brief.md (owner's criteria). Why: AI judges under-rated effect animation against his picks.
+- **S5-95** Judges see at least 6 frames a second of the clip, so effects and their timing count in the score. Proof: check scripts/loop/abjudge.sh (6 fps sheets). Why: judges on sparse stills under-rated effects Vincent valued.
+- **S5-96** Vincent's pick outranks every judge; when a judge's pick differs from his, log the clips, the model (Opus or Sonnet) and both picks. Proof: file stories/<slug>/judge-vs-owner.md. Why: Opus judges picked against him; Sonnet judges matched him.
 
 ### Scenes in parallel and the join
 
@@ -432,6 +441,9 @@ camera, shot size and person's size), then the scene stage (people and motion, s
 - **S5-76** An earlier build of a beat (a spike, a practice clip, an earlier version) is that scene's reference: the shots copy its shot sizes and camera side. Proof: file out/<slug>/scenes/<scene>/scene.json (ref). Why: the film dropped the spike's shot sizes.
 - **S5-84** Before the scene stage, render the whole film rough (locked places and shots, stand-in poses, captions, the mix) and judge it against the animatic. Proof: file out/<slug>/film-0/verdict.json. Why: film faults showed only once the scenes were joined.
 - **S5-88** A beat with a face or an action holds the hero at a third of the frame height or more; a wide only places the scene, 1.5 s at most. Proof: check tools/shots-check.mjs (size). Why: film faces at 1/20 of the frame lost to the spike.
+- **S5-91** Each shot in shots.ts names why its angle was chosen and what moves behind the hero; a shot with no reason or nothing behind is restaged. Proof: file src/stories/<slug>/scenes/<scene>/shots.ts (why and behind per shot). Why: shots were not chosen for spectacle; Vincent: choose the shot wisely.
+- **S5-92** Stage the hero moment high, wide or close enough to read as big: a climb visibly high above the ground, a fall seen whole from start to impact. Proof: owner Shot pick. Why: the B-17's climb and stall did not read as big.
+- **S5-93** For each hero beat the shots agent renders 2 to 3 candidate stills, forced apart in angle and size; Vincent picks one, never ranks many. Proof: owner Shot pick (review page stage shots, his note names the still). Why: Vincent picks well between few; ranking many tires him.
 
 ### Scene stage: people and acting
 
@@ -526,6 +538,7 @@ camera, shot size and person's size), then the scene stage (people and motion, s
 - **S6-14** A series builds its worlds, cast, props and effects in episode one in one shared folder. Proof: check `critic: kit PR`. Why: later episodes become staging, not modelling.
 - **S6-15** Close every owner note and critic finding as story-only or with a rule id from add_rule.mjs. Proof: file stories/<slug>/lessons.md (new: gate render checks every note has a line). Why: a lesson not written as a rule is forgotten.
 - **S6-16** Bible in Clay: titles name God or the person. Proof: check critic: package. Why: names are what people search for.
+- **S6-17** At hand-back, a story gives back each library entry it improved, by PR to the skills repo, with the entry's known faults updated. Proof: file stories/<slug>/lessons.md (library line). Why: a library improves only when stories give their fixes back.
 
 ## X Any stage
 

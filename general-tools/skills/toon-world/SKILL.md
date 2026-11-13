@@ -31,15 +31,19 @@ The blend is the one look, on each place in the film (S2-7). Flat code colour is
 
 | Band | Source | Rules |
 |---|---|---|
-| Sky | A picture on a dome; code clouds are not used | S3-80, S3-5 |
-| Far (sea, forest, mountains, a skyline) | One picture on a curved screen that follows the camera; a 360-degree strip when seen all round | S3-3, S3-4, S3-6 |
+| Sky | A picture on a dome, with lit clouds that add colour; code clouds are not used | S3-80, S3-5, S3-167 |
+| Far (sea, forest, mountains, a skyline) | One picture on a curved screen that follows the camera; a 360-degree strip when seen all round. Rich light, near, middle and far layers, dense detail, and no more of the frame than its band | S3-3, S3-4, S3-6, S3-166..S3-168 |
 | Middle (trunks, walls, huts, shelves) | Code 3D shapes with painted tileable textures (bark, thatch, plaster, book spines) | S3-7, S3-8 |
 | Ground | Code 3D with a painted tile, plus scattered painted 2D litter decals | S3-7, S3-11 |
-| Detail layer | Small real things that move: flies, smoke, dust in light shafts, cloth, birds, a goat. Not dots | S3-9 |
+| Detail layer | Small real things that move: flies, smoke, dust in light shafts, cloth, birds, a goat. Not dots. Something that fits the story moves behind the hero in each shot: other planes, vehicles, people working | S3-9, S3-169 |
 | Hero props | Real 3D built in code; Higgsfield image-to-3D when Vincent asks for it | S2-11, S3-26 |
 | People | Bean-head cards, lit by the scene, sharp in focus | S3-57, S3-35 |
 | Fire, smoke, dust, water | Code volumes or cards | S3-75 |
 | Words | Screen cards | S3-148 |
+
+The far picture is most of what the eye meets, so it is made rich: golden hour, low sun, storm light or a dramatic
+sky, never flat midday unless the story needs it (S3-166). The prompt template and a before and after are in
+`references/picture-rules.md`. Vincent approves each place's picture by its own `picture-<place>` button (S2-33).
 
 Textures near the camera are painted at 2048 px with mipmaps and 16x anisotropy (S3-8). Pictures are rich, saturated
 and crisp, with no haze (S3-15). One look in any single frame (S2-12).
@@ -51,6 +55,9 @@ through.
 
 ## The parts plan
 
+Before planning a place, look in `library/` (`library/index.md`) for a place, vehicle, prop or costume to copy, and
+name each one the plan copies (S2-32). How to copy one in and give improvements back: `library/README.md` (see).
+
 Before building a place, write its parts plan in `stories/<slug>/parts.md` (S2-9). It names the source of each band
 above, the story's state for the place (S2-13), and what stands behind a gate, door or wall the story names (S2-14).
 Vincent approves each place's plan by his button on the review page (S2-30); `step.mjs` reads it from `approvals.json`,
@@ -61,11 +68,13 @@ A concrete example, one place:
 ```markdown
 ## Zarephath gate (drought, late afternoon)
 - State: drought. Dry thorn bushes, cracked ground, no clouds, dust in the air.
-- Sky: picture on a dome, hard blue fading to pale gold at the horizon.
+- Sky: picture on a dome, late sun low in the west, hard blue overhead to orange and gold at the horizon, lit clouds.
 - Far band: one picture, bare brown hills and the town's roofs, 360-degree strip, sea to the west.
 - Middle: code 3D town wall and gate towers, painted mud-brick texture at 2048; two code date palms, painted bark.
 - Ground: code terrain, painted cracked-earth tile; litter decals of straw, sticks, pot shards.
+- Library: none fits (checked `library/index.md`).
 - Detail layer: dust drifting in two light shafts, three flies, a goat nosing the straw, cloth flapping on the gate.
+- Behind the hero: women at the well, a donkey led through the gate, smoke from the cooking fire.
 - Behind the gate: the street and two houses, code 3D, painted plaster.
 - Hero props: a clay jar and a bundle of sticks, code 3D.
 - People: the widow and her son, Elijah. Bean-head cards.
@@ -82,11 +91,15 @@ Copy this checklist into the story's `checklist.md` and tick it as you go (S0-8)
 ```markdown
 - [ ] Film started with new-film.mjs; kit synced with sync-kit.mjs (S0-2, S0-5)
 - [ ] Post stack and TypeScript pinned (S0-4)
+- [ ] Library checked; entries copied in and named in the parts plan (S2-32)
 - [ ] Parts plan for this place approved by Vincent's button (S2-30)
 - [ ] Set list: 8 or more props, a full background, extras (S3-2)
 - [ ] Sky and far band pictures made by picture-rules.md; backdrop reaches below the ground's far edge (S3-21, S3-5, S3-6)
+- [ ] Picture has rich light, layers, dense detail and a coloured sky; it fills no more than its band (S3-166..S3-168)
+- [ ] Picture approved by Vincent's picture-<place> button (S2-33)
 - [ ] Middle and ground in code 3D with painted textures, 2048 px, mipmaps, 16x anisotropy (S3-7, S3-8)
 - [ ] Detail layer of moving real things in each shot; litter decals on the ground (S3-9, S3-11)
+- [ ] Per shot, something that fits the story moves behind the hero: shot __ moves __ (S3-169)
 - [ ] Hero props in code, sized against a person (S2-11, S3-26)
 - [ ] Calm area behind each face; at most one busy band (S3-12, S3-13)
 - [ ] Doorways reach the floor; coplanar pieces offset (S3-23, S3-24)
@@ -231,7 +244,8 @@ has the full list.
 | File | Read it when |
 |---|---|
 | `references/look-targets.md` | Setting grade, ink, blur and people numbers |
-| `references/picture-rules.md` | Writing a prompt for a far band, sky or master picture |
+| `references/picture-rules.md` | Writing a prompt for a far band, sky or master picture: the rich-picture template first |
+| `library/README.md`, `library/index.md` | Before a parts plan: places, vehicles, props and costumes to copy; giving improvements back |
 | `references/place-from-pictures.md` | Painting an indoor middle band from a fitted master picture |
 | `references/cold-read-brief.md` | Briefing the cold-read agent |
 | `references/why.md` | Asking why a rule exists, or what an old pattern was |
@@ -255,4 +269,8 @@ has the full list.
 | Night as a desaturated grade | `timeOfDay` by hue and brightness (S3-47, S3-48) |
 | A generated close-up of the place | Model the close object or crop the master (S3-20) |
 | Code clouds | A picture sky on a dome (S3-80) |
+| A flat midday far picture with an empty sky and one row of things | Golden hour or storm light, layers, dense detail, by the template (S3-166, S3-167) |
+| Most of the frame is the generated picture | The picture keeps to its band; code middle and ground fill the rest (S3-168) |
+| Nothing moves behind the hero | Other planes, vehicles, people working, flags, birds, dust (S3-169) |
+| Building a place from nothing | Copy the nearest library entry (S2-32) |
 | Editing `src/toon-kit/` in the story | Fix the kit in the skills repo and sync (S0-5) |

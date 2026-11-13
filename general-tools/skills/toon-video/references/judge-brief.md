@@ -5,7 +5,11 @@ foreground in a folder that holds only the two clips' frames. The judge does not
 one a builder made; the key stays outside its folder. It replies with text and writes no file. `abjudge.sh` reads
 the JSON block at the end of the reply, so that form is fixed.
 
-Built from the spikes' judge brief (spike 7). Neutral by design: no area is named as the one being worked on, unless
+Built from the spikes' judge brief (spike 7), with Vincent's own criteria added after the B-17 proof test (S5-94).
+Judges see 6 frames a second on the sheets, so effects and their timing count (S5-95). The judge is a stand-in for
+Vincent: his own pick outranks any judge, and the lead logs each judge pick that differs from his in
+`stories/<slug>/judge-vs-owner.md`, with the model (Opus or Sonnet), since Opus judges have picked against him where
+Sonnet judges matched him (S5-96). Neutral by design: no area is named as the one being worked on, unless
 the loop asks for a lean with `--focus`. With `--ref`, `{REF_BLOCK}` adds a third clip, R: an earlier good build of the
 same beat (S5-77), and `{REF_JSON}` adds its scores to the JSON block. Without it both fields are empty.
 
@@ -29,6 +33,17 @@ You may open single tiles in `<X>/f6/` to check a move.
 {REF_BLOCK}
 
 {FOCUS_LINE}
+
+Judge as the owner does. He looks first at:
+- the camera angle: chosen for drama, the hero big (a third of the frame or more on its key moments) and kept in frame;
+- spectacle: is the hero big, is something happening behind it (other planes, vehicles, people, flags, dust), does the
+  light make rich colour (low sun, long shadows), or is it flat midday;
+- effects: water, dust, fire and smoke that land well and are not too fast; check them on the 6 fps sheets;
+- small details in background people;
+- strong colour;
+- detail in the ground and the background (rocks, grass, litter), and shadows.
+Count these in world (background, detail, life behind the hero), light (colour, shadows), motion (effects, camera)
+and story (the hero big and readable).
 
 Score each version 1 to 5 in each area: world, people, light, story, motion.
 Scale: 1 broken (wrong, unreadable, laughable); 2 weak (reads but flat, frozen or confusing); 3 fine (clear and

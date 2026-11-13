@@ -45,6 +45,15 @@ Judge {FOCUS} first and hardest, and answer its questions below first. Still sco
 Answer the questions of the focus area in the Checks section of your reply, each `yes`, or `no` with the seconds and
 what you see. Use the other areas' questions as you score.
 
+Spectacle (every focus; the owner's own criteria, S5-94):
+- Is the hero big (a third of the frame or more on its key moments) and kept in frame? Is the angle chosen for drama?
+- Is something happening behind the hero that fits the story (other planes, vehicles, people working, flags, birds,
+  dust, smoke)? An empty or frozen background is a fault (S3-169).
+- Does the light make rich colour (low sun, long shadows, a lit sky), or is it flat midday with plain colours?
+- Do effects (water, dust, fire, smoke) land well and not too fast, read on the 6 fps sheets?
+- Do background people have small details? Do the ground and background have detail (rocks, grass) and shadows?
+- Does the background picture take more of the frame than its band, so the frame reads flat (S3-168)?
+
 World:
 - Does the place have depth: a far picture, a middle band, a textured ground, and small things moving (fire, lights,
   birds, insects)? Is it dressed, or a bare room?
