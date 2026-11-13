@@ -11,7 +11,7 @@ then how many reviewers named it, then its severity.
 import glob, json, os, re, sys
 
 AREAS = ["world", "people", "light", "story", "motion", "sound"]
-FOCUS = {"world": ["world", "light"], "light": ["light", "world"], "people": ["people", "story"],
+FOCUS = {"world": ["world", "light"], "shots": ["story", "people"], "light": ["light", "world"], "people": ["people", "story"],
          "story": ["story", "people"], "motion": ["motion"], "sound": ["sound"]}
 
 out, focus = sys.argv[1], sys.argv[2]

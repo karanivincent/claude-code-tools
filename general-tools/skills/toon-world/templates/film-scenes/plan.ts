@@ -3,8 +3,8 @@
 // in order over the full mix. new-film.mjs adds a line here for each scene it makes; change `frames` freely (the
 // scene's composition, its audio offset and the Film follow). Keep the order the order of the story.
 export const FPS = 30, WIDTH = 1080, HEIGHT = 1920;
-/** the film's one mix in public/ (the sound script writes it); scenes play their slice of it */
-export const MIX = '__SLUG__/mix.wav';
+/** the film's one mix in public/ (scripts/<slug>-sound.mjs writes it here); scenes play their slice of it */
+export const MIX = '__SLUG__/full/mix.wav';
 export const SCENES: { id: string; frames: number }[] = [
   // <scenes>
   // </scenes>

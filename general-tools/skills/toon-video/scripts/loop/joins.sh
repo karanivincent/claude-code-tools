@@ -3,14 +3,16 @@
 #
 # Checks every join between two scenes of the joined film:
 #   1. one-frame jumps (jumps.sh, run once on the whole film) within 0.5 s of the join. At a hard cut the cut frame
-#      itself is expected; any other jump there, or any jump at a swing, dissolve or journey, is a fault;
+#      itself is expected, and at a dip any jump inside the fade through black; any other jump there, or any jump at
+#      a swing, dissolve or journey, is a fault;
 #   2. a 2 s clip around the join (outdir/join-<i>/clip.mp4) with 12 fps sheets, for one Sonnet reviewer, run in the
 #      FOREGROUND (all joins at once, then waits). --no-review stops after cutting the clips.
 # Writes <outdir>/joins.md: one row per join with the jumps, the reviewer's verdict, the scene that owns the fix and why.
 #
 # joins.json: a list (or {"joins": [...]}) of
 #   {"at": 7.20, "from": "edge", "to": "fall", "kind": "cut", "why": "a new place"}
-# "at" (or "t") is the film second of the join; kind is cut, dissolve, swing or journey (default cut).
+# "at" (or "t") is the film second of the join; kind is cut, dip, dissolve, swing or journey (default cut). A dip (a
+# jump in time) also gives "dip": the frames of the fade on each side (join-times.mjs writes it from the join card).
 set -eu
 usage() { echo "usage: joins.sh <film.mp4> <joins.json> <outdir> [--no-review]" >&2; exit 2; }
 [ $# -ge 3 ] || usage
@@ -29,7 +31,8 @@ j = json.load(open(sys.argv[1])); j = j.get("joins", j) if isinstance(j, dict) e
 for i, x in enumerate(j, 1):
     at = float(x.get("at", x.get("t", 0)))
     clean = lambda s: str(s).replace("|", "/").replace("\n", " ")
-    print(f"{i}|{at:.3f}|{clean(x.get('from', '?'))}|{clean(x.get('to', '?'))}|{clean(x.get('kind', 'cut'))}|{clean(x.get('why', ''))}")
+    kind = clean(x.get('kind', 'cut')) + (f":{int(x['dip'])}" if x.get('kind') == 'dip' and x.get('dip') else '')
+    print(f"{i}|{at:.3f}|{clean(x.get('from', '?'))}|{clean(x.get('to', '?'))}|{kind}|{clean(x.get('why', ''))}")
 EOF
 [ -s "$out/joins.txt" ] || { echo "joins.sh: no joins in $joins" >&2; exit 1; }
 
@@ -45,8 +48,9 @@ You check one join between two scenes of a cartoon video (a phone video in a dra
 people as cards in a 3D world). Read only files in $d. Reply with text; do not write any file.
 
 The join: scene "$from" into scene "$to", at $rel s in this 2 s clip. Planned as: $kind. ${why:+Its reason: $why.}
-A cut is a hard cut to a new shot; a dissolve blends two moving shots over about half a second; a swing or a journey
-is one camera move that carries across with no cut.
+A cut is a hard cut to a new shot; a dip fades to black and back over a few frames (a jump in time, planned); a
+dissolve blends two moving shots over about half a second; a swing or a journey is one camera move that carries across
+with no cut.
 
 Open $d/frames/sheet-01.jpg (12 frames a second, clip time and frame number at each tile's top left), then every file
 in $d/frames/full/ (ls it first). You may open single tiles in $d/frames/f6/.
@@ -78,8 +82,9 @@ bad = 0
 for line in open(f"{out}/joins.txt"):
     i, at, frm, to, kind, why = line.rstrip("\n").split("|")
     at = float(at); cut = round(at * fps)
+    kind, _, dip = kind.partition(":"); dip = int(dip) if dip else (8 if kind == "dip" else 0)
     near = [f for f, t in zip(J["frames"], J["times"]) if abs(t - at) <= 0.5]
-    faults = [f for f in near if not (kind == "cut" and abs(f - cut) <= 1)]
+    faults = [f for f in near if not ((kind == "cut" and abs(f - cut) <= 1) or (kind == "dip" and abs(f - cut) <= dip + 1))]
     jt = ", ".join(f"f{f}" + ("" if f in faults else " (the cut)") for f in near) or "none"
     v = o = w = "-"
     if review:

@@ -6,7 +6,8 @@ one a builder made; the key stays outside its folder. It replies with text and w
 the JSON block at the end of the reply, so that form is fixed.
 
 Built from the spikes' judge brief (spike 7). Neutral by design: no area is named as the one being worked on, unless
-the loop asks for a lean with `--focus`.
+the loop asks for a lean with `--focus`. With `--ref`, `{REF_BLOCK}` adds a third clip, R: an earlier good build of the
+same beat (S5-77), and `{REF_JSON}` adds its scores to the JSON block. Without it both fields are empty.
 
 ---
 
@@ -24,6 +25,8 @@ Read only the files in this folder. For each of A and B, open in order:
 - every file in `<X>/full/` (`ls` it first): one frame every 0.5 s and the last frame, time in the name. Judge look,
   faces, contact and framing here.
 You may open single tiles in `<X>/f6/` to check a move.
+
+{REF_BLOCK}
 
 {FOCUS_LINE}
 
@@ -45,7 +48,7 @@ Reply with text, in this order:
        "credit": ["what works in A that B lacks, with seconds"],
        "blame": ["what is worse in A than in B, with seconds"]},
  "B": {"world": 3, "people": 3, "light": 4, "story": 3, "motion": 3,
-       "credit": ["..."], "blame": ["..."]},
+       "credit": ["..."], "blame": ["..."]},{REF_JSON}
  "better": "A", "by": "a hair"}
 ```
 

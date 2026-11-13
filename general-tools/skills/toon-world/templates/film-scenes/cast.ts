@@ -8,12 +8,20 @@
 //  - a talking face lost its expression: talking sets `talk` on the drawing, which keeps the expression's own mouth
 //    and opens the lips under it (look/toon.ts talkLips), never a swap to another face.
 // Replace the stand-in people with the story's. Every figure: its own head shape (seed), its own build, its own colours.
+// Each person's size is in sizes.ts (set once by the shots stage, S5-74), never per scene.
+
 import * as THREE from 'three';
 import { getInputProps } from 'remotion';
-import { Pen, bodyFront, fxBlob, SKINS, type FrontOpts, type Outfit } from '../../look/toon';
+import { Pen, bodyFront, fxBlob, SKINS, setFaceStyle, type FrontOpts, type Outfit } from '../../look/toon';
+import { sizeOf } from './sizes';
 import { NOINK } from '../../look/ink';
 import { cardShade, blobMaterial, CARD_K } from '../../look/cardshade';
 import { clampHand, edgeTouches } from '../../toon-kit/cards';
+
+// Faces drawn the soft way (the cliff film, November 2026): the shock face's white ring eyes read as glasses or as
+// another person in four judgings, and the nervous face's sweat drop as a blob on the hair. Off here, the old drawing
+// stays the default for older stories (X-8).
+setFaceStyle({ shockRings: false, sweat: false });
 
 export type V3 = [number, number, number];
 type P2 = [number, number];
@@ -112,6 +120,7 @@ export const cardOpts = (o: FrontOpts, light: number): FrontOpts => {
     tilt: q(o.tilt ?? 0, 2), headTilt: q(o.headTilt ?? 0, 2), phase: q(o.phase ?? 0, 20), wave: o.wave === undefined ? undefined : q(o.wave, 10),
     talk: o.talk === undefined ? undefined : q(o.talk, 4), hairSwing: o.hairSwing === undefined ? undefined : q(o.hairSwing), capLift: o.capLift === undefined ? undefined : q(o.capLift),
     blink: typeof o.blink === 'number' ? q(o.blink, 2) : o.blink ? 1 : 0,
+    exprK: o.exprK === undefined ? undefined : q(o.exprK, 20),
   };
 };
 /** draw one person's card on a pen (the pose sheet uses it too, so it shows exactly what the film draws) */
@@ -132,9 +141,10 @@ export class Cast {
       const k = tier(cam.position.distanceTo(new THREE.Vector3(at[0], at[1] + 1, at[2])));
       a.r = this.pool.req(`${p.who}|${JSON.stringify(qo)}`, Math.round(CW * k), Math.round(1000 * k), k, (pen) => drawCard(pen, p.who, qo));
       a.mesh.visible = true; a.mesh.position.set(...at);
-      a.mesh.rotation.set(0, Math.atan2(cam.position.x - at[0], cam.position.z - at[2]), lean); a.mesh.scale.set(p.sx ?? 1, p.sy ?? 1, 1);
+      const size = sizeOf(p.who);
+      a.mesh.rotation.set(0, Math.atan2(cam.position.x - at[0], cam.position.z - at[2]), lean); a.mesh.scale.set((p.sx ?? 1) * size[0], (p.sy ?? 1) * size[1], 1);
       if (lean) { // turn about the body's middle (0.9 m up), not the soles
-        const h = 0.9, ox = h * Math.sin(lean), oy = h - h * Math.cos(lean), ry = a.mesh.rotation.y;
+        const h = 0.9 * size[1], ox = h * Math.sin(lean), oy = h - h * Math.cos(lean), ry = a.mesh.rotation.y;
         a.mesh.position.x += ox * Math.cos(ry); a.mesh.position.z -= ox * Math.sin(ry); a.mesh.position.y += oy;
       }
       const onGround = p.ground ?? Math.abs(at[1] - groundY(at[0], at[2])) < 0.05;

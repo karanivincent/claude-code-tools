@@ -46,11 +46,11 @@ Stage 2, cast, look and animatic
 - [ ] God and the angel of the LORD as a voice and a light (S2-26)
 - [ ] Crowds match the text's numbers (S2-27)
 - [ ] Parts plan per place approved by button (S2-30); Direction yes by button (S2-22)
-Stage 4, checks (beside the scene loop)
+Stage 6, checks on the joined film
 - [ ] node scripts/sight-check.mjs --story <slug>: nobody blind whose verses have them seeing
-- [ ] node scripts/brightness.mjs <video>: the brightness floor and dull stretches (S4-8)
+- [ ] node scripts/brightness.mjs <video>: the brightness floor and dull stretches (S4-18)
 - [ ] Each check docs/REVIEW-LESSONS.md lists, after merging main
-Stage 6, hand-back
+Stage 7, hand-back
 - [ ] Captions and package (S6-3, S6-4); cover in stories/covers.json, rendered with scripts/covers.mjs (S6-5)
 - [ ] docs/catalog.json updated in the same commit (S6-6)
 - [ ] Redo: the old publer.json entry moved to replaced before the drafts (S6-7)
@@ -73,7 +73,7 @@ to render `stories/covers/<id>.jpg` (S6-5).
 ## The hand-back
 
 Give the coordinator the video, the Publer draft id, the cost and the measured counts (S6-8): pace (`pace.py`), hard
-cuts with their reasons (S3-121), face close-up share (S3-105), brightness (S4-8), the sight check, whisper lines heard,
+cuts with their reasons (S3-121), face close-up share (S3-105), brightness (S4-18), the sight check, whisper lines heard,
 quotes checked word for word (S1-26), and the film judges' last verdict (S5-52). Name the branch the story lives on.
 
 ## At the end

@@ -1,5 +1,5 @@
 #!/bin/bash
-# look.sh <clip.mp4> <outdir> --focus <world|people|light|story|motion|sound>
+# look.sh <clip.mp4> <outdir> --focus <world|shots|people|light|story|motion|sound>
 #         [--meaning <file>] [--prior <file>] [--words <words.json>] [--actions w1,w2,...]
 #         [--facts <file>]... [--no-jumps] [--brief <file>] [--models "sonnet sonnet opus"]
 #
@@ -15,12 +15,13 @@
 #
 # --meaning   the scene's meaning sheet (what it must say, the words and their times); pasted into the brief
 # --prior     the last kept round's faults.md: each reviewer says what is fixed, better, same or worse
-# --words     a words.json ([{"w":"jumped","s":2.53,"e":2.88}], or {"words":[...]}): reviewer 3's stills are taken
+# --words     a words.json ([{"w":"jumped","s":2.53,"e":2.88}], or {"words":[...]}; words.mjs writes it from full.json
+#             with the scene's own times): reviewer 3's stills are taken
 #             on the action words (--actions picks them; else every word of four letters or more, at most 10)
 #             Without it, reviewer 3 gets a full-size still every second.
 # --facts     another fact file to paste in (audible.py's audible.md in the sound pass); repeatable
 set -eu
-usage() { echo "usage: look.sh <clip.mp4> <outdir> --focus <world|people|light|story|motion|sound> [--meaning f] [--prior f] [--words f] [--actions a,b] [--facts f]... [--no-jumps] [--brief f] [--models \"sonnet sonnet opus\"]" >&2; exit 2; }
+usage() { echo "usage: look.sh <clip.mp4> <outdir> --focus <world|shots|people|light|story|motion|sound> [--meaning f] [--prior f] [--words f] [--actions a,b] [--facts f]... [--no-jumps] [--brief f] [--models \"sonnet sonnet opus\"]" >&2; exit 2; }
 [ $# -ge 2 ] || usage
 clip=$1; out=$2; shift 2
 here=$(cd "$(dirname "$0")" && pwd)
@@ -30,7 +31,7 @@ while [ $# -gt 0 ]; do case $1 in
   --focus) focus=$2; shift 2;; --meaning) meaning=$2; shift 2;; --prior) prior=$2; shift 2;;
   --words) words=$2; shift 2;; --actions) actions=$2; shift 2;; --facts) facts="$facts $2"; shift 2;;
   --no-jumps) jumps=0; shift;; --brief) brief=$2; shift 2;; --models) models=$2; shift 2;; *) usage;; esac; done
-case $focus in world|people|light|story|motion|sound) ;; *) echo "look.sh: --focus must be world, people, light, story, motion or sound" >&2; exit 2;; esac
+case $focus in world|shots|people|light|story|motion|sound) ;; *) echo "look.sh: --focus must be world, shots, people, light, story, motion or sound" >&2; exit 2;; esac
 for f in "$clip" "$brief" $meaning $prior $words $facts; do [ -f "$f" ] || { echo "look.sh: missing file $f" >&2; exit 1; }; done
 command -v claude >/dev/null || { echo "look.sh: the claude CLI is not on PATH" >&2; exit 1; }
 mkdir -p "$out/looks"
@@ -81,6 +82,7 @@ if [ -n "$meaning" ]; then cp "$meaning" "$L/meaning.txt"; else echo "(No meanin
 if [ -n "$prior" ]; then cp "$prior" "$L/prior.txt"; else echo "None: this is the first look at this scene." > "$L/prior.txt"; fi
 case $focus in
   world) ftxt="world and light (answer the World and Light questions)";;
+  shots) ftxt="shot sizes and framing: faces readable on a phone, the hero big enough on each beat, the far picture in frame (answer the Story and People questions)";;
   light) ftxt="light (answer the Light questions)";;
   people) ftxt="people and acting (answer the People and Story questions)";;
   story) ftxt="story (answer the Story questions)";;

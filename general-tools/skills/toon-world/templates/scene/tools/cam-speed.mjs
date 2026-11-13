@@ -3,7 +3,9 @@
 // the field of view's change and the roll). Cliff spike 7: one continuous move still read as "a whip", "a snap into the
 // wide" or "a lurch" wherever it moved more than about 0.3 m or 1.5 degrees a frame, and a camera that stopped dead on
 // a beat read as a jolt. Slow it down and ease every start and stop (motion.ts keysAt: "through" keys keep it moving).
-//   node src/stories/__SLUG__/tools/cam-speed.mjs [<scene>] [--max-m 0.3] [--max-deg 1.5] [--table]
+//   node src/stories/__SLUG__/tools/cam-speed.mjs [<scene>] [--max-m 0.3] [--max-deg 1.5] [--table] [--cuts 45,120]
+// A planned cut inside a scene (the scene's shots.ts CUTS, scene frames, or --cuts) is a jump on purpose: the step onto
+// that frame is not a move, and the camera may stop on the frame before it.
 // No scene: every scene in film order, across the joins too (a join that is not a cut must carry the move on).
 // Exit 1 when anything is flagged.
 import fs from 'node:fs';
@@ -17,14 +19,16 @@ const ids = pos[0] ? [pos[0]] : film.SCENES.map((s) => s.id);
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], len = (a) => Math.hypot(...a), norm = (a) => { const l = len(a) || 1; return a.map((v) => v / l); };
 const ang = (a, b) => (Math.acos(Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2]))) * 180) / Math.PI;
 const joins = (() => { try { return JSON.parse(fs.readFileSync(path.resolve('stories', SLUG, 'joins.json'), 'utf8')).joins ?? []; } catch { return []; } })();
-const isCut = (after, before) => joins.some((j) => j.after === after && j.before === before && j.cut);
+const isCut = (after, before) => joins.some((j) => j.after === after && j.before === before && (j.cut || j.dip));
 const rows = []; // { id, f, film, m, deg, join }
 let prev = null;
 for (const id of ids) {
   const S = await loadScene(id), from = film.sceneFrom(id);
+  const cuts = new Set([...(S.CUTS ?? []), ...(pos[0] && o.cuts ? String(o.cuts).split(',').map(Number) : [])]);
   for (let f = 0; f < S.FRAMES; f++) {
     const c = S.camAt(f);
-    if (prev && !(prev.id !== id && isCut(prev.id, id))) { // a join marked "cut" is a deliberate jump: not a move
+    if (cuts.has(f)) { rows.push({ id, f, film: from + f, m: 0, deg: 0, join: true, cut: true }); prev = { c, id }; continue; }
+    if (prev && !(prev.id !== id && isCut(prev.id, id))) { // a join marked "cut" (or "dip") is a deliberate jump: not a move
       const m = len(sub(c.pos, prev.c.pos)), dir0 = norm(sub(prev.c.look, prev.c.pos)), dir1 = norm(sub(c.look, c.pos));
       const deg = ang(dir0, dir1) + Math.abs(c.fov - prev.c.fov) * 0.5 + Math.abs(c.roll - prev.c.roll);
       rows.push({ id, f, film: from + f, m, deg, join: prev.id !== id });
@@ -34,8 +38,8 @@ for (const id of ids) {
 }
 const flagged = rows.filter((r) => r.m > maxM || r.deg > maxD);
 // stops: speed falls to under a fifth within two frames from over half the limit
-const stops = rows.filter((r, i) => i > 1 && rows[i - 2].m > maxM * 0.5 && r.m < rows[i - 2].m * 0.2 && !r.join);
-if (o.table) for (const r of rows) console.log(`${r.id} f${String(r.f).padStart(3)} (film ${String(r.film).padStart(4)})  ${r.m.toFixed(3)} m  ${r.deg.toFixed(2)} deg${r.join ? '  <- join' : ''}`);
+const stops = rows.filter((r, i) => i > 1 && rows[i - 2].m > maxM * 0.5 && r.m < rows[i - 2].m * 0.2 && !r.join && !rows[i + 1]?.cut && !rows[i + 2]?.cut);
+if (o.table) for (const r of rows) console.log(`${r.id} f${String(r.f).padStart(3)} (film ${String(r.film).padStart(4)})  ${r.m.toFixed(3)} m  ${r.deg.toFixed(2)} deg${r.cut ? '  <- planned cut' : r.join ? '  <- join' : ''}`);
 const peak = (k) => rows.reduce((a, r) => (r[k] > a[k] ? r : a), rows[0] ?? { m: 0, deg: 0 });
 const pm = peak('m'), pd = peak('deg');
 console.log(`${ids.join(', ')}: ${rows.length} steps; fastest move ${pm.m.toFixed(3)} m/frame (${pm.id} f${pm.f}), fastest turn ${pd.deg.toFixed(2)} deg/frame (${pd.id} f${pd.f}); limits ${maxM} m, ${maxD} deg`);

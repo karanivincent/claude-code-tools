@@ -19,9 +19,12 @@ const root = path.resolve(import.meta.dirname, '..');
 const SLUG = '__SLUG__';
 const TL = makeTimeline(JSON.parse(fs.readFileSync(path.join(root, `src/stories/${SLUG}/full.json`), 'utf8')));
 const TAIL = 0.5;   // the film runs this long past the last word (shots.ts END); levels.mjs fails a silent tail (S3-159)
-// The narrator's folder comes from story.ts's `audio` (S3-160: a fixed laura/ wrote the mix where the film never
-// read it); with none there, public/<slug>/full/. The voice script's voices.wav sits in the same folder.
-const AUDIO = fs.readFileSync(path.join(root, `src/stories/${SLUG}/story.ts`), 'utf8').match(/^\s*audio:\s*'([^']+)'/m)?.[1] || `${SLUG}/full/mix.wav`;
+// Where the mix goes: the scene layout's plan.ts MIX, else the whole-film layout's story.ts `audio` (S3-160: a fixed
+// laura/ wrote the mix where the film never read it), else public/<slug>/full/mix.wav. The voice script's voices.wav
+// sits in the same folder. (The cliff film crashed here: the scene layout has no story.ts.)
+const readIf = (f) => { try { return fs.readFileSync(path.join(root, f), 'utf8'); } catch { return ''; } };
+const AUDIO = readIf(`src/stories/${SLUG}/plan.ts`).match(/^export const MIX = '([^']+)'/m)?.[1]
+  || readIf(`src/stories/${SLUG}/story.ts`).match(/^\s*audio:\s*'([^']+)'/m)?.[1] || `${SLUG}/full/mix.wav`;
 const MIX = path.join(root, 'public', AUDIO);
 const VOICES = path.join(path.dirname(MIX), 'voices.wav');
 const OUT = path.join(root, `public/${SLUG}/sound`);
@@ -74,7 +77,7 @@ function loop(n, a, b, fileLen, under, xf = 0.8) {
 // ==== the engine ====================================================================================================
 
 fs.mkdirSync(OUT, { recursive: true });
-if (!fs.existsSync(VOICES)) throw new Error(`no voice track at ${path.relative(root, VOICES)} (story.ts audio: ${AUDIO}); run the voice script first`);
+if (!fs.existsSync(VOICES)) throw new Error(`no voice track at ${path.relative(root, VOICES)} (plan.ts MIX or story.ts audio: ${AUDIO}); run the voice script first`);
 const KEY = process.env.ELEVENLABS_API_KEY;
 async function cached(name, url, body) {
   const hash = crypto.createHash('sha1').update(url + JSON.stringify(body)).digest('hex').slice(0, 12);

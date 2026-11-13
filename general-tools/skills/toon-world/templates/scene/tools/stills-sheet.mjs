@@ -26,7 +26,7 @@ const frames = poses ? [0] : o.frames ? String(o.frames).split(',').map(Number) 
 const scale = Number(o.scale ?? (poses ? 1 : 0.5));
 
 const t0 = Date.now();
-const { serveUrl } = await bundled({ fresh: !!o.fresh });
+const { serveUrl } = await bundled({ fresh: !!o.fresh, key: scene });
 const { renderStill, selectComposition } = need('@remotion/renderer');
 const chromiumOptions = { gl: 'angle' };
 const composition = await selectComposition({ serveUrl, id, chromiumOptions });
