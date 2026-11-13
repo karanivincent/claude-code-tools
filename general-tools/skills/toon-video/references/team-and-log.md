@@ -13,20 +13,25 @@ How to build with agents at stage 3, how to log each step, and the tool gotchas 
 
 ## Building as a team
 
-For a film longer than a few seconds, build with specialist agents that own separate files (X-4):
+For a film longer than a few seconds, build with specialist agents that own separate files (X-4), in the order of
+the stages (S5-71, S5-73, S5-75). Each stage's files are locked before the next starts:
 
-| Agent | Owns |
-|---|---|
-| Place agents, one per two or three places | `places/<place>.ts`, the place's track and detail layer |
-| Effects | fire, smoke, dust and water volumes and cards |
-| People and props that act | the cast's poses, props with states, things that move (a train) |
-| Sound | the sound script, music, mix and stems |
-| Camera, last | `shots.ts` cameras and joins, because it frames what the others built |
+| Agent | Stage | Owns | Locked after |
+|---|---|---|---|
+| The lead | before 3, and 6 | the cast (`cast.ts`), the one mix, captions, joining, the owner | |
+| One world agent | 3 | all the places (S5-71): `places/`, the far pictures in `public/<slug>/`, light, `marks.ts` (FAR, BLOCKERS, SCREEN) | `world` |
+| One shots agent | 4 | all the scenes' `shots.ts` (S5-73), `sizes.ts`, `joins.json`, the rough film | `shots` |
+| Scene builders, up to four | 5 | their own scenes' `story.ts`: people, acting, motion | each scene to its stop |
+
+A scene builder's brief names: its scenes and their loop folders; each scene's reference clip when one exists; the
+locks (places, shots, sizes and join cards are not theirs to change: ask the lead); the stop rules of S5-43, which no
+brief lowers (S5-89); the commands of SKILL.md's stage 5; and a 10-minute command timeout for `look.sh` and
+`abjudge.sh`. The cliff film's lean brief capped each pass at two rounds and passes stopped at 2.5 to 3.1.
 
 - Say the cost before a round of agents starts: about 0.5M tokens an agent call (X-3).
 - Agents run in the foreground, and none drives a browser (X-2).
 - Resume the same agents for the next round so they keep their knowledge of the code (X-4).
-- Each agent writes a short report with notes for the camera agent.
+- Each agent writes a short report with notes for the next stage.
 - Reviewers and judges are separate: `scripts/loop/look.sh` and `abjudge.sh` brief them from `reviewer-brief.md` and `judge-brief.md` (S5-41).
 
 ## The place agent brief
@@ -119,6 +124,11 @@ A series builds its worlds, cast, props and effects in episode one, in one share
 (S6-14). Later episodes are then staging, camera and sound.
 
 ## Tool gotchas
+
+- `look.sh` and `abjudge.sh` start `claude -p` runs and wait; three judges on a film take past three minutes. Run them
+  with a 10-minute command timeout, or the harness moves them to the background.
+- Each scene renders and makes stills from its own bundle (`out/<slug>/bundles/<scene>/`); builders sharing one
+  checkout still see each other's saved files in a fresh bundle, so keep edits inside your own scene.
 
 - Crowd phase offsets stay positive: `(v % 1)` of a negative number picks a missing picture and three.js crashes in
   `projectObject`. Use `frac = v => ((v % 1) + 1) % 1` (S3-29).

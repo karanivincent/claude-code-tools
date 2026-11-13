@@ -77,11 +77,13 @@ must, never, always, every or only without an id.
 - **S0-17** Bible in Clay: a 2D remake keeps the 3D story's files and draft; both go on the review page. Proof: owner `Looks good`. Why: Vincent picks between the two looks.
 - **S0-18** Bible in Clay: one look per story, clay or toon, never both. Proof: check `catalog-refresh.mjs: look field` (new). Why: a story drifting between looks reads as two videos.
 - **S0-19** Bible in Clay: merge main before building and run every check docs/REVIEW-LESSONS.md lists. Proof: check gate.mjs (new: review-lessons list). Why: one review note teaches every video.
+- **S0-20** A story that reuses a practice build branches from main and brings the practice's files in by path; the practice clip becomes the scene's reference. Proof: file out/<slug>/scenes/<scene>/scene.json (ref). Why: the skill had no line for starting from a practice.
+- **S0-21** Before new-film.mjs --look updates src/look, it lists the other stories importing it; render one still of one before and after. Proof: check new-film.mjs (look importers). Why: --look rewrote shared drawing code other stories use.
 
 ## S1 Script and voice
 
 - **S1-1** Open on the strangest true thing within three seconds, build in steps, land the turn at the end. Proof: check `critic: story`. Why: the viewer needs a reason to stay in one second.
-- **S1-2** Write about 150 words for 60 s of film. Proof: check `gate.mjs: words per minute` (new). Why: narration runs about 3 words a second with pauses.
+- ~~**S1-2** Write about 150 words for 60 s of film. Proof: check `gate.mjs: words per minute` (new). Why: narration runs about 3 words a second with pauses.~~ Replaced by S1-35.
 - **S1-3** Bring in every person and object before it matters. Proof: check `critic: story`. Why: a payoff with an unseen prop reads as a cheat.
 - **S1-4** The hook's payoff comes soon after it, and the last line loops back to frame 0. Proof: check `critic: story`. Why: a looping Short lands the hook again.
 - **S1-5** Leave out facts you cannot show; say an imagined feeling as imagined. Proof: check `critic: story`. Why: told facts with no picture lose the viewer.
@@ -112,6 +114,9 @@ must, never, always, every or only without an id.
 - **S1-30** Bible in Clay: a panel picks the story's package before the script, per docs/story-choice/PANEL.md. Proof: file docs/story-choice/<date>/decisions.md. Why: the package decides who clicks.
 - **S1-31** Bible in Clay: the script ends on the detail most people miss and a question to the viewer. Proof: check critic: story. Why: the question drives comments.
 - **S1-32** A crowd speaks with one voice, or the verse's words split in order across two or three voices. Proof: check critic: sound. Why: a stacked chorus is muddy and unclear.
+- **S1-33** When the primary source cannot be read, use the author's own published words and list each unchecked fact for the owner in facts.md. Proof: file stories/<slug>/facts.md. Why: the book was not available; nothing said what to do.
+- **S1-34** A practice set, cast or clip reused for a story is checked against facts.md; anything the facts do not have is dropped. Proof: file stories/<slug>/facts.md. Why: the practice clips had invented friends and a cap.
+- **S1-35** Write about 190 words for 60 s with Laura at 1.2x tempo; time another narrator's rate on the first voiced line. Proof: check gate.mjs: words per minute (new). Why: 196 words ran 60 s, against the old 150.
 
 ## S2 Cast, look and animatic
 
@@ -145,6 +150,7 @@ must, never, always, every or only without an id.
 - **S2-28** Bible in Clay: Ricks Clips (`docs/RICKS-STUDY.md`) is the reference for pace and fullness of the world. Proof: check `critic: world`. Why: the channel measures itself against its best reference.
 - **S2-29** A flat 2D place is an exception the parts plan must justify and the owner approves. Proof: owner Approve direction. Why: flat places read as bare and toy-like.
 - **S2-30** Vincent approves each place's parts plan by button, and again whenever that plan changes. Proof: owner Parts plan yes (gate.mjs: parts-<place>). Why: he picks how each place is made.
+- **S2-31** Split the scenes before the still board; board.mjs renders the board from rough scenes in the real places. Proof: check tools/board.mjs. Why: the board needed places, cast and rough cameras first.
 
 ## S3 Build
 
@@ -349,7 +355,7 @@ must, never, always, every or only without an id.
 - ~~**S4-5** The look checks run: `plainMeshes`, `smallTextures`, `detailCount`, `flatShare`. Proof: check `tools/look.mjs` (new). Why: nothing looked at materials or textures.~~ Replaced by the scene loop (S5-39 to S5-70).
 - ~~**S4-6** `measure_sharp.py` and `measure_look.py` run against the reference with exit codes. Proof: check `measure_sharp`, `measure_look` (new: exit codes). Why: they were never run on Elijah.~~ Replaced by the scene loop (S5-39 to S5-70).
 - ~~**S4-7** Measure sharpness on a short real encode, not on stills. Proof: check `measure_sharp` (new: exit code). Why: stills measured 897, the encode 796.~~ Replaced by the scene loop (S5-39 to S5-70).
-- **S4-8** `brightness.mjs` passes: opening 120 or more, nothing too dark on a phone. Proof: check `brightness.mjs`. Why: a dark opening loses the swipe.
+- ~~**S4-8** `brightness.mjs` passes: opening 120 or more, nothing too dark on a phone. Proof: check `brightness.mjs`. Why: a dark opening loses the swipe.~~ Replaced by S4-18.
 - ~~**S4-9** The planned pace is checked against the story's profile, not a fixed 40. Proof: check `checkPace` (new: reads profile). Why: the profile ranges from 25 to 50 changes a minute.~~ Replaced by the scene loop (S5-39 to S5-70).
 - ~~**S4-10** The gate refuses without the meaning sheet, a parts plan per place and the cold-read result. Proof: file `stories/<slug>/meaning.md`, `stories/<slug>/parts.md`, `out/<slug>/coldread.json`. Why: Elijah skipped the cold read and parts plan.~~ Replaced by the scene loop (S5-39 to S5-70).
 - ~~**S4-11** The gate refuses without both stage buttons in `approvals.json`. Proof: check `gate.mjs: approvals` (new). Why: the owner's direction comes before the build.~~ Replaced by the scene loop (S5-39 to S5-70).
@@ -359,16 +365,24 @@ must, never, always, every or only without an id.
 - **S4-15** Anything misread is redrawn and read again by a new fresh agent until it reads; "cannot tell" is a miss. Proof: file `out/<slug>/coldread.json`. Why: a guess that passes is not a read.
 - ~~**S4-16** The template's example place passes the gate, and a flat-colour test place fails it. Proof: check `kit tests: template gate` (new). Why: templates teach by example. (Vincent, 11 Nov 2026)~~ Replaced by the scene loop (S5-39 to S5-70).
 - **S4-17** Bible in Clay: run sight-check.mjs so nobody whose verses have them seeing is drawn blind. Proof: check sight-check.mjs. Why: closed eyes read as blind on a phone.
+- **S4-18** Bible in Clay: brightness.mjs passes, opening 120 or more and nothing too dark; its floor is the channel's rule, not the toon skill's. Proof: check brightness.mjs. Why: a night story failed a floor made for day stories.
+- **S4-19** A night scene keeps every face bright enough to read on a phone (S3-53), however dark the frame around it. Proof: check critic: light. Why: the toon skill had no rule for night stories.
 
 ## S5 Scene loop
 
 Spikes 3 to 7 (12 November 2026) built a 5 s clip this way and lifted each area it worked on: world and light 2 to 4,
 story 3 to 4, at 25 to 40 minutes a pass. The cycle rules below the loop are replaced by it.
 
+The first film built this way (the cliff film, 13 November 2026) came out worse than the 5 s spike of its key beat:
+wide shots with faces at 1/20 of the frame, cameras turned away from the far picture, places changed by three builders
+under each other, and every round judged against the scene's own last best only. So the film is now built by areas in
+order across the whole film, each area locked before the next: the world stage (every place), the shots stage (every
+camera, shot size and person's size), then the scene stage (people and motion, scenes in parallel), then the join.
+
 ### The loop
 
 - **S5-39** Build the film as scenes of 5 to 10 s, each its own composition playing its slice of the one mix (`templates/scene/`), with at most three shots in 5 s. Proof: file `src/stories/<slug>/scenes/`. Why: a scene renders in about 15 s, so a round takes minutes; five beats in 5 s needed hard cuts the judges docked (spikes 3-7, 12 Nov 2026).
-- **S5-40** Each scene runs the passes in order, one area a pass: rig check, world and light, people and acting, motion and staging, sound. Proof: check `scripts/loop/step.mjs`. Why: each pass moved its own area, and a round that restaged the whole clip lost by 1.2 (spikes 4-7).
+- ~~**S5-40** Each scene runs the passes in order, one area a pass: rig check, world and light, people and acting, motion and staging, sound. Proof: check `scripts/loop/step.mjs`. Why: each pass moved its own area, and a round that restaged the whole clip lost by 1.2 (spikes 4-7).~~ Replaced by S5-75.
 - **S5-41** A round is: at most five changes from `faults.md`, a stills sheet before the render, the render, three reviewers at 6 fps (`look.sh`, `reviewer-brief.md`), then one blind A/B judge against the best so far (`abjudge.sh`). Proof: file `out/<slug>/scenes/<scene>/<pass>-r<n>/verdict.json`. Why: the stills sheet caught a fault before the render in five rounds of six (spike 4).
 - **S5-42** Keep a win and snapshot it to `best/`; revert a loss by copying `best/` back; on a tie keep what the judge credited and drop what it blamed. Proof: check `step.mjs`. Why: one judge scored the same clip 3.4, 3.0 and 2.6 (spike 3).
 - **S5-43** A pass stops when its area reaches 4 on the three-judge average, after two rounds in a row with no win, or after six rounds. Proof: file `verdict.json`. Why: a fixed 4.5 was never reached; extra rounds after two losses moved nothing (spikes 3-7).
@@ -377,22 +391,29 @@ story 3 to 4, at 25 to 40 minutes a pass. The cycle rules below the loop are rep
 - **S5-46** After a lost or tied round the reviewers are not run again; the next builder works from the best clip's `faults.md` and the judge's blame. Proof: check `step.mjs`. Why: the best clip is unchanged, so its notes still stand (spike 3).
 - **S5-47** Reviewers and judges run in the foreground with `claude -p`. Code gives them two facts: one-frame jumps (`jumps.sh`) and effect loudness at each cue (`audible.py`); no gate and no look scripts. Proof: check `scripts/loop/look.sh`. Why: the gate found none of 9 known faults in 27 minutes, Sonnet at 6 fps found 8.5 in 2 minutes, and background agents died when a turn ended (12 Nov 2026).
 - **S5-48** `step.mjs` runs before each step and refuses when the step's input file or the owner's approvals are missing; each phase logs one line with its minutes. Proof: check `step.mjs`. Why: rules with no check were skipped on Elijah and the widow (10-12 Nov 2026).
+- **S5-77** A scene with a reference shows it to the judge every round; the scene stops only when best beats or ties it, or by S5-43's other stops. Proof: check scripts/loop/step.mjs (reference). Why: rounds judged only against their own best stalled at 3.3.
+- **S5-89** No brief caps a pass below S5-43's stop rules; a pass runs until its area reaches 4, two rounds without a win, or six rounds. Proof: check scripts/loop/step.mjs (pass stops). Why: two-round caps stopped passes at 2.5 to 3.1.
+- **S5-90** After a lost or tied round step.mjs writes faults.md from best's faults and the judge's credit and blame, so the next round always has one. Proof: file out/<slug>/scenes/<scene>/best/faults.md. Why: kept rounds after a loss left faults.md empty.
 
 ### Scenes in parallel and the join
 
 - **S5-49** Up to four scenes are built at once, one builder each; renders queue for the project's render slots. Proof: owner `scene count`. Why: building, not rendering, takes the time; Vincent chose four (12 Nov 2026).
-- **S5-50** Before scenes split, the cast, the one mix and each place's world-and-light pass are done once; a place file in `src/stories/<slug>/places/` has one owner. Proof: file `src/stories/<slug>/places/`. Why: scenes in one place built apart would not match.
+- ~~**S5-50** Before scenes split, the cast, the one mix and each place's world-and-light pass are done once; a place file in `src/stories/<slug>/places/` has one owner. Proof: file `src/stories/<slug>/places/`. Why: scenes in one place built apart would not match.~~ Replaced by S5-71.
 - **S5-51** Every cut between scenes has a join card in `stories/<slug>/joins.json` (camera, and each person's place, pose and face); the scene before ends on it and the scene after starts on it, and no scene changes a card alone. Proof: file `stories/<slug>/joins.json`. Why: scenes built in parallel jump at their joins without a shared frame.
 - **S5-52** The Film composition joins the scenes over the one mix; `joins.sh` runs on every join, then three blind judges score the film against the last film the owner saw. A bad join goes back to the scene that owns its card. Proof: file `out/<slug>/film-<n>/verdict.json`. Why: a join is only seen in the joined film.
 - **S5-53** The owner sees the joined film on the review page; each note goes to the scene it names and runs as a round there. Proof: owner `Render notes`. Why: his notes lead the work (Vincent, 11 Nov 2026).
+- **S5-81** The Film template plays captions from the voice's word times from the first render, before any judge sees it. Proof: check templates/film-scenes/Film.tsx (Captions). Why: render 1 had no words on screen; every judge blamed it.
+- **S5-82** A film is judged against a film of about its length: the last film the owner saw, else the animatic or a studied video; never a short clip. Proof: check scripts/loop/abjudge.sh (length). Why: a 60 s film lost to a 5 s spike on length alone.
+- **S5-86** A jump in time between scenes is a join card with dip frames that holds nobody (join-card.mjs --jump); join-times.mjs writes it as a dip. Proof: check tools/join-times.mjs (kind dip). Why: six planned dips were flagged as faulty cuts.
 
 ### Rig check
 
-- **S5-54** Before pass 1, list every pose and prop the scene's words need and draw them on one pose sheet (`PoseSheet.tsx`); a card turned on its side is not a pose. Proof: file `out/<slug>/scenes/<scene>/poses.jpg`. Why: the rig check moved the score more than any round (spike 3).
+- **S5-54** Before the first build of a scene, list every pose and prop the scene's words need and draw them on one pose sheet (`PoseSheet.tsx`); a card turned on its side is not a pose. Proof: file `out/<slug>/scenes/<scene>/poses.jpg`. Why: the rig check moved the score more than any round (spike 3).
 - **S5-55** Draw each repeated action differently, and rest feet, knees and shins on what they touch. Proof: file `poses.jpg`. Why: judges docked "the same pose with the card changing" in every round (spike 3).
 - **S5-56** Draw limbs wide of the body: knees up, arms back and hands overhead clear the torso and head, and a hand at the face is drawn after the face. Proof: file `poses.jpg`. Why: the pose sheet caught four hidden limbs before a render (spike 6).
+- **S5-85** Draw a walk on the pose sheet at mid-step, not at contact, where both feet are down and the step hides. Proof: file out/<slug>/scenes/<scene>/poses.jpg. Why: a walk on the sheet hid its step.
 
-### Pass 1: world and light
+### World stage
 
 - **S5-57** Dress each place with the blend before round 1: a far picture on a curved screen, a surface displaced in code, a middle band and a moving detail layer. Proof: file `src/stories/<slug>/places/`. Why: world went from 2 to 4 with every judge in one pass (spike 5).
 - **S5-58** Light each place for a time of day: a warm key from the side, a cool fill, warm and cool rims on the cards, a cool fog, and a grade with teal shadows and warm highlights. Proof: file `src/stories/<slug>/places/`. Why: light went from 2 to 4; a key from behind the camera gives the cards no rim (spike 5).
@@ -400,23 +421,39 @@ story 3 to 4, at 25 to 40 minutes a pass. The cycle rules below the loop are rep
 - **S5-60** Fade the sky picture into a dome of its own colour and check the seam on a full-size still. Proof: file `stills.jpg`. Why: judges named a "cut-out sky band" in two rounds (spike 5).
 - **S5-61** A water effect is see-through, narrower than the frame and over in under a second. Proof: file `stills.jpg`. Why: a white crown filling the frame read as a paper cup to every reviewer (spikes 4-5).
 - **S5-62** Where a figure must read clear of a wall, the camera is side-on so the space behind him is sky or water, and props near the action's path are cleared. Proof: file `stills.jpg`. Why: a three-quarter view read as "pasted on the wall" to every judge, and boulders read as landing on rocks (spike 7).
+- **S5-71** One world agent builds every place before any scene, checks it from every scene's planned cameras, runs world-and-light rounds, then locks the places with lock.mjs. Proof: check scripts/loop/lock.mjs (stage world in out/<slug>/locks.json). Why: builders changed shared places under each other.
+- **S5-72** Each far picture faces where the cameras look: every shot's look direction falls inside a far picture's arc, or the shot says why not. Proof: check tools/shots-check.mjs (far picture). Why: the jump looked at an empty flat sky.
+- **S5-79** Each place writes its screen direction in marks.ts: from the side the cameras film it, which way is screen right. Proof: file src/stories/<slug>/places/marks.ts (SCREEN). Why: a round was lost to a walk the wrong way.
 
-### Pass 2: people and acting
+### Shots stage
+
+- **S5-73** One shots agent sets every scene's camera path, beats and shot sizes before any acting, fixes each person's size, writes the join cards, then locks them. Proof: check scripts/loop/lock.mjs (stage shots). Why: acting built on shots that later moved.
+- **S5-74** Each person's card size is set once in sizes.ts; a scene's sx and sy are squash and stretch only, held across joins by holdCards. Proof: check joins.ts assertJoins (sx, sy). Why: Josh's height jumped at a join two builders made.
+- **S5-76** An earlier build of a beat (a spike, a practice clip, an earlier version) is that scene's reference: the shots copy its shot sizes and camera side. Proof: file out/<slug>/scenes/<scene>/scene.json (ref). Why: the film dropped the spike's shot sizes.
+- **S5-84** Before the scene stage, render the whole film rough (locked places and shots, stand-in poses, captions, the mix) and judge it against the animatic. Proof: file out/<slug>/film-0/verdict.json. Why: film faults showed only once the scenes were joined.
+- **S5-88** A beat with a face or an action holds the hero at a third of the frame height or more; a wide only places the scene, 1.5 s at most. Proof: check tools/shots-check.mjs (size). Why: film faces at 1/20 of the frame lost to the spike.
+
+### Scene stage: people and acting
 
 - **S5-63** Give each face beat its own expression with a soft change between; hold a shocked face open, and let the eyes carry it when a brim hides the brows. Proof: file `poses.jpg`. Why: the "dare" face was credited, and shut eyes on a shocked friend read as a yawn (spike 6).
 - **S5-64** Other people act toward the hero and never mirror him. Proof: file `verdict.json`. Why: a friend pointing at Josh was credited; both men with arms up was blamed (spike 6).
-- **S5-65** Before a render, project the action's path onto the screen with the shot's camera to check it clears every other figure. Proof: check `templates/scene/` path projection. Why: moving a figure on a hunch twice did not clear the jump; the projection fixed it at once (spike 6).
+- ~~**S5-65** Before a render, project the action's path onto the screen with the shot's camera to check it clears every other figure. Proof: check `templates/scene/` path projection. Why: moving a figure on a hunch twice did not clear the jump; the projection fixed it at once (spike 6).~~ Replaced by S5-80.
 - **S5-66** Keep the hero's silhouette through the action, and keep a story image a judge credited when restaging around it. Proof: file `verdict.json`. Why: Josh read as a different boy once his cap flew off, and the lone cap on the water told "never came up" better than a prettier world (spike 7).
+- **S5-75** Scene builders, up to four at once, run only the people and motion passes, with places, cameras and sizes locked; a change to those goes to the lead. Proof: check scripts/loop/step.mjs (passes, locks). Why: A/B rounds judged two worlds at once.
+- **S5-78** A face change eases over three frames or more through an in-between (exprTo, exprK), and no hand jumps in one frame. Proof: check tools/pose-check.mjs. Why: judges at 6 fps blamed one-tile face and arm swaps.
+- **S5-80** Before a render, project the action's path through the shot's camera: it clears every other figure, and no wall, post or rock in BLOCKERS hides the hero. Proof: check tools/path-check.mjs. Why: a post hid the hero and the old check missed it.
 
-### Pass 3: motion and staging
+### Scene stage: motion and staging
 
 - **S5-67** Measure the camera per frame and keep it under about 0.3 m and 1.5 degrees a frame, easing every start and stop. Proof: check `templates/scene/` camera-speed probe. Why: faster moves read as a whip or a snap on 6 fps sheets, and a camera stopping dead on a beat read as a jolt (spike 7).
 - **S5-68** A fall tips over with bent, kicking legs. Secondary motion is kept where it reads at phone size (hair, a cap) and dropped where it does not (hem flaps). Proof: file `verdict.json`. Why: a straight fall read as "lowered on a wire", and hem flaps read as a spiky skirt (spikes 6-7).
 - **S5-69** The front card turns as one piece, so motion tops out near 3.3; the motion pass stops at its two-loss rule and does not chase 4. Proof: file `verdict.json`. Why: people work and a restage each left motion at 3.3, and Vincent chose to keep the flat card (12 Nov 2026).
+- **S5-87** An action's last frame falls inside its scene; move the boundary or the action, never leave the end unseen. Proof: check tools/path-check.mjs (action end). Why: Josh's entry landed after his scene's last frame.
 
-### Pass 4: sound
+### Sound, once on the mix
 
-- **S5-70** Run `audible.py` on the scene's slice: every effect is heard at its cue, and `levels.mjs` passes. The sound pass has no blind judge (judges see frames alone) and stops when no cue is masked or just heard, or at six rounds. Proof: check `scripts/loop/audible.py`. Why: half of Elijah's effects sat 11-14 dB under the mix and passed the old bed check (12 Nov 2026).
+- ~~**S5-70** Run `audible.py` on the scene's slice: every effect is heard at its cue, and `levels.mjs` passes. The sound pass has no blind judge (judges see frames alone) and stops when no cue is masked or just heard, or at six rounds. Proof: check `scripts/loop/audible.py`. Why: half of Elijah's effects sat 11-14 dB under the mix and passed the old bed check (12 Nov 2026).~~ Replaced by S5-83.
+- **S5-83** The sound check runs once on the film's one mix at the join: audible.py on every cue, then levels.mjs; scenes have no sound pass. Proof: check scripts/loop/audible.py. Why: one mix serves every scene; per-scene passes repeated it.
 
 ### Replaced cycle rules
 

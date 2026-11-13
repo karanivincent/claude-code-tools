@@ -9,8 +9,9 @@ top-left corner, so a note can say which, and the line's words under it (a speak
 
   board.json     [{ "line": 1, "stills": ["00-L1-hookJar", ...] }, ...] in line order, one entry per voiced line
   timeline.json  the voice script's timeline ({ "duration", "lines": [{ "id", "who", "text", "start", "words": [{ "s" }] }] })
-  stills-dir     <name>.png for every still (any size; scaled to 1080 x 1920)
-Needs Pillow and ffmpeg. Writes the frames beside the video in <out>-frames/.
+  stills-dir     <name>.png or <name>.jpg for every still (any size; scaled to 1080 x 1920; board.mjs writes jpg)
+Needs Pillow and ffmpeg. macOS's own python3 has no Pillow: run it with a python that has it (for example
+/opt/homebrew/bin/python3.12), or pip install pillow. Writes the frames beside the video in <out>-frames/.
 """
 import json
 import os
@@ -18,7 +19,10 @@ import subprocess
 import sys
 import textwrap
 
-from PIL import Image, ImageDraw, ImageFont
+try:
+    from PIL import Image, ImageDraw, ImageFont
+except ImportError:
+    sys.exit('animatic.py needs Pillow: run it with a python3 that has it (e.g. /opt/homebrew/bin/python3.12), or pip install pillow')
 
 args = [a for a in sys.argv[1:] if not a.startswith('--')]
 board_f, tl_f, stills, voice, out = args[:5]
@@ -43,7 +47,10 @@ for i, (b, l) in enumerate(zip(board, lines)):
     n, ws = len(b['stills']), [w for w in l['words'] if w.get('s') is not None]
     cuts = [t0] + [ws[round(k * len(ws) / n)]['s'] for k in range(1, n)] + [t1]
     for k, name in enumerate(b['stills']):
-        im = Image.open(os.path.join(stills, f'{name}.png')).convert('RGB').resize((1080, 1920), Image.LANCZOS)
+        src = next((os.path.join(stills, f'{name}{e}') for e in ('.png', '.jpg', '.jpeg') if os.path.exists(os.path.join(stills, f'{name}{e}'))), None)
+        if not src:
+            sys.exit(f'no still {name}.png or {name}.jpg in {stills}')
+        im = Image.open(src).convert('RGB').resize((1080, 1920), Image.LANCZOS)
         d = ImageDraw.Draw(im)
         d.rounded_rectangle((24, 24, 24 + d.textlength(name, font=small) + 28, 76), 12, fill=(0, 0, 0))
         d.text((38, 30), name, font=small, fill=(255, 255, 255))

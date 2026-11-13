@@ -46,7 +46,29 @@ when it was left for later.
 - A face keeps its expression while it talks; the talking mouth sits on the expression's mouth (S3-66).
 - Held poses, not a constant sway; brows do most of the acting (S3-69). Blinks every 0.5 to 2.3 s (S3-70).
 - Poses change through in-betweens, never a one-frame snap (S3-137); each verb on the meaning sheet gets a keyed
-  action of 0.3 s or more (S1-22).
+  action of 0.3 s or more (S1-22). A face changes over three frames or more: set `exprTo` and `exprK` (0 to 1) on the
+  drawing, and `joins.ts blendPose` does it between two poses; `tools/pose-check.mjs` finds the swaps (S5-78).
+
+The faces in `look/toon.ts`, as they read on a phone (pick by what the beat feels, not by the name):
+
+| Face | Looks like | Use for |
+|---|---|---|
+| `neutral` | half-lidded eyes, flat mouth | listening, waiting |
+| `stern` | half-lidded eyes, brows down in the middle, frown | anger held in, a refusal |
+| `smile`, `smile_closed` | dot or arched eyes, small smile | warmth; closed is content |
+| `grin`, `relief_open` | arched eyes, open grin with teeth | glee, relief out loud |
+| `laugh` | squeezed shut eyes, wide open mouth | a laugh; ease to `grin` and back for each "ha" |
+| `relief` | arched eyes, wide closed smile | relief, quiet joy |
+| `dare` | half-lidded eyes, low brows, smirk | the dare before a jump |
+| `whistle` | dash eyes, small round mouth | playing it cool |
+| `nervous` | small eyes, worried brows, wavy mouth (a sweat drop unless `setFaceStyle({ sweat: false })`, the template's default) | worry |
+| `shock` | wide eyes, raised brows, big O mouth (dark ovals with `setFaceStyle({ shockRings: false })`, the template's default; white rings read as glasses) | fright, a sudden loss |
+| `pained` | one eye squeezed, gritted teeth | hurt |
+| `grieve`, `plead` | lid or shut eyes under steep brows, frown | grief; pleading |
+| `cry` | shut eyes, steep brows, open mouth | crying out |
+| `still` | shut eyes, flat mouth | sleep, a body, silence after grief |
+| `dazed` | spiral eyes | a cartoon gag; it reads as a joke, so not for grief |
+| `lick` | dot eyes, tongue out | tasting |
 - Cards face the camera; a side or back view needs its own drawing (S3-60). Stagger two people in depth (S3-61).
 - A grown man in a long robe has a beard or a plait; a woman has hair or lashes, not a veil alone (S2-5, S2-6).
 
@@ -66,7 +88,9 @@ when it was left for later.
 ## Props and effects on people
 
 - A prop whose state matters is a kit `states` prop; a dial is drawn from `dial` (S3-71).
-- Props are held: a drawn fist over a 3D prop, or the prop at the card's hand point (S3-72).
+- Props are held: a drawn fist over a 3D prop, or the prop at the card's hand point (S3-72). Small things in a hand
+  (a cup, a plate, a bottle) are drawn by the card itself: `holds: ['cup', null]` for the left hand, with that arm in
+  front or wide of the body. A drink in a party scene is a cup in hand; judges blamed "drinks" with empty hands.
 - An effect a card carries (a flame, a glow, a banner) is drawn from the card through its own transform, not from a
   crowd point plus an offset (S3-73).
 - A prop passes from the world to a card on one quiet frame: same screen size and colour, nothing else changing;
@@ -117,6 +141,12 @@ times, picture events and sound cues. The reviewers get its frame facts (S5-47);
 ## Pose and card gotchas
 
 - A hand over the mouth: `armR` about `[0.35, -2.75]`; smaller angles read as a wave.
+- Sitting (`mode: "sit"`): free arm points sit about 264 design units lower than standing ones; move them down with
+  the hips or the hands float.
+- `facing` slides the eyes toward the facing side, so a face prop drawn at a fixed point (glasses, a scar) drifts off
+  them: draw it from the same offset.
+- An additive glow sprite behind a card draws over it whatever its `renderOrder`; put the glow in the place, not behind
+  the person.
 - Mittens for a cast drawn before mittens: add new looks with `mitts: true` (`jacobM`, `manM`) rather than change old
   ones, so earlier videos render the same (X-8).
 - Cards draw over 3D props in front of them unless the depth test is on; keep it on, off inside a solid alone (S3-58).

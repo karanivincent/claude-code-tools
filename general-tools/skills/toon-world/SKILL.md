@@ -92,12 +92,17 @@ Copy this checklist into the story's `checklist.md` and tick it as you go (S0-8)
 - [ ] Doorways reach the floor; coplanar pieces offset (S3-23, S3-24)
 - [ ] Light and grade set (section below), checked on full-size frames
 - [ ] Cold read of each new place, prop, effect, material and face (S4-13)
-- [ ] Pass 1 rounds on the place's first scene until world and light reach 4 (S5-43, S5-57..S5-62)
+- [ ] Checked from each scene's planned camera; far picture faces the cameras; screen direction and blockers in marks.ts (S5-71, S5-72, S5-79)
+- [ ] World rounds until world and light reach 4 (S5-43, S5-57..S5-62); places locked (S5-71)
 ```
 
-The feedback loop is the scene loop's pass 1 (`toon-video`, stage 4): the builder changes the place, a stills sheet
-is checked, the scene renders in about 15 s, three reviewers watch it at 6 fps with world and light first, and a blind
-judge keeps or undoes the round (S5-41, S5-42). What won in the spikes: the blend before round 1 (S5-57), a warm side
+One world agent builds all the places of a film, before any scene is acted (`toon-video` stage 3, S5-71). Its
+feedback loop is the world pass in `out/<slug>/world/`: the agent changes a place, a stills sheet from several scenes'
+cameras is checked, a few seconds render, three reviewers watch at 6 fps with world and light first, and a blind
+judge keeps or undoes the round (S5-41, S5-42). The far picture faces where the cameras look (S5-72): `marks.ts FAR`
+holds its direction and arc, and `tools/shots-check.mjs` checks each shot against it. Then the places are locked
+(`toon-video/scripts/loop/lock.mjs`), so no scene builder changes a place under another. A needed change goes to the
+lead, who reopens the world stage. What won in the spikes: the blend before round 1 (S5-57), a warm side
 key with cool fill and rims (S5-58), one light step a round (S5-59), a hidden sky seam (S5-60), see-through water
 (S5-61). Nobody edits `step.mjs`, the briefs or `approvals.json` to get past them (X-6).
 
@@ -203,7 +208,9 @@ has the full list.
 |---|---|
 | `templates/scene/` pose sheet and stills sheet | Every pose drawn and visible; each change seen before a render (S5-54, S5-41) |
 | `templates/scene/` camera-speed probe | No move over about 0.3 m or 1.5 degrees a frame (S5-67) |
-| `templates/scene/` path projection | An action's path clears the other figures (S5-65) |
+| `templates/scene/` path projection (`tools/path-check.mjs`) | An action's path clears the other figures and the place's blockers; the action ends inside its scene (S5-80, S5-87) |
+| `templates/scene/tools/shots-check.mjs` | The hero's size on each shot, short wides, cameras into the far picture (S5-72, S5-88) |
+| `templates/scene/tools/pose-check.mjs` | No face swap or hand jump in one frame (S5-78) |
 | `python3 scripts/short_qa.py final.mp4 <qa dir> shots.json` | Black, white, frozen and popping frames, loudness (S5-18) |
 | `node scripts/fit-camera-example.mjs` | A master picture's camera, fit error under about 15 px (S3-19) |
 | Cold read with `references/cold-read-brief.md` | Each new place, prop, effect, material and face reads cold (S4-13, S4-14, S4-15) |

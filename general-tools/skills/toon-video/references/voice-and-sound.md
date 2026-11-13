@@ -17,7 +17,7 @@ The narrator and voicing at stage 1; music and the mix at stage 3. Rule ids poin
 ## The narrator
 
 Laura by default: ElevenLabs `FGY2WhTYpPnrIDTdsKH5`, eleven_v3, stability 0.3, played at about 1.2x with `atempo`
-(S1-9). Another voice comes in when the story needs it, picked by pitch and shown to the owner (S1-10).
+(S1-9). At that tempo she runs about 3.3 words a second with pauses: about 190 words for 60 s (S1-35). Another voice comes in when the story needs it, picked by pitch and shown to the owner (S1-10).
 
 ## Picking another narrator by pitch
 
@@ -41,7 +41,9 @@ A new narrator re-runs the mix check: a quieter or more dynamic voice changes ea
   earlier version copy their mp3 and align files and cost nothing (S1-14).
 - Cut each line from at least 0.10 s before the alignment's first letter and about 0.12 s after its last: the
   alignment marks a plosive's vowel, not its burst (S1-15).
-- Check the cut lines with whisper, not the raw take (S1-16).
+- Check the cut lines with whisper, not the raw take (S1-16): `whisper-cli -m <model> -f <line.wav> -oj -of <out>`.
+  The models sit in a project cache (`ls ~/.cache/*/whisper/*.bin`; the cliff film used
+  `ggml-large-v3-turbo-q5_0.bin`).
 - No `[whispers]` or `[hushed]` tags; mark a reveal with a pause before it and a slower, lower read in full voice
   (S1-17). If a quiet line is kept, level it with a gain clamp wide enough (up to +16 dB).
 - Read the total voice length now and cut lines here, not after the music (S1-18).
@@ -49,7 +51,8 @@ A new narrator re-runs the mix check: a quieter or more dynamic voice changes ea
 ## The order of the sound
 
 Settle each pause first, then music in sections with a coda, then the mix (S3-152). The template's
-`scripts/<slug>-sound.mjs` follows this order; the narrator folder comes from `story.ts` (S3-160).
+`scripts/<slug>-sound.mjs` follows this order; the mix goes where `plan.ts MIX` says (the scene layout), else
+`story.ts` (S3-160), else `public/<slug>/full/mix.wav`. The sound check runs once on this mix, at the join (S5-83).
 
 ## Music
 
@@ -58,7 +61,9 @@ Settle each pause first, then music in sections with a coda, then the mix (S3-15
 - Sections cut at the story's turns from word times.
 - Music and effect requests are cached by their prompt (S3-165).
 - The music stays audible: no more than 20 dB under the voice, aiming at 15 to 20 dB (S3-158).
-- No silent tail: the film ends 0.5 s after the last word, or the music runs to the end (S3-159).
+- No silent tail: the film ends 0.5 s after the last word, or the music runs to the end (S3-159). ElevenLabs music
+  can fall silent up to 2 s before the length asked: ask for the last section 2 s longer and trim it, and read
+  `levels.mjs`'s tail line after each music change.
 
 ## The mix: voice over the bed
 

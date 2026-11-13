@@ -11,8 +11,11 @@ import crypto from 'node:crypto';
 const here = path.dirname(new URL(import.meta.url).pathname);
 const kitDir = path.join(here, '..', 'kit');
 const plugin = JSON.parse(fs.readFileSync(path.join(here, '..', '..', '..', '.claude-plugin', 'plugin.json'), 'utf8'));
-const [, , root, flag] = process.argv;
-if (!root) { console.error('usage: node sync-kit.mjs <project-root> [--force]'); process.exit(1); }
+// --only <dir>: name local path-block copies inside that folder alone and count the rest (new-film passes the new
+// story's folder, so a story session is not shown every older story's copies).
+const argv = process.argv.slice(2), root = argv[0], flag = argv.includes('--force') ? '--force' : undefined;
+const onlyI = argv.indexOf('--only'), only = onlyI >= 0 ? argv[onlyI + 1] : null;
+if (!root) { console.error('usage: node sync-kit.mjs <project-root> [--force] [--only <dir>]'); process.exit(1); }
 const dest = path.join(path.resolve(root), 'src', 'toon-kit');
 const ledgerPath = path.join(dest, 'synced.json');
 const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
@@ -58,6 +61,11 @@ const walk = dir => {
 };
 const src = path.join(path.resolve(root), 'src');
 if (fs.existsSync(src)) walk(src);
+if (only && copies.length) {
+  const mine = copies.filter((c) => c.startsWith(only.replace(/\/$/, '') + '/'));
+  if (copies.length > mine.length) console.log(`(${copies.length - mine.length} file(s) elsewhere in src/ keep their own path blocks; run sync-kit.mjs without --only to list them)`);
+  copies.length = 0; copies.push(...mine);
+}
 if (copies.length) {
   console.warn(`warning: these files define their own copy of the kit's path blocks, so kit fixes to them do not reach the code that uses these:`);
   for (const c of copies) console.warn(`  ${c}`);

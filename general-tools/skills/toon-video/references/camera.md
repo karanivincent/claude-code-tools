@@ -77,6 +77,12 @@ All from `src/toon-kit/camera` (synced by `sync-kit.mjs`); a story keeps no copy
 
 ## Framing
 
+The shots stage sets every scene's shots before any acting and locks them (S5-73): a beat with a face or an action
+holds the hero at a third of the frame height or more, and a wide only places the scene, 1.5 s at most (S5-88). Every
+shot looks into the place's far picture (S5-72). When an earlier build of the beat exists, its shot sizes and camera
+side are copied (S5-76). `tools/shots-check.mjs` measures all of it. The cliff film's jump, framed "side-on, tilt
+down" from the plan alone, came out with faces at 1/20 of the frame and lost to the spike that held Josh at a third.
+
 - Aim at the people, not the place: a 9:16 frame at a 44-degree field of view is about 26 degrees across. Two people
   stay within about 10 degrees of the centre line; far apart and side-on, shoot a diagonal from above (S3-93, S3-94).
 - Stagger two people in depth rather than side by side (S3-61).

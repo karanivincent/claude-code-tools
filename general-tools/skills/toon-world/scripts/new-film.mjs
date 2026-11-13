@@ -4,15 +4,21 @@
 //   node new-film.mjs <project-root> <slug> <CompositionId> --whole-film [--force]
 //
 // The scene loop (default). The film is split into 5-10 s scenes, each its own small composition that renders in about
-// 15 s, built in four passes (world and light, people and acting, motion and staging, sound), every round judged blind
-// against the best so far. It writes:
-//   src/stories/<slug>/                plan.ts (the frame plan), Film.tsx, compositions.tsx, stage.tsx, cast.ts, joins.ts,
-//                                      motion.ts, poses.tsx            <- templates/film-scenes/
+// 15 s, built by stages across the whole film: one world agent builds and locks every place, one shots agent sets and
+// locks every camera, shot size and person's size, then up to four scene builders do the people and motion passes,
+// every round judged blind against the best so far (and against the scene's reference when it has one). It writes:
+//   src/stories/<slug>/                plan.ts (the frame plan), Film.tsx (with captions.tsx), compositions.tsx, stage.tsx,
+//                                      cast.ts, sizes.ts, CastSheet.tsx, joins.ts, motion.ts, poses.tsx,
+//                                      full.json (an empty stand-in until the voice script writes it)
+//                                                                      <- templates/film-scenes/
 //   src/stories/<slug>/places/         index.ts, marks.ts, shore.ts (a stand-in place), parts/ (the blend's parts and
 //                                      the splash)                     <- templates/film-scenes/places, templates/scene/parts
-//   src/stories/<slug>/scenes/<scene>/ story.ts, Scene.tsx, PoseSheet.tsx, one folder per scene <- templates/scene/
+//   src/stories/<slug>/scenes/<scene>/ shots.ts (camera, beats, shot list), story.ts (the people), Scene.tsx,
+//                                      PoseSheet.tsx, one folder per scene <- templates/scene/
 //   src/stories/<slug>/scenes/index.ts the scene list (rewritten on every run from plan.ts's order)
-//   src/stories/<slug>/tools/          stills-sheet, render, cam-speed, path-check <- templates/scene/tools/
+//   src/stories/<slug>/tools/          stills-sheet, render, board, cam-speed, path-check, shots-check, pose-check,
+//                                      join-card, join-times <- templates/scene/tools/
+//   src/Root.tsx                       the film's compositions registered, when Root.tsx has the usual shape
 //   stories/<slug>/joins.json          one join card for each cut between two scenes
 // Run it again with more --scenes to add scenes: existing files are kept (--force overwrites), each new scene is added
 // to plan.ts's SCENES and gets a join card from the scene before it.
@@ -23,7 +29,9 @@
 // Both: templates/sound/story-sound.mjs to scripts/<slug>-sound.mjs; the paperwork (stories/<slug>/meaning.md, parts.md,
 // checklist.md, findings.md, src/stories/<slug>/approvals.json as {}); the look stack (templates/look/ without the
 // practice cast.ts) into src/look/ when the project has none (--look updates an older one: every option the scene loop
-// added is off by default, so existing stories render the same); then the toon-kit (sync-kit.mjs).
+// added is off by default, so existing stories render the same, and it lists the other stories that import src/look so
+// one still of each can be compared before and after (S0-21)); then the toon-kit (sync-kit.mjs, warnings for this story
+// only).
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -89,7 +97,9 @@ if (whole) {
     fs.writeFileSync(filmTs, film); wrote.push(`${path.relative(root, filmTs)} (+${add.join(', ')})`);
   }
   const order = [...film.matchAll(/\{ id: '([a-z0-9-]+)'/g)].map((m) => m[1]);
-  for (const s of order) for (const f of ['story.ts', 'Scene.tsx', 'PoseSheet.tsx']) put(T('scene', f), path.join(story, 'scenes', s, f), s);
+  for (const s of order) for (const f of ['shots.ts', 'story.ts', 'Scene.tsx', 'PoseSheet.tsx']) put(T('scene', f), path.join(story, 'scenes', s, f), s);
+  // the voice timeline the captions read: an empty stand-in until the voice script writes the real one
+  if (!fs.existsSync(path.join(story, 'full.json'))) write(`src/stories/${slug}/full.json`, '{ "fps": 30, "duration": 0, "lines": [] }\n');
   // the scene list, in film order (generated: run new-film again after changing the order in plan.ts)
   const v = (s) => s.replace(/[^a-z0-9]/g, '_');
   write(`src/stories/${slug}/scenes/index.ts`, `// ${slug}: the scenes in film order. WRITTEN BY new-film.mjs from plan.ts's SCENES: run it again to add a scene.\n`
@@ -116,9 +126,25 @@ put(T('sound', 'story-sound.mjs'), path.join(root, 'scripts', `${slug}-sound.mjs
 // the look stack, once per project (the practice cast.ts stays behind: it imports a practice set); --look updates it
 const lookDir = path.join(root, 'src/look'), lookFiles = fs.readdirSync(T('look')).filter((f) => f !== 'cast.ts');
 const hadLook = fs.existsSync(lookDir), updateLook = flags.has('--look');
+// other stories that import the shared look stack: --look changes their drawing code too (S0-21)
+const importers = (() => {
+  const out = [], src = path.join(root, 'src'), own = path.join(src, 'stories', slug);
+  const walk = (d) => { if (!fs.existsSync(d)) return; for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+    const p = path.join(d, e.name);
+    if (e.isDirectory()) { if (!['node_modules', 'look', 'toon-kit'].includes(e.name) && !e.name.startsWith('.') && p !== own) walk(p); continue; }
+    if (/\.(ts|tsx)$/.test(e.name) && /from ['"][./]*\/look\/(toon|grade|lights|cardshade|ink|lensblur|shade)['"]/.test(fs.readFileSync(p, 'utf8'))) out.push(path.relative(root, p));
+  } };
+  walk(src); return out;
+})();
 const stale = hadLook ? lookFiles.filter((f) => !fs.existsSync(path.join(lookDir, f)) || fs.readFileSync(path.join(lookDir, f), 'utf8') !== fs.readFileSync(T('look', f), 'utf8')) : [];
 if (!hadLook) for (const f of lookFiles) put(T('look', f), path.join(lookDir, f));
-else if (updateLook) for (const f of stale) put(T('look', f), path.join(lookDir, f), '', true);
+else if (updateLook) {
+  for (const f of stale) put(T('look', f), path.join(lookDir, f), '', true);
+  if (stale.length && importers.length) {
+    const stories = [...new Set(importers.map((p) => p.split(path.sep).slice(0, 3).join('/')))];
+    console.log(`src/look updated (${stale.join(', ')}). Other code imports it: ${stories.slice(0, 12).join(', ')}${stories.length > 12 ? ` and ${stories.length - 12} more` : ''}.\n  Every new option is off by default (X-8); render one still of one of them before and after to be sure (S0-21).`);
+  }
+}
 // the paperwork; the review page writes approvals.json when the owner clicks, never an agent
 write(`stories/${slug}/meaning.md`, `# ${slug}: meaning sheet\n\n<!-- One row a line of the script: what it means, the verb it shows, and what the viewer must see on its word\n(each becomes a STORY.mustSee entry). The gate needs this file filled in. -->\n\n| Line | What it means | The verb | Must see, on which word |\n|---|---|---|---|\n`);
 write(`stories/${slug}/parts.md`, `# ${slug}: parts plan\n\n<!-- One section a place (its name as in places/index.ts), the blend's bands in each (decision 1): the owner
@@ -129,9 +155,30 @@ write(`stories/${slug}/findings.md`, `# ${slug}: findings per critic round\n\n<!
 write(`src/stories/${slug}/approvals.json`, '{}\n');
 console.log(`wrote ${wrote.length}: ${wrote.join(', ')}`);
 if (kept.length) console.log(`kept (exist already; --force to overwrite): ${kept.join(', ')}`);
-if (hadLook && stale.length && !updateLook) console.log(`src/look differs from the skill's in ${stale.join(', ')}: the scene templates use its new options (free poses, talk, place lights).\n  Run again with --look to update it (every new option is off by default, so existing stories render the same).`);
 
-execFileSync(process.execPath, [path.join(here, 'sync-kit.mjs'), root], { stdio: 'inherit' });
+execFileSync(process.execPath, [path.join(here, 'sync-kit.mjs'), root, '--only', `src/stories/${slug}`], { stdio: 'inherit' });
+
+// ---------------- register the film in src/Root.tsx (the scene loop) ----------------
+let registered = false;
+if (!whole) {
+  const rootTsx = path.join(root, 'src', 'Root.tsx');
+  if (fs.existsSync(rootTsx)) {
+    let r = fs.readFileSync(rootTsx, 'utf8');
+    const imp = `import { ${comp}Compositions } from './stories/${slug}/compositions';`, tag = `<${comp}Compositions />`;
+    if (r.includes(tag)) registered = true;
+    else {
+      const lastImport = [...r.matchAll(/^import .*;$/gm)].at(-1), close = r.lastIndexOf('</>');
+      if (lastImport && close > 0) {
+        const at = lastImport.index + lastImport[0].length;
+        r = r.slice(0, at) + (r.includes(imp) ? '' : '\n' + imp) + r.slice(at);
+        const c2 = r.lastIndexOf('</>'), indent = (r.slice(0, c2).match(/\n([ \t]*)$/)?.[1] ?? '    ');
+        r = r.slice(0, c2) + `  ${tag}\n${indent}` + r.slice(c2);
+        fs.writeFileSync(rootTsx, r); registered = true; wrote.push('src/Root.tsx (+' + tag + ')');
+        console.log(`registered ${tag} in src/Root.tsx`);
+      }
+    }
+  }
+}
 
 // ---------------- what the project still needs ----------------
 const pkg = (() => { try { return JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')); } catch { return {}; } })();
@@ -150,17 +197,23 @@ if (whole) {
 Before the first critic round and before any render over 8 s: node src/stories/${slug}/tools/gate.mjs critic|render`);
 } else {
   const s0 = scenesWanted[0];
-  console.log(`\nRegister the film once in src/Root.tsx (one folder: ${comp}, ${comp}-<scene>, ${comp}-<scene>-poses):
+  if (!registered) console.log(`\nRegister the film once in src/Root.tsx (one folder: ${comp}, ${comp}-<scene>, ${comp}-<scene>-poses, ${comp}-cast):
   import { ${comp}Compositions } from './stories/${slug}/compositions';
-  <${comp}Compositions />
-The film's one mix goes to public/${slug}/mix.wav (scripts/${slug}-sound.mjs); a place's far picture to public/${slug}/far.jpg.
+  <${comp}Compositions />`);
+  console.log(`\nThe film's one mix goes to public/${slug}/full/mix.wav (scripts/${slug}-sound.mjs); a place's far picture to public/${slug}/far.jpg.
 Each scene, from the project root (toon-world/templates/scene/README.md has the loop):
   node src/stories/${slug}/tools/stills-sheet.mjs poses ${s0}       the pose sheet
   node src/stories/${slug}/tools/stills-sheet.mjs ${s0} --n 8       a stills sheet (half scale)
   node src/stories/${slug}/tools/cam-speed.mjs ${s0}                the camera's speed per frame
-  node src/stories/${slug}/tools/path-check.mjs ${s0}               the action's path against the other figures
+  node src/stories/${slug}/tools/shots-check.mjs                  shot sizes and the far picture, every scene (shots stage)
+  node src/stories/${slug}/tools/path-check.mjs ${s0}               the action's path against the other figures and blockers
+  node src/stories/${slug}/tools/pose-check.mjs ${s0}               face swaps and hand jumps in one frame
   node src/stories/${slug}/tools/render.mjs ${s0} --scale 0.5       a render (concurrency 3)`);
 }
 console.log(`\nPackages (exact pins): npm i -E @react-three/postprocessing@3.0.4 postprocessing@6.39.5   (TypeScript 5, never 7)`);
 if (missing.length) console.log(`  NOT in this project's package.json yet (${missing.map(([n, v]) => `${n}@${v}${deps[n] ? `, has ${deps[n]}` : ''}`).join('; ')}): without them nothing renders. Run the line above in ${root}.`);
 if (ts && !ts.startsWith('5')) console.log(`  TypeScript is ${ts}: Remotion's bundler needs TypeScript 5 (npm i -E -D typescript@5.9.3).`);
+// last, so it is not lost above the kit's lines (the cliff film missed it and the templates failed tsc with ~140 errors)
+if (hadLook && stale.length && !updateLook) console.log(`\nSTILL TO DO: src/look is older than the templates (${stale.join(', ')}); the scene templates need its new options
+  (free poses, talk, place lights, face in-betweens, held things) and will not compile without them. Run again with --look
+  (every new option is off by default, so existing stories render the same: X-8).`);

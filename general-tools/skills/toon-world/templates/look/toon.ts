@@ -266,6 +266,27 @@ const FACE: Record<Expr, { eye: [EyeK, EyeK]; brow: [number, number]; mouth: Mou
   still: { eye: ["dash", "dash"], brow: [0, 0], mouth: "dash" },
   dare: { eye: ["lid", "lid"], brow: [6, -3], mouth: "smirk" },
 };
+// Face style (the cliff film, November 2026), opt-in so an older story draws the same (X-8): setFaceStyle({ shockRings:
+// false }) draws the shocked eyes as wide dark ovals under raised brows (white rings read as glasses or as another
+// person in four judgings); { sweat: false } drops the nervous face's sweat drop (read as a blob on the hair).
+let SOFT_SHOCK = false, NO_SWEAT = false;
+export const setFaceStyle = (o: { shockRings?: boolean; sweat?: boolean }) => {
+  if (o.shockRings !== undefined) SOFT_SHOCK = !o.shockRings;
+  if (o.sweat !== undefined) NO_SWEAT = !o.sweat;
+};
+// A face change eased over frames (S5-78): bodyFront's exprTo and exprK (0..1) draw an in-between of expr and exprTo:
+// the brows move part way, the eyes pass through a half-closed frame in the middle third, the mouth changes at the
+// middle. At the judges' 6 fps a one-frame swap read as a snap (the cliff film).
+let BL_TO: Expr | null = null, BL_K = 0;
+const faceNow = (expr: Expr): { eye: [EyeK, EyeK]; brow: [number, number]; mouth: MouthK; expr: Expr } => {
+  const A = FACE[expr];
+  if (!BL_TO || BL_TO === expr || BL_K <= 0) return { ...A, expr };
+  const B = FACE[BL_TO], k = Math.min(1, BL_K);
+  if (k >= 1) return { ...B, expr: BL_TO };
+  const brow: [number, number] = [A.brow[0] + (B.brow[0] - A.brow[0]) * k, A.brow[1] + (B.brow[1] - A.brow[1]) * k];
+  const eye: [EyeK, EyeK] = k < 0.34 ? A.eye : k < 0.67 ? [halfLid(A.eye[0]), halfLid(A.eye[1])] : B.eye;
+  return { eye, brow, mouth: k < 0.5 ? A.mouth : B.mouth, expr: k < 0.5 ? expr : BL_TO };
+};
 const halfLid = (k: EyeK): EyeK => (k === "dot" || k === "small" ? "lid" : k === "lid" ? "slit" : k === "shock" ? "shockHalf" : k);
 const eyeKind = (k: EyeK, lid: number): EyeK =>
   lid >= 1 && k !== "happy" && k !== "squeeze" && k !== "spiral" ? "dash" : lid > 0 ? halfLid(k) : k;
@@ -286,6 +307,11 @@ const eye = (p: Pen, kind: EyeK, x: number, ey: number, u: number, side: number,
     case "dash": p.stroke([[x - 8.5 * u, ey], [x + 8.5 * u, ey]], lw); break;
     case "squeeze": p.stroke([[x + 6 * u * side, ey - 5 * u], [x - 6 * u * side, ey], [x + 6 * u * side, ey + 5 * u]], lw); break;
     case "shock": case "shockHalf":
+      if (SOFT_SHOCK) { // wide dark ovals, no white ring
+        if (kind === "shockHalf") { p.ell(lx, ey - u, 7.5 * u, 6.5 * u, INK, 0, 0, 180); p.stroke([[x - 9.5 * u, ey - u], [x + 9.5 * u, ey - u]], lw); }
+        else p.ell(lx, pey, 4.8 * u, 7 * u, INK, 0);
+        break;
+      }
       p.ell(x, ey, 11 * u, 11 * u, WHITE, 2.6 * u); p.dot(lx - side * 1.5 * u, pey + 1.5 * u, 3 * u);
       if (kind === "shockHalf") { p.ell(x, ey, 11 * u, 11 * u, skin, 0, 180, 360); p.stroke([[x - 11 * u, ey], [x + 11 * u, ey]], 2.6 * u); }
       break;
@@ -339,8 +365,8 @@ const mouth = (p: Pen, kind: MouthK, mx: number, my: number, u: number, k = 1) =
  *  down, everything slid toward the facing side. No blush, no catchlights. */
 const faceFront = (p: Pen, cx: number, cy: number, W: number, expr: Expr, facing: number, look: number, lid: number, brim: boolean,
   skin: string, moustache?: string, stout = false) => {
-  const u = W / 100, F = FACE[expr], fx = cx + 7 * u * facing;
-  const ex = (F.eye[0] === "shock" ? 12 : 13) * u, ey = cy;
+  const u = W / 100, F = faceNow(expr), fx = cx + 7 * u * facing;
+  const ex = (F.eye[0] === "shock" && !SOFT_SHOCK ? 12 : 13) * u, ey = cy;
   for (const side of [-1, 1]) {
     const x = fx + side * ex;
     const kind = eyeKind(F.eye[(facing ? side === facing : side > 0) ? 1 : 0], lid);
@@ -354,12 +380,12 @@ const faceFront = (p: Pen, cx: number, cy: number, W: number, expr: Expr, facing
   talkLips(p, F.mouth, mx, my, u);
   if (moustache) for (const s of [-1, 1])
     taper(p, [mx + s * 1.5 * u, cy + 12.5 * u], [mx + s * (stout ? 19 : 15) * u, cy + (stout ? 10.5 : 15) * u], stout ? 5.5 * u : 4.5 * u, 1.6 * u, moustache);
-  if (expr === "nervous") p.ell(cx + 40 * u * (facing || 1), cy - 22 * u, 3 * u, 5 * u, "#9fd4ff", 2 * u);
+  if (F.expr === "nervous" && !NO_SWEAT) p.ell(cx + 40 * u * (facing || 1), cy - 22 * u, 3 * u, 5 * u, "#9fd4ff", 2 * u);
 };
 
 /** profile face (facing screen-right): one eye, brow, nose tick, mouth near the front edge; no skin bump nose, no ear */
 const faceSide = (p: Pen, hx: number, hy: number, W: number, expr: Expr, lid: number, brim: boolean, skin: string, moustache?: string, stout = false) => {
-  const u = W / 100, F = FACE[expr], ex = hx + 27 * u, ey = hy;
+  const u = W / 100, F = faceNow(expr), ex = hx + 27 * u, ey = hy;
   const kind = eyeKind(F.eye[1], lid);
   eye(p, kind, ex, ey, u, 1, 0.6, skin);
   const by = ey - (brim ? 17 : 20) * u, [dI, dO] = F.brow;
@@ -369,7 +395,7 @@ const faceSide = (p: Pen, hx: number, hy: number, W: number, expr: Expr, lid: nu
   mouth(p, F.mouth, hx + 33 * u, hy + 21 * u, u, 0.62);
   talkLips(p, F.mouth, hx + 33 * u, hy + 21 * u, u, 0.62);
   if (moustache) taper(p, [hx + 41 * u, hy + 13.5 * u], [hx + 25 * u, hy + (stout ? 11.5 : 16) * u], stout ? 5.5 * u : 4.5 * u, 1.6 * u, moustache);
-  if (expr === "nervous") p.ell(hx - 30 * u, hy - 24 * u, 3 * u, 5 * u, "#9fd4ff", 2 * u);
+  if (F.expr === "nervous" && !NO_SWEAT) p.ell(hx - 30 * u, hy - 24 * u, 3 * u, 5 * u, "#9fd4ff", 2 * u);
 };
 
 // ---------------- hats ----------------
@@ -514,6 +540,8 @@ const hatOn = (p: Pen, o: Outfit, hp: P2[], H: Blob, cx: number, hc: number, lig
 export type Arms = [P2[], P2[]];
 /** held prop; for the hammer the number is the strike 0 (raised) .. 1 (struck) */
 export type Prop = null | "icecream" | "shako" | ["hammer", number];
+/** a small thing held in a hand (the cliff film's party: cups were missing on "drinks"); drawn at the hand's end */
+export type Held = "cup" | "plate" | "bottle" | { kind: "cup" | "plate" | "bottle"; color?: string };
 
 const BUILD: Record<Build, { a: number; torso: number; legs: number; tw: number }> = {
   adult: { a: 118, torso: 1.1, legs: 1.4, tw: 0.8 },
@@ -538,6 +566,12 @@ export type FrontOpts = {
   flutter?: number; flPhase?: number; hairSwing?: number; capLift?: number;
   /** 0..1 how open the talking lips are this frame. The expression's mouth stays and the lips open under it. */
   talk?: number;
+  /** a face change in progress (S5-78): exprK 0..1 of the way from expr to exprTo, drawn as an in-between. joins.ts
+   *  blendPose sets them; a scene easing one face into another over 3 frames or more sets them itself. */
+  exprTo?: Expr; exprK?: number;
+  /** things held in the [left, right] hands (cup, plate, bottle): drawn at each hand's end, the hand over them. Hold a
+   *  thing in an arm drawn in front (armsAt [elbow, hand, true]) or wide of the body. */
+  holds?: [Held | null, Held | null];
   /** ours: the right hand at this design-space point (in front of the body), e.g. on the tongs or pointing up */
   hand?: P2; handL?: P2; lean?: number;
   /** canvas angle the key light comes FROM (painted crescent + thick outline side) */
@@ -554,6 +588,7 @@ export const bodyFront = (p: Pen, o: Outfit, opts: FrontOpts) => {
     light = DEF_LIGHT, facing = 0, seed = 1, hand, handL, drop, legsAt, armsAt } = opts;
   LOOKY = opts.lookY ?? 0; FLUT = opts.flutter ?? 0; FLPH = opts.flPhase ?? 0; HAIRSW = opts.hairSwing ?? 0; HAIRON = opts.hairSwing !== undefined;
   CAPL = opts.capLift ?? 0; TALK = opts.talk ?? 0;
+  BL_TO = opts.exprTo ?? null; BL_K = opts.exprK ?? 0;
   const Bd = BUILD[o.build ?? "adult"], skin = o.skin ?? SKIN, two = Math.PI * 2, lid = lidOf(blink);
   const H = headBlob(seed, Bd.a, facing), W = 2 * H.a, HH = 2 * H.b, u = W / 100;
   const tall = (1 + Bd.torso + Bd.legs) * HH, sole = 975;
@@ -744,6 +779,15 @@ export const bodyFront = (p: Pen, o: Outfit, opts: FrontOpts) => {
       p.dot(hx, hy, 5.5 * u);
     }
   }
+  // things held in the hands (holds): drawn at the hand's end, the hand dot again on top so the fingers grip it
+  if (opts.holds) arms.forEach((a, i) => {
+    const h = opts.holds?.[i]; if (!h) return;
+    const kind = typeof h === "string" ? h : h.kind, [hx, hy] = a.pts[2];
+    if (kind === "cup") { const c = (typeof h === "object" && h.color) || "#d23b3b"; p.poly([[hx - 9 * u, hy - 16 * u], [hx + 9 * u, hy - 16 * u], [hx + 6.5 * u, hy + 9 * u], [hx - 6.5 * u, hy + 9 * u]], c, 2.2 * u); p.stroke([[hx - 9 * u, hy - 12 * u], [hx + 9 * u, hy - 12 * u]], 1.6 * u, WHITE); }
+    else if (kind === "plate") { const c = (typeof h === "object" && h.color) || "#f2efe6"; p.ell(hx, hy - 3 * u, 20 * u, 5.5 * u, c, 2.2 * u); p.ell(hx, hy - 4.5 * u, 10 * u, 2.5 * u, "#c98b4a", 1.4 * u); }
+    else { const c = (typeof h === "object" && h.color) || "#3f7d4a"; p.poly([[hx - 4.5 * u, hy - 22 * u], [hx + 4.5 * u, hy - 22 * u], [hx + 4.5 * u, hy + 10 * u], [hx - 4.5 * u, hy + 10 * u]], c, 2 * u); p.poly([[hx - 2 * u, hy - 30 * u], [hx + 2 * u, hy - 30 * u], [hx + 2 * u, hy - 22 * u], [hx - 2 * u, hy - 22 * u]], c, 1.6 * u); }
+    p.dot(hx, hy, 5.5 * u);
+  });
   if (prop === "shako") { // carried by the left hand
     const [hx, hy] = arms[0].pts[2];
     p.poly([[hx - 14 * u, hy + 3 * u], [hx + 14 * u, hy + 3 * u], [hx + 16 * u, hy + 30 * u], [hx - 16 * u, hy + 30 * u]], "#3a3d47", 2.2 * u);
@@ -760,6 +804,7 @@ export const bodyFront = (p: Pen, o: Outfit, opts: FrontOpts) => {
   hatOn(p, o, hp, H, 300, hc, light, seed, facing, false);
   const brim = !!o.hat && o.hat !== "hair" && o.hat !== "bonnet" && o.hat !== "cap";
   faceFront(p, 300, hc, W, expr, facing, look, lid, brim, skin, o.moustache, o.build === "stout");
+  BL_TO = null; BL_K = 0; // the in-between is this drawing's alone
   // a free-pose hand raised to the face (mouth, chin) is drawn again over the head, not hidden behind it (armsAt only,
   // so the old drawings are unchanged)
   if (armsAt) {

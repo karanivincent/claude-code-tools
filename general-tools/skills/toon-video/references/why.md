@@ -233,3 +233,16 @@ old scale (2.0 to 3.0 on the new) in three rounds with a team.
 - Vincent, 10 November 2026: log each area and the methods, so the weak area and its method show (S0-11, S5-12).
 - A series library: a rough guess, not measured, of about 1.5M tokens for a 15-second clip once the library exists
   (S6-14).
+
+### Areas in order across the film (13 November 2026)
+
+- The cliff film (Josh at the lake, 60 s) was the first film built with the scene loop: three builders, three scenes
+  each, every builder doing every pass on its own scenes. Its jump scene came out clearly worse than the 5 s spike of
+  the same beat. The film's shots were wide with faces at about 1/20 of the frame; the cameras looked away from the
+  far picture, so the sky was a flat gradient; builders changed shared place files under each other, so A/B rounds
+  judged two worlds at once, and Josh's height changed across a join two builders made; each round was judged only
+  against the scene's own last best, so scenes climbed from about 2.5 to 3.3 and stopped. Render 1 also had no words
+  on screen, and was judged against a 5 s clip.
+- Vincent chose to build by areas in order across the whole film, each locked before the next: one world agent, one
+  shots agent, then scene builders for people and motion only, with any earlier build of a beat as that scene's
+  reference (S5-71 to S5-90).

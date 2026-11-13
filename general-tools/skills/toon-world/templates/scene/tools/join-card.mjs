@@ -3,7 +3,10 @@
 // pose (the free-pose points and numbers), and the camera when the card has none (--camera takes the scene's own last
 // camera even when it has one). The scene after then starts on it (joins.ts onCards and its first camera key), so the
 // cut never pops a pose. Run it after any change to the end of a scene, then make a stills sheet across the cut.
-//   node src/stories/__SLUG__/tools/join-card.mjs <scene> [--camera] [--cut]
+// The card also keeps each person's card scale (sx, sy) and lean, so a size never jumps across a join.
+//   node src/stories/__SLUG__/tools/join-card.mjs <scene> [--camera] [--cut] [--jump [--dip 8] [--why "..."]]
+// --jump: a jump in time or place (the party to the night, a dream): a cut through black ("dip": frames each side)
+// that holds nobody, since nobody stands where they stood (the cliff film cleared these cards by hand).
 import fs from 'node:fs';
 import path from 'node:path';
 import { args, loadFilm, loadScene, SLUG } from './lib.mjs';
@@ -27,8 +30,16 @@ try {
 } finally { fs.writeFileSync(file, orig); }
 const f = S.FRAMES - 1, r = (v) => Math.round(v * 1000) / 1000, rp = (p) => [Math.round(p[0]), Math.round(p[1])];
 if (!card.camera || o.camera) { const c = S.camAt(f); card.camera = { pos: c.pos.map(r), look: c.look.map(r), fov: r(c.fov), roll: r(c.roll) }; }
-if (o.cut) card.cut = true;
+if (o.cut || o.jump) card.cut = true;
+if (o.why) card.why = String(o.why);
 card.people = {};
+if (o.jump) {
+  card.dip = Number(o.dip ?? 8);
+  J.joins.sort((a, b) => film.SCENES.findIndex((s) => s.id === a.before) - film.SCENES.findIndex((s) => s.id === b.before));
+  fs.writeFileSync(file, JSON.stringify(J, null, 2) + '\n');
+  console.log(`join ${id}|${next}: a jump (a cut through black over ${card.dip} frames each side), holding nobody -> ${path.relative(process.cwd(), file)}`);
+  process.exit(0);
+}
 for (const p of S.people(f)) {
   if (p.hidden) continue;
   const q = p.opts, pose = {};
@@ -36,7 +47,7 @@ for (const p of S.people(f)) {
   if (q.legsAt) pose.legsAt = q.legsAt.map((l) => l.map(rp));
   if (q.armsAt) pose.armsAt = q.armsAt.map((a) => [rp(a[0]), rp(a[1]), !!a[2]]);
   if (q.hand) pose.hand = rp(q.hand); if (q.handL) pose.handL = rp(q.handL);
-  card.people[p.who] = { at: p.at.map(r), expr: q.expr, pose };
+  card.people[p.who] = { at: p.at.map(r), expr: q.expr, pose, ...(p.sx !== undefined && p.sx !== 1 ? { sx: r(p.sx) } : {}), ...(p.sy !== undefined && p.sy !== 1 ? { sy: r(p.sy) } : {}), ...(p.lean ? { lean: r(p.lean) } : {}) };
 }
 J.joins.sort((a, b) => film.SCENES.findIndex((s) => s.id === a.before) - film.SCENES.findIndex((s) => s.id === b.before));
 fs.writeFileSync(file, JSON.stringify(J, null, 2) + '\n');

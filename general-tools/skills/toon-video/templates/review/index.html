@@ -1,22 +1,31 @@
 <title>__TITLE__</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <!--
-  Stage review page (toon-video, rules S1 and S2 approvals). Fill the JSON in #page-data, then publish with
-  capabilities {"db":{"rules":[{"path":"","read":"view","write":"owner"}]},"user":{}}.
+  Stage review page (toon-video, rules S1 and S2 approvals; S2-30: one page per story, one section per stage). Fill the
+  JSON in #page-data, then publish with capabilities {"db":{"rules":[{"path":"","read":"view","write":"owner"}]},"user":{}}.
+  Each section is one stage (story, direction, parts-<place>, render-<n>) with its own Approve button and notes; a stage
+  already approved can stay on the page with "done": true. Items: video, image, audio (the narration) and text (a
+  script, a scene plan, a parts plan: { "kind": "text", "title", "text" }).
   Only the artifact's owner can write, so the Approve button records the owner's own click. Agents never write the
-  `approvals` collection: they read it (ArtifactData list approvals) into src/stories/<slug>/approvals.json for the gate.
+  `approvals` collection: they read it (ArtifactData list approvals) into src/stories/<slug>/approvals.json.
   Collections: approvals/<stage> {stage, story, approved, at, note, by, source: "page"}; notes/<stage>-<ms> {stage, text, at, by}.
+  The page says at the top when some stages are approved and others still wait (the cliff film: the direction stage was
+  left unapproved while the three places were approved, and nobody saw it).
+  An older page's single-stage form ({ "stage", "ask", "items" } at the top) still works.
 -->
 <script id="page-data" type="application/json">
 {
-  "story": "example-2d",
-  "stage": "story",
-  "title": "Example: story and narration",
-  "ask": "Listen to the story. Approve it, or write what to change.",
-  "items": [
-    { "kind": "video", "src": "v/animatic.mp4", "caption": "Stills on the voice" },
-    { "kind": "image", "src": "c/cast.jpg", "caption": "The cast" }
-  ]
+ "story": "example-2d",
+ "title": "Example: direction and places",
+ "intro": "The story is approved. Watch the animatic and look at each place. Approve each stage, or note what to change.",
+ "sections": [
+  { "stage": "direction", "title": "Direction", "ask": "The animatic and the cast. Approve, or note what to change.",
+    "items": [ { "kind": "video", "src": "v/animatic.mp4", "caption": "Stills on the voice" }, { "kind": "image", "src": "c/cast.jpg", "caption": "The cast" } ] },
+  { "stage": "parts-shore", "title": "Place: the shore", "ask": "How the shore is made.",
+    "items": [ { "kind": "text", "title": "Parts plan", "text": "Sky: ...\nFar band: ..." }, { "kind": "image", "src": "c/shore.jpg", "caption": "The shore at dusk" } ] },
+  { "stage": "story", "title": "Story and narration (approved)", "done": true,
+    "items": [ { "kind": "audio", "src": "v/narration.mp3", "caption": "The narration" } ] }
+ ]
 }
 </script>
 <style>
@@ -29,6 +38,10 @@ body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px
 main{max-width:760px;margin:0 auto;padding-block:24px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:20px}
 h1{font-family:var(--display);font-size:24px;margin:0;text-wrap:balance}
 .mute{color:var(--mute)}
+h2{font-family:var(--display);font-size:20px;margin:0;text-wrap:balance}
+h3{font-family:var(--display);font-size:16px;margin:0}
+.txt{white-space:pre-wrap;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;font-variant-numeric:tabular-nums}
+audio{width:100%}
 figure{margin:0;display:flex;flex-direction:column;gap:6px}
 video,img{width:100%;max-width:100%;border-radius:8px;background:#000}
 .bar{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px}
@@ -43,59 +56,73 @@ button:disabled{opacity:.5;cursor:default}
 <main>
   <h1 id="title"></h1>
   <p id="ask" class="mute"></p>
-  <div id="items" style="display:flex;flex-direction:column;gap:18px"></div>
-  <section class="bar" aria-label="Decision">
-    <p id="state" class="mute">Loading your decision…</p>
-    <label for="note" class="mute">Notes (what to change)</label>
-    <textarea id="note"></textarea>
-    <div class="row">
-      <button id="approve" class="go" disabled>Approve</button>
-      <button id="send" disabled>Send notes</button>
-    </div>
-  </section>
+  <p id="open" class="bar" style="display:none;color:var(--warn);font-weight:600"></p>
+  <div id="secs" style="display:flex;flex-direction:column;gap:36px"></div>
 </main>
 <script>
 const D = JSON.parse(document.getElementById('page-data').textContent);
+if (!D.sections) D.sections = [{ stage: D.stage, title: D.title, ask: D.ask, items: D.items || [] }];
 document.getElementById('title').textContent = D.title;
-document.getElementById('ask').textContent = D.ask;
-const box = document.getElementById('items');
-for (const it of D.items) {
-  const f = document.createElement('figure');
-  const m = document.createElement(it.kind === 'video' ? 'video' : 'img');
-  m.src = it.src; if (it.kind === 'video') { m.controls = true; m.playsInline = true; m.preload = 'metadata'; } else m.alt = it.caption || '';
-  const c = document.createElement('figcaption'); c.className = 'mute'; c.textContent = it.caption || '';
-  f.append(m, c); box.append(f);
+document.getElementById('ask').textContent = D.intro || '';
+const secs = document.getElementById('secs');
+const el = (t, cls, txt) => { const e = document.createElement(t); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+const bars = [];
+for (const S of D.sections) {
+  const sec = el('section'); sec.style.cssText = 'display:flex;flex-direction:column;gap:16px';
+  sec.append(el('h2', '', S.title)); if (S.ask) sec.append(el('p', 'mute', S.ask));
+  for (const it of S.items) {
+    const f = el('figure');
+    if (it.kind === 'text') { f.append(el('h3', '', it.title || ''), el('div', 'txt', it.text)); sec.append(f); continue; }
+    const m = document.createElement(it.kind === 'video' ? 'video' : it.kind === 'audio' ? 'audio' : 'img');
+    m.src = it.src; if (it.kind !== 'image') { m.controls = true; m.playsInline = true; m.preload = 'metadata'; } else { m.alt = it.caption || ''; m.loading = 'lazy'; }
+    f.append(m, el('figcaption', 'mute', it.caption || '')); sec.append(f);
+  }
+  const bar = el('div', 'bar'), state = el('p', 'mute', 'Loading your decision…'); state.style.fontWeight = '600';
+  bar.append(state);
+  let note = null, ap = null, sd = null;
+  if (!S.done) {
+    const id = 'note-' + S.stage; const lab = el('label', 'mute', 'Notes (what to change)'); lab.htmlFor = id;
+    note = el('textarea'); note.id = id; const row = el('div', 'row');
+    ap = el('button', 'go', 'Approve'); sd = el('button', '', 'Send notes'); ap.disabled = sd.disabled = true; row.append(ap, sd);
+    bar.append(lab, note, row);
+  }
+  sec.append(bar); secs.append(sec); bars.push({ S, state, note, ap, sd });
 }
-const stateEl = document.getElementById('state'), approveB = document.getElementById('approve'), sendB = document.getElementById('send'), note = document.getElementById('note');
-const show = (t) => { stateEl.textContent = t; };
 (async () => {
   const db = await window.claude?.use?.('db'), user = await window.claude?.use?.('user');
-  if (!db) { show('Approvals cannot be saved in this view. Open the page in claude.ai.'); return; }
-  const owner = user ? user.isOwner() : false;
-  if (!owner) show('Only the owner can approve this stage.');
-  const ref = db.doc('approvals/' + D.stage);
-  const timer = setTimeout(() => show('Your decision cannot be reached yet.'), 10000);
-  ref.onSnapshot(s => {
-    if (!s.metadata.fromCache) clearTimeout(timer);
-    const d = s.exists ? s.data() : null;
-    if (d && d.approved) show('Approved ' + new Date(d.at).toLocaleString() + '.');
-    else if (owner) show('Not approved yet.');
-  }, () => { clearTimeout(timer); show('Your decision cannot be read right now.'); });
-  if (!owner) return;
-  approveB.disabled = false; sendB.disabled = false;
-  const by = user ? await user.id() : null;
-  approveB.addEventListener('click', async () => {
-    approveB.disabled = true;
-    try { await ref.set({ stage: D.stage, story: D.story, approved: true, at: Date.now(), note: note.value.trim(), by, source: 'page' }); }
-    catch (e) { show('Approve failed: ' + (e && e.message || 'try again')); }
-    approveB.disabled = false;
-  });
-  sendB.addEventListener('click', async () => {
-    const text = note.value.trim(); if (!text) { show('Write a note first.'); return; }
-    sendB.disabled = true;
-    try { await db.doc('notes/' + D.stage + '-' + Date.now()).set({ stage: D.stage, story: D.story, text, at: Date.now(), by }); note.value = ''; show('Notes sent. The stage stays open until you approve.'); }
-    catch (e) { show('Sending failed: ' + (e && e.message || 'try again')); }
-    sendB.disabled = false;
-  });
+  if (!db) { bars.forEach(b => b.state.textContent = 'Approvals cannot be saved in this view. Open the page in claude.ai.'); return; }
+  const owner = user ? user.isOwner() : false, by = owner && user ? await user.id() : null;
+  const seen = {}, openEl = document.getElementById('open');
+  const warnOpen = () => {
+    const live = bars.filter(b => !b.S.done), ok = live.filter(b => seen[b.S.stage] === true), wait = live.filter(b => seen[b.S.stage] === false);
+    if (ok.length && wait.length) { openEl.textContent = 'Still waiting for your Approve: ' + wait.map(b => b.S.title).join(', ') + '.'; openEl.style.display = ''; }
+    else openEl.style.display = 'none';
+  };
+  for (const b of bars) {
+    const ref = db.doc('approvals/' + b.S.stage), show = (t) => { b.state.textContent = t; };
+    const timer = setTimeout(() => show('Your decision cannot be reached yet.'), 10000);
+    ref.onSnapshot(s => {
+      if (!s.metadata.fromCache) clearTimeout(timer);
+      const d = s.exists ? s.data() : null;
+      seen[b.S.stage] = !!(d && d.approved); warnOpen();
+      if (d && d.approved) show('Approved ' + new Date(d.at).toLocaleString() + '.');
+      else show(owner ? 'Not approved yet.' : 'Only the owner can approve this stage.');
+    }, () => { clearTimeout(timer); show('Your decision cannot be read right now.'); });
+    if (!owner || !b.ap) continue;
+    b.ap.disabled = b.sd.disabled = false;
+    b.ap.addEventListener('click', async () => {
+      b.ap.disabled = true;
+      try { await ref.set({ stage: b.S.stage, story: D.story, approved: true, at: Date.now(), note: b.note.value.trim(), by, source: 'page' }); }
+      catch (e) { show('Approve failed: ' + (e && e.message || 'try again')); }
+      b.ap.disabled = false;
+    });
+    b.sd.addEventListener('click', async () => {
+      const text = b.note.value.trim(); if (!text) { show('Write a note first.'); return; }
+      b.sd.disabled = true;
+      try { await db.doc('notes/' + b.S.stage + '-' + Date.now()).set({ stage: b.S.stage, story: D.story, text, at: Date.now(), by }); b.note.value = ''; show('Notes sent. The stage stays open until you approve.'); }
+      catch (e) { show('Sending failed: ' + (e && e.message || 'try again')); }
+      b.sd.disabled = false;
+    });
+  }
 })();
 </script>
