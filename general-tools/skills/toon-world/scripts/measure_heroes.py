@@ -50,8 +50,7 @@ def box_at(h, t):
 
 
 def frames(clip, t0, t1, tmp):
-    out = Path(tmp) / f'{t0:.2f}'
-    out.mkdir()
+    out = Path(tempfile.mkdtemp(dir=tmp))  # one folder per hero, even when two heroes share a start
     subprocess.run(['ffmpeg', '-loglevel', 'error', '-ss', str(t0), '-to', str(t1), '-i', clip, '-vf', 'fps=10',
                     str(out / 'f%04d.png')], check=True)
     return sorted(out.glob('*.png'))[::3]
