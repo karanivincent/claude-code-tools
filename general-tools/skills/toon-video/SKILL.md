@@ -70,7 +70,7 @@ rule-by-rule lines for each step. Do not retell a step in other words (S0-8, X-7
 ### Stage 2. Cast, look, parts plan, scenes, animatic  stop: owner "Direction yes" and "Parts plan yes" per place
 - [ ] Cast sheet: out/<slug>/cast.png (S2-1..S2-6, S2-24)
 - [ ] Library checked first; parts plan per place, the blend proved on one place: stories/<slug>/parts.md (S2-32, S2-7..S2-14, S2-17, S2-25)
-- [ ] Reference stills per place and hero beat from the catalog: stories/<slug>/references.md; owner's pick per place (S2-34)
+- [ ] Reference stills per place and hero beat from the catalog, picked by the lead: stories/<slug>/references.md (S2-34)
 - [ ] Each place's background picture rich by the template (S3-166..S3-168)
 - [ ] Scenes split and roughly built: stories/<slug>/scenes.md, references named (S5-39, S2-31, S5-76)
 - [ ] Still board from the rough scenes: out/<slug>/board/, stories/<slug>/board.md (S2-15, S2-16, S2-18..S2-20)
@@ -139,11 +139,11 @@ Template and layout: `<toon-world>/templates/film-scenes/README.md` and `<toon-w
 - Parts plan `stories/<slug>/parts.md`, one section per place: the source of sky, far band, middle, ground, detail
   layer, hero props, people, effects and words, and the story's state for the place (S2-7..S2-14). The blend is
   the look on every place (S2-7); prove it on one place (S2-17).
-- Reference stills first (S2-34, S2-35): for each place and each hero beat choose 3 to 6 stills from the project's
-  reference catalog by tag and subject (Bible in Clay: `docs/references/index.json`, private). List them in
-  `stories/<slug>/references.md` with what each is for ("the ballast at the lens: copy the stone sizes"), offer 2 or 3
-  sets per place on the review page as `refs-<place>`, and give the picked stills to each builder and judge (S2-35)
-  (`abjudge.sh --stills <dir>`, S5-97). Measure each render with `<toon-world>/scripts/measure_sharp.py` against them.
+- Reference stills first (S2-34, S2-35): for each place and each hero beat the lead chooses 3 to 6 stills from the
+  project's reference catalog (Bible in Clay: `docs/references/index.json`, private) for their standard of detail, light
+  and style, not their subject. List them in `stories/<slug>/references.md` with what each is for ("the ballast at the
+  lens: copy the stone density"); the owner is not asked to pick them. Give them to each builder and judge
+  (`abjudge.sh --stills <dir>`, S5-97), and measure each render with `<toon-world>/scripts/measure_sharp.py` against them.
 - Background pictures by the template in `<toon-world>/references/picture-rules.md`: rich light, near, middle and
   far layers, dense detail, a sky that adds colour (S3-166, S3-167).
 - Split the voice into scenes of 5 to 10 s before the board (S2-31), cutting where the story changes place, light or
