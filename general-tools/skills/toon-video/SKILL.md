@@ -93,6 +93,8 @@ rule-by-rule lines for each step. Do not retell a step in other words (S0-8, X-7
 - [ ] Rig check: out/<slug>/scenes/<scene>/poses.jpg (S5-54..S5-56, S5-85)
 - [ ] People and acting rounds (S5-63, S5-64, S5-66, S5-78, S5-80)
 - [ ] Motion and staging rounds (S5-67..S5-69, S5-87)
+- [ ] Each hero object and effect measured against its stills every round: stories/<slug>/heroes.json (S5-99, S5-100)
+- [ ] Opus lead, Sonnet builders, reviewers and judges (S5-101)
 ### Stage 6. Join                                    stop: owner's notes taken into the scenes
 - [ ] Film joined; joins.sh clean; sound checked once on the mix (S5-52, S5-83)
 - [ ] Three judges against a film-length reference; owner's pick logged against theirs (S5-82, S5-96)

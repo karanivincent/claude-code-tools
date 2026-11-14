@@ -26,7 +26,7 @@ usage() { echo "usage: look.sh <clip.mp4> <outdir> --focus <world|shots|people|l
 clip=$1; out=$2; shift 2
 here=$(cd "$(dirname "$0")" && pwd)
 focus=""; meaning=""; prior=""; words=""; actions=""; facts=""; jumps=1; brief=$here/../../references/reviewer-brief.md
-models="sonnet sonnet opus"
+models="sonnet sonnet sonnet"  # S5-101
 while [ $# -gt 0 ]; do case $1 in
   --focus) focus=$2; shift 2;; --meaning) meaning=$2; shift 2;; --prior) prior=$2; shift 2;;
   --words) words=$2; shift 2;; --actions) actions=$2; shift 2;; --facts) facts="$facts $2"; shift 2;;

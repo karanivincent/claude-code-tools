@@ -19,7 +19,7 @@
 #   whether A and B beat, tie or fall short of it. verdict.json then has "ref": best and new against it.
 # --stills: a folder of the picked reference stills (*.jpg, S2-34, S5-97). Each judge sees them as S/ and scores how
 #   close each clip's detail comes to them (separate objects near the lens, materials, light, sharp backgrounds).
-# --model: the judges' model, opus by default; sonnet when the week's usage is short.
+# --model: the judges' model, sonnet by default (S5-101); opus for a second opinion.
 # Clip lengths (S5-82): a clip under half the length of another is refused, so a 60 s film is never judged against a
 #   5 s clip (the cliff film's first render was). --any-length lets it through, for a scene's first look at its
 #   reference.
@@ -29,7 +29,7 @@ usage() { echo "usage: abjudge.sh <best.mp4> <new.mp4> <outdir> [--judges 1|3] [
 [ $# -ge 3 ] || usage
 best=$1; new=$2; out=$3; shift 3
 here=$(cd "$(dirname "$0")" && pwd)
-judges=1; brief=$here/../../references/judge-brief.md; meaning=""; focus=""; ref=""; stills=""; model=opus; anylen=0
+judges=1; brief=$here/../../references/judge-brief.md; meaning=""; focus=""; ref=""; stills=""; model=sonnet; anylen=0
 while [ $# -gt 0 ]; do case $1 in
   --judges) judges=$2; shift 2;; --brief) brief=$2; shift 2;; --meaning) meaning=$2; shift 2;;
   --focus) focus=$2; shift 2;; --ref) ref=$2; shift 2;; --stills) stills=$2; shift 2;; --model) model=$2; shift 2;; --any-length) anylen=1; shift;; *) usage;; esac; done
