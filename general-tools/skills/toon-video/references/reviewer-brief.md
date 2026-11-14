@@ -110,7 +110,10 @@ Sound (only when the focus is sound; you see frames, not the sound):
 He has given these notes on round after round; check every one yourself, each round, without being asked:
 - Detail on every object the story turns on: rivets, bolts, panel lines, labels, wear. A hero object that is a flat
   shape is a fault, however good the rest of the frame.
-- Dense ground and props near the lens: grass blades, stones, tools, cables; nothing bare.
+- Dense ground and props near the lens: grass blades, stones, tools, cables; nothing bare. But real places are kept:
+  a swept apron, a working floor. Loose litter scattered for its own sake reads dirty and fake (Vincent, 14 Nov 2026,
+  on the B-17 apron and hangar floor: "too dirty ... overdone"). Detail goes in materials, walls, structure and
+  purposeful things where people work; open floor stays clean. Litter in the middle of a kept floor is a fault.
 - Things moving behind the hero: people working, vehicles, birds, flags, smoke.
 - Effects that read as real: fire in many flickering tongues with smoke and glow, dust, sparks; never a flat blob.
 - Natural, strong colour: no purple or dreamlike haze unless the story asks for it.
