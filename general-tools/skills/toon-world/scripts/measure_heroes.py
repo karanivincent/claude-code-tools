@@ -13,6 +13,11 @@ folder of the reference stills for that thing (their whole frames are measured, 
 are kept at 720 wide, which measures softer than the full frame: give "targets": [sharpness, fine_edges] from the
 catalog's index.json measures (taken on the full frames) to use those instead.
 
+A hero that moves (a plane crossing the sky) gives "boxes": [[t, [x0, y0, x1, y1]], ...] instead of "box": a tight box
+round it at a few times, linearly interpolated, so the measure is of the hero and not of the sky round it.
+A hero drawn flat on purpose (the people cards of a toon look) gives "measure": false: it is listed for the
+reviewers' eyes (S5-100) and never fails here, since a flat card can never match a painted still.
+
 Each hero gets the sharpness (variance of the Laplacian of grey) and fine edges (share of Sobel magnitude over 60) of
 its box, one frame in three, beside its stills' medians. A hero under `share` (default 0.8) of its stills on either
 measure FAILS: the next round works on it first. Exit 1 when any hero fails, so a loop cannot call the clip done
@@ -30,6 +35,18 @@ def measure(a):
     g = a.mean(axis=2)
     sx, sy = ndimage.sobel(g, 1), ndimage.sobel(g, 0)
     return float(ndimage.laplace(g).var()), float((np.hypot(sx, sy) > 60).mean())
+
+
+def box_at(h, t):
+    if 'boxes' not in h:
+        return h['box']
+    ks = sorted(h['boxes'], key=lambda k: k[0])
+    if t <= ks[0][0]: return ks[0][1]
+    for (ta, ba), (tb, bb) in zip(ks, ks[1:]):
+        if t <= tb:
+            u = (t - ta) / max(tb - ta, 1e-6)
+            return [a + (b - a) * u for a, b in zip(ba, bb)]
+    return ks[-1][1]
 
 
 def frames(clip, t0, t1, tmp):
@@ -50,10 +67,16 @@ def main():
     rows, fail = [], 0
     with tempfile.TemporaryDirectory() as tmp:
         for h in heroes:
+            if h.get('measure') is False:
+                rows.append({'name': h['name'], 'pass': None, 'note': 'drawn flat on purpose: reviewers judge it'})
+                print(f"EYES  {h['name']}: drawn flat on purpose, judged by the reviewers"); continue
             ms = []
-            for f in frames(clip, h['from'], h['to'], tmp):
+            fs = frames(clip, h['from'], h['to'], tmp)
+            for i, f in enumerate(fs):
                 im = np.asarray(Image.open(f).convert('RGB'), dtype=np.float32)
-                H, W = im.shape[:2]; x0, y0, x1, y1 = h['box']
+                H, W = im.shape[:2]
+                t = h['from'] + i * 0.3
+                x0, y0, x1, y1 = box_at(h, t)
                 ms.append(measure(im[int(y0 * H):int(y1 * H), int(x0 * W):int(x1 * W)]))
             if 'targets' in h:
                 st = [tuple(h['targets'])]
