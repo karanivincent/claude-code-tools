@@ -90,6 +90,7 @@ was a copy of a Ricks Clips Short scored round by round against the original. Wh
 | Background blur on about a third of screen time | S3-35: medium and close shots only, wides sharp | Vincent, 11 Nov 2026 |
 | Blur behind people by default, about 11 px; `Stage.tsx` forced an 11 px floor | S3-35, S3-37 | the floor blurred every wide |
 | Blur only where the reference has it | S3-35 | one rule, set by shot size |
+| Blur behind people in medium shots and close-ups (11 to 13 px) | S3-35: none; sharp like the reference stills | every studied reference is sharp in close-ups; ours measured a sixth of their detail (Vincent, 14 Nov 2026) |
 | Grade with lifted warm blacks, black point about (35,19,20); dark floor "lifted" | S3-31: black point near black | lifted blacks read washed out |
 | Muted albedos: brick, cream, ochre, terracotta; stone saturation 35% below "storybook" | S3-30: bright and saturated | Vincent wants bright game colour |
 | Fog equal to the horizon colour (day 25 to 300 m, golden 20 to 360 m); far things lean 40% toward the horizon | S3-15: rich, crisp, no haze | a hazy cut-out of hills was rejected as fake |

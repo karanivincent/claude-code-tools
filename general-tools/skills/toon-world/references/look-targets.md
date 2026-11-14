@@ -32,9 +32,11 @@ Metals and gold at about 60% albedo (S3-52). Faces are not lemon or lavender-lit
 
 ## Depth
 
-- Lens blur radius at infinity in px at 1080 wide, by shot size (S3-35, S3-36): close-ups 12 to 16, medium shots 10 to
-  12, wides and aerials 0. Focus on the front person's eyes.
-- A near foreground object in about 20% of frames, blurred with the background in medium and close shots.
+- Lens blur radius at infinity: 0 in every shot size (S3-35); at most 4 px at 1080 wide where the shot's reference
+  still shows a soft background (S3-36).
+- Detail, measured with `scripts/measure_sharp.py` on the clip and on the picked reference stills: aim at the stills'
+  sharpness and fine edges (S5-97). The B-17 stretch measured 207 and 6.6 %; the railroads Short 1251 and 16.2 %.
+- A near foreground object in about 20% of frames, sharp.
 - The far band stays crisp and saturated; no fog and no lean toward the horizon colour (S3-15).
 - Bloom on emissive sources (threshold 1.0, intensity 0.5, 6 levels, radius 0.6); faces do not glow (S3-44).
 

@@ -41,4 +41,4 @@ export const CAM_KEYS: CamKey[] = [
 ];
 export const camAt = (f: number): Cam => keysAt(CAM_KEYS, f);
 /** blur at infinity (px): people against a busy world */
-export const dofAt = (_f: number) => 14;
+export const dofAt = (_f: number) => 0; // sharp backgrounds, as in the reference stills (S3-35)

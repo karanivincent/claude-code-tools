@@ -25,7 +25,7 @@ export type SceneDef = {
   camAt: (f: number) => Cam;
   /** the point in focus (the lens blur's focus distance follows it) */
   focusAt: (f: number) => V3;
-  /** the blur at infinity in px (sharp wides ~6, people against a busy world 12-18) */
+  /** the blur at infinity in px: 0 by default, backgrounds sharp (S3-35); at most 4 where the reference still is soft (S3-36) */
   dofAt?: (f: number) => number;
   people: (f: number) => PersonAt[];
   /** 0..1: the light cools and darkens (an after) */
@@ -99,7 +99,7 @@ const Inner: React.FC<{ s: SceneDef; f: number; pics: Record<string, HTMLImageEl
   cam.getWorldDirection(fwd);
   fpt.copy(focus);
   fx.lens.focus = Math.max(0.3, fpt.sub(cam.position).dot(fwd));
-  fx.lens.cInf = s.dofAt?.(f) ?? 12;
+  fx.lens.cInf = Math.min(4, s.dofAt?.(f) ?? 0); // sharp backgrounds (S3-35, S3-36)
   return props().nopost ? null : <>{post}</>;
 };
 
