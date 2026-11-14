@@ -37,7 +37,7 @@ The blend is the one look, on each place in the film (S2-7). Flat code colour is
 | Ground | Code 3D with a painted tile, plus scattered painted 2D litter decals | S3-7, S3-11 |
 | Detail layer | Small real things that move: flies, smoke, dust in light shafts, cloth, birds, a goat. Not dots. Something that fits the story moves behind the hero in each shot: other planes, vehicles, people working | S3-9, S3-169 |
 | Hero props | Real 3D built in code; Higgsfield image-to-3D when Vincent asks for it | S2-11, S3-26 |
-| People | Bean-head cards, lit by the scene, sharp in focus | S3-57, S3-35 |
+| People | Bean-head cards, lit by the scene, sharp, against a sharp background | S3-57, S3-35 |
 | Fire, smoke, dust, water | Code volumes or cards | S3-75 |
 | Words | Screen cards | S3-148 |
 
@@ -54,6 +54,8 @@ says why and Vincent approves that plan (S2-9, S2-30). It breaks the moment the 
 through.
 
 ## The parts plan
+
+First pick the place's reference stills from the project's reference catalog (S2-34; Bible in Clay: `docs/references/`, private, never copied into this repo). The parts plan then names, per band, which still it copies.
 
 Before planning a place, look in `library/` (`library/index.md`) for a place, vehicle, prop or costume to copy, and
 name each one the plan copies (S2-32). How to copy one in and give improvements back: `library/README.md` (see).
@@ -156,8 +158,8 @@ after sheets of the same frames, watching large flat surfaces (S3-32). Numbers: 
 |---|---|---|
 | Composer order | Ink, lens blur, bloom on light sources, neutral tone map, grade; MSAA 4 | S3-33 |
 | Pixel sizes | Scale with output height / 1920 | S3-34 |
-| Background blur | Behind people in medium shots (10 to 12 px) and close-ups (12 to 16 px) at 1080 wide; wides sharp; focus on the front person's eyes | S3-35, S3-36 |
-| Blur floor | None in `Stage.tsx`; a shot's blur comes from its size | S3-37 |
+| Background blur | None by default: backgrounds sharp in every shot, close-ups too, as in the reference stills; at most 4 px where a shot's reference still is soft | S3-35, S3-36 |
+| Blur floor | None in `Stage.tsx` | S3-37 |
 | Motion blur | None anywhere | S3-38 |
 | Ink on the world | Near-black, about 5 px near to 3 px far, its own pass, thinned over painted detail | S3-39 |
 | Cards and ink | Cards on the `NOINK` layer with their own outline | S3-40 |
@@ -258,7 +260,8 @@ has the full list.
 | Dots or speckle as the detail layer | Real moving things: flies, dust in light, cloth, a goat (S3-9) |
 | A flat place because it is cheaper | The blend; a flat 2D place as a named, approved exception (S2-7, S2-30) |
 | Props as image-to-3D models by default | Code props; Higgsfield when Vincent asks (S2-11) |
-| Blurred wides | Blur in medium and close shots alone (S3-35) |
+| Blurred backgrounds behind people | Sharp backgrounds; a calm area behind the face (S3-35, S3-12) |
+| Building a place with no reference stills | Pick 3 to 6 catalog stills per place first and copy their detail (S2-34, S2-35) |
 | Motion blur on a fast move | None (S3-38) |
 | Lifted blacks, muted colour, haze toward the horizon | Near-black black point, saturated colour, crisp far band (S3-30, S3-31, S3-15) |
 | Emissive cards | Lit cards with a contact blob (S3-57) |

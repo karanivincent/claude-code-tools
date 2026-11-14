@@ -32,7 +32,7 @@ segments, and replaces the stand-in cast. Needs TypeScript 5, `@react-three/post
 | A place's shots take the film's clock `t` | A board of stills played as a film ("he barely moves") |
 | Swing inside a place, a cut with its reason between places, at most 3 | Whip pans (motion blur, banned) and unexplained hard cuts |
 | One place canvas at a time, keyed by place, next place loaded early | Every place built on every frame, and a stall at each change of place |
-| Background blur behind people in medium shots (11 px) and close-ups (13 px), wides sharp | Characters lost against a busy world, and soft wides |
+| Sharp backgrounds in every shot, as in the reference stills (S3-35) | Soft frames that measure a sixth of the references' detail |
 | Overlays land on their words and are cues for the audit | Dates and orders missing or late ("I don't know what those are") |
 | The audit sample skips people behind the lens or wholly off screen | False "head cut" reports with a negative height |
 | The audit renders tiny, every 3rd frame, no look stack, before any render | Faults found only after a 15-minute render and a critic's round |

@@ -46,6 +46,21 @@ Count these in world (background, detail, life behind the hero), light (colour, 
 and story (the hero big and readable).
 
 Score each version 1 to 5 in each area: world, people, light, story, motion.
+
+## Vincent's standing notes (S5-100)
+
+He has given these notes on round after round; check every one yourself, each round, without being asked:
+- Detail on every object the story turns on: rivets, bolts, panel lines, labels, wear. A hero object that is a flat
+  shape is a fault, however good the rest of the frame.
+- Dense ground and props near the lens: grass blades, stones, tools, cables; nothing bare.
+- Things moving behind the hero: people working, vehicles, birds, flags, smoke.
+- Effects that read as real: fire in many flickering tongues with smoke and glow, dust, sparks; never a flat blob.
+- Natural, strong colour: no purple or dreamlike haze unless the story asks for it.
+- Sharp backgrounds and a hero big enough to read on a phone.
+If the folder S/ holds reference stills, also give each clip one number for how close it comes to them overall:
+1 nowhere near, 3 halfway, 5 matches them. Put it in your notes as "stills: A x, B y". A clip that wins but scores 3
+or under against S is still far: say what is furthest from S.
+
 Scale: 1 broken (wrong, unreadable, laughable); 2 weak (reads but flat, frozen or confusing); 3 fine (clear and
 correct, forgettable); 4 good (alive, reads on a phone, lands); 5 great (you would stop scrolling for it). Whole or
 half points. Do not round up.

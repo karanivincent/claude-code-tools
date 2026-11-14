@@ -276,10 +276,9 @@ export const Stage: React.FC<{ def: PlaceDef; a: Loaded; shot: string; take?: Ta
   cam.getWorldDirection(fwd);
   fpt.copy(focus);
   fx.lens.focus = Math.max(0.3, fpt.sub(cam.position).dot(fwd));
-  // background blur behind people in medium shots and close-ups, wides sharp (decision 5, Vincent 11 November 2026).
-  // Defaults from the look targets: close-ups 12 to 14 px at 1080 wide, medium shots 10 to 12; a shot's own `blur`
-  // overrides them (0 = sharp), never in a wide
-  const blurPx = shotSize === 'wide' ? 0 : S.blur ?? (shotSize === 'close' ? 13 : 11);
+  // backgrounds sharp in every shot size, as in the reference stills (S3-35, Vincent 14 November 2026); a shot's own
+  // `blur` (at most 4 px at 1080 wide) only where its reference still is soft (S3-36), never in a wide
+  const blurPx = Math.min(4, S.blur ?? 0);
   fx.lens.cInf = blurPx * (size.width / 1080);
   return debug.includes('nopost') ? null : <>{post}</>;
 };
