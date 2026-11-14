@@ -48,7 +48,7 @@ export function approvalOf(storyDir, stage) {
   try { j = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (e) { return { ok: false, why: `approvals.json is not JSON: ${e.message}` }; }
   const list = Array.isArray(j) ? j : Array.isArray(j.entries) ? j.entries : Object.values(j);
   const e = list.filter(x => x && x.stage === stage).pop();
-  if (!e) return { ok: false, why: `no "${stage}" approval (${APPROVALS[stage] ?? (stage.startsWith('picture-') ? 'the background picture of ' + stage.slice(8) : 'the parts plan of ' + stage.replace(/^parts-/, ''))}): the owner clicks Approve on the review page` };
+  if (!e) return { ok: false, why: `no "${stage}" approval (${APPROVALS[stage] ?? (stage.startsWith('picture-') ? 'the background picture of ' + stage.slice(8) : stage.startsWith('refs-') ? 'the reference stills of ' + stage.slice(5) : 'the parts plan of ' + stage.replace(/^parts-/, ''))}): the owner clicks Approve on the review page` };
   // the review page template writes { stage, story, approved, at, note, by: <viewer id>, source: "page" }; the lead copies
   // the row from the page's store unchanged (ArtifactData list approvals), never writes one (rule S0-13)
   const miss = [e.approved !== true && 'approved: true', e.source !== 'page' && 'source: "page"', !e.at && 'at', !e.by && 'by'].filter(Boolean);
@@ -173,7 +173,8 @@ export function gate(storyDir, stage, opts = {}) {
   for (const st of Object.keys(APPROVALS)) { const a = approvalOf(storyDir, st); if (!a.ok) refusals.push(`approval: ${a.why}`); }
   // each place's parts plan has its own Approve button (rule S2-10): stage "parts-<place>"
   // and each place's background picture its own (rule S2-33): stage "picture-<place>"
-  for (const pl of places.filter(x => x !== 'example')) for (const kind of ['parts', 'picture']) { const a = approvalOf(storyDir, `${kind}-${pl}`); if (!a.ok) refusals.push(`approval: ${a.why}`); }
+  // and each place's reference stills their own (rule S2-34): stage "refs-<place>"
+  for (const pl of places.filter(x => x !== 'example')) for (const kind of ['parts', 'picture', 'refs']) { const a = approvalOf(storyDir, `${kind}-${pl}`); if (!a.ok) refusals.push(`approval: ${a.why}`); }
   const conc = String(opts.concurrency ?? 4);
   log(`gate ${stage}: running the audit`);
   const au = run(process.execPath, [path.join(tools, 'audit.mjs'), conc], root);
