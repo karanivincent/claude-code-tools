@@ -17,6 +17,7 @@ pattern clashes with `toon-video/references/rules.md`, the register wins. The li
   - [People](#people)
   - [The spikes of 18 November 2026](#the-spikes-of-18-november-2026)
 - [Measures from the railroads copy](#measures-from-the-railroads-copy)
+- [The audit's tidy pass, 18 November 2026](#the-audits-tidy-pass-18-november-2026)
 
 ## Where the look came from
 
@@ -202,3 +203,12 @@ channel in the same look; the full story of each spike is in `toon-video/referen
 
 `measure_sharp.py` on the railroads original: sharpness 1302, fine-edge share 16.9%, saturation 0.43, mean brightness
 133. Round 3 of the copy: 1301, 19.5%, 0.42, 131.
+
+## The audit's tidy pass, 18 November 2026
+
+After the skills audit the owner said "Yes, apply all". For the world and the look: fog left the place light (S5-107,
+was S5-106), since he kept no haze (S3-15); the night sky is slate blue-grey with a large moon (S3-232), not
+blue-violet; day shade keeps the surface's paint and is cooled a little by the sky (S3-242, was S3-207), unproven by
+day; the composer order drops world ink and lens blur (S3-243, was S3-33); ground detail has a purpose and a kept
+floor stays clean (S3-244, was S3-11); haze and blur stay out, though five spikes added them (S3-15, S3-35). The full
+table is in `toon-video/references/why.md`, "The audit's tidy pass, 18 November 2026".

@@ -25,6 +25,7 @@ this file.
   - [Team and log](#team-and-log)
   - [The spikes of 18 November 2026](#the-spikes-of-18-november-2026)
   - [The owner's six changes, 18 November 2026](#the-owners-six-changes-18-november-2026)
+  - [The audit's tidy pass, 18 November 2026](#the-audits-tidy-pass-18-november-2026)
 
 ## Old patterns
 
@@ -368,3 +369,55 @@ hard cut; the newest has 8, six of them angle changes in a talk or at the fire a
 three unbroken takes of 11 to 15 s carry the big action. So S3-235 to S3-238 keep the cut and give it a budget, a
 shortest stretch, a reason, and two long takes a film. The kit's `checkCuts` passes his Short and fails our scene.
 
+### The audit's tidy pass, 18 November 2026
+
+Two audits of the toon skills the same day (one for gaps and clashes, one against what happened in real films) found
+rules that disagreed with each other and owner notes that never reached the register. The owner answered "Yes, apply
+all" and ruled on four points himself. Source of those four: owner's decision, 18 November 2026, after the skills
+audit. Old wording: `rules-log.md` and the struck lines in `rules.md`.
+
+The owner's four rulings:
+
+| | Old | New | Why |
+|---|---|---|---|
+| Narration length | S1-35: about 190 words for 60 s; `bar.md` check 15: 205 to 230 a minute | S1-36: about 230 words for a 60-second film; check 15 asks the same | The last three films ran 229 to 238 words (jungle 232, Garbo 238, hannibal 229) and read well |
+| Music under the voice | S3-157: the bed at least 10 dB under every line, for every project | S3-239: the project's margin, 10 dB unless its making-of doc sets another; Epiclings 7.5 (never under 7) | Garbo's owner note: "the background music is a little bit too soft"; +3 dB was right. Bible in Clay keeps 10 |
+| Words on screen | S3-149: the narration's language; mastheads and proper names may stay | S3-240: English only, proper names, signs and stamps included | He turned foreign words down twice: FERMÉ on the Mona Lisa, DEUTSCHE BOTSCHAFT on Garbo |
+| Which document wins | X-7 and S0-9: the register is the only order; the Epiclings doc said its rules win over the skills | X-35: the register wins on craft; the project's doc wins on its channel's own rules (posting, brand, brightness floor, music level) | Each document claimed to win; a film followed whichever its lead read last |
+
+The clashes the audits listed:
+
+| | Old | New | Why |
+|---|---|---|---|
+| Fog | S5-106: a cool fog in each place's light | S5-107: the same light, no fog or haze | The owner kept S3-15's no haze. The fog came from spike 5's light list and outlived the rule beside it |
+| Night sky | `bar.md` check 7 and `look-targets.md`: a blue-violet sky | Slate blue-grey with a large moon, as S3-232 says | S3-232 is the newer rule, from the reference's frames |
+| The hero's size | S1-7 30% at frame 0; S3-106 25% while acting; S3-208 a third or half; S5-102 a third or more; W7 a third or half | S3-241 is the one statement: about a third where the place must read, about half for acting. S3-245 (was S3-106) and S1-37 (was S1-7) point at it; S3-246 (was S3-211) chooses sizes by it. S5-102 stays: its floor of a third agrees, and its 1.5 s limit on small wides is its own | Five rules gave five numbers, and the checks passed any third |
+| Haze and blur | S3-15 and S3-35 against five spikes whose builders added haze or blur | Both rules kept. `bar.md` and toon-world's "Do not" table say so where builders read; a spike tests one only as its stated question (X-14) | The owner kept both; the spikes broke the rules, they did not change them |
+| Day shade | S3-207: shade tinted blue or violet, never grey; S3-218: the shaded side keeps the surface's own colour | S3-242: the shade keeps the surface's paint and texture, cooled a little by the sky's light, never grey or brown | Both hold that way: the colour is the paint's, the coolness is the light's. Unproven: no day scene has been made in the rendered look; until one is, day shade comes from the scene's reference frame |
+| Proofs in the wrong file | S2-36: `parts.md`, which is per place; S5-104: the spike log, for a film | S2-37: a reference-frame column in `scenes.md`, and no likeness score without one; S5-108: `out/<slug>/world/first-scene.md` | The proof has to sit where the thing is made |
+| Old wording | S3-33: composer order "ink, lens blur, bloom ..."; camera.md "shoot toward the low sun for rims"; playbook rows for the 12% ink measure, a rim light and expressions swapped on one frame; toon-world's composer row; look-targets' violet shade | S3-243: bloom, tone map, grade, the ink pass off (S3-213) and blur at 0 unless S3-36 sets it; the prose follows S3-213, S3-224 and S5-78 | The register had moved and the prose had not |
+| Litter | S3-11: scatter painted 2D litter decals on the ground | S3-244: ground detail with a purpose; a kept floor stays clean | The owner on the B-17 apron, 14 November: "too dirty ... overdone"; the judge brief already called it a fault |
+
+Lessons from real films that never reached the register:
+
+| New | From | Note |
+|---|---|---|
+| S3-247: an invented person or thing is a solid paper cut-out card that flicks up and folds away | Garbo's fake spies, owner's note 16 November: the see-through agents were "not clear, could be missed" | |
+| S2-38: a famous real person has the features everyone knows and shows the face | Garbo: "How do we know that it's Hitler?" | |
+| S1-38: the hook, the turn and the payoff get three takes each; the owner picks by ear | Garbo, 16 November: one line at a time "to control the tone" | An agent cannot hear the takes |
+| S3-248 (was S3-162): short hits on an unducked punch track, 4 to 11 dB under the voice | Garbo's sound pass: "more dramatic sounds ... for every detail" | Strengthens S3-162, which put action sounds on top with no level |
+| S1-39: no run of three words copied from a source | Epiclings, since the train heist (7 November); checked on every story there | |
+| S5-109: judges score seconds 0 to 12 apart; a weak opening is fixed first | The jungle holdout at 7 days: two thirds of the lost viewers left in the first 12 s, and the critic had given 4s there | One Short. The project wrote these as proposals to check against Garbo at 7 days, so the rule adds no threshold and no block |
+
+English only on screen (the sixth Garbo lesson) is the owner's ruling above, S3-240.
+
+The register's Terms list now names the four things called "reference" (the catalog stills, a scene's reference frame,
+a video being copied, the reference channel's numbers) and the scales in use (areas 1 to 5, likeness 1 to 10, the
+scorecard of 30, the owner's six at 0 to 3, the 15 checks).
+
+Left open for the owner:
+
+- The night mean of 85 (S3-205) against Bible in Clay's brightness floor (S4-18: opening 120 or more). No night scene
+  has been tested on that channel; until he decides, a night opening there fails its floor.
+- What happens if the proof film loses to the spike clips it is meant to match (X-30): which rules go back, and who
+  decides. Nothing is written yet.

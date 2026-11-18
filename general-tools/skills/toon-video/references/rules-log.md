@@ -160,3 +160,23 @@ Every rule added or replaced, newest last. Written by `scripts/add_rule.mjs`; ne
 | 2026-11-18 | S3-236 | new | owner's yes to a cut budget, 18 November 2026, after scene one of hannibal-oxen; numbers from the survey of the reference's newest Short and 20 earlier ones |
 | 2026-11-18 | S3-237 | new | owner's yes to a cut budget, 18 November 2026, after scene one of hannibal-oxen; numbers from the survey of the reference's newest Short and 20 earlier ones |
 | 2026-11-18 | S3-238 | new | owner's yes to a cut budget, 18 November 2026, after scene one of hannibal-oxen; numbers from the survey of the reference's newest Short and 20 earlier ones |
+| 2026-11-18 | S1-36 | replaces S1-35 | owner's decision, 18 November 2026, after the skills audit |
+| 2026-11-18 | S3-239 | replaces S3-157 | owner's decision, 18 November 2026, after the skills audit; Epiclings margin 7.5 dB from Garbo's fake spies, 16 Nov 2026 |
+| 2026-11-18 | S3-240 | replaces S3-149 | owner's decision, 18 November 2026, after the skills audit; Mona Lisa 9 Nov and Garbo's fake spies 16 Nov 2026 |
+| 2026-11-18 | X-35 | new | owner's decision, 18 November 2026, after the skills audit |
+| 2026-11-18 | S5-107 | replaces S5-106 | owner's decision, 18 November 2026, after the skills audit |
+| 2026-11-18 | S3-241 | replaces S3-208 | skills audit, 18 November 2026, fixes approved by the owner (A20) |
+| 2026-11-18 | S3-242 | replaces S3-207 | skills audit, 18 November 2026, fixes approved by the owner (A5) |
+| 2026-11-18 | S2-37 | replaces S2-36 | skills audit, 18 November 2026, fixes approved by the owner (A12, A16) |
+| 2026-11-18 | S3-243 | replaces S3-33 | skills audit, 18 November 2026, fixes approved by the owner (A18) |
+| 2026-11-18 | S3-244 | replaces S3-11 | Vincent, 14 Nov 2026, B-17 apron (judge-brief standing note); skills audit, 18 November 2026, fixes approved by the owner |
+| 2026-11-18 | S3-245 | replaces S3-106 | skills audit, 18 November 2026, fixes approved by the owner (A20) |
+| 2026-11-18 | S1-37 | replaces S1-7 | skills audit, 18 November 2026, fixes approved by the owner (A20) |
+| 2026-11-18 | S3-246 | replaces S3-211 | skills audit, 18 November 2026, fixes approved by the owner (A20) |
+| 2026-11-18 | S5-108 | replaces S5-104 | skills audit, 18 November 2026, fixes approved by the owner (A16) |
+| 2026-11-18 | S3-247 | new | Garbo's fake spies, Vincent's note 16 Nov 2026 (Epiclings docs/MAKING-A-STORY.md) |
+| 2026-11-18 | S2-38 | new | Garbo's fake spies, Vincent's note 16 Nov 2026 (Epiclings docs/MAKING-A-STORY.md) |
+| 2026-11-18 | S1-38 | new | Garbo's fake spies, Vincent's note 16 Nov 2026 (Epiclings docs/MAKING-A-STORY.md) |
+| 2026-11-18 | S3-248 | replaces S3-162 | Garbo's fake spies, Vincent's note 16 Nov 2026 (Epiclings docs/MAKING-A-STORY.md) |
+| 2026-11-18 | S1-39 | new | Epiclings docs/MAKING-A-STORY.md, train heist 7 Nov 2026, checked on every story since |
+| 2026-11-18 | S5-109 | new | jungle holdout audience at 7 days (Epiclings docs/stories/jungle-holdout/audience-7-days.md), one Short; skills audit B19 |

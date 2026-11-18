@@ -24,7 +24,7 @@ Fill each slot (S3-166, S3-167). A slot left empty comes back as midday, empty s
 ```
 WORLD: <the place>, painted storybook film still, vivid modern cartoon colours.
 LIGHT: <golden hour | low sun | storm light | dramatic sky>, sun <low, from the left or right>, long shadows,
-  warm light on <what it catches>, cool <blue or violet> shade.
+  warm light on <what it catches>, shade that keeps each surface's colour, a little cooler.
 LAYERS: near: <water, a field edge, rocks with detail>; middle: <buildings, trees, the working part of the place>;
   far: <hills, ridges, a skyline, in two or three steps>; sky: <big lit clouds, colour toward the sun>.
 DETAIL: dense small things at each distance: <trees, rocks, fences, lamps, flags, birds, reflections>.
@@ -47,7 +47,7 @@ show him the best one.
 
 Four labelled blocks, the same words in each picture of the place:
 
-- WORLD: the place, each fixed thing named where it stands, in vivid modern cartoon colours (S3-207, S3-49; at night the lamps and moonlight of S3-205);
+- WORLD: the place, each fixed thing named where it stands, in vivid modern cartoon colours (S3-242, S3-49; at night the lamps and moonlight of S3-205);
   "painted storybook film still" for the painted style.
 - CAMERA: where it stands on the plan, what it looks at, its height against something in the frame, the lens as a
   field of view in words, horizon at the middle, vertical lines perfectly straight.

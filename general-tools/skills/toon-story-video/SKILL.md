@@ -73,7 +73,7 @@ to render `stories/covers/<id>.jpg` (S6-5).
 ## The hand-back
 
 Give the coordinator the video, the Publer draft id, the cost and the measured counts (S6-8): pace (`pace.py`), hard
-cuts with their reasons (S3-201), face close-up share (S3-208), brightness (S4-18), the sight check, whisper lines heard,
+cuts with their reasons (S3-201), face close-up share (S3-241), brightness (S4-18), the sight check, whisper lines heard,
 quotes checked word for word (S1-26), and the film judges' last verdict (S5-52). Name the branch the story lives on.
 
 ## At the end

@@ -22,16 +22,16 @@ are in `why.md`.
 Vincent, after the B-17 proof test: "choose the shot wisely, make it bigger, put other things happening behind".
 Choose each shot for size and drama, as a big channel would, not for coverage.
 
-- **The hero big.** On its key moments the hero fills a third of the frame height or more (S5-102). A wide with the
-  hero at a third or more may carry a scene; a smaller wide only places it, 1.5 s at most (S5-102).
+- **The hero big.** One size for every stage (S3-241): about a third of the frame height where the place has to
+  read, about half while acting. A wide with the hero smaller than a third places the scene, 1.5 s at most (S5-102).
 - **The angle for a reason.** Each shot in `shots.ts` names why its angle was chosen (`why: 'low, so the plane climbs
   over the stand'`) (S5-91). No reason means restage it.
 - **Something behind.** Each shot names what moves behind the hero (`behind: 'second plane taxiing, crew running'`):
   other planes, vehicles, people working, flags, birds, dust, smoke, water, as the story fits (S3-169, S5-91).
 - **The hero moment reads as big.** Stage it high, wide or close enough: a plane climbs visibly high above the
   ground and the people; a fall is seen whole, from the tip to the impact (S5-92).
-- **Light makes colour.** Shoot toward the low sun for rims, or across it for long shadows; a flat front light from
-  behind the camera gives plain colour (S3-166, S5-106).
+- **Light makes colour.** Shoot across the low sun for long shadows; a flat front light from behind the camera gives
+  plain colour (S3-166, S5-107). Cards carry no rim, so do not shoot toward the sun for one (S3-224).
 - **Few candidates, one pick.** For each hero beat render 2 to 3 candidate stills, forced apart: a different camera
   side, height and shot size, not the same shot nudged. Put them on the review page at stage `shots`; Vincent picks
   one by note, and he is not asked to rank many (S5-93).
@@ -98,9 +98,9 @@ All from `src/toon-kit/camera` (synced by `sync-kit.mjs`); a story keeps no copy
 
 ## Framing
 
-The shots stage sets every scene's shots before any acting and locks them (S5-73): a beat with a face or an action
-holds the hero at a third of the frame height or more; a wide with the hero at a third or more may carry the scene,
-and a wide with the hero smaller lasts 1.5 s at most (S5-102). Every
+The shots stage sets every scene's shots before any acting and locks them (S5-73), with the hero at the one size of
+S3-241: about a third of the frame height where the place has to read, about half for acting; a wide with the hero
+smaller than a third lasts 1.5 s at most (S5-102). Every
 shot looks into the place's far picture (S5-72). When an earlier build of the beat exists, its shot sizes and camera
 side are copied (S5-76). `tools/shots-check.mjs` measures all of it. The cliff film's jump, framed "side-on, tilt
 down" from the plan alone, came out with faces at 1/20 of the frame and lost to the spike that held Josh at a third.
@@ -110,8 +110,8 @@ down" from the plan alone, came out with faces at 1/20 of the frame and lost to 
 - Stagger two people in depth rather than side by side (S3-61).
 - Cameras on uneven ground give heights above the ground under each point (S3-28).
 - Medium shots by default: the hero about a third of the frame height where the place has to read, about half for
-  acting, the prop beside them, the room above. A face close-up on an emotional turn, about 3 frames in 20 (S3-208). Acting framed with the person at least 25% of the
-  frame high (S3-106).
+  acting, the prop beside them, the room above. A face close-up on an emotional turn, about 3 frames in 20 (S3-241).
+  Acting is never left in a locked wide: the camera comes in to the acting size (S3-245).
 - One clear thing per second, from the meaning sheet (S3-103). At least three kinds of view: from above, a map or
   cut-away, ground level (S3-104).
 - Smooth, not busy: big near surfaces do not sweep across the frame. Sit back, use a longer lens, glide slowly, and
@@ -130,7 +130,7 @@ down" from the plan alone, came out with faces at 1/20 of the frame and lost to 
 From two spike series on 18 November 2026, measured against the newest Short of a larger channel in the same look;
 proven on short stretches only (X-30, `spikes.md`).
 
-- Choose shot sizes with the set at the shots stage, so the place shows round the hero (S3-211, S3-208, S5-102).
+- Choose shot sizes with the set at the shots stage, so the place shows round the hero (S3-246, S3-241, S5-102).
   Fill comes after the camera is locked (S3-185).
 - Show a thing in the wide before cutting to it, so the close reads as "that thing over there" (S3-171).
 - Each fact gets its own moment at reading size on its word; first make it bigger in the world (1.3 times bigger

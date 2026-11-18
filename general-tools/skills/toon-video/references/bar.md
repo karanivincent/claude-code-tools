@@ -10,13 +10,13 @@ marked "not in this stretch", not "pass", and the review brief repeats that list
 
 | # | Check | How it is measured | Rule |
 |---|---|---|---|
-| 1 | Frame 0 shows a person doing the strange act, with the key prop in hand | Reviewer, frames 0 to 15 | S1-7 |
+| 1 | Frame 0 shows a person doing the strange act, with the key prop in hand | Reviewer, frames 0 to 15 | S1-37 |
 | 2 | Each wide shot holds at least 8 distinct props or set pieces; no frame outside a deliberate close-up holds fewer than 4 | Reviewer counts on one frame a second and lists what was counted | S3-2 |
 | 3 | Each scene with people shows at least 2, with far figures in outdoor wides; nobody near the camera stands idle | Reviewer | S3-169 |
 | 4 | The camera is not still for 0.7 s or more | `bar-check.py`: longest still stretch | S3-173 |
 | 5 | A change of place is a 5 to 10-frame moving dissolve or a join made from the world. Hard cuts change the angle inside one place or jump in time. No wipes, no inset boxes | `bar-check.py` lists the cuts; the reviewer names each join | S3-201, S3-176 |
 | 6 | At least one unbroken camera move longer than 10 s | `bar-check.py`: longest run without a cut; the reviewer confirms it is one move | S3-173 |
-| 7 | Light comes from a thing in the place (sun, window, lamp, fire) with a clear direction; people cast shadows that fall the same way; shadows are coloured, not pure black. At night: a blue-violet sky and a warm light with bloom | Reviewer, full frames | S3-191, S3-193, S3-205 |
+| 7 | Light comes from a thing in the place (sun, window, lamp, fire) with a clear direction; people cast shadows that fall the same way; shadows are coloured, not pure black. At night: a slate blue-grey sky with a large moon and a warm light with bloom | Reviewer, full frames | S3-191, S3-193, S3-205, S3-232 |
 | 8 | The grade changes at least once with the plot | Reviewer | S3-53 |
 | 9 | The main face changes expression at least each 2 s, with 6 or more expressions in a minute (2 or more in 15 s) | Reviewer | S3-134 |
 | 10 | At least 3 poses that are not standing (seated, lying, crouching, back view, carrying, two-handed) in a minute (1 or more in 15 s) | Reviewer | S3-134 |
@@ -24,7 +24,7 @@ marked "not in this stretch", not "pass", and the review brief repeats that list
 | 12 | The mechanism is shown on the real object in the story's place, with no chart, card or overlay | Reviewer | S3-116, S3-212 |
 | 13 | An everyday object or a side-by-side comparison sits next to the real thing | Reviewer | S3-116 |
 | 14 | Each quoted line has a moving mouth | Reviewer | S3-66 |
-| 15 | Narration at 205 to 230 words a minute with gaps under 0.3 s | Word timings | S1-35 (differs: see below) |
+| 15 | Narration at about 230 words a minute (about 230 words in a 60-second film) with gaps under 0.3 s | Word timings | S1-36 |
 
 ## The cut budget
 
@@ -45,7 +45,7 @@ across a cut inside one place. The count comes from the film's own shot lists.
 
 Added on 18 November 2026 with the rendered-world look (`toon-world`, "A rendered world behind drawn people"). The
 reviewer answers each row yes or no on frames, and gives one likeness number from 1 to 10 against the scene's own
-reference frame (S2-36): a frame of the same kind and light level, a night camp against a night camp.
+reference frame (S2-37): a frame of the same kind and light level, a night camp against a night camp.
 
 | Row | Pass when | Rule |
 |---|---|---|
@@ -55,10 +55,10 @@ reference frame (S2-36): a frame of the same kind and light level, a night camp 
 | W4 Soft shadows and contact | Each shadow edge is soft; things darken where they meet the floor or each other | S3-221 |
 | W5 Drawn people, rendered world | The people are crisper and flatter than anything round them, and stand on the floor | S3-223, S3-226 |
 | W6 Depth | Each wide shows a lit far view, floor that leads the eye in, props at three depths, sky and ground both in frame | S3-229, S3-230 |
-| W7 Shot size and calm | The hero about a third of the frame high where the place reads, about half for acting; hard cuts inside the place; change per frame about 4 | S3-208, S3-201 |
+| W7 Shot size and calm | The hero about a third of the frame high where the place reads, about half for acting; hard cuts inside the place; change per frame about 4 | S3-241, S3-201 |
 
 The owner's target is likeness 8 of 10 on a whole film (18 November 2026). A scene is locked at 7 or more against its
-frame with each world row passing (S5-104). The first time it was measured, a locked night scene went from 3 to 6 in
+frame with each world row passing (S5-108). The first time it was measured, a locked night scene went from 3 to 6 in
 four spikes, and a scene built to these rows from its first frame went from 3 to 5 in one build and one fix round.
 Three piles at the end of a series say what is left (X-32).
 
@@ -84,14 +84,18 @@ The reviewer answers these too, in words, scored 0 to 3 against the reference fr
 - strong colour;
 - detail in rocks and background; shadows when people move.
 
-## Where the spikes and the register still differ
+## Where the spikes and the register differed
 
 On 18 November 2026 the owner took six of the spikes' lessons into the register (cuts inside one place, holds with a
-slow drift, night, the hero's size, light on the people, facts on props; `why.md`). What still differs, left as the
-register has it until the owner decides again (X-7); a spike may test the other version and say so in its plan:
+slow drift, night, the hero's size, light on the people, facts on props; `why.md`). After the skills audit the same day
+he settled the rest (`why.md`, "The audit's tidy pass"):
 
-- Pace: check 15 asks 205 to 230 words a minute; S1-35 writes about 190 words for 60 s.
-- Haze: one light spike hazed the far picture 40 to 55% toward the air colour; S3-15 keeps far pictures crisp.
-- Blur: both light spikes blurred backgrounds by shot size; S3-35 keeps backgrounds sharp.
+- Pace: about 230 words for a 60-second film, as the last three films ran (S1-36); check 15 asks the same.
+- Haze: kept out. Far pictures stay crisp, with no haze or fog (S3-15, S5-107). Builders added haze in three spikes;
+  that broke the rule, it did not change it.
+- Blur: kept out. Backgrounds stay sharp in every shot size (S3-35); blur only where a shot's reference still is soft
+  (S3-36). Builders added blur in three spikes; that broke the rule too.
+- A spike may still test haze or blur, as its one question, and says so in its plan (X-14); a builder never adds
+  either quietly.
 - The survey also found that sharpness and saturation do not track the reference channel's views; the register still
-  aims at the reference stills' sharpness and at saturated colour by day (S5-97, S3-207).
+  aims at the reference stills' sharpness and at saturated colour by day (S5-97, S3-242).

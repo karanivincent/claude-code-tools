@@ -17,7 +17,7 @@ The narrator and voicing at stage 1; music and the mix at stage 3. Rule ids poin
 ## The narrator
 
 Laura by default: ElevenLabs `FGY2WhTYpPnrIDTdsKH5`, eleven_v3, stability 0.3, played at about 1.2x with `atempo`
-(S1-9). At that tempo she runs about 3.3 words a second with pauses: about 190 words for 60 s (S1-35). Another voice comes in when the story needs it, picked by pitch and shown to the owner (S1-10).
+(S1-9). At that tempo she runs about 3.3 words a second with pauses: about 230 words for a 60-second film, as the last three films ran (S1-36). Another voice comes in when the story needs it, picked by pitch and shown to the owner (S1-10).
 
 ## Picking another narrator by pitch
 
@@ -47,6 +47,10 @@ A new narrator re-runs the mix check: a quieter or more dynamic voice changes ea
 - No `[whispers]` or `[hushed]` tags; mark a reveal with a pause before it and a slower, lower read in full voice
   (S1-17). If a quiet line is kept, level it with a gain clamp wide enough (up to +16 dB).
 - Read the total voice length now and cut lines here, not after the music (S1-18).
+- The hook, the turn and the payoff get three takes each, and the owner picks one of each by ear on the review page;
+  an agent cannot hear them (S1-38). About three times the credits on those lines alone.
+- Before voicing, check the script shares no run of three or more words with any source, plain names and noun pairs
+  apart, and note the check in `facts.md` (S1-39).
 
 ## The order of the sound
 
@@ -74,14 +78,19 @@ goes into the mix) and `bed.wav` (music, ambience and effects as they sit under 
 node <toon-video>/scripts/levels.mjs out/<slug>/voice.wav out/<slug>/bed.wav src/stories/<slug>/full.json
 ```
 
-Under each spoken line the bed's loudest 400 ms stays at least 10 dB below the line, the last 30 s included (S3-157).
+Under each spoken line the bed's loudest 400 ms stays below the line by the project's margin, the last 30 s included:
+10 dB unless the project's making-of doc sets another (S3-239). Epiclings sets 7.5 dB (`--min 7.5`, never under 7):
+its owner found the bed too soft at 10. The level is the channel's own rule, so its doc wins (X-35).
 Exit 3 names each line that falls short. The gate runs it (S4-4); run it again yourself when the narrator, the music or
 an effect's level changes.
 
 - Ambience made of voices (a crowd murmur, a room of chatter) goes on the bed and is held with it, its speech band cut
   about 10 dB: ffmpeg `equalizer=f=950:t=o:w=3.3:g=-10` (S3-161).
-- Action sounds the story turns on (gunshots, a scream) go on top, not under the voice (S3-162), with their times read
-  from the place files that animate them (S3-145).
+- Short hits the picture turns on (stamps, taps, whooshes, gunshots, a scream) go on a punch track on top, not
+  ducked, each 4 to 11 dB under the voice at its loudest, nudged up to 0.1 s into a gap between words; clustered hits
+  (three stamps, coins) 8 dB or more under (S3-248). Their times are read from the place files that animate them
+  (S3-145). Epiclings checks the punch with its `scripts/punch-levels.mjs`: the voice stays 3 dB over the loudest hit
+  in each line.
 
 ## The bed hold, in numbers
 

@@ -34,7 +34,7 @@ The blend is the one look, on each place in the film (S2-7). Flat code colour is
 | Sky | A picture on a dome, with lit clouds that add colour; code clouds are not used | S3-80, S3-5, S3-167 |
 | Far (sea, forest, mountains, a skyline) | One picture on a curved screen that follows the camera; a 360-degree strip when seen all round. Rich light, near, middle and far layers, dense detail, and no more of the frame than its band | S3-3, S3-4, S3-6, S3-166..S3-168 |
 | Middle (trunks, walls, huts, shelves) | Code 3D shapes with painted tileable textures (bark, thatch, plaster, book spines) | S3-7, S3-8 |
-| Ground | Code 3D with a painted tile, plus scattered painted 2D litter decals | S3-7, S3-11 |
+| Ground | Code 3D with a painted tile; detail with a purpose (stones, tools, worn paths, tufts where people work), a kept floor clean, no litter scattered for its own sake | S3-7, S3-244 |
 | Detail layer | Small real things that move: flies, smoke, dust in light shafts, cloth, birds, a goat. Not dots. Something that fits the story moves behind the hero in each shot: other planes, vehicles, people working | S3-9, S3-169 |
 | Hero props | Real 3D built in code; Higgsfield image-to-3D when Vincent asks for it | S2-11, S3-26 |
 | People | Bean-head cards, flat and flatter than the world, sharp, against a sharp background | S3-223, S3-35 |
@@ -73,7 +73,7 @@ A concrete example, one place:
 - Sky: picture on a dome, late sun low in the west, hard blue overhead to orange and gold at the horizon, lit clouds.
 - Far band: one picture, bare brown hills and the town's roofs, 360-degree strip, sea to the west.
 - Middle: code 3D town wall and gate towers, painted mud-brick texture at 2048; two code date palms, painted bark.
-- Ground: code terrain, painted cracked-earth tile; litter decals of straw, sticks, pot shards.
+- Ground: code terrain, painted cracked-earth tile; straw, sticks and pot shards where people work, the kept floor clean (S3-244).
 - Library: none fits (checked `library/index.md`).
 - Detail layer: dust drifting in two light shafts, three flies, a goat nosing the straw, cloth flapping on the gate.
 - Behind the hero: women at the well, a donkey led through the gate, smoke from the cooking fire.
@@ -100,7 +100,7 @@ Copy this checklist into the story's `checklist.md` and tick it as you go (S0-8)
 - [ ] Picture has rich light, layers, dense detail and a coloured sky; it fills no more than its band (S3-166..S3-168)
 - [ ] Picture approved by Vincent's picture-<place> button (S2-33)
 - [ ] Middle and ground in code 3D with painted textures, 2048 px, mipmaps, 16x anisotropy (S3-7, S3-8)
-- [ ] Detail layer of moving real things in each shot; litter decals on the ground (S3-9, S3-11)
+- [ ] Detail layer of moving real things in each shot; ground detail with a purpose, no scattered litter (S3-9, S3-244)
 - [ ] Per shot, something that fits the story moves behind the hero: shot __ moves __ (S3-169)
 - [ ] Hero props in code, sized against a person (S2-11, S3-26)
 - [ ] Calm area behind each face; at most one busy band (S3-12, S3-13)
@@ -120,7 +120,7 @@ judge keeps or undoes the round (S5-41, S5-42). The far picture faces where the 
 holds its direction and arc, and `tools/shots-check.mjs` checks each shot against it. Then the places are locked
 (`toon-video/scripts/loop/lock.mjs`), so no scene builder changes a place under another. A needed change goes to the
 lead, who reopens the world stage. What won in the spikes: the blend before round 1 (S5-57), a key from the
-place's named source with a cool fill on the side away from it (S5-106), one light step a round (S5-59), a hidden sky seam (S5-60), see-through water
+place's named source with a cool fill on the side away from it and no fog (S5-107, S3-15), one light step a round (S5-59), a hidden sky seam (S5-60), see-through water
 (S5-61). Nobody edits `step.mjs`, the briefs or `approvals.json` to get past them (X-6).
 
 ### Keep the place simple
@@ -137,7 +137,7 @@ Fill added behind a hero who fills two-thirds of the frame changed 1 to 4% of th
 place first.
 
 - Shot size comes before fill: fill a place once its locked camera shows it (S3-185), with the hero at about a third
-  of the frame height where the place has to read (S3-211, S3-208).
+  of the frame height where the place has to read (S3-246, S3-241).
 - A mid shot shows at least 3 m of floor behind the hero's mark, so an extra there stands under two-thirds his size
   (S3-186).
 - A close shot is filled with small moving things beside the hero, never a second face (S3-187): an animal, steam,
@@ -170,14 +170,15 @@ Indoors, a fitted master picture may paint the middle band, projected onto code 
 
 ## Light and grade
 
-By day colour is bright and saturated: saturated sky and grass, warm golden sun, shade tinted blue or violet (S3-207).
+By day colour is bright and saturated, with warm golden sun; shade keeps the surface's paint and texture, a little
+cooler from the sky's light, never grey or brown (S3-242, S3-218). No day scene has proved this in the rendered look yet.
 No muted albedos and no lifted blacks; by day the black point stays near black (S3-206). Night has its own rule
 (S3-205): the room goes dark and is lit by lamps you can see. Push colour in passes, with before and
 after sheets of the same frames, watching large flat surfaces (S3-32). Numbers: `references/look-targets.md` (see).
 
 | What | Setting | Rule |
 |---|---|---|
-| Composer order | Ink, lens blur, bloom on light sources, neutral tone map, grade; MSAA 4 | S3-33 |
+| Composer order | Bloom on light sources, neutral tone map, grade; MSAA 4. The ink pass is off and lens blur stays at 0 unless a shot's reference still is soft | S3-243, S3-213, S3-36 |
 | Pixel sizes | Scale with output height / 1920 | S3-34 |
 | Background blur | None by default: backgrounds sharp in every shot, close-ups too, as in the reference stills; at most 4 px where a shot's reference still is soft | S3-35, S3-36 |
 | Blur floor | None in `Stage.tsx` | S3-37 |
@@ -233,10 +234,11 @@ the proof run (X-30). A reviewer scores these as the world rows W1 to W7 (`toon-
 | Probe | A still from the widest camera beside the scene's reference frame, before the place is built out | S3-231 |
 | Sky | The reference's colour, clouds with soft lit edges; at night slate blue-grey with a large moon | S3-232 |
 | Use | Things to sit on and to hold, and people using them | S3-233 |
-| First place | The hardest place first, one scene to likeness 7 against its reference frame, shown to the owner before the other places | S2-36, S5-104, S5-105 |
+| First place | The hardest place first, one scene to likeness 7 against its reference frame, shown to the owner before the other places | S2-37, S5-108, S5-105 |
 
-By day S3-207 still tints the shade blue or violet; S3-218 asks that the surface's paint and texture show through it.
-No day scene has tested the two together yet.
+By day the two shade rules hold together: the shaded side keeps the surface's paint and texture (S3-218), and the sky's
+light cools it a little, never to grey or brown (S3-242). No day scene has tested this yet; until one does, take day
+shade from the scene's reference frame (S2-37).
 
 **The templates still build the drawn look.** `templates/film-scenes/stage.tsx` turns the ink pass on and ties the key
 to the camera, `templates/look/lights.ts` presets put rims on the cards, `cardshade.ts` shades cards with a gradient
@@ -339,9 +341,12 @@ has the full list.
 | A flat place because it is cheaper | The blend; a flat 2D place as a named, approved exception (S2-7, S2-30) |
 | Props as image-to-3D models by default | Code props; Higgsfield when Vincent asks (S2-11) |
 | Blurred backgrounds behind people | Sharp backgrounds; a calm area behind the face (S3-35, S3-12) |
+| Haze, fog or background blur added in a spike or a round because it looked nicer | Kept out: the owner kept both rules after five spikes broke them (18 Nov 2026). A spike tests one only as its stated question (S3-15, S3-35, S5-107, X-14) |
+| A see-through ghost for an invented person | A solid paper cut-out card that flicks up and folds away (S3-247) |
+| A sign or stamp in the country's own language | English only, proper names included; the country shows through objects (S3-240) |
 | Building a place with no reference stills | Pick 3 to 6 catalog stills per place first and copy their detail (S2-34, S2-35) |
 | Motion blur on a fast move | None (S3-38) |
-| Lifted blacks, muted colour, haze toward the horizon (by day) | Near-black black point, saturated colour, crisp far band (S3-207, S3-206, S3-15) |
+| Lifted blacks, muted colour, haze toward the horizon (by day) | Near-black black point, saturated colour, crisp far band (S3-242, S3-206, S3-15) |
 | Emissive cards, or cards shaded with a gradient | Flat cards with a tight contact under the soles (S3-223, S3-226) |
 | Cards with the depth test off | The card depth fix (S3-58) |
 | Ink-dot or finger hands on toon figures | Mittens (S3-55) |

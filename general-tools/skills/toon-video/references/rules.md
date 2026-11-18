@@ -56,6 +56,16 @@ must, never, always, every or only without an id.
 | the blend | far band one picture; middle and ground code 3D with painted textures; a detail layer |
 | parts plan | per place, the source of every part of the picture (`stories/<slug>/parts.md`) |
 | detail layer | small real things in a place that move: flies, smoke, dust in light, cloth, birds |
+| reference stills | 3 to 6 stills per place and hero beat picked from the project's catalog for their standard of detail, light and style (S2-34); `abjudge.sh --stills` |
+| reference frame | one frame per scene, of its own kind and light level, that the likeness number is scored against (S2-37); the column in `scenes.md` |
+| reference video | another channel's Short being copied, in a practice copy or a spike (X-9, X-10); its frames sit beside ours (X-34) |
+| reference channel | the larger channel whose Shorts set the numbers in `bar.md`: the 15 checks, the cut budget, calm and brightness |
+| an earlier build | a spike, practice clip or earlier version of a beat; the scene copies its shot sizes and camera side (S5-76). It is not the reference frame |
+| area score | 1 to 5 for one area of a scene in a round (world and light, people, motion, story); a pass stops at 4 (S5-43) |
+| likeness | 1 to 10 against the scene's reference frame; a scene locks at 7, a whole film aims at 8 (S2-37, S5-108) |
+| scorecard | 30 points: ten lines scored 0 to 3 (hook, story, world in the frame, facts and jokes on things, camera and joins, colour and light, people and acting, things that act and effects, sound and pace, finish); the gap study's, in the project's `docs/spikes/BAR.md` |
+| owner's six | `bar.md`, "What the owner judges on": six things scored 0 to 3 against the reference frames (S5-94) |
+| the 15 checks | `bar.md`'s yes-or-no checks against the reference channel; a stretch that cannot show one marks it "not in this stretch" (X-16) |
 
 ## S0 Start
 
@@ -89,7 +99,7 @@ must, never, always, every or only without an id.
 - **S1-4** The hook's payoff comes soon after it, and the last line loops back to frame 0. Proof: check `critic: story`. Why: a looping Short lands the hook again.
 - **S1-5** Leave out facts you cannot show; say an imagined feeling as imagined. Proof: check `critic: story`. Why: told facts with no picture lose the viewer.
 - **S1-6** Record each fact from a primary source with its page in `facts.md`; OCR a scan that will not fetch. Proof: file `stories/<slug>/facts.md`. Why: a claim without a source cannot be checked.
-- **S1-7** Design second 0 first: a big face or subject over 30% of the frame, motion from frame 1, the hook card at 0.0 s. Proof: check `checkOpening`. Why: in the feed frame 0 is the package.
+- ~~**S1-7** Design second 0 first: a big face or subject over 30% of the frame, motion from frame 1, the hook card at 0.0 s. Proof: check `checkOpening`. Why: in the feed frame 0 is the package.~~ Replaced by S1-37.
 - **S1-8** The hook card is fully drawn on frame 0 (`pop: false`), and `checkCues` accepts an opening card. Proof: check `checkCues` (new: opening card). Why: a 0.35 s pop showed no card on frame 0.
 - **S1-9** The narrator is Laura (`FGY2WhTYpPnrIDTdsKH5`, eleven_v3, stability 0.3, about 1.2x `atempo`) unless the story needs another voice. Proof: file `stories/<slug>/voices.md`. Why: one known voice, chosen for her energy. (Vincent, 11 Nov 2026)
 - **S1-10** Another narrator is picked by measured pitch with `pitch.mjs` on the same 30 words, and shown to Vincent. Proof: owner `Story yes`. Why: library descriptions missed the wanted pitch band.
@@ -117,7 +127,11 @@ must, never, always, every or only without an id.
 - **S1-32** A crowd speaks with one voice, or the verse's words split in order across two or three voices. Proof: check critic: sound. Why: a stacked chorus is muddy and unclear.
 - **S1-33** When the primary source cannot be read, use the author's own published words and list each unchecked fact for the owner in facts.md. Proof: file stories/<slug>/facts.md. Why: the book was not available; nothing said what to do.
 - **S1-34** A practice set, cast or clip reused for a story is checked against facts.md; anything the facts do not have is dropped. Proof: file stories/<slug>/facts.md. Why: the practice clips had invented friends and a cap.
-- **S1-35** Write about 190 words for 60 s with Laura at 1.2x tempo; time another narrator's rate on the first voiced line. Proof: check gate.mjs: words per minute (new). Why: 196 words ran 60 s, against the old 150.
+- ~~**S1-35** Write about 190 words for 60 s with Laura at 1.2x tempo; time another narrator's rate on the first voiced line. Proof: check gate.mjs: words per minute (new). Why: 196 words ran 60 s, against the old 150.~~ Replaced by S1-36.
+- **S1-36** Write about 230 words for a 60-second film with Laura at 1.2x tempo; time another narrator's rate on its first voiced line. Proof: check gate.mjs: words per minute (new). Why: The last three films ran 229 to 238 words; 190 was too few.
+- **S1-37** Design second 0 first: a big face or subject at least a third of the frame high (S3-241), motion from frame 1, the hook card at 0.0 s. Proof: check checkOpening. Why: In the feed frame 0 is the package.
+- **S1-38** The hook, the turn and the payoff are voiced as three takes each; the owner picks one by ear on the review page. Proof: owner Take pick. Why: Takes line by line control the tone; agents cannot hear them.
+- **S1-39** The narration shares no run of three or more words with any source, plain names and noun pairs apart; facts.md records the check. Proof: file stories/<slug>/facts.md (overlap line). Why: Paraphrase drifts into copying.
 
 ## S2 Cast, look and animatic
 
@@ -156,7 +170,9 @@ must, never, always, every or only without an id.
 - **S2-34** At stage 2 the lead picks 3 to 6 stills from the reference catalog for each place and hero beat, for their standard of detail, light and style, not their subject (a still of a ship's deck can set the bar for a cockpit); they are listed in `stories/<slug>/references.md` with what each is for. The owner is not asked to pick them. Proof: file stories/<slug>/references.md. Why: the B-17 stretch, built with no reference stills, measured a sixth of the railroads Short's sharpness; Vincent could not pick a cockpit set from stills of other places. (Vincent, 14 Nov 2026)
 - **S2-35** Builders get the picked stills in their briefs and copy their detail: separate objects near the lens, materials, light; a still marked `no` in the catalog becomes a playbook blueprint before anyone builds it. Proof: check briefs name the stills. Why: a builder copies what it sees, not what a rule describes.
 - **S2-33** Vincent approves each background picture itself by its own picture-<place> button at stage 2, beside the parts plan. Proof: owner Picture yes (gate.mjs: picture-<place>). Why: a flat midday picture passed under an approved parts plan.
-- **S2-36** Each scene names one reference frame of its own kind and light level, a night camp against a night camp; the reviewer scores likeness 1 to 10 against it. Proof: file stories/<slug>/parts.md (reference frame per scene). Why: a night room scored against a bright tent mixed light into the look.
+- ~~**S2-36** Each scene names one reference frame of its own kind and light level, a night camp against a night camp; the reviewer scores likeness 1 to 10 against it. Proof: file stories/<slug>/parts.md (reference frame per scene). Why: a night room scored against a bright tent mixed light into the look.~~ Replaced by S2-37.
+- **S2-37** Each scene names in scenes.md one reference frame of its own kind and light level, night against night; reviewers score likeness 1 to 10 against it, never without one. Proof: file stories/<slug>/scenes.md (reference frame column). Why: parts.md is per place and had no row for a scene.
+- **S2-38** A famous real person is drawn with the features everyone knows, in the cast's style, and shows the face; a back view or silhouette alone says nothing. Proof: file out/<slug>/coldread.json (who is it). Why: 'How do we know that it's Hitler?'.
 
 ## S3 Build
 
@@ -172,7 +188,7 @@ must, never, always, every or only without an id.
 - **S3-8** Textures near the camera are 2048 px with mipmaps and 16x anisotropy. Proof: check `look.mjs: smallTextures` (new). Why: 1024 and 256 textures measured 5.5 times softer.
 - **S3-9** Every shot has a detail layer of real moving things (flies, smoke, dust in light shafts, cloth, birds, a goat), not dots. Proof: check `look.mjs: detailCount` (new). Why: speckle dots read as noise, not life. (Vincent, 11 Nov 2026) Background life behind the hero: S3-169.
 - **S3-10** The flat-colour share of each beat-board still stays under the look threshold. Proof: check `look.mjs: flatShare` (new). Why: flat areas read as an unfinished place.
-- **S3-11** Scatter painted 2D litter decals on the ground band. Proof: check `look.mjs: detailCount` (new). Why: a bare ground reads as a stage floor.
+- ~~**S3-11** Scatter painted 2D litter decals on the ground band. Proof: check `look.mjs: detailCount` (new). Why: a bare ground reads as a stage floor.~~ Replaced by S3-244.
 - **S3-12** A calm area stays right behind every face; detail goes round the edges, on the ground and in the air. Proof: check `critic: world`. Why: a busy cut-out behind a person read as clutter.
 - **S3-13** At most one busy band per frame, away from faces; thin repeated parts are fewer and thicker. Proof: check `critic: world`. Why: dozens of braces filled the frame with noise.
 - **S3-14** A repeated part that is the hero in a close shot gets full detail. Proof: check `critic: world`. Why: then it is the subject, not clutter.
@@ -206,13 +222,14 @@ must, never, always, every or only without an id.
 - **S3-231** Before a place is built out, put a probe still from its widest camera beside the scene's reference frame. Proof: file out/<slug>/places/<place>/probe.jpg. Why: land built to a plan's numbers read wrong in frame.
 - **S3-232** A sky has the reference's colour and clouds with soft lit edges; at night slate blue-grey with a large moon, not a gradient with clouds stuck on. Proof: check critic: world. Why: with ground and people fixed, the sky was the first thing unlike his.
 - **S3-233** Each place has things to sit on and things to hold, and the people use them. Proof: check critic: world. Why: his guards sit and hold bowls; ours stood in a ring.
+- **S3-244** Ground detail has a purpose: stones, tools, worn paths and tufts where people work; a kept floor stays clean, with no litter scattered for its own sake. Proof: check critic: world. Why: Scattered litter on the B-17 apron read dirty and fake.
 
 ### Light and the look stack
 
 - ~~**S3-30** Colour is bright and saturated: saturated sky and grass, warm golden sun, shade tinted blue or violet, never grey. Proof: check `measure_look` (new: exit code). Why: Vincent wants bright game colour. (Vincent, 11 Nov 2026)~~ Replaced by S3-207.
 - ~~**S3-31** No muted albedos and no lifted blacks; the black point stays near black. Proof: check `measure_look` (new: exit code). Why: lifted blacks and muted colour read washed out. (Vincent, 11 Nov 2026)~~ Replaced by S3-206.
 - **S3-32** Push colour in passes, each with before and after sheets of the same frames, watching large flat surfaces. Proof: check `measure_look` (new: exit code). Why: grade pushes turned shade lilac and grass acid.
-- **S3-33** Composer order: ink, lens blur, bloom on light sources, neutral tone map, grade; MSAA 4. Proof: check `look.mjs: composer order` (new). Why: ink merged with blur smears the lines.
+- ~~**S3-33** Composer order: ink, lens blur, bloom on light sources, neutral tone map, grade; MSAA 4. Proof: check `look.mjs: composer order` (new). Why: ink merged with blur smears the lines.~~ Replaced by S3-243.
 - **S3-34** Every pixel size in the look stack scales with output height / 1920. Proof: check `look.mjs: composer order` (new). Why: fixed pixel sizes change the look at quarter size.
 - **S3-35** Backgrounds stay sharp in every shot size, close-ups included, as in the reference stills; people read by light, outline and a calm area behind the face (S3-12), not by blur. Proof: check `look.mjs: blurByShot` (new). Why: every studied reference keeps its background sharp in close-ups, and our blur was one reason the B-17 stretch measured soft (sharpness 207 against their 1251). (Vincent, 14 Nov 2026; replaces blur behind people, 11 Nov)
 - **S3-36** A shot sets a background blur (at most 4 px at 1080 wide) only when its reference still shows a soft background; the default is 0. Proof: check `look.mjs: blurByShot` (new). Why: copy the reference, not a rule of our own. (Vincent, 14 Nov 2026)
@@ -247,7 +264,7 @@ must, never, always, every or only without an id.
 - **S3-204** At night turn off every glow that lights the room from out of shot; the light comes from the lamps in frame. Proof: check critic: light. Why: out-of-shot glows kept the night a lit day room.
 - **S3-205** At night the room goes dark, lit by visible lamps fading with distance: mean near 85, darkest 5% 25 or more, faces and facts readable, saturation at least the day's. Proof: check bar-check.py (brightness). Why: a violet day room did not read as night.
 - **S3-206** No muted albedos and no lifted blacks; by day the black point stays near black, and a night scene follows S3-205. Proof: check measure_look (new: exit code). Why: lifted blacks and muted colour read washed out.
-- **S3-207** By day colour is bright and saturated: saturated sky and grass, warm golden sun, shade tinted blue or violet, never grey; a night scene follows S3-205. Proof: check measure_look (new: exit code). Why: Vincent wants bright game colour.
+- ~~**S3-207** By day colour is bright and saturated: saturated sky and grass, warm golden sun, shade tinted blue or violet, never grey; a night scene follows S3-205. Proof: check measure_look (new: exit code). Why: Vincent wants bright game colour.~~ Replaced by S3-242.
 - **S3-209** Indoors the key light is the named source of S3-191, a lamp, window or fire in the place, placed with the set, not tied to the camera. Proof: file stories/<slug>/parts.md. Why: a key tied to the camera lit nothing you could see.
 - ~~**S3-210** A rim sits on the key side of a person, with at most a faint cool edge on the far side; an even outline all round reads as a sticker. Proof: check critic: light. Why: an all-round rim read as a sticker, not light.~~ Replaced by S3-224.
 - **S3-213** The world carries no ink and the ink pass is off: no drawn line on walls, floor, land, props or furniture; people and what they hold keep their outline. Proof: check critic: world (row W1). Why: ink on the world made room and people one flat cartoon.
@@ -262,6 +279,8 @@ must, never, always, every or only without an id.
 - **S3-222** After any change to the light, check each person and seat still has a shadow and a contact you can see. Proof: check critic: light (row W4). Why: softer shadows took the people's shadows away.
 - **S3-224** A card carries no light rim, on the key side or any other. Proof: check critic: people (row W5). Why: a rim drew a second line outside the outline; the hero looked cut out.
 - **S3-234** A surface's colour on screen is its paint times the light on it: measure the rendered pixel against the reference's, and change paint and light together. Proof: check critic: light. Why: browner earth under the same warm pools measured the same yellow.
+- **S3-242** By day colour is bright and saturated with warm golden sun; shade keeps the surface's paint and texture, cooled a little by sky light, never grey or brown. Proof: check measure_look (new: exit code). Why: S3-207's violet shade and S3-218's kept colour disagreed; unproven by day.
+- **S3-243** Composer order: bloom on light sources, neutral tone map, grade, MSAA 4; the ink pass stays off (S3-213) and lens blur at 0 unless S3-36 sets it. Proof: check look.mjs: composer order (new). Why: The old order still named world ink and lens blur.
 
 ### People
 
@@ -286,6 +305,7 @@ must, never, always, every or only without an id.
 - **S3-226** A tight dark contact sits under each person's soles and each seat's feet; the contact stands a card on the floor, the soft shadow shows only on a lit floor. Proof: check critic: people (row W5). Why: at phone size the contact grounded the card, not the shadow.
 - **S3-227** Anything a person holds or presses stands in front of their card, with the hand on it. Proof: check critic: people. Why: the Morse key sat behind the card; the hand pressed nothing.
 - **S3-228** A near-white face stays out of the grade's tint; in a close it never takes the colour of the shade. Proof: check critic: people. Why: a white face went lilac-grey in the close.
+- **S3-247** An invented person or thing is a solid paper cut-out card with a white border and a stand; it flicks up and folds away, never fades or turns see-through. Proof: check critic: people. Why: See-through dotted agents were 'not clear, could be missed'.
 
 ### Props and effects
 
@@ -331,7 +351,7 @@ must, never, always, every or only without an id.
 - **S3-103** One clear thing per second, from the meaning sheet, framed big and sharp. Proof: check `checkMustSee`. Why: two subjects in one second split the eye.
 - **S3-104** At least three kinds of view: from above, a map or cut-away, ground level. Proof: check `critic: camera`. Why: one kind of view reads flat.
 - ~~**S3-105** Medium shots by default; at most one frame in four is a face close-up. Proof: check `audit.mjs: closeUpShare` (new). Why: the world is the star.~~ Replaced by S3-208.
-- **S3-106** Acting is framed close enough to read: the person at least 25% of the frame high while acting. Proof: check `actingTooSmall`. Why: acting in locked wides was missed by every viewer.
+- ~~**S3-106** Acting is framed close enough to read: the person at least 25% of the frame high while acting. Proof: check `actingTooSmall`. Why: acting in locked wides was missed by every viewer.~~ Replaced by S3-245.
 - **S3-107** The camera shakes only on hits. Proof: check `critic: camera`. Why: shake elsewhere reads as a glitch.
 - **S3-108** A ratio the story states (41 of 400) is held by framing wide for that beat, not by moving the objects. Proof: check `critic: story`. Why: spreading the few made them small everywhere.
 - **S3-109** A count from high only when the things fit in about 50 m; otherwise they arrive one by one, each on a beat. Proof: check `checkMustSee`. Why: five armies in a 250 m ring were specks.
@@ -356,12 +376,15 @@ must, never, always, every or only without an id.
 - **S3-178** A diagram on a prop is still a diagram: cold-read its still with a fresh agent who has not read the script. Proof: file out/<slug>/coldread.json. Why: a wedge on a clock face read as on time.
 - **S3-202** A fact gets a cut inside the place to a close shot and back, not a push-in; the cut costs no calm. Proof: check bar-check.py (median change). Why: four fact push-ins raised the churn from 7.5 to 11.
 - **S3-203** Hold a long segment with a slow drift, not a punch-in; at most one push-in every 4 s. Proof: check bar-check.py (median change). Why: punch-ins kept the picture churning at 20 against 4.
-- **S3-208** Medium shots by default: hero about a third of frame height where the place must read, half for acting; at most one frame in four a face close-up. Proof: check tools/shots-check.mjs (size); audit.mjs: closeUpShare (new). Why: the hero at two-thirds left no room for the place.
-- **S3-211** Choose shot sizes with the set at the shots stage, by S3-208 and S5-102, so the place shows round the hero. Proof: check tools/shots-check.mjs (size). Why: the hero at two-thirds of the frame left no room for a place.
+- ~~**S3-208** Medium shots by default: hero about a third of frame height where the place must read, half for acting; at most one frame in four a face close-up. Proof: check tools/shots-check.mjs (size); audit.mjs: closeUpShare (new). Why: the hero at two-thirds left no room for the place.~~ Replaced by S3-241.
+- ~~**S3-211** Choose shot sizes with the set at the shots stage, by S3-208 and S5-102, so the place shows round the hero. Proof: check tools/shots-check.mjs (size). Why: the hero at two-thirds of the frame left no room for a place.~~ Replaced by S3-246.
 - **S3-235** A film has at most one hard cut per 7.5 s, 8 in 60 s, inside a place or between places; the next beat is reached by a camera move. Proof: check tools/shots-check.mjs (cut budget). Why: his median Short has under one hard cut; his most-cut has 8.
 - **S3-236** No stretch between hard cuts is shorter than 3 s, apart from a cold open or a fact insert whose shot gives its reason. Proof: check tools/shots-check.mjs (cut budget). Why: his shortest stretch between cuts is 3.1 s.
 - **S3-237** A 60-second film holds two or more unbroken takes of 10 s or longer, and each scene's big action plays inside one take. Proof: check tools/shots-check.mjs (cut budget). Why: his uncut runs of 11 to 15 s carry the fly-over and the lightning.
 - **S3-238** A hard cut has one of four reasons, written on its shot: a reverse in a talk, a new activity in the place, a jump in time, a fact. Proof: file src/stories/<slug>/scenes/<scene>/shots.ts (why on the shot after a cut). Why: our scene cut to each new beat, 3 times in 10 s.
+- **S3-241** One hero size at every stage: about a third of frame height where the place must read, about half for acting; a face close-up at most one frame in four. Proof: check tools/shots-check.mjs (size); audit.mjs: closeUpShare (new). Why: Five rules gave five sizes; S3-208's two stand.
+- **S3-245** Acting is never left in a locked wide: each acting beat comes in to S3-241's acting size. Proof: check actingTooSmall. Why: Acting in locked wides was missed by every viewer.
+- **S3-246** Choose shot sizes with the set at the shots stage, by S3-241 and S5-102, so the place shows round the hero. Proof: check tools/shots-check.mjs (size). Why: The hero at two-thirds of the frame left no room for a place.
 
 ### Joins
 
@@ -403,10 +426,11 @@ must, never, always, every or only without an id.
 - **S3-146** Every film burns in captions, one word at a time, white, in the portrait safe area. Proof: check `checkCaptions`. Why: a Short went out without captions.
 - **S3-147** Captions never cover a face or a drawing being read; one height per shot, never below 82% of the frame. Proof: check `audit.mjs: captionOverlap` (new). Why: captions sat on eyes for three rounds.
 - **S3-148** Words go on screen cards, never on the ground; a ground map is shapes only. Proof: check `critic: world`. Why: ground text reads backwards from half the cameras.
-- **S3-149** Words on things are in the narration's language; mastheads and proper names may stay. Proof: file `out/<slug>/coldread.json`. Why: Vincent could not read the French signs.
+- ~~**S3-149** Words on things are in the narration's language; mastheads and proper names may stay. Proof: file `out/<slug>/coldread.json`. Why: Vincent could not read the French signs.~~ Replaced by S3-240.
 - ~~**S3-150** Dates and orders show as cards; a word the viewer may not picture gets a thought bubble on its word. Proof: check `checkCues`. Why: the viewer could not picture a panda or a yeti.~~ Replaced by S3-212.
 - **S3-151** A card whose text is spoken arrives 0.4 s before to 0.2 s after its word. Proof: check `checkCues`. Why: a card on the wrong word confuses.
 - **S3-212** Dates and orders live on a prop in the place, a wall calendar or an envelope; a card only when no prop can; an unpictured word gets a thought bubble. Proof: check critic: story; checkCues. Why: a date on the wall read inside the place.
+- **S3-240** Every word on screen is in English, proper names, signs and stamps included; the country shows through objects, flags, colours and buildings. Proof: file out/<slug>/coldread.json. Why: He turned down FERMÉ and DEUTSCHE BOTSCHAFT.
 
 ### Sound
 
@@ -415,15 +439,17 @@ must, never, always, every or only without an id.
 - **S3-154** The mix writes `voice.wav` and `bed.wav` stems on the film's clock, before the final loudness gain. Proof: file `out/<slug>/voice.wav`. Why: `levels.mjs` measures the stems.
 - **S3-155** The bed is held under each whole line: 0.2 gain through the line, pauses included, 0.4 between lines closer than 0.9 s, full in longer gaps. Proof: check `levels.mjs`. Why: a compressor alone let hits through.
 - **S3-156** The hold is a 1 kHz gain track smoothed over 0.16 s, `amultiply`d into the bed, then `sidechaincompress` ratio 6, 150 ms release. Proof: check `levels.mjs`. Why: the template's ratio 4 / 250 ms let hits through.
-- **S3-157** Under every line the bed's loudest 400 ms sits at least 10 dB below the voice, the last 30 s included. Proof: check `levels.mjs`. Why: the narrator was drowned by the bed.
+- ~~**S3-157** Under every line the bed's loudest 400 ms sits at least 10 dB below the voice, the last 30 s included. Proof: check `levels.mjs`. Why: the narrator was drowned by the bed.~~ Replaced by S3-239.
 - **S3-158** The music stays audible: no more than 20 dB under the voice, aiming at 15 to 20 dB. Proof: check `levels.mjs: ceiling` (new). Why: music 35 to 40 dB under was inaudible.
 - **S3-159** No silent tail: the film ends 0.5 s after the last word, or the music runs to the end. Proof: check `levels.mjs: silent tail` (new). Why: dead air on a looping Short.
 - **S3-160** The sound script takes the narrator folder from `story.ts`, never a fixed `laura/`. Proof: check `story-sound.mjs: narrator path` (new). Why: the mix wrote to the wrong narrator's folder.
 - **S3-161** Ambience made of voices goes on the bed, held with it, its 300 Hz to 3 kHz band cut about 10 dB. Proof: check `levels.mjs`. Why: a crowd murmur masked the narrator.
-- **S3-162** Action sounds the story turns on (gunshots, a scream) go on top, not under the voice. Proof: check `checkSync`. Why: buried gunfire read as silence.
+- ~~**S3-162** Action sounds the story turns on (gunshots, a scream) go on top, not under the voice. Proof: check `checkSync`. Why: buried gunfire read as silence.~~ Replaced by S3-248.
 - **S3-163** Level each effect to a loudness (LUFS of the file alone), not a raw gain. Proof: check `story-sound.mjs: effect LUFS` (new). Why: quiet and loud takes then sit alike.
 - **S3-164** Limiter, then two-pass `loudnorm` to about -14 LUFS for the whole mix. Proof: check `short_qa.py`. Why: too quiet or clipping on the shots.
 - **S3-165** ElevenLabs music and effect requests are cached by their prompt. Proof: check `story-sound.mjs: cache hit` (new). Why: an unchanged rerun costs nothing.
+- **S3-239** Under every line the bed's loudest 400 ms sits below the voice by the project's margin, the last 30 s included: 10 dB unless its making-of doc sets another. Proof: check levels.mjs --min <margin>. Why: Epiclings' owner found 10 dB too soft; 7.5 was right.
+- **S3-248** Short hits (stamps, taps, whooshes, gunshots) go on an unducked punch track, each 4 to 11 dB under the voice at its loudest; clustered hits 8 or more under. Proof: check punch-levels.mjs (Epiclings scripts/; new in the skill: voice 3 dB over the punch). Why: He asked for more dramatic sounds for every detail.
 
 ## S4 Audit
 
@@ -482,6 +508,7 @@ camera, shot size and person's size), then the scene stage (people and motion, s
 - **S5-100** Reviewers and judges score each clip against the reference stills on a fixed scale (5 matches them), not only against the last best, and run Vincent's standing notes as a checklist (`references/judge-brief.md`, "Vincent's standing notes"); a win over the last best that is still far from the stills does not end the pass. Proof: file references/judge-brief.md. Why: round 3 beat round 2 while both were at a quarter of the stills' detail, and the judges never said so.
 - **S5-101** The lead is Opus: it plans, writes the briefs, checks the results and shows the owner. Builders, reviewers and judges run on Sonnet (`abjudge.sh --model sonnet`, `look.sh --models "sonnet sonnet sonnet"`) in many short rounds. Proof: owner `model split`. Why: Sonnet rounds on the B-17 were faster and cheaper and won every blind pick with the owner. (Vincent, 14 Nov 2026)
 - **S5-96** Vincent's pick outranks every judge; when a judge's pick differs from his, log the clips, the model (Opus or Sonnet) and both picks. Proof: file stories/<slug>/judge-vs-owner.md. Why: Opus judges picked against him; Sonnet judges matched him.
+- **S5-109** Judges score seconds 0 to 12 on their own beside the whole film; a weak opening is fixed before rounds go on later seconds. Proof: file out/<slug>/film-<n>/verdict.json (opening score, new). Why: Two thirds of the jungle holdout's lost viewers left by 12 s.
 
 ### Scenes in parallel and the join
 
@@ -513,9 +540,11 @@ camera, shot size and person's size), then the scene stage (people and motion, s
 - **S5-72** Each far picture faces where the cameras look: every shot's look direction falls inside a far picture's arc, or the shot says why not. Proof: check tools/shots-check.mjs (far picture). Why: the jump looked at an empty flat sky.
 - **S5-79** Each place writes its screen direction in marks.ts: from the side the cameras film it, which way is screen right. Proof: file src/stories/<slug>/places/marks.ts (SCREEN). Why: a round was lost to a walk the wrong way.
 - ~~**S5-103** Light each place for a time of day: a key from its named source, a cool fill, a warm rim on the key side, cool fog, a teal-and-warm grade. Proof: file src/stories/<slug>/places/. Why: light went from 2 to 4 in spike 5.~~ Replaced by S5-106.
-- **S5-104** The world agent builds the hardest place first and takes one scene in it to likeness 7 against its reference frame, with every world row passing. Proof: file docs/spikes/LOG.md (scene one). Why: a scene's ceiling is set when it is built.
+- ~~**S5-104** The world agent builds the hardest place first and takes one scene in it to likeness 7 against its reference frame, with every world row passing. Proof: file docs/spikes/LOG.md (scene one). Why: a scene's ceiling is set when it is built.~~ Replaced by S5-108.
 - **S5-105** The owner sees that first scene beside its reference frame, and says yes to the look, before any other place is built. Proof: owner Look yes. Why: one early yes is cheaper than regrading a finished film.
-- **S5-106** Light each place for a time of day: a key from its named source, a cool fill on the side away from it, cool fog, a teal-and-warm grade. Proof: file src/stories/<slug>/places/. Why: light went from 2 to 4 in spike 5; card rims went with S3-224.
+- ~~**S5-106** Light each place for a time of day: a key from its named source, a cool fill on the side away from it, cool fog, a teal-and-warm grade. Proof: file src/stories/<slug>/places/. Why: light went from 2 to 4 in spike 5; card rims went with S3-224.~~ Replaced by S5-107.
+- **S5-107** Light each place for a time of day: a key from its named source, a cool fill on the side away from it, a teal-and-warm grade; no fog or haze. Proof: file src/stories/<slug>/places/. Why: The owner kept S3-15's no haze; the fog was a spike leftover.
+- **S5-108** The world agent builds the hardest place first and takes one scene in it to likeness 7 against its reference frame, with every world row passing. Proof: file out/<slug>/world/first-scene.md (likeness and world rows). Why: A scene's ceiling is set when it is built.
 
 ### Shots stage
 
@@ -638,6 +667,7 @@ camera, shot size and person's size), then the scene stage (people and motion, s
 - **X-10** Copy the reference's look and timing, never its meaning; write the meaning sheet first. Proof: file `stories/<slug>/meaning.md`. Why: a copied hot rail missed the gap closing.
 - **X-11** Bible in Clay: anything the toon skills leave unsaid is done as `clay-story-video` says. Proof: check `critic: kit PR`. Why: one channel, one set of defaults.
 - **X-12** A rule enters the register only through add_rule.mjs, with a stage, a proof and a reason. Proof: check lint_rules.mjs. Why: rules written as prose were skipped.
+- **X-35** On craft this register wins; on a channel's own rules (posting, brand, brightness floor, music level) the project's making-of doc wins. Proof: file docs/MAKING-A-STORY.md (the project's). Why: Both documents claimed to win over the other.
 
 ### Spikes
 

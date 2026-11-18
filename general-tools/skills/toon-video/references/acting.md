@@ -26,7 +26,7 @@ when it was left for later.
 | People acting with their bodies: walk, crouch, aim, point, throw, shake the head, fold the arms, salute | S3-134 |
 | What the line says, happening on screen as it is said ("pitches a tent": the tent goes up) | S3-135 |
 | Props held by hands; nothing riding on another prop or floating | S3-72 |
-| Acting framed close enough to read: the person at least 25% of the frame high | S3-106 |
+| Acting never left in a locked wide: the camera comes in to about half the frame high (S3-241) | S3-245 |
 | A gesture the story turns on (a salute, a handover) held about 1 s and framed close | S3-136 |
 | People who leave fall or walk out in clear view | S3-142 |
 | Gunfire seen (flash, recoil, smoke, hits) and heard on top of the mix | S3-143 |
@@ -71,6 +71,11 @@ The faces in `look/toon.ts`, as they read on a phone (pick by what the beat feel
 | `lick` | dot eyes, tongue out | tasting |
 - Cards face the camera; a side or back view needs its own drawing (S3-60). Stagger two people in depth (S3-61).
 - A grown man in a long robe has a beard or a plait; a woman has hair or lashes, not a veil alone (S2-5, S2-6).
+- A famous real person is drawn with the features everyone knows, in the cast's style, and shows the face; a back
+  view or a silhouette alone does not say who it is (S2-38).
+- An invented or imagined person or thing is a solid paper cut-out card: a white paper border, a cardboard edge, a
+  stand and a name tag. It flicks upright to arrive and folds flat or blows away to leave; it does not fade or turn
+  see-through (S3-247).
 
 ## Hands and reaches
 
@@ -146,8 +151,8 @@ a second (X-23).
   `checkCaptions` fails a film without them (S3-146).
 - Captions stay off faces and drawings being read, at one height per shot, no lower than 82% of the frame (S3-147).
 - Words go on screen cards, not on the ground; a ground map is shapes alone (S3-148).
-- Words on things are in the narration's language; mastheads and proper names may stay; the era shows through shapes
-  and objects (S3-149).
+- Every word on screen is in English (S3-240), proper names, signs and stamps included: GERMAN EMBASSY, not DEUTSCHE
+  BOTSCHAFT. The country and the era show through objects, flags, colours and buildings.
 - A card whose text is spoken arrives 0.4 s before to 0.2 s after its word (S3-151).
 - The hook card is fully drawn on frame 0 (S1-8).
 
