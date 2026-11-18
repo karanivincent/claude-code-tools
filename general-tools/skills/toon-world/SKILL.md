@@ -37,7 +37,7 @@ The blend is the one look, on each place in the film (S2-7). Flat code colour is
 | Ground | Code 3D with a painted tile, plus scattered painted 2D litter decals | S3-7, S3-11 |
 | Detail layer | Small real things that move: flies, smoke, dust in light shafts, cloth, birds, a goat. Not dots. Something that fits the story moves behind the hero in each shot: other planes, vehicles, people working | S3-9, S3-169 |
 | Hero props | Real 3D built in code; Higgsfield image-to-3D when Vincent asks for it | S2-11, S3-26 |
-| People | Bean-head cards, lit by the scene, sharp, against a sharp background | S3-57, S3-35 |
+| People | Bean-head cards, flat and flatter than the world, sharp, against a sharp background | S3-223, S3-35 |
 | Fire, smoke, dust, water | Code volumes or cards | S3-75 |
 | Words | Screen cards | S3-148 |
 
@@ -120,15 +120,15 @@ judge keeps or undoes the round (S5-41, S5-42). The far picture faces where the 
 holds its direction and arc, and `tools/shots-check.mjs` checks each shot against it. Then the places are locked
 (`toon-video/scripts/loop/lock.mjs`), so no scene builder changes a place under another. A needed change goes to the
 lead, who reopens the world stage. What won in the spikes: the blend before round 1 (S5-57), a key from the
-place's named source with cool fill and a warm rim on the key side (S5-103), one light step a round (S5-59), a hidden sky seam (S5-60), see-through water
+place's named source with a cool fill on the side away from it (S5-106), one light step a round (S5-59), a hidden sky seam (S5-60), see-through water
 (S5-61). Nobody edits `step.mjs`, the briefs or `approvals.json` to get past them (X-6).
 
 ### Keep the place simple
 
 A phone frame reads a few big shapes. Rows of thin repeated parts (braces, rails, slats, fences, poles) fill the frame
 with lines: build them with fewer, thicker members, and ask the picture for "a few big, simple shapes, no fine
-repeated detail" (S3-13). A repeated part that is the hero of a close shot gets full detail (S3-14). Ink is thinned
-over painted detail (S3-39).
+repeated detail" (S3-13). A repeated part that is the hero of a close shot gets full detail (S3-14). The world carries no
+ink (S3-213).
 
 ### Fill for the camera
 
@@ -182,10 +182,10 @@ after sheets of the same frames, watching large flat surfaces (S3-32). Numbers: 
 | Background blur | None by default: backgrounds sharp in every shot, close-ups too, as in the reference stills; at most 4 px where a shot's reference still is soft | S3-35, S3-36 |
 | Blur floor | None in `Stage.tsx` | S3-37 |
 | Motion blur | None anywhere | S3-38 |
-| Ink on the world | Near-black, about 5 px near to 3 px far, its own pass, thinned over painted detail | S3-39 |
+| Ink on the world | None: the ink pass is off; people and what they hold keep their own outline | S3-213 |
 | Cards and ink | Cards on the `NOINK` layer with their own outline | S3-40 |
-| Shade | Blue-grey indoors, violet-blue outdoors at sunset; not brown or black | S3-41 |
-| Indoor key | The place's named source (a lamp, window or fire), placed with the set, not tied to the camera; casters limited to people's blobs and free-standing floor things | S3-209, S3-191, S3-43 |
+| Shade | Smooth across a surface, no hard band between two flat tones; the shaded side keeps the surface's own colour and texture | S3-218 |
+| Indoor key | The place's named source (a lamp, window or fire), placed with the set, not tied to the camera; furniture, props and people cast soft shadows | S3-209, S3-191, S3-221 |
 | Bloom | Real light sources, threshold 1.0; faces do not glow; nothing glowing within 4 m of the lens | S3-44, S3-45 |
 | In front of the face | Nothing translucent or additive | S3-46 |
 | Time of day | `timeOfDay` multiplies each lit material, before people and effects | S3-47 |
@@ -208,12 +208,32 @@ Proven on short stretches only (X-30, `toon-video/references/spikes.md`). Each i
 | Day | Show the sun's work in frame: a hard-edged patch of light, a bright window, a glint | S3-195 |
 | Night | Glows from out of shot turned off; the light comes from lamps in frame with falloff (local lights that fade with distance: built on the garbo-night spike branch, not yet in `templates/look/`, whose key is one sun-like light); measure with `bar-check.py` | S3-204, S3-205 |
 | Key lamp | Placed with the set and the camera, at the camera stage: in front of the hero and to one side throws his shadow on a wall; behind him it throws it at the lens | S3-197 |
-| Rim | A warm rim on the key side, at most a faint cool edge on the far side; an even outline all round reads as a sticker edge | S3-210 |
+| Rim | None on a card: a rim drew a second line outside the outline and the hero looked cut out | S3-224 |
 | Light's edge | A fact sits fully in the pool or fully out of it; a hard edge across a clock face read as a fault | S3-199 |
 | Light effects | A glow, pulse or glint goes where the frame is dark enough to show it | S3-200 |
 
 A shadow map can draw a false hard edge on an upright prop that faces the camera with the light behind it; fade the
 shadow mask on faces turned away from the key (garbo-night 4).
+
+### A rendered world behind drawn people (18 November 2026)
+
+The owner's choice after the garbo-world spikes and scene one of the film hannibal-oxen: the people are drawn, the
+world is rendered. Proven on a 5.6-second night stretch and one 10-second night scene; day scenes and a whole film are
+the proof run (X-30). A reviewer scores these as the world rows W1 to W7 (`toon-video/references/bar.md`).
+
+| What | Setting | Rule |
+|---|---|---|
+| Ink | None on the world; nothing exists as a line alone: each object has a painted shape, and in shade a lighter top and darker sides | S3-213, S3-215 |
+| Materials | Each near surface painted at its real scale: grain, weave, wear, pattern, readable at phone size | S3-214 |
+| Colour | Strong colour kept, in the mid-tones; muted toward grey by a fifth at most, not toward brown. A colour cast: check the paint before the lamps | S3-216, S3-217 |
+| Shade | Smooth, keeping the surface's colour and texture. At night a neutral fill, cool on the side away from the lamp, warm floor round the lamp; both checked on one frame | S3-218, S3-219 |
+| Night highlights | The brightest 5% near 175 of 255 | S3-220 |
+| Shadows | Soft, the edge widening with distance from the caster; darkening where things meet the floor or each other. After a light change, check each person and seat still has a shadow and a contact | S3-221, S3-222 |
+| Depth | A lit far wall or far view, floor that leads the eye in, props at three depths or more; a wide holds floor and ceiling or sky, with sky in about the top 40% outdoors | S3-229, S3-230 |
+| Probe | A still from the widest camera beside the scene's reference frame, before the place is built out | S3-231 |
+| Sky | The reference's colour, clouds with soft lit edges; at night slate blue-grey with a large moon | S3-232 |
+| Use | Things to sit on and to hold, and people using them | S3-233 |
+| First place | The hardest place first, one scene to likeness 7 against its reference frame, shown to the owner before the other places | S2-36, S5-104, S5-105 |
 
 Look files: `templates/look/` (`ink.ts`, `lensblur.ts`, `shade.ts`, `lights.ts`, `grade.ts`, `cardshade.ts`).
 
@@ -231,7 +251,10 @@ clothes and props.
 | What | Rule |
 |---|---|
 | Mittens, hand size 1; a grip wider than a face uses a side view | S3-55, S3-56 |
-| Lit by the scene (`cardshade`), faces near white (about 0.93), soft contact blob, not emissive | S3-57 |
+| Flat (`cardshade`, flat mode): one even tone per colour area with a little of the place's colour, no gradient, not emissive; faces near white (about 0.93) | S3-223 |
+| Outline on the card for head, body, arms and legs; a tight dark contact under the soles and under each seat's feet | S3-225, S3-226 |
+| A held or pressed thing stands in front of the card, with the hand on it | S3-227 |
+| A near-white face kept out of the grade's tint | S3-228 |
 | Card depth fix: alphaTest, depthWrite, depthFunc Always, polygonOffset -6/-6000 | S3-58 |
 | Card textures without mipmaps | S3-59 |
 | Cards face the camera; a side or back view is its own drawing | S3-60 |
@@ -308,7 +331,7 @@ has the full list.
 | Building a place with no reference stills | Pick 3 to 6 catalog stills per place first and copy their detail (S2-34, S2-35) |
 | Motion blur on a fast move | None (S3-38) |
 | Lifted blacks, muted colour, haze toward the horizon (by day) | Near-black black point, saturated colour, crisp far band (S3-207, S3-206, S3-15) |
-| Emissive cards | Lit cards with a contact blob (S3-57) |
+| Emissive cards, or cards shaded with a gradient | Flat cards with a tight contact under the soles (S3-223, S3-226) |
 | Cards with the depth test off | The card depth fix (S3-58) |
 | Ink-dot or finger hands on toon figures | Mittens (S3-55) |
 | A busy cut-out behind a face | A calm area behind faces (S3-12) |
@@ -325,5 +348,8 @@ has the full list.
 | A second face beside the hero in a close shot | Small moving things beside him (S3-187) |
 | Night as a lit room under a violet grade | Turn off the out-of-shot glows; lamps in frame with falloff (S3-204, S3-205) |
 | A key lamp behind the hero | In front and to one side, so his shadow falls on a wall (S3-197) |
-| A rim all round a card, or warm and cool rims | A warm rim on the key side (S3-210) |
+| A light rim on a card | No rim; the outline is the edge (S3-224) |
+| Ink lines on walls, floor, land or props | A rendered world: painted materials, smooth shade, soft shadows, contact (S3-213, S3-214, S3-218, S3-221) |
+| A shallow set, or land that fills the frame | A lit far view, floor that leads in, three depths, sky in the top 40% outdoors (S3-229, S3-230) |
+| A place where people stand in a ring | Things to sit on and hold, in use (S3-233) |
 | A grade that tints painted whites | Tint the light and the shadows (S3-194) |

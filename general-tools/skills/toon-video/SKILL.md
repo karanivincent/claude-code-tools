@@ -319,8 +319,9 @@ needs.
 When a look, a method or a fix is unproven, spike 15 seconds first, before a whole film (X-13): one stretch, one
 question, one thing changed, judged against a fixed baseline on the bar's 15 checks. The method, the series order, the
 brief templates and the scripts (`bar-check.py`, `spike-frames.sh`, `spike-ab.sh`): `references/spikes.md`; the
-checks: `references/bar.md`. The rules the 18 November 2026 spikes found (X-13..X-30, S3-171..S3-200 and their replacements S3-201..S3-212, S5-102, S5-103) are
-proven on short stretches only; the next film made with this skill is their proof run (X-30).
+checks: `references/bar.md`. The rules the 18 November 2026 spikes found (X-13..X-34, S3-171..S3-200 and their replacements S3-201..S3-212, S5-102, S5-106) are
+proven on short stretches only; the next film made with this skill is their proof run (X-30). So is the rendered-world
+look the owner chose the same day (S3-213..S3-233, S2-36, S5-104, S5-105): `toon-world`, "A rendered world behind drawn people".
 
 ## Adding a rule
 

@@ -126,3 +126,32 @@ Every rule added or replaced, newest last. Written by `scripts/add_rule.mjs`; ne
 | 2026-11-18 | S3-210 | replaces S3-198 | owner's decision, 18 November 2026, after spike series garbo-bar and garbo-night (E, tidied); old S3-198: A rim sits on the lamp side of a person alone; an even outline all round reads as a sticker edge |
 | 2026-11-18 | S3-211 | replaces S3-170 | owner's decision, 18 November 2026, after spike series garbo-bar and garbo-night (D, tidied); old S3-170: Choose shot sizes with the set: a wide holds the hero at about a third of the frame height, so the place shows round him |
 | 2026-11-18 | S3-212 | replaces S3-150 | owner's decision, 18 November 2026, after spike series garbo-bar and garbo-night (F); old S3-150: Dates and orders show as cards; a word the viewer may not picture gets a thought bubble on its word |
+| 2026-11-18 | S3-213 | replaces S3-39 | owner's decision, 18 November 2026, after spike series garbo-world and hannibal-oxen scene one (G) |
+| 2026-11-18 | S3-214 | new | spike series garbo-world, 18 Nov 2026, spike 1 |
+| 2026-11-18 | S3-215 | new | spike series garbo-world, 18 Nov 2026, spike 1 |
+| 2026-11-18 | S3-216 | new | spike series garbo-world, 18 Nov 2026, spikes 1 and 4 |
+| 2026-11-18 | S3-217 | new | spike series garbo-world, 18 Nov 2026, spike 4 |
+| 2026-11-18 | S3-218 | replaces S3-41 | owner's decision, 18 November 2026, after spike series garbo-world and hannibal-oxen scene one (H) |
+| 2026-11-18 | S3-219 | new | spike series garbo-world, 18 Nov 2026, spikes 2 and 4 |
+| 2026-11-18 | S3-220 | new | spike series garbo-world, 18 Nov 2026, spike 4; film hannibal-oxen, scene one and its review, 18 Nov 2026 |
+| 2026-11-18 | S3-221 | replaces S3-43 | owner's decision, 18 November 2026, after spike series garbo-world and hannibal-oxen scene one (I) |
+| 2026-11-18 | S3-222 | new | spike series garbo-world, 18 Nov 2026, spike 2 |
+| 2026-11-18 | S3-223 | replaces S3-57 | owner's decision, 18 November 2026, after spike series garbo-world and hannibal-oxen scene one (J) |
+| 2026-11-18 | S3-224 | replaces S3-210 | owner's decision, 18 November 2026, after spike series garbo-world and hannibal-oxen scene one (J) |
+| 2026-11-18 | S3-225 | new | spike series garbo-world, 18 Nov 2026, spike 3 |
+| 2026-11-18 | S3-226 | new | spike series garbo-world, 18 Nov 2026, spike 3 |
+| 2026-11-18 | S3-227 | new | spike series garbo-world, 18 Nov 2026, spike 3 |
+| 2026-11-18 | S3-228 | new | spike series garbo-world, 18 Nov 2026, spike 4 |
+| 2026-11-18 | S3-229 | new | spike series garbo-world, 18 Nov 2026, spike 4; film hannibal-oxen, scene one and its review, 18 Nov 2026 |
+| 2026-11-18 | S3-230 | new | film hannibal-oxen, scene one and its review, 18 Nov 2026 |
+| 2026-11-18 | S3-231 | new | film hannibal-oxen, scene one and its review, 18 Nov 2026 |
+| 2026-11-18 | S3-232 | new | film hannibal-oxen, scene one and its review, 18 Nov 2026 |
+| 2026-11-18 | S3-233 | new | film hannibal-oxen, scene one and its review, 18 Nov 2026 |
+| 2026-11-18 | S2-36 | new, differs from S2-34: S2-34 picks stills for a standard of detail; this names the one frame a scene is scored against | spike series garbo-world, 18 Nov 2026, spike 2 |
+| 2026-11-18 | S5-104 | new | spike series garbo-world, 18 Nov 2026, spike 4; film hannibal-oxen, scene one and its review, 18 Nov 2026 |
+| 2026-11-18 | S5-105 | new | film hannibal-oxen, scene one and its review, 18 Nov 2026 |
+| 2026-11-18 | X-31 | new | spike series garbo-world, 18 Nov 2026, spike 4 |
+| 2026-11-18 | X-32 | new | spike series garbo-world, 18 Nov 2026, spike 4 |
+| 2026-11-18 | X-33 | new | Vincent's note on hannibal-oxen scene one, 18 Nov 2026 |
+| 2026-11-18 | X-34 | new, differs from S3-231: S3-231 is a probe of one set before it is built; this is about naming what is wrong with a finished clip | spike series garbo-world, 18 Nov 2026, spike 0 |
+| 2026-11-18 | S5-106 | replaces S5-103 | owner's decision, 18 November 2026, after spike series garbo-world and hannibal-oxen scene one (J, tidied) |

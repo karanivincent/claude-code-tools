@@ -6,7 +6,7 @@ method or a fix is unproven: a whole film takes a day and teaches one thing at t
 that changed; a spike takes about an hour and teaches one thing you can name. A 15-second stretch renders in under a
 minute at half size, so one spike can try a change ten times.
 
-Rule ids point into `rules.md` (the method is X-13 to X-30, the craft it found is S3-171 to S3-200, with the owner's replacements of 18 November 2026 at S3-201 to S3-212, S5-102 and S5-103). The 15 checks a
+Rule ids point into `rules.md` (the method is X-13 to X-34, the craft it found is S3-171 to S3-200, with the owner's replacements of 18 November 2026 at S3-201 to S3-212, S5-102 and S5-106, and the rendered-world look of the third series at S3-213 to S3-233). The 15 checks a
 spike is measured on are in `references/bar.md`.
 
 ## Proof status

@@ -193,6 +193,10 @@ channel in the same look; the full story of each spike is in `toon-video/referen
 - Two things the light spikes did are left out because they clash with rules here: haze on the far picture 40 to 55%
   toward the air colour, which garbo-bar 2 proposed for the skill (S3-15 keeps far pictures crisp), and background
   blur by shot size, which both light spikes used (S3-35 keeps backgrounds sharp). The owner kept both rules as they are on 18 November 2026.
+- The same day a third series, garbo-world, found the larger difference from the reference: its world is rendered and
+  ours was drawn. The owner then chose the rendered world as the look: no ink on the world (S3-39 to S3-213), smooth
+  shade (S3-41 to S3-218), soft shadows and contact (S3-43 to S3-221), flat cards with no rim (S3-57 to S3-223, S3-210
+  to S3-224), and places built for depth (S3-229 to S3-233). The full table is in `toon-video/references/why.md`.
 
 ## Measures from the railroads copy
 

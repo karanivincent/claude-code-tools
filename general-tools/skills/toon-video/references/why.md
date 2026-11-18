@@ -328,3 +328,31 @@ garbo-bar and garbo-night. The old rules stay in `rules.md`, struck through, and
 
 Code that followed: `shots-check.mjs` flags a long wide only when the hero is under a third; the kit's `checkJoins`
 no longer counts or asks a reason for a cut to a new angle inside one place; the film template sets `punch: false`.
+
+### The rendered world, 18 November 2026
+
+A third spike series, "garbo-world" (the same 5.6-second night stretch, spikes 0 to 4), put the reference's frames
+beside ours again. Its people are flat cards too; what differed was the world, which is rendered where ours was drawn.
+Likeness to the reference's frames went from 3 to 6 of 10 over four spikes, and the last review said the stretch tops
+out near 7, because set depth, lens, cast design and light level were fixed before the series began. So the next film,
+"hannibal-oxen", built its hardest scene to these rows from the first frame: 3 on the shot board, 5 after one build
+and one fix round, the reviewer naming about 3 more points as fixable. The owner saw that scene and chose the look as
+the place to start from. Source of each replacement: owner's decision, 18 November 2026, after spike series
+garbo-world and hannibal-oxen scene one. Old wording: `rules-log.md`. **Proof status: two night scenes of 5.6 and 10
+seconds; no day scene and no whole film yet (X-30).** A second pass follows when the film is finished.
+
+| | Old | New | Why |
+|---|---|---|---|
+| G. Ink on the world | S3-39: near-black ink on the world, thinned over painted detail | S3-213: no ink on the world, the ink pass off; S3-214 to S3-217: painted materials at their real scale, a painted shape for each object, colour kept | Ink off alone changed little; flat two-tone surfaces were the large part. Things drawn as a line alone vanished with it |
+| H. Shade | S3-41: two-tone light, blue-grey or violet-blue shade | S3-218: smooth shade that keeps the surface's colour and texture; S3-219: at night a neutral fill, cool away from the lamp, warm round it; S3-220: night highlights near 175 | Two flat tones read as drawn. Neutral shade alone turned the room amber from edge to edge; the cool fill then washed out the warm pool |
+| I. Shadows | S3-43: indoors only contact blobs and free-standing floor things cast the key's shadow | S3-221: soft shadows from furniture, props and people, the edge widening with distance, and darkening where things meet; S3-222: grounding checked after a light change | A fixed blur only blurs the shape. Softer shadows took the people's shadows away until grounding was rebuilt |
+| J. People | S3-57: cards lit by the scene; S3-210: a warm rim on the key side; S5-103: the same in the world stage | S3-223: cards flatter than the world, one even tone per colour area; S3-224: no light rim; S5-106: the place's light without the rim; S3-225 to S3-228: outline on each limb, a tight contact, held things in front of the card, white faces out of the grade's tint | Builder and reviewer both picked the flat cards: a gradient and a rim read as glow and pasted the hero on |
+| K. Places | (none) | S3-229 to S3-233: a lit far view, floor that leads in, three depths; sky in the top 40% outdoors; a probe still beside the reference frame; a sky in the reference's colour; things to sit on and hold | A scene's ceiling is set when it is built. A mountain wall built to a plan's numbers read as a dune |
+| L. Order | (none) | S2-36: one reference frame per scene; S5-104, S5-105: the hardest place first, to likeness 7, and the owner's yes to the look before the other places | One build to the rows moved a scene as far in 32 minutes as four spikes moved a locked scene in four hours |
+| M. Method | (none) | X-31 to X-34: a fix round gets a review; three piles for what is left; a look is judged on a full-size clip; the reference's frame beside ours before a gap is named | A builder reported five of five items closed and the review found two. The owner read a half-size clip as a soft picture |
+
+Left out, as builders' claims no reviewer confirmed (X-22): the three things a metal needs; a glow wider than twice
+its flame turning a blue sky pink; measuring night second by second; choosing each place's far view when the map is
+drawn. Not yet in `templates/look/`: the code these rules lean on (soft shadows, contact darkening, the flat card mode,
+limb outlines, the night grades). It lives in the film's `src/look/` until it is brought over.
+

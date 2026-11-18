@@ -26,6 +26,27 @@ marked "not in this stretch", not "pass", and the review brief repeats that list
 | 14 | Each quoted line has a moving mouth | Reviewer | S3-66 |
 | 15 | Narration at 205 to 230 words a minute with gaps under 0.3 s | Word timings | S1-35 (differs: see below) |
 
+## The world rows and the likeness number
+
+Added on 18 November 2026 with the rendered-world look (`toon-world`, "A rendered world behind drawn people"). The
+reviewer answers each row yes or no on frames, and gives one likeness number from 1 to 10 against the scene's own
+reference frame (S2-36): a frame of the same kind and light level, a night camp against a night camp.
+
+| Row | Pass when | Rule |
+|---|---|---|
+| W1 No ink on the world | No drawn line on a wall, floor, land, prop or piece of furniture; people and what they hold carry an outline | S3-213 |
+| W2 Material at phone size | On three frames, at least six surfaces show what they are made of to someone who has not read the script | S3-214 |
+| W3 Smooth light | No surface shows a hard band between two flat tones; light fades across a surface toward the dark | S3-218 |
+| W4 Soft shadows and contact | Each shadow edge is soft; things darken where they meet the floor or each other | S3-221 |
+| W5 Drawn people, rendered world | The people are crisper and flatter than anything round them, and stand on the floor | S3-223, S3-226 |
+| W6 Depth | Each wide shows a lit far view, floor that leads the eye in, props at three depths, sky and ground both in frame | S3-229, S3-230 |
+| W7 Shot size and calm | The hero about a third of the frame high where the place reads, about half for acting; hard cuts inside the place; change per frame about 4 | S3-208, S3-201 |
+
+The owner's target is likeness 8 of 10 on a whole film (18 November 2026). A scene is locked at 7 or more against its
+frame with each world row passing (S5-104). The first time it was measured, a locked night scene went from 3 to 6 in
+four spikes, and a scene built to these rows from its first frame went from 3 to 5 in one build and one fix round.
+Three piles at the end of a series say what is left (X-32).
+
 ## The calm number and the brightness numbers
 
 `bar-check.py` also prints two numbers a reviewer cannot see on frames:
