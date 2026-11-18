@@ -17,7 +17,7 @@ than three minutes).
 | Script | What it does | Writes |
 |---|---|---|
 | `step.mjs <loop-dir> [cmd]` | The file check between steps: prints the next step; refuses (exit 1, naming the file) a step whose input is missing or whose locked files changed; `init --code <dir> [--code <dir2>] [--passes people,motion] [--ref <clip>]`, `round <pass>`, `keep`, `revert`, `check <step>`, `log <phase> [note]`. Writes `faults.md` after a round with no reviewers (S5-90) | `scene.json`, round folders, `best/`, `log.md` |
-| `lock.mjs <out/slug> set <stage> <files>\|check\|list\|reopen <stage> --why t` | Freezes a stage's files by hash; `reopen` is the lead's and is logged | `locks.json`, `locks-log.md` |
+| `lock.mjs <out/slug> set <stage> <files> [--add]\|check\|list\|reopen <stage> [<files>] --why t` | Freezes a stage's files by hash; `--add` grows a lock place by place; `set look` needs the owner's Look yes, `shots` needs `look`, `world` needs `shots` (S5-105, S3-185); `reopen` is the lead's, for a whole stage or named files, and is logged | `locks.json`, `locks-log.md` |
 | `words.mjs <full.json> --scene <id> --plan <plan.ts> [--out f]` | The scene's words on its own clock, for `look.sh --words` | `words.json` |
 | `frames.sh <clip> <outdir> [fps=6]` | Contact sheets, 30 tiles a sheet, time and frame number on each tile; a frame every 0.5 s | `sheet-NN.jpg`, `f6/`, `full/` |
 | `jumps.sh <clip> <outdir> [--planned shots.json]` | One-frame jumps from toon-world's `short_qa.py`, frame numbers only | `jumps.md`, `jumps.json`, `qa/` |
@@ -70,7 +70,7 @@ out/<slug>/scenes/<scene>/
 
 Locks: `out/<slug>/locks.json`, found by `step.mjs` in the loop folder or up to three folders above it.
 
-The rough film after the shots stage: `abjudge.sh <animatic> <rough film> out/<slug>/film-0 --judges 3` (S5-84). The
+The rough film at the end of stage 4: `abjudge.sh <animatic> <rough film> out/<slug>/film-0 --judges 3` (S5-84). The
 final film: `abjudge.sh <last film> <new film> out/<slug>/film-<n> --judges 3`, and `joins.sh` beside it; the reference
 is a film of about its length, never a short clip (S5-82).
 

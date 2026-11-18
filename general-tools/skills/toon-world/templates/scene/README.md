@@ -47,14 +47,19 @@ The plain Remotion line, if you need it: `npx remotion render <bundle or src/ind
 
 ## The stages for one scene
 
-1. World stage (one agent, all places): the place is built, checked from this scene's planned camera, and locked.
-2. Shots stage (one agent, all scenes): `shots.ts`, the person sizes and the join cards; `shots-check`, `cam-speed`
-   and `path-check` clean; then locked.
-3. Scene stage (this scene's builder): the rig check (list every pose and prop the words need, add them to `POSES`,
+The order is `toon-video` SKILL.md's stages 3 to 5. The film's first scene (its hardest place) is built first as a
+spike, to likeness 7 against its scene frame and the owner's Look yes (S5-104, S5-105). For every other scene:
+
+1. Set (the world agent): its place built without fill; a probe still beside the scene frame (S3-231).
+2. Cameras (the shots agent): `shots.ts` with the set; `shots-check`, `cam-speed` and `path-check` clean; locked with
+   `lock.mjs set shots --add` (S3-211, S5-73). The person sizes and the join cards come once every place is done.
+3. Fill and light (the world agent), for what those cameras show, then world rounds; the place locked with
+   `lock.mjs set world --add` (S3-185, S3-197, S5-71).
+4. Scene stage (this scene's builder): the rig check (list every pose and prop the words need, add them to `POSES`,
    check the pose sheet), then people and acting, then motion and staging, each round judged blind against the best
    so far and against the scene's reference when it has one. Before every render: a stills sheet of what changed,
    `pose-check`, and `path-check` when something moves past people.
-4. After changing a scene's end: `join-card` (the lead's, since the cards are locked), then a stills sheet across the cut.
+5. After changing a scene's end: `join-card` (the lead's, since the cards are locked), then a stills sheet across the cut.
 
 `tools/join-times.mjs` prints each join's film second for toon-video's `scripts/loop/joins.sh`:
 `node src/stories/<slug>/tools/join-times.mjs > out/<slug>/join-times.json`.
