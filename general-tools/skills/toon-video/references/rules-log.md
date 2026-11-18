@@ -211,3 +211,4 @@ Every rule added or replaced, newest last. Written by `scripts/add_rule.mjs`; ne
 | 2026-11-18 | S5-105 | proof repointed | owner's yes to the skills audit, 18 November 2026: owner Look yes (lock.mjs set look) |
 | 2026-11-18 | S5-108 | proof repointed | owner's yes to the skills audit, 18 November 2026: file out/<slug>/first-scene/review.md (likeness line and world rows) |
 | 2026-11-18 | S5-122 | replaces S5-100 | owner's yes to the skills audit, 18 November 2026 (audit A 3, 13; B 1) |
+| 2026-11-18 | S5-123 | new | savings test O on 11 stored rounds, 18 Nov 2026; owner's yes to the tests |
