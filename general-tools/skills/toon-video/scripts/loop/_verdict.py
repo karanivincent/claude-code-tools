@@ -22,6 +22,9 @@ import glob, json, os, re, subprocess, sys
 AREAS = ["world", "people", "light", "story", "motion"]
 args = sys.argv[1:]
 protect_p = None
+narrow = None  # the first judge's margin, when a narrow one-judge win brought in a second judge with the order swapped (S5-123)
+if "--narrow" in args:
+    i = args.index("--narrow"); narrow = float(args[i + 1]); del args[i:i + 2]
 if "--protect" in args:
     i = args.index("--protect"); protect_p = args[i + 1]; del args[i:i + 2]
 out, best_p, new_p = args[0], args[1], args[2]
@@ -130,6 +133,8 @@ if weaker:  # X-20: a round that weakens a protected beat loses, whatever its av
 keep = "new" if winner == "win" or (winner == "tie" and prefer == "new") else "best"
 v = {"best": os.path.abspath(best_p), "new": os.path.abspath(new_p), "judges": judges, "mean": mean, "diff": diff,
      "winner": winner, "prefer": prefer, "keep": keep, "problems": problems}
+if narrow is not None:
+    v["narrow"] = {"first_diff": narrow, "judges": len(judges), "rule": "S5-123: a one-judge win by 0.15 or less is judged again with A and B swapped; the average decides"}
 if beats:
     v["protected"] = protected
     if weaker:

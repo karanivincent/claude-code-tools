@@ -1,7 +1,7 @@
 #!/bin/bash
 # abjudge.sh <best.mp4> <new.mp4> <outdir> [--judges 1|3] [--brief <file>] [--meaning <file>] [--focus <area>]
 #            [--ref-frame <image>] [--ref <reference.mp4>] [--stills <dir>] [--protect <protect.md>]
-#            [--hits <cues.json|t1,t2>] [--model sonnet|opus] [--any-length] [--dry-run]
+#            [--hits <cues.json|t1,t2>] [--model sonnet|opus] [--any-length] [--no-second] [--dry-run]
 #
 # Blind A/B: each judge is a fresh `claude -p`, run in the FOREGROUND (all at once, then waits). Each judge gets its own
 # folder holding only A/, B/ (frames.sh output), F/ (the reference frame), R/ and S/ when given, and its brief; A/B
@@ -40,12 +40,12 @@ usage() { echo "usage: abjudge.sh <best.mp4> <new.mp4> <outdir> [--judges 1|3] [
 best=$1; new=$2; out=$3; shift 3
 here=$(cd "$(dirname "$0")" && pwd)
 judges=1; brief=$here/../../references/judge-brief.md; meaning=""; focus=""; ref=""; stills=""; model=sonnet; anylen=0
-refframe=""; protect=""; hits=""; dry=0
+refframe=""; protect=""; hits=""; dry=0; second=1
 while [ $# -gt 0 ]; do case $1 in
   --judges) judges=$2; shift 2;; --brief) brief=$2; shift 2;; --meaning) meaning=$2; shift 2;;
   --focus) focus=$2; shift 2;; --ref) ref=$2; shift 2;; --stills) stills=$2; shift 2;; --model) model=$2; shift 2;;
   --ref-frame) refframe=$2; shift 2;; --protect) protect=$2; shift 2;; --hits) hits=$2; shift 2;;
-  --any-length) anylen=1; shift;; --dry-run) dry=1; shift;; *) usage;; esac; done
+  --any-length) anylen=1; shift;; --dry-run) dry=1; shift;; --no-second) second=0; shift;; *) usage;; esac; done
 for f in "$best" "$new" "$brief" $meaning $ref $refframe $protect; do [ -f "$f" ] || { echo "abjudge.sh: missing file $f" >&2; exit 1; }; done
 len() { ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "$1"; }
 if [ $anylen = 0 ]; then
@@ -125,10 +125,11 @@ else
 fi
 
 prompt() { echo "Follow the brief in $1/brief.md exactly. Read it first. Read only files inside $1. Reply with text only."; }
-j=0
-while [ $j -lt "$judges" ]; do
-  j=$((j + 1)); d=$out/judge-$j; mkdir -p "$d"
-  if [ $((RANDOM % 2)) = 1 ]; then a=best; b=new; ca=c1; cb=c2; else a=new; b=best; ca=c2; cb=c1; fi
+# setup <j> [best|new]: judge j's folder and brief; the clip shown as A is drawn at random unless it is named
+setup() {
+  local j=$1 first=${2:-} d=$out/judge-$1 a b ca cb; mkdir -p "$d"
+  if [ -z "$first" ]; then if [ $((RANDOM % 2)) = 1 ]; then first=best; else first=new; fi; fi
+  if [ "$first" = best ]; then a=best; b=new; ca=c1; cb=c2; else a=new; b=best; ca=c2; cb=c1; fi
   echo "A=$a B=$b" > "$out/keys/judge-$j.key"
   cp -R "$F/$ca" "$d/A"; cp -R "$F/$cb" "$d/B"
   if [ -d "$F/F" ]; then cp -R "$F/F" "$d/F"; fi
@@ -137,12 +138,15 @@ while [ $j -lt "$judges" ]; do
   python3 "$here/_brief.py" "$brief" "$d/brief.md" "MEANING=@$F/meaning.txt" "FOCUS_LINE=$fl" \
     "FRAME_BLOCK=@$F/frameblock.txt" "REF_BLOCK=@$F/refblock.txt" "REF_JSON=@$F/refjson.txt" \
     "PROTECT_BLOCK=@$F/protectblock.txt" "PROTECT_JSON=@$F/protectjson.txt"
-done
+}
+j=0
+while [ $j -lt "$judges" ]; do j=$((j + 1)); setup $j; done
 if [ $dry = 1 ]; then
   j=0; while [ $j -lt "$judges" ]; do j=$((j + 1)); d=$out/judge-$j
     echo "dry-run: judge $j ($model, $(cat "$out/keys/judge-$j.key")): (cd $d && claude -p \"$(prompt "$d")\" --model $model --allowedTools \"Read,Glob\" --output-format json < /dev/null > $d/raw.json 2> $d/reply.err)"
   done
   echo "dry-run: then _usage.py writes judge-<j>/reply.md and $out/judges-usage.jsonl, and _verdict.py writes $out/verdict.json"
+  [ "$judges" = 1 ] && [ $second = 1 ] && echo "dry-run: a win by 0.15 or less with this one judge starts a second judge with A and B swapped; the two are averaged (S5-123)"
   rm -rf "$F"; exit 0
 fi
 rm -f "$out/judges-usage.jsonl"
@@ -165,7 +169,25 @@ while [ $j -lt "$judges" ]; do
   fi
 done
 for p in $pids; do wait $p || true; done
-rm -rf "$F"
 python3 "$here/_verdict.py" "$out" "$best" "$new" $ref ${protect:+--protect "$protect"}
+# A narrow win with one judge (S5-123): the judge leans to the clip it sees second by about 0.1, the size of the margin
+# itself, so a win by 0.15 or less gets a second judge with A and B swapped. _verdict.py averages the two, and the
+# round is a win only when that average is 0.1 or more; otherwise it is a tie.
+if [ "$judges" = 1 ] && [ $second = 1 ]; then
+  narrow=$(python3 - "$out/verdict.json" <<'PY'
+import json, sys
+v = json.load(open(sys.argv[1]))
+print(v["diff"] if v.get("winner") == "win" and v.get("diff", 9) <= 0.15 and len(v.get("judges", [])) == 1 else "")
+PY
+)
+  if [ -n "$narrow" ]; then
+    case "$(cat "$out/keys/judge-1.key")" in "A=best"*) other=new;; *) other=best;; esac
+    echo "abjudge.sh: a win by $narrow with one judge: a second judge sees the clips in the other order" >&2
+    setup 2 $other; judge 2
+    grep -q '"better"' "$out/judge-2/reply.md" 2>/dev/null || { echo "abjudge.sh: retrying judge 2" >&2; judge 2; }
+    python3 "$here/_verdict.py" "$out" "$best" "$new" $ref ${protect:+--protect "$protect"} --narrow "$narrow"
+  fi
+fi
+rm -rf "$F"
 [ -n "$refframe" ] || echo "abjudge.sh: WARNING no reference frame: no likeness in this verdict (S2-37)" >&2
 echo "abjudge: $(( ($(date +%s) - T0) / 60 )) min $(( ($(date +%s) - T0) % 60 )) s -> $out/verdict.json"

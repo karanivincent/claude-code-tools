@@ -17,6 +17,15 @@ Run these scripts from the main session, not from a subagent, with a 10-minute c
 take longer than three minutes). `look.sh` and `abjudge.sh` take `--dry-run`: they make the frames and the briefs,
 print each `claude -p` command, and stop.
 
+## A narrow win
+
+A win by 0.15 or less with one judge is not trusted on its own (S5-123). `abjudge.sh` starts a second judge with the
+two clips in the other order and `_verdict.py` averages the two: the round is a win when the average is 0.1 or more,
+and a tie otherwise. `verdict.json` then carries `narrow` with the first judge's margin. `--no-second` turns it off.
+Why: on 11 stored narrow wins judged again in both orders, the judge scored the new clip about 0.1 higher when it was
+shown second (9 of 11 pairs), which is the size of the margin itself; 3 of the 11 did not hold. It costs one judge call
+on about one round in six.
+
 ## When a pass stops
 
 One rule, in `step.mjs` and both briefs. It replaces the differing numbers of S5-110, S5-111, S5-114 and the stills scale

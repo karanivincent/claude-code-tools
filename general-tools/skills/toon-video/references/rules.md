@@ -521,6 +521,7 @@ camera, shot size and person's size), then the scene stage (people and motion, s
 - **S5-117** Reviewers and judges see each frame round a hit and round a protected beat, not 6 a second. Proof: check scripts/loop/frames.sh --strips. Why: a tap at 6 frames a second read as flicker.
 - **S5-119** Each round's clip passes bar-check.py --gate, with --night for a night scene; a failed gate is a failed round. Proof: check scripts/loop/step.mjs (bar). Why: calm and night numbers were never measured inside a film.
 - **S5-122** Reviewers and judges give one likeness number, 1 to 10, against the scene frame, and run Vincent's standing notes as a checklist. Proof: file references/judge-brief.md. Why: work scored 3.4 of 5 passed 3 of 10 checks beside his frames.
+- **S5-123** A one-judge win by 0.15 or less is judged again with the two clips swapped; it is a win only when the two average 0.1 or more. Proof: check scripts/loop/abjudge.sh (second judge). Why: 3 of 11 narrow wins failed a re-judge; the judge leaned to the clip shown second.
 
 ### Scenes in parallel and the join
 

@@ -445,3 +445,18 @@ brought into `templates/look/`; the night gate allows a brightest 5% of 190 at m
 (209 to 229) fail and the first scene of hannibal-oxen (164 to 175) passes; nothing has yet run against a real model
 reply, only against made ones.
 
+### The savings tests, 18 November 2026
+
+Two of the audit's savings were replayed on stored rounds of the B-17 film, with fixed rules written before the runs
+(32 `claude -p` calls, 18M tokens, about 16 dollars; the report is in the project that ran them,
+`out/gap-study/savings-tests/report.md`).
+
+| Test | Result | Numbers |
+|---|---|---|
+| One reviewer who also judges, in place of three reviewers and a judge | Not adopted | It named 10 of 33 severity-3 faults the three reviewers found (the rule asked 80%): it writes what differs between the two clips and drops the faults both share, which are most of a round's list. Its keep-or-undo call matched 6 of 6 |
+| A one-judge win by 0.15 or less | Adopted, as S5-123 | 3 of 11 did not hold when judged twice more. The judge scored the new clip about 0.1 higher when it was shown second (9 of 11 pairs, sign test p about 0.02): the size of the margin. A second judge with the order swapped keeps the real narrow wins (4 of 11) and turns the rest into ties |
+
+Measured on the way: a round's review is about 1.56M tokens and 1.55 dollars (three reviewers at about 0.35M, one
+judge at about 0.5M), three times the audit's guess; about 80% of it is cached image reads. Not yet tested: each role
+reading only its own rules, and Sonnet scene builders; both need a scene built twice.
+
