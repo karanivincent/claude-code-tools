@@ -51,6 +51,8 @@ Spectacle (every focus; the owner's own criteria, S5-94):
   dust, smoke)? An empty or frozen background is a fault (S3-169).
 - Does the light make rich colour (low sun, long shadows, a lit sky), or is it flat midday with plain colours?
 - Do effects (water, dust, fire, smoke) land well and not too fast, read on the 6 fps sheets?
+- Does the scene's big action play in one unbroken take, with the camera moving to each new beat, or is it cut into
+  pieces (S3-237, S3-238)? Count the hard cuts and say what each is for.
 - Do background people have small details? Do the ground and background have detail (rocks, grass) and shadows?
 - Does the background picture take more of the frame than its band, so the frame reads flat (S3-168)?
 

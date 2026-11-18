@@ -89,7 +89,7 @@ rule-by-rule lines for each step. Do not retell a step in other words (S0-8, X-7
 - [ ] Spectacle: each shot's reason and what moves behind; hero moments staged big (S5-91, S5-92, S3-169)
 - [ ] 2 to 3 candidate stills per hero beat; owner's pick on the review page at stage "shots" (S5-93)
 - [ ] Each person's size once in sizes.ts; join cards written (S5-74, S5-51, S5-86)
-- [ ] shots-check, cam-speed and path-check clean (S5-72, S5-102, S5-67, S5-80)
+- [ ] shots-check, cam-speed and path-check clean, the cut budget included: at most 8 hard cuts a minute, two long takes (S5-72, S5-102, S5-67, S5-80, S3-235..S3-238)
 - [ ] Rough film rendered and judged against the animatic: out/<slug>/film-0/ (S5-84)
 - [ ] Shots locked: out/<slug>/locks.json "shots" (S5-73)
 ### Stage 5. Scene stage, up to four at once         stop: each pass at 4 (and at or above its reference), two rounds with no win, or six rounds

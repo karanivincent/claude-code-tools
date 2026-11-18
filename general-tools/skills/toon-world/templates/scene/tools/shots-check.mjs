@@ -12,7 +12,7 @@
 //   node src/stories/__SLUG__/tools/shots-check.mjs [<scene>] [--min 0.33] [--wide 45]
 // No scene: every scene. Prints a line per shot; exit 1 on a fault.
 import path from 'node:path';
-import { args, loadFilm, loadScene, loadTs, STORY_DIR } from './lib.mjs';
+import { args, loadFilm, loadScene, loadTs, STORY_DIR, SLUG } from './lib.mjs';
 
 const { pos, o } = args();
 const MIN = Number(o.min ?? 0.33), WIDE = Number(o.wide ?? 45), W = 1080, H = 1920;
@@ -76,6 +76,33 @@ for (const id of ids) {
   }
   const miss = []; for (let f = 0; f < S.FRAMES; f++) if (!covered.has(f)) miss.push(f);
   if (miss.length) { faults.push(`${id}: frames ${miss[0]}-${miss.at(-1)} are in no shot (${miss.length} frames)`); console.log(`  FAULT frames ${miss[0]}-${miss.at(-1)} in no shot`); }
+}
+// the cut budget (S3-235 to S3-238), over the whole film: every scene's planned cuts (shots.ts CUTS) and every join
+// card that is a hard cut or a dip (joins.json), against toon-kit checkCuts. A stretch under 3 s is excused when the
+// shot it starts in gives a reason (`why`: a cold open, a fact insert). One scene alone is told its share, not failed.
+{
+  const kit = await loadTs(path.resolve(STORY_DIR, '..', '..', 'toon-kit', 'timing.ts')).catch(() => ({}));
+  const fps = film.FPS ?? 30, cuts = [], excused = [];
+  let at = 0;
+  const cards = await import('node:fs').then((fs) => JSON.parse(fs.readFileSync(path.resolve('stories', SLUG, 'joins.json'), 'utf8')).joins ?? []).catch(() => []);
+  for (const sc of film.SCENES) {
+    const S = await loadScene(sc.id).catch(() => null);
+    const jin = cards.find((j) => j.before === sc.id);
+    if (jin && (jin.cut || jin.dip)) cuts.push(at / fps);
+    for (const c of S?.CUTS ?? []) cuts.push((at + c) / fps);
+    for (const sh of S?.SHOTS ?? []) if (sh.why) excused.push((at + sh.from) / fps);
+    at += sc.frames;
+  }
+  const dur = at / fps;
+  if (!kit.checkCuts) console.log('cuts: toon-kit has no checkCuts; sync the kit (sync-kit.mjs) to check the cut budget');
+  else if (pos[0]) {
+    const S = await loadScene(pos[0]), n = (S.CUTS ?? []).length, max = Math.max(1, Math.round(dur / 7.5));
+    console.log(`cuts: ${pos[0]} has ${n} planned cut(s); the film has ${cuts.length} of ${max} (run with no scene for the full check)`);
+  } else {
+    const bad = kit.checkCuts(cuts, dur, { excused });
+    console.log(bad.length ? bad.map((b) => `  FAULT ${b}`).join('\n') : `cuts ok: ${cuts.length} hard cut(s) in ${dur.toFixed(1)} s`);
+    faults.push(...bad);
+  }
 }
 console.log(faults.length ? `${faults.length} fault(s)` : 'shots ok');
 if (faults.length) process.exitCode = 1;

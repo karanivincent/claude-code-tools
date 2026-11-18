@@ -8,6 +8,12 @@ the project copy; fix it here and sync again. The sync also warns when a file un
 `path`, `K` or `curve`, because a kit fix never reaches code that uses its own copy (Gibeon's `kit.ts`). Tests:
 `node --test kit/*.test.ts` (Node 22.6 or later).
 
+## timing.ts: the cut budget
+
+`checkCuts(cuts, dur, { excused })`: a film's hard cuts against S3-235 to S3-238: at most one per 7.5 s, no stretch
+under 3 s without a reason, one unbroken take of 10 s or more for each 30 s. `tools/shots-check.mjs` calls it with each
+scene's `CUTS` and the join cards.
+
 ## camera.ts
 
 | Block | What it does |

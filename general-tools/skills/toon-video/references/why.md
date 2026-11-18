@@ -359,3 +359,12 @@ limb outlines, the night grades). It lives in the film's `src/look/` until it is
 The second fix round of that scene (likeness 6) added S3-234: a surface's colour on screen is its paint times the
 light on it. Its review also found that each fix round closed about half its list, three of six items twice running.
 
+### The cut budget, 18 November 2026
+
+The owner watched scene one of hannibal-oxen and asked whether so many hard cuts were meant: 3 in 10 seconds, one for
+each new beat. They were allowed by S3-201 (change A above), which had replaced "at most 3 cuts" after builders
+skipped a cut a payoff needed. The survey of the reference says how he uses them: the median of 20 Shorts is under one
+hard cut; the newest has 8, six of them angle changes in a talk or at the fire and one a jump in time, and between them
+three unbroken takes of 11 to 15 s carry the big action. So S3-235 to S3-238 keep the cut and give it a budget, a
+shortest stretch, a reason, and two long takes a film. The kit's `checkCuts` passes his Short and fails our scene.
+
