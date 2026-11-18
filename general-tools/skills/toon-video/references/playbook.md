@@ -89,7 +89,7 @@ Status: **built** (in the kit, with a file), **blueprint** (we know how, not bui
 
 | Technique | Why it works | Blueprint | Status | Seen in |
 |---|---|---|---|---|
-| Flat near-white faces, thick outline, ball hands, a shadow on the ground | Reads at any size; the face carries each joke | `people.ts`; our cards are lit by the scene (S3-57) | built | both |
+| Flat near-white faces, thick outline, ball hands, a shadow on the ground | Reads at any size; the face carries each joke | `people.ts`; our cards are flat too (S3-223) | built | both |
 | Expressions swapped on one frame, held 8–30 frames | Snappy acting without in-betweens | `people.ts` faces | built | both |
 | Angle drawings: front, three-quarter, side, back, a lean against glass, seated at the pedals | The card turns with the camera instead of looking flat | More drawings in `people.ts` | partly built (no back, lean or seated) | both |
 | Lip sync on spoken lines, about 8 mouth shapes on ones; none under narration | A speaking character feels alive; the narrator stays invisible | Mouth shapes picked per frame from the ElevenLabs word and letter timing | blueprint | dashcam |

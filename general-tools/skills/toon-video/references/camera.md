@@ -31,7 +31,7 @@ Choose each shot for size and drama, as a big channel would, not for coverage.
 - **The hero moment reads as big.** Stage it high, wide or close enough: a plane climbs visibly high above the
   ground and the people; a fall is seen whole, from the tip to the impact (S5-92).
 - **Light makes colour.** Shoot toward the low sun for rims, or across it for long shadows; a flat front light from
-  behind the camera gives plain colour (S3-166, S5-103).
+  behind the camera gives plain colour (S3-166, S5-106).
 - **Few candidates, one pick.** For each hero beat render 2 to 3 candidate stills, forced apart: a different camera
   side, height and shot size, not the same shot nudged. Put them on the review page at stage `shots`; Vincent picks
   one by note, and he is not asked to rank many (S5-93).

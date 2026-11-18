@@ -62,17 +62,27 @@ World:
   paper crown, a cone or a cup?
 - Does any prop near an action's path read as contact (landing on rocks, sitting on a box)?
 - Any dark band or picture edge at a frame edge?
+- Is the world rendered, not drawn (the world rows in `bar.md`)? W1: no drawn line on a wall, floor, land or prop
+  (S3-213). W2: on three frames, six surfaces show what they are made of (S3-214). W6: a lit far view, floor that
+  leads the eye in, props at three depths, sky and ground both in the wides (S3-229, S3-230).
+- Beside the scene's reference frame (S2-36): what are the three biggest differences, biggest first?
 
 Light:
-- Does the key come from a source you can point to in the place (a sun, window, lamp or fire), with a cool fill and a
-  warm rim on the key side of each card (at most a faint cool edge on the far side)? A key from straight behind the
-  camera gives the cards no rim; a rim all round reads as a sticker.
+- Does the key come from a source you can point to in the place (a sun, window, lamp or fire), with a cool fill on
+  the side away from it? A light rim on a card is a fault (S3-224).
+- W3: does light fade smoothly across each surface, with no hard band between two flat tones (S3-218)? W4: is each
+  shadow edge soft, and do things darken where they meet the floor or each other (S3-221)?
+- At night: is the floor round the lamp warm and the far side cool, on the same frame (S3-219)?
 - At night: is the room dark and lit by lamps you can see, nothing pure black, faces and facts still readable?
 - Is the subject warm against a cool or dark field? Cool on cool is a fault.
 - Does the light hold one time of day through the scene? No surface turning grey, no water turning purple.
 - Are the faces lit on the key words?
 
 People:
+- W5: are the people crisper and flatter than anything round them (one even tone per colour area, no gradient, their
+  own outline on head, body and limbs), and do they stand on the floor, with a tight dark contact under the soles
+  (S3-223, S3-225, S3-226)?
+- Is each held or pressed thing in front of its card, with the hand on it (S3-227)?
 - Is each repeated action drawn differently? The same pose with the card changing is a fault.
 - Do feet, knees and shins touch what they rest on? Any limb hanging in the air?
 - Are faces visible on the key words? Does each face beat have its own expression, with soft changes between them (no

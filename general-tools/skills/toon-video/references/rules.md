@@ -156,6 +156,7 @@ must, never, always, every or only without an id.
 - **S2-34** At stage 2 the lead picks 3 to 6 stills from the reference catalog for each place and hero beat, for their standard of detail, light and style, not their subject (a still of a ship's deck can set the bar for a cockpit); they are listed in `stories/<slug>/references.md` with what each is for. The owner is not asked to pick them. Proof: file stories/<slug>/references.md. Why: the B-17 stretch, built with no reference stills, measured a sixth of the railroads Short's sharpness; Vincent could not pick a cockpit set from stills of other places. (Vincent, 14 Nov 2026)
 - **S2-35** Builders get the picked stills in their briefs and copy their detail: separate objects near the lens, materials, light; a still marked `no` in the catalog becomes a playbook blueprint before anyone builds it. Proof: check briefs name the stills. Why: a builder copies what it sees, not what a rule describes.
 - **S2-33** Vincent approves each background picture itself by its own picture-<place> button at stage 2, beside the parts plan. Proof: owner Picture yes (gate.mjs: picture-<place>). Why: a flat midday picture passed under an approved parts plan.
+- **S2-36** Each scene names one reference frame of its own kind and light level, a night camp against a night camp; the reviewer scores likeness 1 to 10 against it. Proof: file stories/<slug>/parts.md (reference frame per scene). Why: a night room scored against a bright tent mixed light into the look.
 
 ## S3 Build
 
@@ -200,6 +201,11 @@ must, never, always, every or only without an id.
 - **S3-188** Place extras by what the camera shows at their depth, not by the floor plan, each with a way in and out of frame. Proof: check critic: world. Why: extras placed on the plan were cut by the frame edge.
 - **S3-189** Keep fill off the hero's outline and off the line from the lens to a fact. Proof: check critic: world. Why: a black cat and pigeons blurred the hero's black hair.
 - **S3-190** Find out what a stray thing in frame is before removing it; a moved camera sees the backs and undersides of props. Proof: check critic: world. Why: a stray stick was a tram's pole; a line was an aerial.
+- **S3-229** Each place goes back to a lit far wall or far view, with floor in front that leads the eye in and props at three depths or more. Proof: check critic: world (row W6). Why: a shallow set held two of the four missing points.
+- **S3-230** A wide holds floor and ceiling or sky together; outdoors the land is shaped so sky fills about the top 40%. Proof: check critic: world (row W6). Why: a mountain wall filled the frame and read as a dune.
+- **S3-231** Before a place is built out, put a probe still from its widest camera beside the scene's reference frame. Proof: file out/<slug>/places/<place>/probe.jpg. Why: land built to a plan's numbers read wrong in frame.
+- **S3-232** A sky has the reference's colour and clouds with soft lit edges; at night slate blue-grey with a large moon, not a gradient with clouds stuck on. Proof: check critic: world. Why: with ground and people fixed, the sky was the first thing unlike his.
+- **S3-233** Each place has things to sit on and things to hold, and the people use them. Proof: check critic: world. Why: his guards sit and hold bowls; ours stood in a ring.
 
 ### Light and the look stack
 
@@ -212,11 +218,11 @@ must, never, always, every or only without an id.
 - **S3-36** A shot sets a background blur (at most 4 px at 1080 wide) only when its reference still shows a soft background; the default is 0. Proof: check `look.mjs: blurByShot` (new). Why: copy the reference, not a rule of our own. (Vincent, 14 Nov 2026)
 - **S3-37** `Stage.tsx` has no forced blur floor; a shot's blur comes from its size. Proof: check `look.mjs: blurByShot` (new). Why: a forced 11 px floor blurred every wide.
 - **S3-38** No motion blur anywhere. Proof: check `look.mjs: no motion blur import` (new). Why: it doubled arms and softened the picture. (Vincent, 11 Nov 2026)
-- **S3-39** Ink on the world: near-black, about 5 px near to 3 px far, its own pass, thinned over painted detail. Proof: check `measure_look` (new: ink share). Why: ink on painted detail doubles the clutter.
+- ~~**S3-39** Ink on the world: near-black, about 5 px near to 3 px far, its own pass, thinned over painted detail. Proof: check `measure_look` (new: ink share). Why: ink on painted detail doubles the clutter.~~ Replaced by S3-213.
 - **S3-40** People cards sit on the `NOINK` layer and carry their own outline. Proof: check `look.mjs: card layers` (new). Why: world ink crossed faces.
-- **S3-41** Two-tone light: shade blue-grey indoors, violet-blue outdoors at sunset, never brown or black. Proof: check `measure_look` (new: exit code). Why: grey or brown shade reads dull.
+- ~~**S3-41** Two-tone light: shade blue-grey indoors, violet-blue outdoors at sunset, never brown or black. Proof: check `measure_look` (new: exit code). Why: grey or brown shade reads dull.~~ Replaced by S3-218.
 - ~~**S3-42** Indoors use one warm key per framing, set relative to the camera. Proof: check `critic: light`. Why: one key keeps faces and props readable.~~ Replaced by S3-209.
-- **S3-43** Indoors only people's contact blobs and free-standing floor things cast the key's shadow. Proof: check `critic: light`. Why: rail and bar shadows read as glass slabs.
+- ~~**S3-43** Indoors only people's contact blobs and free-standing floor things cast the key's shadow. Proof: check `critic: light`. Why: rail and bar shadows read as glass slabs.~~ Replaced by S3-221.
 - **S3-44** Bloom only on real light sources (threshold 1.0); white faces never glow. Proof: check `look.mjs: bloom threshold` (new). Why: glowing faces read as pasted on.
 - **S3-45** No bloom or glow source within 4 m of the lens. Proof: check `audit.mjs: glow near lens` (new). Why: lamps beside the lens whited out the lower third.
 - **S3-46** Nothing translucent or additive in front of the face a line is about. Proof: check `measure_look` (new: face saturation). Why: glare and a light pool turned a face milky.
@@ -243,13 +249,25 @@ must, never, always, every or only without an id.
 - **S3-206** No muted albedos and no lifted blacks; by day the black point stays near black, and a night scene follows S3-205. Proof: check measure_look (new: exit code). Why: lifted blacks and muted colour read washed out.
 - **S3-207** By day colour is bright and saturated: saturated sky and grass, warm golden sun, shade tinted blue or violet, never grey; a night scene follows S3-205. Proof: check measure_look (new: exit code). Why: Vincent wants bright game colour.
 - **S3-209** Indoors the key light is the named source of S3-191, a lamp, window or fire in the place, placed with the set, not tied to the camera. Proof: file stories/<slug>/parts.md. Why: a key tied to the camera lit nothing you could see.
-- **S3-210** A rim sits on the key side of a person, with at most a faint cool edge on the far side; an even outline all round reads as a sticker. Proof: check critic: light. Why: an all-round rim read as a sticker, not light.
+- ~~**S3-210** A rim sits on the key side of a person, with at most a faint cool edge on the far side; an even outline all round reads as a sticker. Proof: check critic: light. Why: an all-round rim read as a sticker, not light.~~ Replaced by S3-224.
+- **S3-213** The world carries no ink and the ink pass is off: no drawn line on walls, floor, land, props or furniture; people and what they hold keep their outline. Proof: check critic: world (row W1). Why: ink on the world made room and people one flat cartoon.
+- **S3-214** Every near surface is a painted material at its real scale, with grain, weave, wear or pattern you can read at phone size. Proof: check critic: world (row W2). Why: flat colour on walls and floor read as drawn.
+- **S3-215** Nothing exists only as a line: every object has a painted shape, and in shade a lighter top and darker sides. Proof: check critic: world (row W1). Why: the teapot vanished and the table merged into the floor.
+- **S3-216** Paint toward the real material without losing colour: strong reds, creams and blues stay, in the mid-tones; mute toward grey by a fifth at most, never toward brown. Proof: check critic: world (row W2). Why: a style pulling every colour to brown made the room muddy.
+- **S3-217** When a place has a colour cast, check the paint before the lamps. Proof: check critic: light. Why: the amber room came from the materials, not the light.
+- **S3-218** World surfaces shade smoothly, with no hard band between two flat tones; the shaded side keeps the surface's own colour and texture. Proof: check critic: light (row W3). Why: two flat tones on a surface read as drawn.
+- **S3-219** At night shade is a neutral fill, cool only on the side away from the lamp, and the floor round the lamp stays warm; check both on one frame. Proof: check critic: light. Why: neutral shade turned the room amber; the cool fill washed out the pool.
+- **S3-220** At night the brightest 5% of the frame sits near 175 of 255. Proof: check bar-check.py (brightness). Why: the reference's night holds 173; ours at 229 read as lit day.
+- **S3-221** Furniture, props and people cast soft shadows whose edge widens with distance from the caster; things darken where they meet the floor or each other. Proof: check critic: light (row W4). Why: a fixed blur only blurs the shape; no contact left props floating.
+- **S3-222** After any change to the light, check each person and seat still has a shadow and a contact you can see. Proof: check critic: light (row W4). Why: softer shadows took the people's shadows away.
+- **S3-224** A card carries no light rim, on the key side or any other. Proof: check critic: people (row W5). Why: a rim drew a second line outside the outline; the hero looked cut out.
+- **S3-234** A surface's colour on screen is its paint times the light on it: measure the rendered pixel against the reference's, and change paint and light together. Proof: check critic: light. Why: browner earth under the same warm pools measured the same yellow.
 
 ### People
 
 - **S3-55** Toon figures wear mittens, never fingers; the fingers rule is for clay figures only. Proof: check `audit.mjs: mitts set` (new). Why: thin fingers read as claws on a phone. (Vincent, 11 Nov 2026)
 - **S3-56** Mitten figures keep hand size 1; a grip in a shot wider than a face uses a side view. Proof: check `critic: people`. Why: a 2x grip became balls the size of the head.
-- **S3-57** Cards are lit by the scene (`cardshade`), faces near white (about 0.93), with a soft contact blob; never emissive. Proof: check `look.mjs: card material` (new). Why: emissive cards look pasted on.
+- ~~**S3-57** Cards are lit by the scene (`cardshade`), faces near white (about 0.93), with a soft contact blob; never emissive. Proof: check `look.mjs: card material` (new). Why: emissive cards look pasted on.~~ Replaced by S3-223.
 - **S3-58** Cards keep the depth test on (alphaTest, depthWrite, depthFunc Always, polygonOffset -6/-6000); off only inside a solid. Proof: check `audit.mjs: card depthTest` (new). Why: depth-off cards let ink and blur cross faces.
 - **S3-59** Card textures have no mipmaps. Proof: check `look.mjs: card material` (new). Why: mipmapped alpha made far people vanish.
 - **S3-60** Cards only face the camera; a side or back view needs its own drawing. Proof: check `critic: people`. Why: a front card seen side-on reads as a sheet.
@@ -263,6 +281,11 @@ must, never, always, every or only without an id.
 - **S3-68** Emotion is drawn, not narrated: anger, fear, grief and joy each have a face on a 0..1 dial on every beat the words name. Proof: check `critic: people`. Why: "his anger burned" over a calm face fails.
 - **S3-69** Held poses, not a constant sway; brows do most of the acting. Proof: check `critic: people`. Why: sway reads as noise; brows read on a phone.
 - **S3-70** Blinks every 0.5 to 2.3 s. Proof: check `critic: people`. Why: a face that never blinks reads as frozen.
+- **S3-223** Cards are flatter than the world: one even tone per colour area with a little of the place's colour, no gradient, never emissive; faces near white, about 0.93. Proof: check look.mjs: card material (new). Why: a gradient on a card read as glow and pasted it on.
+- **S3-225** A person's outline is on the card: head, body, arms and legs each carry their own. Proof: check critic: people (row W5). Why: legs sank into the floor when the world's ink went.
+- **S3-226** A tight dark contact sits under each person's soles and each seat's feet; the contact stands a card on the floor, the soft shadow shows only on a lit floor. Proof: check critic: people (row W5). Why: at phone size the contact grounded the card, not the shadow.
+- **S3-227** Anything a person holds or presses stands in front of their card, with the hand on it. Proof: check critic: people. Why: the Morse key sat behind the card; the hand pressed nothing.
+- **S3-228** A near-white face stays out of the grade's tint; in a close it never takes the colour of the shade. Proof: check critic: people. Why: a white face went lilac-grey in the close.
 
 ### Props and effects
 
@@ -485,7 +508,10 @@ camera, shot size and person's size), then the scene stage (people and motion, s
 - **S5-71** One world agent builds every place before any scene, checks it from every scene's planned cameras, runs world-and-light rounds, then locks the places with lock.mjs. Proof: check scripts/loop/lock.mjs (stage world in out/<slug>/locks.json). Why: builders changed shared places under each other.
 - **S5-72** Each far picture faces where the cameras look: every shot's look direction falls inside a far picture's arc, or the shot says why not. Proof: check tools/shots-check.mjs (far picture). Why: the jump looked at an empty flat sky.
 - **S5-79** Each place writes its screen direction in marks.ts: from the side the cameras film it, which way is screen right. Proof: file src/stories/<slug>/places/marks.ts (SCREEN). Why: a round was lost to a walk the wrong way.
-- **S5-103** Light each place for a time of day: a key from its named source, a cool fill, a warm rim on the key side, cool fog, a teal-and-warm grade. Proof: file src/stories/<slug>/places/. Why: light went from 2 to 4 in spike 5.
+- ~~**S5-103** Light each place for a time of day: a key from its named source, a cool fill, a warm rim on the key side, cool fog, a teal-and-warm grade. Proof: file src/stories/<slug>/places/. Why: light went from 2 to 4 in spike 5.~~ Replaced by S5-106.
+- **S5-104** The world agent builds the hardest place first and takes one scene in it to likeness 7 against its reference frame, with every world row passing. Proof: file docs/spikes/LOG.md (scene one). Why: a scene's ceiling is set when it is built.
+- **S5-105** The owner sees that first scene beside its reference frame, and says yes to the look, before any other place is built. Proof: owner Look yes. Why: one early yes is cheaper than regrading a finished film.
+- **S5-106** Light each place for a time of day: a key from its named source, a cool fill on the side away from it, cool fog, a teal-and-warm grade. Proof: file src/stories/<slug>/places/. Why: light went from 2 to 4 in spike 5; card rims went with S3-224.
 
 ### Shots stage
 
@@ -625,6 +651,12 @@ S3-205 to S3-209, S3-212, S5-102 and S5-103 replace S3-121, S3-118, S3-48, S3-31
 and S5-58, and S3-202, S3-204, S3-210 and S3-211 tidy the spike rules they had stepped around. Those replacements carry
 the same proof status.
 
+A third series the same day, "garbo-world" (5.6 s, spikes 0 to 4), and scene one of the film "hannibal-oxen" gave the
+rendered-world look: S3-213 to S3-234, S2-36, S5-104 to S5-106 and X-31 to X-34, with S3-213, S3-218, S3-221, S3-223,
+S3-224 and S5-106 replacing S3-39, S3-41, S3-43, S3-57, S3-210 and S5-103 by the owner's decision (G to M in `why.md`).
+**Proof status: two night scenes, 5.6 and 10 seconds; no day scene and no whole film yet.** The bar: the result page
+https://claude.ai/artifact/RLGzG16MMCsR1yAqeWG75v and the branch `spike/garbo-world`.
+
 - **X-13** When a look, a method or a fix is unproven, spike it first: one stretch of 15 s or less, the same stretch for the whole series. Proof: file docs/spikes/LOG.md. Why: a whole film teaches one mixed lesson a day.
 - **X-14** A spike asks one question with a guessed answer, written before any code, and changes one thing; the question names only things the place has. Proof: file docs/spikes/<series>/PLAN.md. Why: two changes hide the cause; a question asked for awnings the street lacked.
 - **X-15** Each spike starts from the series baseline or the last kept spike, has a budget of about 90 minutes and 0.5M tokens, and stops when it is spent. Proof: file docs/spikes/LOG.md (cost line). Why: a budget keeps a spike an experiment, not a build.
@@ -643,3 +675,7 @@ the same proof status.
 - **X-28** A brief says what is allowed as plainly as what is not: write that cuts inside the place are allowed, not just one journey. Proof: file docs/spikes/<series>/brief-build.md. Why: one journey made three builders avoid the cut a payoff needed.
 - **X-29** Builders' notes and reviews are copied into docs/spikes/<series>/reports/ and committed the same hour, before any worktree is removed. Proof: file docs/spikes/<series>/reports/. Why: removing four worktrees deleted their reports.
 - **X-30** A skill change from a spike is unproven until a run of the skill matches or beats the spike's clip in a blind judging; the clip stays as the bar. Proof: file docs/spikes/LOG.md (bar clip). Why: the cliff film came out worse than its own spike.
+- **X-31** A fix round ends with a review by someone who did not build it; the builder's count of closed items is a claim. Proof: file out/spikes/<series>/<spike>/review.md. Why: a builder reported five of five closed; the review found two.
+- **X-32** The last review of a series sorts what is left into three piles: fixable here, behind a lock, hard in the tool. Proof: file out/spikes/<series>/<spike>/review.md. Why: three piles turned four reviews into the next plan.
+- **X-33** A clip the owner judges a look on is full size, and a smaller clip says its size beside it. Proof: file docs/spikes/<series>/PLAN.md (clip sizes). Why: a half-size spike clip read to him as a soft picture.
+- **X-34** Put the reference's frame beside ours before naming a gap. Proof: file docs/spikes/<series>/PLAN.md (side-by-side). Why: the people were named the gap; side by side it was the world.

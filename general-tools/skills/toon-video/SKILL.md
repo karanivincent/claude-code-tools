@@ -71,12 +71,15 @@ rule-by-rule lines for each step. Do not retell a step in other words (S0-8, X-7
 - [ ] Cast sheet: out/<slug>/cast.png (S2-1..S2-6, S2-24)
 - [ ] Library checked first; parts plan per place, the blend proved on one place: stories/<slug>/parts.md (S2-32, S2-7..S2-14, S2-17, S2-25)
 - [ ] Reference stills per place and hero beat from the catalog, picked by the lead: stories/<slug>/references.md (S2-34)
+- [ ] One reference frame per scene, of its own kind and light level, for the likeness number: stories/<slug>/parts.md (S2-36)
 - [ ] Each place's background picture rich by the template (S3-166..S3-168)
 - [ ] Scenes split and roughly built: stories/<slug>/scenes.md, references named (S5-39, S2-31, S5-76)
 - [ ] Still board from the rough scenes: out/<slug>/board/, stories/<slug>/board.md (S2-15, S2-16, S2-18..S2-20)
 - [ ] Animatic: out/<slug>/animatic.mp4 (S2-21)
 - [ ] Review page at stage "direction", one "parts-<place>" and one "picture-<place>" per place; all approved (S2-30, S2-33, S2-22, S2-23)
 ### Stage 3. World stage (one agent, every place)    stop: places locked
+- [ ] First, the hardest place and one scene in it, run as a spike through world, shots and people (X-13): a probe still beside its reference frame, built to the world rows, likeness 7 from a reviewer who did not build it (S2-36, S3-231, S5-104)
+- [ ] The owner's yes to the look on that scene, shown full size beside its reference frame, before another place is built (S5-105, X-33)
 - [ ] Cast and the one mix done once (S3-152..S3-165); the film's captions on (S5-81)
 - [ ] Every place built and checked from every scene's planned cameras; world rounds (S5-71, S5-57..S5-62)
 - [ ] Far pictures face the cameras; screen direction in marks.ts (S5-72, S5-79)
@@ -319,8 +322,9 @@ needs.
 When a look, a method or a fix is unproven, spike 15 seconds first, before a whole film (X-13): one stretch, one
 question, one thing changed, judged against a fixed baseline on the bar's 15 checks. The method, the series order, the
 brief templates and the scripts (`bar-check.py`, `spike-frames.sh`, `spike-ab.sh`): `references/spikes.md`; the
-checks: `references/bar.md`. The rules the 18 November 2026 spikes found (X-13..X-30, S3-171..S3-200 and their replacements S3-201..S3-212, S5-102, S5-103) are
-proven on short stretches only; the next film made with this skill is their proof run (X-30).
+checks: `references/bar.md`. The rules the 18 November 2026 spikes found (X-13..X-34, S3-171..S3-200 and their replacements S3-201..S3-212, S5-102, S5-106) are
+proven on short stretches only; the next film made with this skill is their proof run (X-30). So is the rendered-world
+look the owner chose the same day (S3-213..S3-234, S2-36, S5-104, S5-105): `toon-world`, "A rendered world behind drawn people".
 
 ## Adding a rule
 

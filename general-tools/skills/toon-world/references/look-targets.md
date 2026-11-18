@@ -16,18 +16,21 @@ above the day's (S3-205). At night the room goes dark, lit by lamps in frame, wi
 |---|---|---|---|---|
 | Median luma | about 0.57 | about 0.52 | 0.40 to 0.45 | mean near 0.33 (85 of 255) |
 | Dark floor (non-ink p5) | near black, with detail kept | near black | near black | 0.10 or more (25 of 255), not pure black (S3-205) |
-| Highlights (p95 to p99) | near white, 0.87 to 0.97 | near white | 0.74 to 0.87 | the lamp pools, 0.68 to 0.87 |
+| Highlights (p95 to p99) | near white, 0.87 to 0.97 | near white | 0.74 to 0.87 | the lamp pools, near 0.69 (175 of 255) (S3-220) |
 | Lit chroma C* p50 / p90 | 34 / 55 or more | 34 / 55 or more | 34 / 55 or more | at or above the day's |
 | Corners over centre (vignette) | 0.86 | 0.86 | 0.65 | |
-| Shadow colour | Cool tint in shade, same hue as lit | Violet-blue (facade about #444380), not brown (S3-41) | Neutral blue-grey, not violet; violet turns stone lavender (S3-41) | Blue-violet away from the lamps, warm in their pools |
+| Shadow colour | Cool tint in shade, same hue as lit | Violet-blue (facade about #444380), not brown (S3-207) | Neutral blue-grey, not violet; violet turns stone lavender (S3-218) | Blue-violet away from the lamps, warm in their pools |
 | Sky | Top about #5e93d9, horizon 1.28 times brighter | Peach horizon #ffd08a | | Blue-violet |
 
 Metals and gold at about 60% albedo (S3-52). Faces are not lemon or lavender-lit.
 
 ## Ink (world lines)
 
+The world carries no ink since 18 November 2026 (S3-213). These numbers describe the ink pass of the drawn look, for
+films made before that date and for a people's outline.
+
 - Near-black (#030303 to #0b0a0c), about 5.1 px near (6 m) to 3.3 px far (90 m) at 1080x1920, scaled by height / 1920
-  (S3-34, S3-39).
+  (S3-34).
 - On silhouettes, depth jumps (from 1%) and creases (from 35 degrees); no line on wall and floor joins or the horizon.
 - About 74% of geometry edges carry a line in the reference; ink share of the frame about 1.3 to 2.5%. Painted texture
   seams and the cards' own outlines count as ink in the measure, so ours reads high.
@@ -58,7 +61,7 @@ Metals and gold at about 60% albedo (S3-52). Faces are not lemon or lavender-lit
 - Bean head: height/width 0.94, narrower chin, pointier crown, 8% bulge to the facing side, tilt up to 4 degrees.
 - Limbs one stroke about 0.055 of head width, mitten hands at size 1 (S3-55, S3-56), short stroke feet.
 - Plum outline #241726, about 5% of width, thicker on the shadow side and the ground side; inner lines thinner.
-- Eyes 0.26 of head width apart, no blush, no catchlights; faces render at brightness about 0.93 (S3-57).
+- Eyes 0.26 of head width apart, no blush, no catchlights; faces render at brightness about 0.93 (S3-223).
 - Walk: bob 3 to 7% of height, lean 1 to 7 degrees, a step each 9 to 12 frames, planted feet. Blinks 0.5 to 2.3 s
   apart, 4 frames long (S3-70). Acting beats land 0 to 3 frames before their word.
 - Contact: a tight soft blob under the feet (about 0.5 of the body width), a sun-direction tail by day.
