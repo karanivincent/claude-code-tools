@@ -14,7 +14,7 @@ likeness 7 against the reference frame, or after two rounds in a row with no win
 (`scripts/loop/README.md`, "When a pass stops"). The builder who made the round is the same agent each round, resumed
 with SendMessage (X-4); reviewers are fresh each round so they never grade their own advice.
 
-Built from the spikes' looker brief (spike 7) and the lessons in `rules.md` (S5-39..S5-70, S5-94, S5-100).
+Built from the spikes' looker brief (spike 7) and the lessons in `rules.md` (S5-39..S5-70, S5-94, S5-122).
 
 ---
 
@@ -152,7 +152,7 @@ Sound (only when the focus is sound; you see frames, not the sound):
 - Is each word spoken on the frames it describes?
 
 
-## Vincent's standing notes (S5-100)
+## Vincent's standing notes (S5-122)
 
 He has given these notes on round after round; check them yourself, each round, without being asked:
 - Detail on every object the story turns on: rivets, bolts, panel lines, labels, wear. A hero object that is a flat

@@ -9,7 +9,7 @@ The story-level files (stage, cast, joins, the place list) come from `../film-sc
 
 | File | What it is for |
 |---|---|
-| `shots.ts` | Set by the shots stage and locked (S5-73): the scene's timing (`FRAMES`), `PLACE`, `BEATS`, the shot list `SHOTS` (size per shot, who it is about, `noFar` and `why` when a check does not apply, `ref` for the reference shot it copies), planned cuts `CUTS`, camera keys (`CAM_KEYS`, eased; first and last from the join cards) and `dofAt`. |
+| `shots.ts` | Set by the shots stage and locked (S5-121): the scene's timing (`FRAMES`), `PLACE`, `BEATS`, the shot list `SHOTS` (size per shot, who it is about, `noFar` and `why` when a check does not apply, `ref` for the reference shot it copies), planned cuts `CUTS`, camera keys (`CAM_KEYS`, eased; first and last from the join cards) and `dofAt`. |
 | `story.ts` | The scene builder's file: re-exports `shots.ts`, and holds `focusAt`, `coldAt`, `SPLASHES`, the people frame by frame (`people(f)`, free poses held to the join cards by `onCards`, faces eased through in-betweens), `POSES` for the pose sheet and `ACTION` for the path check. No three.js or Remotion imports in either file, so the tools can load them in node. |
 | `Scene.tsx` | The composition `<Film>-<scene>`: refuses a scene off its join cards, then draws it through the story's `stage.tsx` and plays its slice of the film's one mix (`trimBefore` = the scene's first film frame). Inside the Film it plays without its own audio. |
 | `PoseSheet.tsx` | The composition `<Film>-<scene>-poses`: every pose in `POSES` at full size on one still, drawn exactly as the film draws it. A cell cut by its card's canvas gets a red border and "CUT". |
@@ -17,7 +17,7 @@ The story-level files (stage, cast, joins, the place list) come from `../film-sc
 | `parts/splash.ts` | A see-through water splash: a narrow column with a white core, a low crown, drops, a foam disc and rings; the column is gone 19 frames after contact. |
 | `tools/board.mjs` | The still board (stage 2): stills of the Film at named film times, and `board.json` for `animatic.py`. |
 | `tools/shots-check.mjs` | Per shot: the hero's height in the frame (a third or more on a close or mid shot), wides with the hero under a third of 1.5 s at most, the camera looking into the place's far picture, frames in no shot (S5-72, S5-102). With no scene, the film's cut budget (S3-235 to S3-238): each cut's reason is the `why` of the shot that starts on it, and only a `why` naming a cold open or a fact excuses a stretch under 3 s. |
-| `tools/world-check.mjs` | The rendered-world checks from the film's files, no render: the ink pass off for the world (S3-213), no rim on the cards (S3-224, a warm card tint counts), no emissive in the cards' code (S3-223), a reference frame on disk for each scene (S2-36), a probe still per place (S3-231), each place's light source and side in the parts plan (S3-191). `--skip probe` before the probes are made. |
+| `tools/world-check.mjs` | The rendered-world checks from the film's files, no render: the ink pass off for the world (S3-213), no rim on the cards (S3-224, a warm card tint counts), no emissive in the cards' code (S3-223), a reference frame on disk for each scene (S2-37), a probe still per place (S3-231), each place's light source and side in the parts plan (S3-191). `--skip probe` before the probes are made. |
 | `tools/frame-check.mjs` | Every frame, each person through the scene camera: a head cut by the left, right or bottom edge (S3-95, S3-175), the caption word over a face or below 82% of the height (S3-147). |
 | `tools/night-check.mjs` | Each declared night scene's render (a place or its light with `night: true`, or `--night s05`) through toon-video's `bar-check.py --gate --night`, one scene at a time (S3-173, S3-205, S3-220); a night scene with no clip fails. |
 | `tools/pose-check.mjs` | A face swapped in one frame with no in-between, a hand that jumps against the frames around it, a mode switch (S5-78). |
@@ -58,9 +58,9 @@ spike, to likeness 7 against its scene frame and the owner's Look yes (S5-108, S
 
 1. Set (the world agent): its place built without fill; a probe still beside the scene frame (S3-231).
 2. Cameras (the shots agent): `shots.ts` with the set; `shots-check`, `cam-speed` and `path-check` clean; locked with
-   `lock.mjs set shots --add` (S3-246, S5-73). The person sizes and the join cards come once every place is done.
+   `lock.mjs set shots --add` (S3-249, S5-121). The person sizes and the join cards come once every place is done.
 3. Fill and light (the world agent), for what those cameras show, then world rounds; the place locked with
-   `lock.mjs set world --add` (S3-185, S3-197, S5-71).
+   `lock.mjs set world --add` (S3-185, S3-197, S5-120).
 4. Scene stage (this scene's builder): the rig check (list every pose and prop the words need, add them to `POSES`,
    check the pose sheet), then people and acting, then motion and staging, each round judged blind against the best
    so far and against the scene's reference when it has one. Before every render: a stills sheet of what changed,

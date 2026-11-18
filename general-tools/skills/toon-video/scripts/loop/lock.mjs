@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// lock.mjs: freeze what an earlier step made, so later steps build on one fixed world (rules S5-71, S5-73, S5-105).
+// lock.mjs: freeze what an earlier step made, so later steps build on one fixed world (rules S5-120, S5-121, S5-105).
 // The cliff film (13 Nov 2026): three builders changed shared place files under each other, so an A/B round judged
 // two worlds at once, and a person's size changed across a join made by two builders. step.mjs checks the locks
 // before every round, render and keep.

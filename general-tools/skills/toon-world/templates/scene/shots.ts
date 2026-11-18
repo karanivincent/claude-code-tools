@@ -1,6 +1,6 @@
 // __SLUG__ scene __SCENE__: the shots. The shots stage sets every scene's camera path, shot sizes and beats before any
 // acting, checks them with tools/shots-check.mjs, and locks this file with the cast's sizes and the join cards
-// (S5-73). The scene builders read it and do not change it; a change goes to the lead, who reopens the shots stage.
+// (S5-121). The scene builders read it and do not change it; a change goes to the lead, who reopens the shots stage.
 // When an earlier build of this beat exists (a spike, a practice clip, an earlier version), it is the reference: copy
 // its shot sizes and its camera side here (S5-76). In the cliff film the jump scene was planned "side-on, tilt down",
 // came out wide with faces at 1/20 of the frame, and lost to the 5 s spike that held Josh at a third of the frame.

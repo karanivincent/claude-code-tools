@@ -14,17 +14,17 @@ gotchas met so far. Rule ids point into `rules.md`.
 ## Building as a team
 
 For a film longer than a few seconds, build with specialist agents that own separate files (X-4), in the order of
-SKILL.md's stages 3 to 6. A locked file is not theirs to change: they ask the lead, who reopens it (S5-71, S5-73).
+SKILL.md's stages 3 to 6. A locked file is not theirs to change: they ask the lead, who reopens it (S5-120, S5-121).
 
 | Agent | Stage | Owns | Locked after |
 |---|---|---|---|
 | The lead (Opus) | all | the cast (`cast.ts`), the one mix, captions, `scenes.md`, the review page, the locks, joining, the owner (S5-101) | |
-| One world agent | 3, then 4a, 4c, 4d | the first scene whole (its place, rough shots, stand-in people, the look files); then each place: `places/<place>.ts`, its pictures in `public/<slug>/`, its light, its rows in `marks.ts` (S5-71) | `look` at stage 3; `world` place by place, then whole |
-| One shots agent | 4b, and the end of 4 | each place's scenes' `shots.ts` (S5-73); at the end `sizes.ts`, `joins.json` and the rough film | `shots` place by place, then whole |
+| One world agent | 3, then 4a, 4c, 4d | the first scene whole (its place, rough shots, stand-in people, the look files); then each place: `places/<place>.ts`, its pictures in `public/<slug>/`, its light, its rows in `marks.ts` (S5-120) | `look` at stage 3; `world` place by place, then whole |
+| One shots agent | 4b, and the end of 4 | each place's scenes' `shots.ts` (S5-121); at the end `sizes.ts`, `joins.json` and the rough film | `shots` place by place, then whole |
 | Scene builders, up to four | 5 | their own scenes' `story.ts`: people, acting, motion (S5-75) | each scene to its stop |
 | The first scene's reviewer | 3 | nothing in `src/`: `out/<slug>/first-scene/review.md` | |
 
-- Brief each agent from the templates below (X-5): copy one into the scratchpad, fill each `{field}` and change
+- Brief each agent from the templates below (X-36): copy one into the scratchpad, fill each `{field}` and change
   nothing else. A field that does not apply says "none". Save the filled brief in `stories/<slug>/briefs/`.
 - Say the cost before a round of agents starts: about 0.5M tokens an agent call (X-3).
 - The lead is Opus; builders, reviewers and judges run on Sonnet (S5-101).
@@ -152,8 +152,8 @@ picture faces where the cameras look (S5-72, `marks.ts FAR`); the place's screen
 `node <toon-video>/scripts/loop/step.mjs out/{slug}/world/{place} init --code src/stories/{slug}/places --passes world`
 once, then each round as `step.mjs` prints it, on clips of a few seconds from {scenes}: a stills sheet before any
 render, the render, `look.sh` with the world focus, `abjudge.sh` against best with `--stills {stills dir}` (S5-41,
-S5-97). The judge keeps or reverts (S5-42). A pass stops by S5-43 alone: at 4, after two rounds in a row with no win,
-or after six rounds; nobody caps it lower (S5-89).
+S5-113). The judge keeps or reverts (S5-42). A pass stops by S5-110 alone: at 4, after two rounds in a row with no win,
+or after six rounds; nobody caps it lower (S5-111).
 
 ## How it is checked
 Turn a: the lead puts each probe still beside its scene frame. Turn d: `verdict.json` per round and the world rows in
@@ -171,7 +171,7 @@ each round's verdict; the world rows and the beats, each with a frame; what the 
 # Shots agent brief: the cameras of "{place}" in "{film}"
 
 You set the cameras and shot sizes of the scenes in one place, {place}: {scenes}. Its set is built and not yet filled
-or lit, because fill and the key lamp serve the cameras you lock (S3-185, S3-197, S3-246). A camera changed after you
+or lit, because fill and the key lamp serve the cameras you lock (S3-185, S3-197, S3-249). A camera changed after you
 lock it sends the place's fill and light back too, so choose now.
 
 Repo: {repo} (branch {branch}). Work only inside it. Foreground only: no background jobs, no dev server, no browser
@@ -179,7 +179,7 @@ Repo: {repo} (branch {branch}). Work only inside it. Foreground only: no backgro
 
 ## Read first, in this order
 1. `<toon-video>/references/camera.md`: the spectacle brief, shots by subject, the camera checks.
-2. The rules for your role: shot sizes S3-241, S3-246, S5-102; the cut budget S3-235 to S3-238, with S3-201, S3-202,
+2. The rules for your role: shot sizes S3-241, S3-249, S5-102; the cut budget S3-235 to S3-238, with S3-201, S3-202,
    S3-203; each shot's reason and what moves behind S5-91, S3-169; the hero moment big S5-92; candidate stills S5-93;
    the far picture S5-72; beat references S5-76; camera speed S5-67; paths S5-80, S5-87.
 3. The animatic and still board: {paths}; the rows of `stories/{slug}/scenes.md` for {scenes}; their words: {words
@@ -196,7 +196,7 @@ Repo: {repo} (branch {branch}). Work only inside it. Foreground only: no backgro
 {for each scene: beat; beat} (X-20).
 
 ## What to do
-1. Each scene's `shots.ts`: beats from the word times, the camera keys, the shot list (S5-73). A face or action beat
+1. Each scene's `shots.ts`: beats from the word times, the camera keys, the shot list (S5-121). A face or action beat
    holds the hero at a third of the frame height or more; a wide with the hero smaller lasts 1.5 s at most (S5-102);
    about a third where the place reads, about half for acting (S3-241). A scene with a beat reference copies its shot
    sizes and camera side (S5-76).
@@ -257,12 +257,12 @@ For each scene, `D=out/{slug}/scenes/<scene>`:
 2. Each round as `step.mjs $D` prints it (S5-41): at most five changes from `best/faults.md`; a stills sheet,
    `pose-check.mjs` (and `path-check.mjs` when someone moves past others) before any render (S5-78, S5-80); the
    render; `jumps.sh`; `look.sh` (three reviewers); `abjudge.sh`, the blind judge, with `--stills {dir}` and `--ref`
-   when the scene has a beat reference (S5-77, S5-97); then `step.mjs $D keep` or `revert` as the verdict says (S5-42).
+   when the scene has a beat reference (S5-112, S5-113); then `step.mjs $D keep` or `revert` as the verdict says (S5-42).
 3. Every round ends with the blind judge. You do not skip it, judge a round yourself, or keep a round it lost
    (S5-41, S5-42).
-4. Passes: people, then motion. A pass stops by S5-43 alone: at 4 on the three-judge average, after two rounds in a
-   row with no win, or after six rounds; with a beat reference, best also beats or ties it (S5-77). You do not cap
-   rounds below that, whatever else you read (S5-89).
+4. Passes: people, then motion. A pass stops by S5-110 alone: at 4 on the three-judge average, after two rounds in a
+   row with no win, or after six rounds; with a beat reference, best also beats or ties it (S5-112). You do not cap
+   rounds below that, whatever else you read (S5-111).
 
 ## How it is checked
 `step.mjs` and the judge decide each round (S5-42); the lead reads each scene's `verdict.json` and `log.md`. At the
@@ -304,7 +304,7 @@ Reports:
 | Command | Shows |
 |---|---|
 | `production_log.py report <log>` | each story by stage, and each stage's average across stories |
-| `production_log.py rounds <log>` | each story's scores by cycle, round and mode, with the hours to reach each one; counts rounds per pass (S5-43) |
+| `production_log.py rounds <log>` | each story's scores by cycle, round and mode, with the hours to reach each one; counts rounds per pass (S5-110) |
 | `production_log.py tooltime <file>` | seconds and runs per tool and step from `out/<slug>/tool-times.jsonl`, `--since` a round's start |
 | `production_log.py areas <log>` | each story's weakest area, and each area's average with and without each method |
 | `production_log.py audience <log>` | a week after posting: viewed against swiped away, average viewed, retention dips (S6-12) |

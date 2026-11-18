@@ -65,8 +65,8 @@ the same one.
    picture (jokes, signs, state kept), sound. It names the ten biggest gaps, each with the second and
    the owning agent.
 5. **Repeat** from step 2 with the gaps. Practice copies only: stop when the average is 4.2 or more and no
-   second scores 1, or after five rounds; say which. A real story stops by `toon-video`'s pass rule instead (S5-43,
-   S5-77).
+   second scores 1, or after five rounds; say which. A real story stops by `toon-video`'s pass rule instead (S5-110,
+   S5-112).
 6. **Learn.** Write what this copy taught to `docs/PRACTICE.md` in bible-shorts (newest first): the
    score each round, what moved it, and which helpers were added. A lesson that would help any toon
    video goes into `toon-video/references/rules.md` as a rule with the next free id, its proof and its why

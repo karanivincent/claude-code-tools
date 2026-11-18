@@ -180,3 +180,34 @@ Every rule added or replaced, newest last. Written by `scripts/add_rule.mjs`; ne
 | 2026-11-18 | S3-248 | replaces S3-162 | Garbo's fake spies, Vincent's note 16 Nov 2026 (Epiclings docs/MAKING-A-STORY.md) |
 | 2026-11-18 | S1-39 | new | Epiclings docs/MAKING-A-STORY.md, train heist 7 Nov 2026, checked on every story since |
 | 2026-11-18 | S5-109 | new | jungle holdout audience at 7 days (Epiclings docs/stories/jungle-holdout/audience-7-days.md), one Short; skills audit B19 |
+| 2026-11-18 | S5-110 | replaces S5-43 | owner's yes to the skills audit, 18 November 2026 (audit A 13, 14; B 13) |
+| 2026-11-18 | S5-111 | replaces S5-89 | owner's yes to the skills audit, 18 November 2026 (audit B 2) |
+| 2026-11-18 | S5-112 | replaces S5-77 | owner's yes to the skills audit, 18 November 2026 (wording follows the one stop rule) |
+| 2026-11-18 | S5-113 | replaces S5-97 | owner's yes to the skills audit, 18 November 2026 (one scale: audit A 13) |
+| 2026-11-18 | S5-114 | replaces S5-98 | owner's yes to the skills audit, 18 November 2026 (audit A 14) |
+| 2026-11-18 | S5-115 | new | owner's yes to the skills audit, 18 November 2026 (audit B 5) |
+| 2026-11-18 | S5-116 | new | owner's yes to the skills audit, 18 November 2026 (audit B 7; X-20 for films) |
+| 2026-11-18 | S5-117 | new | owner's yes to the skills audit, 18 November 2026 (audit B 9; X-23 for films) |
+| 2026-11-18 | S5-118 | new | owner's yes to the skills audit, 18 November 2026 (audit B 4; X-31 for films) |
+| 2026-11-18 | S5-119 | new | owner's yes to the skills audit, 18 November 2026 (audit A 9) |
+| 2026-11-18 | S0-22 | new | owner's yes to the skills audit, 18 November 2026 (audit A 10; B 10) |
+| 2026-11-18 | X-36 | replaces X-5 | owner's yes to the skills audit, 18 November 2026 (audit A 8; B 2) |
+| 2026-11-18 | S3-249 | replaces S3-246 | owner's yes to the skills audit, 18 November 2026 (the new order) |
+| 2026-11-18 | S5-120 | replaces S5-71 | owner's yes to the skills audit, 18 November 2026 (audit A 2, 6) |
+| 2026-11-18 | S5-121 | replaces S5-73 | owner's yes to the skills audit, 18 November 2026 (audit A 2; C 7) |
+| 2026-11-18 | S3-173 | proof repointed | owner's yes to the skills audit, 18 November 2026: check bar-check.py --gate (median change) |
+| 2026-11-18 | S3-205 | proof repointed | owner's yes to the skills audit, 18 November 2026: check bar-check.py --gate --night; tools/night-check.mjs |
+| 2026-11-18 | S3-220 | proof repointed | owner's yes to the skills audit, 18 November 2026: check bar-check.py --gate --night; tools/night-check.mjs |
+| 2026-11-18 | S3-213 | proof repointed | owner's yes to the skills audit, 18 November 2026: check tools/world-check.mjs (ink) |
+| 2026-11-18 | S3-224 | proof repointed | owner's yes to the skills audit, 18 November 2026: check tools/world-check.mjs (rims) |
+| 2026-11-18 | S3-223 | proof repointed | owner's yes to the skills audit, 18 November 2026: check tools/world-check.mjs (emissive); critic: people (flat, no gradient) |
+| 2026-11-18 | S2-37 | proof repointed | owner's yes to the skills audit, 18 November 2026: check tools/world-check.mjs (frames) |
+| 2026-11-18 | S3-231 | proof repointed | owner's yes to the skills audit, 18 November 2026: check tools/world-check.mjs (probe) |
+| 2026-11-18 | S3-191 | proof repointed | owner's yes to the skills audit, 18 November 2026: check tools/world-check.mjs (light) |
+| 2026-11-18 | S3-238 | proof repointed | owner's yes to the skills audit, 18 November 2026: check tools/shots-check.mjs (cut reasons) |
+| 2026-11-18 | S3-147 | proof repointed | owner's yes to the skills audit, 18 November 2026: check tools/frame-check.mjs (captions) |
+| 2026-11-18 | S3-95 | proof repointed | owner's yes to the skills audit, 18 November 2026: check checkHeads; tools/frame-check.mjs (heads) |
+| 2026-11-18 | S3-175 | proof repointed | owner's yes to the skills audit, 18 November 2026: check tools/frame-check.mjs (heads); critic: camera (strip.jpg) for the body |
+| 2026-11-18 | S5-105 | proof repointed | owner's yes to the skills audit, 18 November 2026: owner Look yes (lock.mjs set look) |
+| 2026-11-18 | S5-108 | proof repointed | owner's yes to the skills audit, 18 November 2026: file out/<slug>/first-scene/review.md (likeness line and world rows) |
+| 2026-11-18 | S5-122 | replaces S5-100 | owner's yes to the skills audit, 18 November 2026 (audit A 3, 13; B 1) |

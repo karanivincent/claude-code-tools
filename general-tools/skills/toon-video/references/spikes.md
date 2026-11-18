@@ -24,7 +24,7 @@ until a run of the skill matches or beats the spike's clip in a blind judging (X
 | garbo-night | https://claude.ai/artifact/8oFxfFAA2aW8VjLjJnPgko | `spike/garbo-night` |
 
 The next film made with this skill is the proof run. Its judge sees those clips beside the film's same beats
-(`abjudge.sh --ref`, S5-77), and the result is written here and in `why.md`.
+(`abjudge.sh --ref`, S5-112), and the result is written here and in `why.md`.
 
 ## Contents
 
@@ -83,7 +83,7 @@ commit and told what is locked (X-19):
 
 | # | Spike | Changes | Locked |
 |---|---|---|---|
-| 1 | Camera and shot size | Camera keys, shot sizes (hero at about a third of the frame in a wide, S3-246, S3-241), cuts inside the place, dropped devices and the new homes of what they carried (S3-176), the set's props for the new camera | Light, grade, acting, effects |
+| 1 | Camera and shot size | Camera keys, shot sizes (hero at about a third of the frame in a wide, S3-249, S3-241), cuts inside the place, dropped devices and the new homes of what they carried (S3-176), the set's props for the new camera | Light, grade, acting, effects |
 | 2 | Fill | Set pieces, props and extras placed for the locked camera (S3-185..S3-189) | Camera |
 | 3 | Light | Named sources, the key lamp placed with the set, shadows, rims, grade (S3-191..S3-200) | Camera, props' places, acting |
 | 4 | Acting and effects | Faces, hands, small actions, effects with their causes and marks (S3-179..S3-184) | Camera, set, light |

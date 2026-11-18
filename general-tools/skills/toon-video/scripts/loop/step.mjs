@@ -6,7 +6,7 @@
 //   node step.mjs <scene-dir> init --code <dir> [--code <dir2>] [--passes people,motion] [--ref <clip.mp4>]
 //                 [--ref-frame <image>] [--night] [--needs story,direction,look] [--approvals <approvals.json>]
 //                                                 write scene.json: the source folders keep snapshots and revert restores,
-//                                                 the passes this loop runs, the reference clip (S5-76, S5-77), the
+//                                                 the passes this loop runs, the reference clip (S5-76, S5-112), the
 //                                                 reference frame (S2-37; default <scene-dir>/ref-frame.jpg), whether
 //                                                 the scene is night (bar-check --night), and the owner's approvals a
 //                                                 round needs (default story, direction, look). A scene of the scene
@@ -32,7 +32,7 @@
 //                                                 blame go into best/faults.md and the round's faults.md (S5-90)
 // keep and revert add one line per round to log.md: the verdict, the reviewers' and judges' calls, tokens and seconds
 // (from looks/usage.jsonl and judges-usage.jsonl), the bar gate, and any approval override.
-// Locks (S5-71, S5-73): when out/<slug>/locks.json exists, round, render and keep refuse while a locked file differs
+// Locks (S5-120, S5-121): when out/<slug>/locks.json exists, round, render and keep refuse while a locked file differs
 // from its lock (lock.mjs). A builder who needs a place, camera or scale change asks the lead, who reopens that stage.
 //   node step.mjs <scene-dir> log <phase> [note]  close the open phase in log.md (start time and minutes), open <phase>;
 //                                                 `log end` closes it. One line per phase.
@@ -68,7 +68,7 @@ const AREA = { world: ['world', 'light'], shots: ['story'], people: ['people'], 
 // the join (S5-83). An older scene.json with no "passes" keeps this default too.
 const DEFAULT_PASSES = ['people', 'motion'];
 // the one stop rule (loop README, "When a pass stops"): 4 on the 1 to 5 scale and likeness 7 against the reference
-// frame, or two rounds in a row with no win, or six rounds (S5-43, S5-108)
+// frame, or two rounds in a row with no win, or six rounds (S5-110, S5-108)
 const MAX_ROUNDS = 6, TARGET = 4, LIKENESS = 7;
 // the owner's approvals a round needs (S2-23, S5-105): the first scene's loop drops "look" with --needs
 const DEFAULT_NEEDS = ['story', 'direction', 'look'];
@@ -187,7 +187,7 @@ function bestLikeness() {
   }
   return readJson(path.join(D, 'best', 'scores.json'))?.likeness?.mean ?? null;
 }
-// how best stands against the reference clip in the last judging that saw it: beats, ties, below, or null (S5-77)
+// how best stands against the reference clip in the last judging that saw it: beats, ties, below, or null (S5-112)
 function refStatus() {
   for (const r of rounds().reverse()) {
     const v = verdict(r);
@@ -197,9 +197,9 @@ function refStatus() {
 }
 const audibleClean = (r) => { const t = fs.existsSync(path.join(r.dir, 'audible.md')) ? fs.readFileSync(path.join(r.dir, 'audible.md'), 'utf8') : null; return t !== null && !/\|\s*(masked|just)\s*\|/.test(t); };
 
-// why a pass stops, or null. The one stop rule (loop README) holds whatever a brief says (S5-89): the pass's area at 4
+// why a pass stops, or null. The one stop rule (loop README) holds whatever a brief says (S5-111): the pass's area at 4
 // and likeness 7 against the reference frame, two rounds in a row with no win, or six rounds. With a reference clip,
-// the target stop also needs best to beat or tie it (S5-77).
+// the target stop also needs best to beat or tie it (S5-112).
 function passStop(pass) {
   const rs = rounds().filter((r) => r.pass === pass && r.n >= 1 && done(r));
   if (rs.length >= MAX_ROUNDS) return `${MAX_ROUNDS} rounds`;
@@ -239,7 +239,7 @@ function copyDir(src, dst) {
   execFileSync('rsync', ['-a', '--delete', '--exclude', 'node_modules', `${src}/`, `${dst}/`]);
 }
 
-// locks: a locked file that changed is refused before a round, a render or a keep (S5-71, S5-73)
+// locks: a locked file that changed is refused before a round, a render or a keep (S5-120, S5-121)
 function checkLocks() {
   const lf = findLocks(D);
   const bad = lockFaults(lf);
@@ -377,7 +377,7 @@ function nextStep() {
     const why = passStop(pass);
     if (!why) break;
     say(`pass ${pass} stops: ${why}`);
-    if (ref() && refStatus() === 'below') say(`best is still below its reference clip: tell the lead (S5-77); the shots or the acting of the reference may need copying again`);
+    if (ref() && refStatus() === 'below') say(`best is still below its reference clip: tell the lead (S5-112); the shots or the acting of the reference may need copying again`);
     if (refFrame() && (bestLikeness() ?? 0) < LIKENESS) say(`best is at likeness ${bestLikeness() ?? '-'}, under ${LIKENESS}: tell the lead (S5-108)`);
     const i = PASSES.indexOf(pass) + 1;
     if (i >= PASSES.length) { say(`done: best/clip.mp4 and best/code are the result`); return lines; }

@@ -98,4 +98,4 @@ he settled the rest (`why.md`, "The audit's tidy pass"):
 - A spike may still test haze or blur, as its one question, and says so in its plan (X-14); a builder never adds
   either quietly.
 - The survey also found that sharpness and saturation do not track the reference channel's views; the register still
-  aims at the reference stills' sharpness and at saturated colour by day (S5-97, S3-242).
+  aims at the reference stills' sharpness and at saturated colour by day (S5-113, S3-242).

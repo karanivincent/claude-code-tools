@@ -82,7 +82,7 @@ export function checkEmissive(files: Record<string, string>): WorldFault[] {
   return out;
 }
 
-// ---- S2-36: a reference frame for each scene --------------------------------------------------------------------------
+// ---- S2-37: a reference frame for each scene --------------------------------------------------------------------------
 /** The markdown tables in a text: each a header and its rows, cells trimmed. */
 export function mdTables(md: string): { header: string[]; rows: string[][] }[] {
   const out: { header: string[]; rows: string[][] }[] = [];
@@ -105,7 +105,7 @@ export function frameTokens(cell: string): { paths: string[]; ids: string[] } {
   const ids = [...rest.matchAll(/\b[a-z]{0,3}\d{2,5}\b/gi)].map((m) => m[0]);
   return { paths, ids };
 }
-/** S2-36: each scene names a reference frame (a table with a "Scene" column and a "Reference frame" or "Scene frame"
+/** S2-37: each scene names a reference frame (a table with a "Scene" column and a "Reference frame" or "Scene frame"
  *  column, in any of `docs`: scenes.md, parts.md "Scene frames" or the plan), and every frame it names is on disk.
  *  `found(token)` says whether a path or catalog id resolves to a file. */
 export function checkSceneFrames(docs: Record<string, string>, scenes: string[], found: (token: string) => boolean): WorldFault[] {
@@ -123,10 +123,10 @@ export function checkSceneFrames(docs: Record<string, string>, scenes: string[],
   const out: WorldFault[] = [];
   for (const scene of scenes) {
     const n = named.get(scene);
-    if (!n || !n.cell || /todo|tbd|none|^-$/i.test(n.cell)) { out.push({ rule: 'S2-36', scene, what: n ? `${n.doc} names no reference frame for ${scene} ("${n.cell}")` : `no reference frame named for ${scene} (a row in a "Scene | Reference frame" table of ${Object.keys(docs).join(' or ') || 'scenes.md'})` }); continue; }
+    if (!n || !n.cell || /todo|tbd|none|^-$/i.test(n.cell)) { out.push({ rule: 'S2-37', scene, what: n ? `${n.doc} names no reference frame for ${scene} ("${n.cell}")` : `no reference frame named for ${scene} (a row in a "Scene | Reference frame" table of ${Object.keys(docs).join(' or ') || 'scenes.md'})` }); continue; }
     const { paths, ids } = frameTokens(n.cell);
-    if (!paths.length && !ids.length) { out.push({ rule: 'S2-36', scene, what: `${n.doc}: the reference frame of ${scene} ("${n.cell}") names no file or catalog id` }); continue; }
-    for (const t of [...paths, ...ids]) if (!found(t)) out.push({ rule: 'S2-36', scene, what: `${n.doc}: the reference frame "${t}" of ${scene} is not on disk` });
+    if (!paths.length && !ids.length) { out.push({ rule: 'S2-37', scene, what: `${n.doc}: the reference frame of ${scene} ("${n.cell}") names no file or catalog id` }); continue; }
+    for (const t of [...paths, ...ids]) if (!found(t)) out.push({ rule: 'S2-37', scene, what: `${n.doc}: the reference frame "${t}" of ${scene} is not on disk` });
   }
   return out;
 }

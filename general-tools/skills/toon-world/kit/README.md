@@ -22,7 +22,7 @@ scene's `CUTS` and the join cards.
 Pure functions over a film's files, called by `tools/world-check.mjs` and `tools/night-check.mjs`: `checkInk` (S3-213,
 the stage file's ink toggle and each place's `ink`), `activeRims` / `checkRims` (S3-224, read as cardshade draws them: a
 warm card tint lights the warm rim even with `rims.on` 0), `checkEmissive` (S3-223, the cards' code only),
-`checkSceneFrames` (S2-36, a "Scene | Reference frame" table), `checkProbes` (S3-231), `checkLightSources` (S3-191),
+`checkSceneFrames` (S2-37, a "Scene | Reference frame" table), `checkProbes` (S3-231), `checkLightSources` (S3-191),
 `nightScenes`.
 
 ## frame.ts: what the frame shows

@@ -13,7 +13,7 @@ Reads each judge's reply (<outdir>/judge-<j>/reply.md, ending in judge-brief.md'
   keep:      new or best: the clip that is best after this round (win: new; loss: best; tie: the preferred one)
   protected: with --protect: per beat, the judges' votes (new, best, same) and "weaker": true when more judges
              picked best than new on it
-  ref:       with a reference clip (S5-77): its mean scores, and best and new against it: diff and status (beats when 0.1
+  ref:       with a reference clip (S5-112): its mean scores, and best and new against it: diff and status (beats when 0.1
              or more above it, ties within 0.1, below when 0.1 or more under it), and what the judges said it does better
 Replies in the older form (no likeness, rows, unnamed or protected) read as before: those fields stay empty.
 """

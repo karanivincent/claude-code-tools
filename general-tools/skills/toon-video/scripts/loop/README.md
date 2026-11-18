@@ -1,6 +1,6 @@
 # The scene loop scripts
 
-A film is built as scenes of 5 to 10 s, by areas in order across the whole film (S5-71, S5-73, S5-75): the world
+A film is built as scenes of 5 to 10 s, by areas in order across the whole film (S5-120, S5-121, S5-75): the world
 stage (one loop folder, `out/<slug>/world/`, pass `world`), the shots stage (`out/<slug>/shots/`, pass `shots`, when it
 runs judged rounds), then each scene (`out/<slug>/scenes/<scene>/`, passes `people` then `motion`). Each stage's files
 are locked before the next (`lock.mjs`). The sound check runs once on the film's mix at the join (S5-83). These
@@ -19,17 +19,17 @@ print each `claude -p` command, and stop.
 
 ## When a pass stops
 
-One rule, in `step.mjs` and both briefs. It replaces the differing numbers of S5-43, S5-89, S5-98 and the stills scale
-of S5-100 for the loop (the register change is listed for the lead to make). A pass stops at the first of:
+One rule, in `step.mjs` and both briefs. It replaces the differing numbers of S5-110, S5-111, S5-114 and the stills scale
+of S5-122 for the loop (the register change is listed for the lead to make). A pass stops at the first of:
 
 1. its clip reaches 4 on the 1 to 5 scale in the pass's area (the judges' mean on best; the reviewers' before any
    judging) and likeness 7 against its reference frame (S5-108);
 2. two rounds in a row with no win (a loss, a tie, or a round that failed the bar gate);
 3. six rounds.
 
-With a reference clip (S5-77) the first stop also needs best to beat or tie that clip. A scene with no reference frame
+With a reference clip (S5-112) the first stop also needs best to beat or tie that clip. A scene with no reference frame
 stops on the area score alone, and `step.mjs`, `look.sh` and `abjudge.sh` print a loud warning every time (S2-37).
-A round makes at most five changes (S5-41). Reference stills (`abjudge.sh --stills`, S5-97) are shown for detail; the
+A round makes at most five changes (S5-41). Reference stills (`abjudge.sh --stills`, S5-113) are shown for detail; the
 one number they feed is the likeness to the frame.
 
 ## The builder
@@ -100,7 +100,7 @@ round's line in `log.md`:
 | `jumps.sh <clip> <outdir> [--planned shots.json]` | One-frame jumps from toon-world's `short_qa.py`, frame numbers only | `jumps.md`, `jumps.json`, `qa/` |
 | `audible.py <mix.wav> <cues.json> [--voice voice.wav] [--out f]` | Each effect's loudness at its cue against the mix: heard, just or masked | `audible.md` |
 | `look.sh <clip> <round> --focus <area> [--ref-frame img] [--meaning f] [--prior f] [--claims f] [--protect f] [--hits f] [--words f] [--actions a,b] [--facts f] [--dry-run]` | Three Sonnet reviewers with `references/reviewer-brief.md`: reviewer 1 the cold reader (no script; names each main thing on screen, a thing it cannot name is a fault), reviewer 2 on sheets and frames, reviewer 3 on full-size stills at the action words; all three see the reference frame and the strips, answer W1 to W7 and give a likeness | `looks/<n>.md`, `looks/usage.jsonl`, `looks/scores.json`, `faults.md`, `faults.json` |
-| `abjudge.sh <best> <new> <round> [--judges 1\|3] [--brief f] [--meaning f] [--focus area] [--ref-frame img] [--ref clip] [--stills dir] [--protect f] [--hits f] [--model m] [--any-length] [--dry-run]` | Blind A/B with `references/judge-brief.md`: A/B order drawn per judge, the key outside the judge's folder; the reference frame as F; `--ref` shows the reference clip as R (S5-77); a weaker protected beat is a loss (X-20); refuses clips more than two times apart in length (S5-82) | `verdict.json`, `judges-usage.jsonl`, `judge-<j>/`, `keys/` |
+| `abjudge.sh <best> <new> <round> [--judges 1\|3] [--brief f] [--meaning f] [--focus area] [--ref-frame img] [--ref clip] [--stills dir] [--protect f] [--hits f] [--model m] [--any-length] [--dry-run]` | Blind A/B with `references/judge-brief.md`: A/B order drawn per judge, the key outside the judge's folder; the reference frame as F; `--ref` shows the reference clip as R (S5-112); a weaker protected beat is a loss (X-20); refuses clips more than two times apart in length (S5-82) | `verdict.json`, `judges-usage.jsonl`, `judge-<j>/`, `keys/` |
 | `joins.sh <film> <joins.json> <outdir> [--no-review]` | Jumps within 0.5 s of each join, a 2 s clip around it for one reviewer | `joins.md`, `join-<i>/` |
 
 `_brief.py` (fills a brief), `_beats.py` (reads `protect.md` and hits), `_usage.py` (the JSON reply and its usage),

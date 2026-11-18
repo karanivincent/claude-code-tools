@@ -24,7 +24,7 @@ Since 18 November 2026 the people are drawn and the world is rendered. Before bu
 3. `references/look-targets.md`: the numbers.
 4. `toon-video` SKILL.md, "Stages 3 to 6": the hardest scene first and the owner's Look yes (S5-108, S5-105); then each
    other place as set, cameras, fill and light, each locked (S3-185, S3-197). Its world agent brief is in
-   `toon-video/references/team-and-log.md` (X-5).
+   `toon-video/references/team-and-log.md` (X-36).
 
 ## Contents
 
@@ -106,7 +106,7 @@ A concrete example, one place:
 
 The first place built is the hardest one, with one scene in it, as `toon-video`'s stage 3 (S5-108, S2-17); the owner's
 Look yes on it sets the look for the other places (S5-105). The world agent is briefed from `toon-video`'s
-`references/team-and-log.md` (X-5).
+`references/team-and-log.md` (X-36).
 
 ## Building a place
 
@@ -123,7 +123,7 @@ Copy this checklist into the story's `checklist.md` and tick it as you go (S0-8)
 - [ ] Probe still from the widest camera beside the scene frame, before the place is built out (S3-231)
 - [ ] Set: middle and ground in code 3D with painted textures, 2048 px, mipmaps, 16x anisotropy; a lit far view or wall, floor that leads in, three depths (S3-7, S3-8, S3-229, S3-230)
 - [ ] Doorways reach the floor; coplanar pieces offset (S3-23, S3-24)
-- [ ] Cameras and shot sizes set by the shots agent with the set, and locked into "shots" (S3-246, S5-73)
+- [ ] Cameras and shot sizes set by the shots agent with the set, and locked into "shots" (S3-249, S5-121)
 - [ ] Set list for what the cameras show: 8 or more props, a full background, extras (S3-2)
 - [ ] Hero props in code, sized against a person (S2-11, S3-26)
 - [ ] Fill placed for the locked camera: 3 m of floor behind a mid shot's mark, extras by what the camera shows (S3-185..S3-189)
@@ -134,10 +134,10 @@ Copy this checklist into the story's `checklist.md` and tick it as you go (S0-8)
 - [ ] Light and grade set (sections below), checked on full-size frames
 - [ ] Cold read of each new place, prop, effect, material and face (S4-13)
 - [ ] Far picture faces the cameras; screen direction and blockers in marks.ts (S5-72, S5-79)
-- [ ] World rounds until world and light reach 4, the world rows W1 to W7 scored (S5-43, S5-57..S5-62); place locked into "world" (S5-71)
+- [ ] World rounds until world and light reach 4, the world rows W1 to W7 scored (S5-110, S5-57..S5-62); place locked into "world" (S5-120)
 ```
 
-One world agent builds all the places of a film, before any scene is acted (S5-71), in `toon-video`'s order. Stage 3:
+One world agent builds all the places of a film, before any scene is acted (S5-120), in `toon-video`'s order. Stage 3:
 the hardest place and one scene in it, as a spike, to likeness 7 and the owner's Look yes (S5-108, S5-105). Stage 4,
 each other place in turn: a. the set, with no fill; b. the shots agent sets and locks its cameras; c. fill and light
 for what those cameras show (S3-185, S3-197); d. world rounds in `out/<slug>/world/<place>/`: the agent changes the
@@ -164,7 +164,7 @@ Fill added behind a hero who fills two-thirds of the frame changed 1 to 4% of th
 place first.
 
 - Shot size comes before fill: fill a place once its locked camera shows it (S3-185), with the hero at about a third
-  of the frame height where the place has to read (S3-246, S3-241).
+  of the frame height where the place has to read (S3-249, S3-241).
 - A mid shot shows at least 3 m of floor behind the hero's mark, so an extra there stands under two-thirds his size
   (S3-186).
 - A close shot is filled with small moving things beside the hero, never a second face (S3-187): an animal, steam,

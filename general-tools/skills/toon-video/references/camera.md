@@ -98,7 +98,7 @@ All from `src/toon-kit/camera` (synced by `sync-kit.mjs`); a story keeps no copy
 
 ## Framing
 
-The shots stage sets every scene's shots before any acting and locks them (S5-73), with the hero at the one size of
+The shots stage sets every scene's shots before any acting and locks them (S5-121), with the hero at the one size of
 S3-241: about a third of the frame height where the place has to read, about half for acting; a wide with the hero
 smaller than a third lasts 1.5 s at most (S5-102). Every
 shot looks into the place's far picture (S5-72). When an earlier build of the beat exists, its shot sizes and camera
@@ -130,7 +130,7 @@ down" from the plan alone, came out with faces at 1/20 of the frame and lost to 
 From two spike series on 18 November 2026, measured against the newest Short of a larger channel in the same look;
 proven on short stretches only (X-30, `spikes.md`).
 
-- Choose shot sizes with the set at the shots stage, so the place shows round the hero (S3-246, S3-241, S5-102).
+- Choose shot sizes with the set at the shots stage, so the place shows round the hero (S3-249, S3-241, S5-102).
   Fill comes after the camera is locked (S3-185).
 - Show a thing in the wide before cutting to it, so the close reads as "that thing over there" (S3-171).
 - Each fact gets its own moment at reading size on its word; first make it bigger in the world (1.3 times bigger

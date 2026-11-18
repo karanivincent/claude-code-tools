@@ -421,3 +421,27 @@ Left open for the owner:
   has been tested on that channel; until he decides, a night opening there fails its floor.
 - What happens if the proof film loses to the spike clips it is meant to match (X-30): which rules go back, and who
   decides. Nothing is written yet.
+
+### What the audit's builders added to the loop and the order, 18 November 2026
+
+Three readers audited the skills against the last three films; the owner answered "apply all". Beside the tidy pass
+above, four builders made the existing rules bind:
+
+| What | Rules | Where it is enforced |
+|---|---|---|
+| One stop rule and one number | S5-110, S5-111, S5-112, S5-113, S5-114, S5-122 (were S5-43, S5-89, S5-77, S5-97, S5-98, S5-100) | `step.mjs` (pass stops); the briefs give likeness 1 to 10 against the scene frame |
+| The reviewers and the judge see the scene frame | S2-37, S5-122 | `look.sh --ref-frame`, `abjudge.sh --ref-frame`; a film with none runs with a warning |
+| A cold reader | S5-115 | reviewer 1 in `look.sh` |
+| Protected beats; every frame round a hit | S5-116, S5-117 | `protect.md`, `frames.sh --strips`, `_verdict.py` |
+| A kept round has an outside look | S5-118 | `step.mjs keep` |
+| The gate | S5-119 | `step.mjs bar`, `bar-check.py --gate [--night]` |
+| Approvals on file | S0-22, S5-105 | `step.mjs round`, `lock.mjs set look` |
+| The order: first scene, the look, then set, cameras, fill, lock | S5-108, S5-120, S5-121, S3-249 | `lock.mjs` (`shots` needs `look`, `world` needs `shots`) |
+| Briefs that are filled in | X-36 | `team-and-log.md`, filed in `stories/<slug>/briefs/` |
+| Checks from the film's own data | S3-213, S3-224, S3-223, S2-37, S3-231, S3-191, S3-147, S3-95, S3-175, S3-238 | `tools/world-check.mjs`, `frame-check.mjs`, `night-check.mjs`, `shots-check.mjs` |
+
+Known when it merged: a film made from the templates fails `world-check` on ink and rims until the look code is
+brought into `templates/look/`; the night gate allows a brightest 5% of 190 at most, which the older night spike clips
+(209 to 229) fail and the first scene of hannibal-oxen (164 to 175) passes; nothing has yet run against a real model
+reply, only against made ones.
+

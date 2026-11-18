@@ -5,7 +5,7 @@
 //   S3-224  no rim on the cards: each place light's rims, read as look/cardshade.ts draws them (a warm card tint turns
 //           the warm rim on even with rims.on 0); a place that draws its cards flat (`people.flat`) passes
 //   S3-223  never emissive: every emissive set in the cards' code (this story's cast.ts, src/look/cardshade.ts) is zero
-//   S2-36   each scene names a reference frame that is on disk: a "Scene | Reference frame" (or "Scene frame") table in
+//   S2-37   each scene names a reference frame that is on disk: a "Scene | Reference frame" (or "Scene frame") table in
 //           stories/__SLUG__/scenes.md, parts.md or plan.md; a catalog id (s011) is looked up as <id>.jpg/png under
 //           out/__SLUG__/ref/, stories/__SLUG__/ref/ and stories/__SLUG__/references/ (and any --ref-dir)
 //   S3-231  each place has a probe still: out/__SLUG__/places/<place>/probe.jpg (or probe-<name>.jpg/png)

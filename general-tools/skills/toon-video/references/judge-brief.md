@@ -18,12 +18,12 @@ against the reference frame, or two rounds in a row with no win, or six rounds. 
 (X-20) loses, whatever its average. The builder is the same agent each round, resumed with SendMessage (X-4); the
 judge is fresh each round.
 
-Built from the spikes' judge brief (spike 7), with Vincent's own criteria (S5-94) and standing notes (S5-100). Judges
+Built from the spikes' judge brief (spike 7), with Vincent's own criteria (S5-94) and standing notes (S5-122). Judges
 see 6 frames a second on the sheets and every frame round each hit and protected beat (S5-95, X-23). The judge is a
 stand-in for Vincent: his own pick outranks any judge, and the lead logs each judge pick that differs from his in
 `stories/<slug>/judge-vs-owner.md`, with the model (S5-96). Neutral by design: no area is named as the one being worked
 on, unless the loop asks for a lean with `--focus`. With `--ref`, `{REF_BLOCK}` adds a third clip, R: an earlier good
-build of the same beat (S5-77), and `{REF_JSON}` adds its scores to the JSON block. Without it both fields are empty.
+build of the same beat (S5-112), and `{REF_JSON}` adds its scores to the JSON block. Without it both fields are empty.
 
 ---
 
@@ -89,7 +89,7 @@ take the two for the same film; 10 indistinguishable in look. Judge the world, l
 the folder S/ holds reference stills, open every one and use them for detail; the likeness number is still against
 the frame. Without a reference frame write `"likeness": null`.
 
-## Vincent's standing notes (S5-100)
+## Vincent's standing notes (S5-122)
 
 He has given these notes on round after round; check them yourself, each round, without being asked:
 - Detail on every object the story turns on: rivets, bolts, panel lines, labels, wear. A hero object that is a flat

@@ -21,9 +21,9 @@
 # --ref-frame: the scene's reference frame (S2-37), shown as F/; the judges score likeness 1 to 10 against it and the
 #   world rows. Default: <outdir>/../ref-frame.jpg (or .jpeg, .png). Without one: a loud warning and no likeness.
 # --ref: an earlier build of the same beat or film that is known to be good (a spike, a practice clip, an earlier
-#   version: S5-76, S5-77). Each judge sees it too, as R, labelled as the reference (not blind), scores it, and says
+#   version: S5-76, S5-112). Each judge sees it too, as R, labelled as the reference (not blind), scores it, and says
 #   whether A and B beat, tie or fall short of it. verdict.json then has "ref": best and new against it.
-# --stills: a folder of the picked reference stills (*.jpg, S2-34, S5-97), shown as S/, for detail.
+# --stills: a folder of the picked reference stills (*.jpg, S2-34, S5-113), shown as S/, for detail.
 # --protect: the scene's protected beats (protect.md, X-20). The judges say which clip plays each better; a round
 #   whose new clip plays one worse is a loss, whatever its average (_verdict.py).
 # --hits: hits, landings and strikes (a cues.json or "1.2,3.4"): every-frame strips round each, and round each
