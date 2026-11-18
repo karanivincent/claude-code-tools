@@ -7,7 +7,7 @@ lifted blacks, haze toward the horizon, ink-dot hands; see `why.md`, "Superseded
 
 ## Colour and grade
 
-By day bright and saturated (S3-207), the black point near black (S3-206). Indoors and at night, saturation stays at or
+By day bright and saturated (S3-242), the black point near black (S3-206). Indoors and at night, saturation stays at or
 above the day's (S3-205). At night the room goes dark, lit by lamps in frame, with the darkest parts above pure black
 (S3-205); the night column is from the spikes of 18 November 2026 (the reference's night Short: mean 77, darkest 5%
 33, brightest 5% 173 of 255).
@@ -19,8 +19,8 @@ above the day's (S3-205). At night the room goes dark, lit by lamps in frame, wi
 | Highlights (p95 to p99) | near white, 0.87 to 0.97 | near white | 0.74 to 0.87 | the lamp pools, near 0.69 (175 of 255) (S3-220) |
 | Lit chroma C* p50 / p90 | 34 / 55 or more | 34 / 55 or more | 34 / 55 or more | at or above the day's |
 | Corners over centre (vignette) | 0.86 | 0.86 | 0.65 | |
-| Shadow colour | Cool tint in shade, same hue as lit | Violet-blue (facade about #444380), not brown (S3-207) | Neutral blue-grey, not violet; violet turns stone lavender (S3-218) | Blue-violet away from the lamps, warm in their pools |
-| Sky | Top about #5e93d9, horizon 1.28 times brighter | Peach horizon #ffd08a | | Blue-violet |
+| Shadow colour | The surface's own colour, a little cooler; never grey or brown (S3-242, S3-218). Unproven by day in the rendered look | The same, cooler toward the sky; not violet or brown (S3-242) | Neutral, keeping the surface's colour; violet turns stone lavender (S3-218) | A neutral fill, cool only away from the lamps, warm in their pools (S3-219) |
+| Sky | Top about #5e93d9, horizon 1.28 times brighter | Peach horizon #ffd08a | | Slate blue-grey with a large moon (S3-232) |
 
 Metals and gold at about 60% albedo (S3-52). Faces are not lemon or lavender-lit.
 
@@ -40,7 +40,7 @@ films made before that date and for a people's outline.
 - Lens blur radius at infinity: 0 in every shot size (S3-35); at most 4 px at 1080 wide where the shot's reference
   still shows a soft background (S3-36).
 - Detail, measured with `scripts/measure_sharp.py` on the clip and on the picked reference stills: aim at the stills'
-  sharpness and fine edges (S5-97). The B-17 stretch measured 207 and 6.6 %; the railroads Short 1251 and 16.2 %.
+  sharpness and fine edges (S5-113). The B-17 stretch measured 207 and 6.6 %; the railroads Short 1251 and 16.2 %.
 - A near foreground object in about 20% of frames, sharp.
 - The far band stays crisp and saturated; no fog and no lean toward the horizon colour (S3-15).
 - Bloom on emissive sources (threshold 1.0, intensity 0.5, 6 levels, radius 0.6); faces do not glow (S3-44).

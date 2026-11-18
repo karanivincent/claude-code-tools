@@ -56,8 +56,8 @@ the same one.
    built. Each works from `shotlist.md`, `meaning.md` and the previous round's `critique.md`; resume the same
    agents each round so they keep their knowledge of the code. Shared wiring files take only small, marked edits.
 3. **Render and compare.** You render (the coordinator, not an agent). Practice copies only: the contact sheet
-   first, a full render once the sheet scores well. A real story follows `toon-video`'s cycle instead (three critic
-   rounds on the beat board, then one render; S5-1, S5-13). Then
+   first, a full render once the sheet scores well. A real story follows `toon-video`'s order instead: the hardest
+   scene first to the owner's Look yes, then each scene's rounds judged blind against its best (S5-108, S5-41). Then
    `bash <skill>/scripts/side-by-side.sh ref.mp4 ours.mp4 out/practice/<slug>/round-N/` makes a sheet
    of matching seconds, theirs on the left, ours on the right, plus the measures.
 4. **Critic.** It scores each second's pair 1 to 5 (1 missing, 5 as good as theirs) on six counts: the
@@ -65,8 +65,8 @@ the same one.
    picture (jokes, signs, state kept), sound. It names the ten biggest gaps, each with the second and
    the owning agent.
 5. **Repeat** from step 2 with the gaps. Practice copies only: stop when the average is 4.2 or more and no
-   second scores 1, or after five rounds; say which. A real story stops by `toon-video`'s rule instead (4.2, or a
-   cycle that gains under +0.1; S5-23).
+   second scores 1, or after five rounds; say which. A real story stops by `toon-video`'s pass rule instead (S5-110,
+   S5-112).
 6. **Learn.** Write what this copy taught to `docs/PRACTICE.md` in bible-shorts (newest first): the
    score each round, what moved it, and which helpers were added. A lesson that would help any toon
    video goes into `toon-video/references/rules.md` as a rule with the next free id, its proof and its why
@@ -89,5 +89,5 @@ in the same table. Matching them is part of matching the video.
 | Building before the shot list is complete | Breakdown first, checked against the reference sheet |
 | Camera agent working before the sets exist | Camera goes last in each round |
 | Two agents editing one file | Each agent owns its files (table above) |
-| Judging from the full render (practice copies) | Score the contact sheet first; full render once it scores well. Real stories use the cycle (S5-1) |
+| Judging from the full render (practice copies) | Score the contact sheet first; full render once it scores well. Real stories use the scene loop (S5-41) |
 | Keeping lessons in the practice branch | `docs/PRACTICE.md`, and a rule with an id in `rules.md` for the general ones |

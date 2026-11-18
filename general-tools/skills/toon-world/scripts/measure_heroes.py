@@ -16,7 +16,7 @@ catalog's index.json measures (taken on the full frames) to use those instead.
 A hero that moves (a plane crossing the sky) gives "boxes": [[t, [x0, y0, x1, y1]], ...] instead of "box": a tight box
 round it at a few times, linearly interpolated, so the measure is of the hero and not of the sky round it.
 A hero drawn flat on purpose (the people cards of a toon look) gives "measure": false: it is listed for the
-reviewers' eyes (S5-100) and never fails here, since a flat card can never match a painted still.
+reviewers' eyes (S5-122) and never fails here, since a flat card can never match a painted still.
 
 Each hero gets the sharpness (variance of the Laplacian of grey) and fine edges (share of Sobel magnitude over 60) of
 its box, one frame in three, beside its stills' medians. A hero under `share` (default 0.8) of its stills on either

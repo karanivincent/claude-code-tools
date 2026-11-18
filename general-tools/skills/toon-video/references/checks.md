@@ -8,7 +8,7 @@ stories' tools. <!-- lint-ok -->
 
 | Check | Script | Gives | Rule |
 |---|---|---|---|
-| Locks | `scripts/loop/lock.mjs out/<slug> set\|check\|reopen` (and `step.mjs` before each round, render and keep) | The places, then the cameras, sizes and join cards, frozen; a changed locked file is refused | S5-71, S5-73 |
+| Locks | `scripts/loop/lock.mjs out/<slug> set\|check\|reopen` (and `step.mjs` before each round, render and keep) | The places, then the cameras, sizes and join cards, frozen; a changed locked file is refused | S5-120, S5-121 |
 | Shot sizes and the far picture | `templates/scene/tools/shots-check.mjs` | Per shot: the hero's height in the frame, wides over 1.5 s with the hero under a third, cameras looking away from the far picture, frames in no shot | S5-72, S5-102 |
 | The rough film | `scripts/loop/abjudge.sh <animatic> <rough film> out/<slug>/film-0 --judges 3` | Film-level faults before any acting | S5-84 |
 
@@ -23,7 +23,7 @@ stories' tools. <!-- lint-ok -->
 | Scene words | `scripts/loop/words.mjs <full.json> --scene <id> --plan <plan.ts>` | The scene's words on its own clock, for `look.sh --words` | S5-41 |
 | Paths that clear | `templates/scene/` path projection | An action's path against the other figures and the blockers on screen; an action that ends after its scene | S5-80, S5-87 |
 | Reviewers | `scripts/loop/look.sh` with `reviewer-brief.md` | Five area scores, a path to 5, `faults.md` | S5-41 |
-| Blind judge | `scripts/loop/abjudge.sh` with `judge-brief.md` (`--ref` adds the reference) | `verdict.json`: win, loss or tie, credited and blamed; with a reference, best and new beat, tie or fall below it | S5-42, S5-44, S5-77 |
+| Blind judge | `scripts/loop/abjudge.sh` with `judge-brief.md` (`--ref` adds the reference) | `verdict.json`: win, loss or tie, credited and blamed; with a reference, best and new beat, tie or fall below it | S5-42, S5-44, S5-112 |
 
 ## On the joined film
 

@@ -42,6 +42,24 @@ export function storyPub() {
   return path.join(OUT, 'pub');
 }
 
+/** a world point to screen pixels through a scene camera (pos, look, fov, roll), as shots-check.mjs projects; null when
+ *  behind the lens */
+export function projectPx(cam, p, W = 1080, H = 1920) {
+  const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const norm = (a) => { const l = Math.hypot(...a) || 1; return a.map((v) => v / l); };
+  const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const fwd = norm(sub(cam.look, cam.pos)); let right = norm(cross(fwd, [0, 1, 0])); let up = cross(right, fwd);
+  const r = ((cam.roll ?? 0) * Math.PI) / 180;
+  if (r) { const c = Math.cos(r), s = Math.sin(r); [right, up] = [right.map((v, i) => v * c + up[i] * s), up.map((v, i) => v * c - right[i] * s)]; }
+  const d = sub(p, cam.pos), z = dot(d, fwd);
+  if (z <= 0.05) return null;
+  const t = Math.tan(((cam.fov ?? 40) * Math.PI) / 360), aspect = W / H;
+  return { x: (dot(d, right) / (z * t * aspect) + 1) * (W / 2), y: (1 - dot(d, up) / (z * t)) * (H / 2), z };
+}
+
+/** the project's toon-kit file (src/toon-kit/<name>.ts, written by sync-kit.mjs), loaded in node; null when it is missing */
+export const loadKit = (name) => loadTs(path.resolve('src', 'toon-kit', `${name}.ts`)).catch(() => null);
+
 /** argv: positional args and --key value / --flag */
 export function args(argv = process.argv.slice(2)) {
   const pos = [], o = {};

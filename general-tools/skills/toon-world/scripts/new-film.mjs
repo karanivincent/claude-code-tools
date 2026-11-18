@@ -4,9 +4,10 @@
 //   node new-film.mjs <project-root> <slug> <CompositionId> --whole-film [--force]
 //
 // The scene loop (default). The film is split into 5-10 s scenes, each its own small composition that renders in about
-// 15 s, built by stages across the whole film: one world agent builds and locks every place, one shots agent sets and
-// locks every camera, shot size and person's size, then up to four scene builders do the people and motion passes,
-// every round judged blind against the best so far (and against the scene's reference when it has one). It writes:
+// 15 s, built in toon-video's order: the hardest place and one scene in it first, as a spike, to the owner's Look yes;
+// then each other place in turn (its set, then its cameras and shot sizes, then fill and light, each locked); then up
+// to four scene builders do the people and motion passes, every round judged blind against the best so far (and
+// against the scene's beat reference when it has one). It writes:
 //   src/stories/<slug>/                plan.ts (the frame plan), Film.tsx (with captions.tsx), compositions.tsx, stage.tsx,
 //                                      cast.ts, sizes.ts, CastSheet.tsx, joins.ts, motion.ts, poses.tsx,
 //                                      full.json (an empty stand-in until the voice script writes it)
@@ -26,8 +27,10 @@
 // --whole-film keeps the earlier method: templates/film/ into src/stories/<slug>/ (Film.tsx, Stage.tsx, place.ts, ...),
 // the gate's measuring scripts into its tools/, with the gate and critic cycles over the whole film.
 //
-// Both: templates/sound/story-sound.mjs to scripts/<slug>-sound.mjs; the paperwork (stories/<slug>/meaning.md, parts.md,
-// checklist.md, findings.md, src/stories/<slug>/approvals.json as {}); the look stack (templates/look/ without the
+// Both: templates/sound/story-sound.mjs to scripts/<slug>-sound.mjs; the paperwork (stories/<slug>/meaning.md; parts.md
+// with each place's light source, key lamp and probe still and a scene frame per scene; checklist.md, written from
+// toon-video's SKILL.md "The order" and every live rule of references/rules.md (S0-8); lessons.md for the scene loop,
+// findings.md for --whole-film, whose gate still reads it; src/stories/<slug>/approvals.json as {}); the look stack (templates/look/ without the
 // practice cast.ts) into src/look/ when the project has none (--look updates an older one: every option the scene loop
 // added is off by default, so existing stories render the same, and it lists the other stories that import src/look so
 // one still of each can be compared before and after (S0-21)); then the toon-kit (sync-kit.mjs, warnings for this story
@@ -147,11 +150,73 @@ else if (updateLook) {
 }
 // the paperwork; the review page writes approvals.json when the owner clicks, never an agent
 write(`stories/${slug}/meaning.md`, `# ${slug}: meaning sheet\n\n<!-- One row a line of the script: what it means, the verb it shows, and what the viewer must see on its word\n(each becomes a STORY.mustSee entry). The gate needs this file filled in. -->\n\n| Line | What it means | The verb | Must see, on which word |\n|---|---|---|---|\n`);
-write(`stories/${slug}/parts.md`, `# ${slug}: parts plan\n\n<!-- One section a place (its name as in places/index.ts), the blend's bands in each (decision 1): the owner
-approves it on the review page before the place is built. The gate wants a "## <place>" section for every place and no
-TODO left. -->\n\n## <fill: place name>\n\n- Far band (one picture): TODO\n- Middle band (code 3D, painted textures at 2048): TODO\n- Ground (code 3D, painted textures at 2048): TODO\n- Props (code 3D; a Higgsfield model only when the owner asks): TODO\n- Detail layer (small real things that move: flies, smoke, cloth, birds, an animal; not dots): TODO\n- The story's state this place shows (a drought, night, a crowd): TODO\n`);
-write(`stories/${slug}/checklist.md`, 'Built from toon-video/references/rules.md at start\n');
-write(`stories/${slug}/findings.md`, `# ${slug}: findings per critic round\n\n<!-- One section a critic report from round 2 on, and one for every render report: "## <cycle>-<round>" (## 1-2,\n## 1-render). In each: the predicted gain against the result, then each finding as fault, what allowed it, the change, and its\nlevel (impossible, easy, rule with a picture, check; S5-11, S5-27). A kind that comes back moves up a level (S5-28).\nThe gate refuses a report without its section (S5-38). -->\n`);
+write(`stories/${slug}/parts.md`, `# ${slug}: parts plan
+
+<!-- One section a place, named as in places/index.ts. The owner approves each by its parts-<place> button before it is
+built, and again when it changes (S2-30). Look in toon-world/library/index.md first (S2-32). The gate refuses a TODO or
+<fill ...> left in this file. -->
+
+## <fill: place name>
+
+- Library: <fill: entries copied from toon-world/library/index.md, or "none fits (checked)"> (S2-32)
+- Reference stills: <fill: the stills from references.md this place copies, and what each is for> (S2-34)
+- State: TODO (the story's state here: a drought, night, a crowd; S2-13)
+- Sky: TODO (S3-232)
+- Far band, or a lit far wall indoors: TODO (S3-229)
+- Middle (code 3D, painted textures at 2048): TODO
+- Ground (code 3D, a painted tile; floor that leads the eye in): TODO
+- Detail layer (small real things that move: flies, smoke, cloth, birds, an animal; not dots): TODO (S3-9)
+- Behind the hero, per shot (something that fits the story moves): TODO (S3-169)
+- Behind a gate, door or wall the story names: TODO (S2-14)
+- Things to sit on and to hold, and who uses them: TODO (S3-233)
+- Hero props (code 3D; a Higgsfield model only when the owner asks): TODO (S2-11)
+- People: TODO
+- Effects: TODO
+- Light source (a sun, window, lamp or fire in the place) and the side it shines from: TODO (S3-191)
+- Key lamp (in front of the hero and to one side, placed at stage 4c for the locked cameras): TODO (S3-197, S3-209)
+- Probe still: out/${slug}/places/<place>/probe.jpg, from the widest camera, beside the scene frame, before the place
+  is built out (S3-231)
+- Flat 2D exception: none (S2-9)
+
+## Scene frames
+
+<!-- One row a scene (S2-37): a frame of its own kind and light level, a night camp against a night camp. The reviewer's
+likeness number 1 to 10 is scored against it. None in the catalog: ask the owner; a scene is not scored without one. -->
+
+| Scene | Place | Light (day, dusk, night, lamp-lit room) | Scene frame (catalog path or file) | What it sets the bar for |
+|---|---|---|---|---|
+| <fill: s01> | <fill> | <fill> | <fill> | <fill> |
+`);
+// checklist.md: the order from toon-video's SKILL.md, then every live rule of the register by stage, copied word for
+// word so a handover ticks the rule itself, never a retelling of it (S0-8, X-7)
+const TV = path.join(here, '..', '..', 'toon-video');
+const checklist = (() => {
+  const head = `# ${slug}: checklist\n\nWritten by new-film.mjs on ${new Date().toISOString().slice(0, 10)} from toon-video's SKILL.md ("The order") and\nreferences/rules.md (S0-8). Tick each line as it is done; copy lines word for word, never retell them (X-7).\n`;
+  const parts = [head], miss = [];
+  try {
+    const sk = fs.readFileSync(path.join(TV, 'SKILL.md'), 'utf8');
+    const m = sk.match(/```\n(## <story>: the order\n[\s\S]*?)```/);
+    if (m) parts.push('\n' + m[1].replaceAll('<story>', slug).replaceAll('<slug>', slug)); else miss.push('the order block in SKILL.md');
+  } catch { miss.push(path.join(TV, 'SKILL.md')); }
+  try {
+    const rules = fs.readFileSync(path.join(TV, 'references', 'rules.md'), 'utf8').split('\n');
+    const out = []; let h2 = null, h3 = null, shown2 = null, shown3 = null, n = 0;
+    for (const l of rules) {
+      if (/^## /.test(l)) { h2 = /^## (S\d|X) /.test(l) ? l.slice(3) : null; h3 = null; continue; }
+      if (/^### /.test(l)) { h3 = l.slice(4); continue; }
+      if (!h2 || !/^- \*\*(S\d+|X)-\d+\*\*/.test(l)) continue; // struck rules start "- ~~" and are left out
+      if (shown2 !== h2) { out.push(`\n### ${h2}\n`); shown2 = h2; shown3 = null; }
+      if (h3 && shown3 !== h3) { out.push(`\n#### ${h3}\n`); shown3 = h3; }
+      out.push(l.replace(/^- /, '- [ ] ')); n++;
+    }
+    if (n) parts.push(`\n## The rules, by stage (${n} live rules)\n` + out.join('\n')); else miss.push('rules in rules.md');
+  } catch { miss.push(path.join(TV, 'references', 'rules.md')); }
+  if (miss.length) console.log(`checklist.md: could not read ${miss.join(', ')}; the checklist is incomplete (S0-8).`);
+  return parts.join('\n') + '\n';
+})();
+write(`stories/${slug}/checklist.md`, checklist);
+if (whole) write(`stories/${slug}/findings.md`, `# ${slug}: findings per critic round\n\n<!-- The whole-film method only: its gate reads this file. One section a critic report from round 2 on, and one for every\nrender report: "## <cycle>-<round>" (## 1-2, ## 1-render). In each: the predicted gain against the result, then each\nfinding as fault, what allowed it, the change, and its level (impossible, easy, rule with a picture, check; S5-27). -->\n`);
+else write(`stories/${slug}/lessons.md`, `# ${slug}: lessons\n\n<!-- One line per owner note (its id in src/stories/${slug}/notes.json) and per judge's or reviewer's finding, closed as\n"<id>: story-only" or "<id>: <rule id>" (S6-15). A finding true of any video becomes a rule through add_rule.mjs, by\nPR to the skills repo the same day (X-12). -->\n`);
 write(`src/stories/${slug}/approvals.json`, '{}\n');
 console.log(`wrote ${wrote.length}: ${wrote.join(', ')}`);
 if (kept.length) console.log(`kept (exist already; --force to overwrite): ${kept.join(', ')}`);
@@ -205,7 +270,7 @@ Each scene, from the project root (toon-world/templates/scene/README.md has the 
   node src/stories/${slug}/tools/stills-sheet.mjs poses ${s0}       the pose sheet
   node src/stories/${slug}/tools/stills-sheet.mjs ${s0} --n 8       a stills sheet (half scale)
   node src/stories/${slug}/tools/cam-speed.mjs ${s0}                the camera's speed per frame
-  node src/stories/${slug}/tools/shots-check.mjs                  shot sizes and the far picture, every scene (shots stage)
+  node src/stories/${slug}/tools/shots-check.mjs                  shot sizes, the far picture and the cut budget (stage 4b)
   node src/stories/${slug}/tools/path-check.mjs ${s0}               the action's path against the other figures and blockers
   node src/stories/${slug}/tools/pose-check.mjs ${s0}               face swaps and hand jumps in one frame
   node src/stories/${slug}/tools/render.mjs ${s0} --scale 0.5       a render (concurrency 3)`);

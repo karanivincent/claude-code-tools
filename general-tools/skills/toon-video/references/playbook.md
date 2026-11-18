@@ -82,7 +82,7 @@ Status: **built** (in the kit, with a file), **blueprint** (we know how, not bui
 | Time-lapse on a locked frame | "A week of nothing" becomes something to watch | Sun and grade by frame; a nest, a web, a plant growing by a 0–1 dial | blueprint | spear and shield, grave bell |
 | An off-screen event told by light | The police arrive without a car shot | Red and blue light swept over the room for about 20 frames | blueprint | burglar, random numbers |
 | Season as a time code | Spring blossom against autumn leaves says "a year earlier" | Two versions of the place picture and its particles | blueprint | burglar |
-| Interiors as big flat shapes with crisp ink (about 12% fine edges) | Clean and readable, not noisy | Superseded: places use the blend (S2-7, S2-8); keep the 12% ink measure | superseded | expulsion room, burglar, cashiers |
+| Interiors as big flat shapes with crisp ink (about 12% fine edges) | Clean and readable, not noisy | Superseded: places use the blend (S2-7, S2-8), and the world carries no ink since 18 Nov 2026 (S3-213) | superseded | expulsion room, burglar, cashiers |
 | Multiplane flat places | Cheap, sharp, fast to build, real depth on a phone | 3 to 6 drawn planes at depth; blur by depth; bokeh and dust planes | blueprint | teleporter |
 
 ## People
@@ -90,19 +90,19 @@ Status: **built** (in the kit, with a file), **blueprint** (we know how, not bui
 | Technique | Why it works | Blueprint | Status | Seen in |
 |---|---|---|---|---|
 | Flat near-white faces, thick outline, ball hands, a shadow on the ground | Reads at any size; the face carries each joke | `people.ts`; our cards are flat too (S3-223) | built | both |
-| Expressions swapped on one frame, held 8–30 frames | Snappy acting without in-betweens | `people.ts` faces | built | both |
+| Expressions swapped on one frame, held 8–30 frames | Snappy acting without in-betweens | Superseded: a face change eases over three frames or more (S5-78) | superseded | both |
 | Angle drawings: front, three-quarter, side, back, a lean against glass, seated at the pedals | The card turns with the camera instead of looking flat | More drawings in `people.ts` | partly built (no back, lean or seated) | both |
 | Lip sync on spoken lines, about 8 mouth shapes on ones; none under narration | A speaking character feels alive; the narrator stays invisible | Mouth shapes picked per frame from the ElevenLabs word and letter timing | blueprint | dashcam |
 | Cards inside 3D things: behind car glass, hidden by a bonnet, half under pool water | People belong to the world, not on top of it | Depth-tested cards, a glass layer drawn after them, a water cut with tint and ripples | blueprint | dashcam |
 | A 3D prop leaving a 2D head (a hat flying off on a startle) | A big readable gag | A 3D hat parented to the card, released on a frame | built | railroads |
-| A drawn rim light on cards at night | Sits people in coloured light without lighting the face | A coloured edge line on the lit side | blueprint | dashcam |
+| A drawn rim light on cards at night | Sits people in coloured light without lighting the face | Superseded: a card carries no light rim (S3-224) | superseded | dashcam |
 | A pose library: seated, back, lying from above, carrying | Nearly each story needs a person who is not standing | Drawings per pose in the cast style, swapped on one frame | blueprint | 19 of 20 |
 | Marks that stay on a person (dirt, bruise, soot, bandage, stubble) | Continuity jokes and time passing | Face and body overlays keyed by story time | blueprint | second draw, dashcam, ancient jar |
 | Costume change on the beat | The role change is seen, not said | Swap the outfit on the word that changes the role | blueprint | cashiers, random numbers, burglar, idea zone |
 | The off-screen sleeve before the person | She is in the story from second one, so her reveal pays off | An arm card in her colour entering from the frame edge on her early actions | blueprint | random numbers |
 | An animal witness | Deadpan reactions add jokes and can take a side | A cat card with four faces, cut in on beats | blueprint | burglar, pachinko |
 | Give the mechanism a face | A sweating object sells danger no narration can | The people face kit on a prop | blueprint | cannonballs, time test, random numbers, idea zone |
-| Ghost, silhouette, x-ray and grey variants of a card | An inner state or a hidden truth in one drawing | A shader or texture variant per card | blueprint | teleporter, cashiers, idea zone, pink prison |
+| Ghost, silhouette, x-ray and grey variants of a card | An inner state or a hidden truth in one drawing | A shader or texture variant per card; an invented person is a paper cut-out instead, not a see-through ghost (S3-247) | blueprint | teleporter, cashiers, idea zone, pink prison |
 | Emotion as a liquid fill rising in the head | Anger reads at any size, and drains as it cools | A clipped fill level with a wobbly edge and bubbles | blueprint | railroads |
 | Effort parody (a power-up aura that achieves nothing) | A big contrast between effort and result | Flame cards round the card, radial lines, pebbles rising, glowing eyes | blueprint | second draw |
 | The world acts out rage (cracks under the feet, veins on the walls, a swelling shadow) | Bigger than a face can show | Line decals that grow with bloom; a projected blob shadow that scales | blueprint | pink prison |

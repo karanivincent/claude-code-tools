@@ -6,7 +6,7 @@ method or a fix is unproven: a whole film takes a day and teaches one thing at t
 that changed; a spike takes about an hour and teaches one thing you can name. A 15-second stretch renders in under a
 minute at half size, so one spike can try a change ten times.
 
-Rule ids point into `rules.md` (the method is X-13 to X-34, the craft it found is S3-171 to S3-200, with the owner's replacements of 18 November 2026 at S3-201 to S3-212, S5-102 and S5-106, and the rendered-world look of the third series at S3-213 to S3-234). The 15 checks a
+Rule ids point into `rules.md` (the method is X-13 to X-34, the craft it found is S3-171 to S3-200, with the owner's replacements of 18 November 2026 at S3-201 to S3-212, S5-102 and S5-107, and the rendered-world look of the third series at S3-213 to S3-234). The 15 checks a
 spike is measured on are in `references/bar.md`.
 
 ## Proof status
@@ -24,7 +24,7 @@ until a run of the skill matches or beats the spike's clip in a blind judging (X
 | garbo-night | https://claude.ai/artifact/8oFxfFAA2aW8VjLjJnPgko | `spike/garbo-night` |
 
 The next film made with this skill is the proof run. Its judge sees those clips beside the film's same beats
-(`abjudge.sh --ref`, S5-77), and the result is written here and in `why.md`.
+(`abjudge.sh --ref`, S5-112), and the result is written here and in `why.md`.
 
 ## Contents
 
@@ -83,7 +83,7 @@ commit and told what is locked (X-19):
 
 | # | Spike | Changes | Locked |
 |---|---|---|---|
-| 1 | Camera and shot size | Camera keys, shot sizes (hero at about a third of the frame in a wide, S3-211, S3-208), cuts inside the place, dropped devices and the new homes of what they carried (S3-176), the set's props for the new camera | Light, grade, acting, effects |
+| 1 | Camera and shot size | Camera keys, shot sizes (hero at about a third of the frame in a wide, S3-249, S3-241), cuts inside the place, dropped devices and the new homes of what they carried (S3-176), the set's props for the new camera | Light, grade, acting, effects |
 | 2 | Fill | Set pieces, props and extras placed for the locked camera (S3-185..S3-189) | Camera |
 | 3 | Light | Named sources, the key lamp placed with the set, shadows, rims, grade (S3-191..S3-200) | Camera, props' places, acting |
 | 4 | Acting and effects | Faces, hands, small actions, effects with their causes and marks (S3-179..S3-184) | Camera, set, light |
@@ -251,7 +251,7 @@ each hit with ffmpeg if you need them (inside {clip dir}).
 6. What got worse or looks wrong: anything pasted on, too busy, cut by a frame edge, a shadow or light with no source,
    a fact covered, the hero lost.
 7. Against the reference: the three biggest differences left, and one likeness number from 1 to 10 against the
-   scene's reference frame (S2-36), beside the same number for the baseline and the best so far. Where the series
+   scene's reference frame (S2-37), beside the same number for the baseline and the best so far. Where the series
    judges the rendered-world look, one row for each world row W1 to W7 of bar.md: pass or fail, with the frame.
 8. Three things to do next, ranked by what the viewer gains, each small and specific.
 

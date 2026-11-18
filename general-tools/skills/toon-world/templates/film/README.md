@@ -1,9 +1,9 @@
 # The film template
 
-Start a story here: `node <toon-world>/scripts/new-film.mjs <project> <slug> <CompositionId>`. It copies these files
+This is the older whole-film method: `node <toon-world>/scripts/new-film.mjs <project> <slug> <CompositionId> --whole-film`. It copies these files
 into `src/stories/<slug>/`, `../sound/story-sound.mjs` to `scripts/<slug>-sound.mjs`, syncs the toon-kit, and prints the
-two compositions to register. It also writes the paperwork the gate reads (`stories/<slug>/meaning.md`, `parts.md`,
-`checklist.md`, `findings.md`, `src/stories/<slug>/approvals.json`), copies the look stack to `src/look/` when missing, and copies
+two compositions to register. It also writes the paperwork the gate reads (`stories/<slug>/meaning.md`,
+`parts.md`, `checklist.md`, `findings.md`, `src/stories/<slug>/approvals.json`), copies the look stack to `src/look/` when missing, and copies
 `levels.mjs`, `measure_sharp.py` and `measure_look.py` into `tools/`. The story brings `full.json`, its places and
 segments, and replaces the stand-in cast. Needs TypeScript 5, `@react-three/postprocessing@3.0.4` and
 `postprocessing@6.39.5`. Built from the jungle holdout (Epiclings) and Elijah and the widow 2D (November 2026).
@@ -30,7 +30,7 @@ segments, and replaces the stand-in cast. Needs TypeScript 5, `@react-three/post
 | Consecutive segments of one shot share its clock | Acting restarting at each camera move (the list's tick never landed) |
 | `punch: false` on each segment: holds drift slowly, one push-in every 4 s at most (S3-203); the kit's punch-in stays on for older films | A picture that never settles (churn 20 against the reference's 4, spikes of 18 November 2026); a hold still reads alive by its drift |
 | A place's shots take the film's clock `t` | A board of stills played as a film ("he barely moves") |
-| Swing or a cut to a new angle inside a place; a cut with its reason between places, at most 3 (S3-201) | Whip pans (motion blur, banned) and unexplained hard cuts between places |
+| Swing or a cut to a new angle inside a place (S3-201). Between places this older template cuts with a reason; S3-201 now asks for a join or a moving dissolve, which it lacks (see `../film-scenes/README.md`) | Whip pans (motion blur, banned) and unexplained hard cuts between places |
 | One place canvas at a time, keyed by place, next place loaded early | Every place built on every frame, and a stall at each change of place |
 | Sharp backgrounds in every shot, as in the reference stills (S3-35) | Soft frames that measure a sixth of the references' detail |
 | Overlays land on their words and are cues for the audit | Dates and orders missing or late ("I don't know what those are") |
