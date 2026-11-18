@@ -78,19 +78,26 @@ for (const id of ids) {
   if (miss.length) { faults.push(`${id}: frames ${miss[0]}-${miss.at(-1)} are in no shot (${miss.length} frames)`); console.log(`  FAULT frames ${miss[0]}-${miss.at(-1)} in no shot`); }
 }
 // the cut budget (S3-235 to S3-238), over the whole film: every scene's planned cuts (shots.ts CUTS) and every join
-// card that is a hard cut or a dip (joins.json), against toon-kit checkCuts. A stretch under 3 s is excused when the
-// shot it starts in gives a reason (`why`: a cold open, a fact insert). One scene alone is told its share, not failed.
+// card that is a hard cut or a dip (joins.json), against toon-kit checkCuts. A stretch under 3 s is excused only when
+// the shot it starts in names a cold open or a fact insert in its `why` (S3-236); each cut's reason is the `why` of the
+// shot that starts on it (or the join card's own `why`), one of a reverse in a talk, a new activity, a jump in time or a
+// fact (S3-238, toon-kit checkCutReasons). One scene alone is told its share, not failed.
+// Run inside a project for the first time on 18 November 2026 (a film made by new-film.mjs in a temp folder): every
+// `why` excused its stretch, so a film whose cuts all had their reason (S3-238) passed any number of short stretches;
+// and S3-238 was not checked. Both fixed here; with an older kit (no excusesShortStretch) it keeps the old reading.
 {
   const kit = await loadTs(path.resolve(STORY_DIR, '..', '..', 'toon-kit', 'timing.ts')).catch(() => ({}));
-  const fps = film.FPS ?? 30, cuts = [], excused = [];
+  const fps = film.FPS ?? 30, cuts = [], excused = [], reasons = [];
+  const excuses = kit.excusesShortStretch ?? ((why) => !!why);
   let at = 0;
   const cards = await import('node:fs').then((fs) => JSON.parse(fs.readFileSync(path.resolve('stories', SLUG, 'joins.json'), 'utf8')).joins ?? []).catch(() => []);
   for (const sc of film.SCENES) {
     const S = await loadScene(sc.id).catch(() => null);
+    const shots = S?.SHOTS ?? [], shotAt = (f) => shots.find((sh) => sh.from === f) ?? shots.find((sh) => f >= sh.from && f <= sh.to);
     const jin = cards.find((j) => j.before === sc.id);
-    if (jin && (jin.cut || jin.dip)) cuts.push(at / fps);
-    for (const c of S?.CUTS ?? []) cuts.push((at + c) / fps);
-    for (const sh of S?.SHOTS ?? []) if (sh.why) excused.push((at + sh.from) / fps);
+    if (jin && (jin.cut || jin.dip)) { cuts.push(at / fps); reasons.push({ t: at / fps, why: jin.why ?? shotAt(0)?.why ?? (jin.dip ? 'a jump in time (dip)' : undefined), where: `join ${jin.after}|${sc.id}` }); }
+    for (const c of S?.CUTS ?? []) { cuts.push((at + c) / fps); reasons.push({ t: (at + c) / fps, why: shotAt(c)?.why, where: `${sc.id} f${c}` }); }
+    for (const sh of shots) if (excuses(sh.why)) excused.push((at + sh.from) / fps);
     at += sc.frames;
   }
   const dur = at / fps;
@@ -99,7 +106,7 @@ for (const id of ids) {
     const S = await loadScene(pos[0]), n = (S.CUTS ?? []).length, max = Math.max(1, Math.round(dur / 7.5));
     console.log(`cuts: ${pos[0]} has ${n} planned cut(s); the film has ${cuts.length} of ${max} (run with no scene for the full check)`);
   } else {
-    const bad = kit.checkCuts(cuts, dur, { excused });
+    const bad = [...kit.checkCuts(cuts, dur, { excused }), ...(kit.checkCutReasons?.(reasons) ?? [])];
     console.log(bad.length ? bad.map((b) => `  FAULT ${b}`).join('\n') : `cuts ok: ${cuts.length} hard cut(s) in ${dur.toFixed(1)} s`);
     faults.push(...bad);
   }

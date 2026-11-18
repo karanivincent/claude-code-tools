@@ -16,7 +16,10 @@ The story-level files (stage, cast, joins, the place list) come from `../film-sc
 | `parts/blend.ts` | The blend's parts, named and general: `farPicture` (a picture on a curved screen, its top faded into a sky dome of the same colour; painted hills stand in without a picture), `midBand` (trees, bushes), `rockSurface` (a face displaced in code), `groundSurface`, `water` (moving, with a sparkle band and a shade band), and the detail layer: `fire` (with embers), `stringLights` (bulbs and halos), `fireflies`, `birds`. |
 | `parts/splash.ts` | A see-through water splash: a narrow column with a white core, a low crown, drops, a foam disc and rings; the column is gone 19 frames after contact. |
 | `tools/board.mjs` | The still board (stage 2): stills of the Film at named film times, and `board.json` for `animatic.py`. |
-| `tools/shots-check.mjs` | Per shot: the hero's height in the frame (a third or more on a close or mid shot), wides with the hero under a third of 1.5 s at most, the camera looking into the place's far picture, frames in no shot (S5-72, S5-102). |
+| `tools/shots-check.mjs` | Per shot: the hero's height in the frame (a third or more on a close or mid shot), wides with the hero under a third of 1.5 s at most, the camera looking into the place's far picture, frames in no shot (S5-72, S5-102). With no scene, the film's cut budget (S3-235 to S3-238): each cut's reason is the `why` of the shot that starts on it, and only a `why` naming a cold open or a fact excuses a stretch under 3 s. |
+| `tools/world-check.mjs` | The rendered-world checks from the film's files, no render: the ink pass off for the world (S3-213), no rim on the cards (S3-224, a warm card tint counts), no emissive in the cards' code (S3-223), a reference frame on disk for each scene (S2-36), a probe still per place (S3-231), each place's light source and side in the parts plan (S3-191). `--skip probe` before the probes are made. |
+| `tools/frame-check.mjs` | Every frame, each person through the scene camera: a head cut by the left, right or bottom edge (S3-95, S3-175), the caption word over a face or below 82% of the height (S3-147). |
+| `tools/night-check.mjs` | Each declared night scene's render (a place or its light with `night: true`, or `--night s05`) through toon-video's `bar-check.py --gate --night`, one scene at a time (S3-173, S3-205, S3-220); a night scene with no clip fails. |
 | `tools/pose-check.mjs` | A face swapped in one frame with no in-between, a hand that jumps against the frames around it, a mode switch (S5-78). |
 | `tools/join-times.mjs` | Each join's film second and kind (cut, dip, swing) for toon-video's `joins.sh`. |
 | `tools/stills-sheet.mjs` | 5-10 frames at half scale of a time range, labelled, five a row, in a few seconds (one bundle kept until a source changes). Also the film (`film`) and the pose sheet (`poses <scene>`). Prints any card cut by its canvas. |
@@ -36,6 +39,9 @@ node src/stories/<slug>/tools/cam-speed.mjs s01                        # camera 
 node src/stories/<slug>/tools/shots-check.mjs                          # shot sizes and the far picture, every scene
 node src/stories/<slug>/tools/path-check.mjs s01                       # the action's path (exit 1 on an overlap)
 node src/stories/<slug>/tools/pose-check.mjs s01                       # face swaps and hand jumps
+node src/stories/<slug>/tools/world-check.mjs                          # ink, rims, emissive, reference frames, probes, light sources
+node src/stories/<slug>/tools/frame-check.mjs [s01]                    # heads cut by the frame, captions over faces or too low
+node src/stories/<slug>/tools/night-check.mjs [--night s05]            # each night scene's render through bar-check's gate
 node src/stories/<slug>/tools/board.mjs stories/<slug>/board-stills.json out/<slug>/board   # the still board
 node src/stories/<slug>/tools/join-card.mjs s01                        # the card s01|s02 from s01's last frame
 node src/stories/<slug>/tools/render.mjs s01 --scale 0.5               # out/<slug>/s01.mp4, about 15 s (--out <file>)

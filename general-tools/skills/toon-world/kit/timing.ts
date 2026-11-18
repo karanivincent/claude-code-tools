@@ -223,6 +223,19 @@ export function checkCuts(cuts: number[], dur: number, o: { perCut?: number; min
   return out;
 }
 
+/** The four reasons a hard cut may have (S3-238), as words a shot's `why` uses: a reverse in a talk, a new activity in
+ *  the place, a jump in time, a fact. */
+export const CUT_REASON = /\b(revers\w*|talk\w*|activit\w*|time|jump\w*|fact\w*)\b/i;
+/** Whether a shot's `why` excuses a stretch under 3 s (S3-236): only a cold open or a fact insert does. Why: `why` also
+ *  carries a cut's reason (S3-238) and a long wide's reason (S5-102), so excusing every shot with a `why` would excuse
+ *  every short stretch once each cut had its reason (found running shots-check in a project, 18 November 2026). */
+export const excusesShortStretch = (why?: string) => !!why && /\b(cold[- ]open|fact)\b/i.test(why);
+/** S3-238: each hard cut (film seconds) has its reason written on the shot after it, one of the four in CUT_REASON.
+ *  `where` names the cut for the message (the scene and its frame). */
+export function checkCutReasons(cuts: { t: number; why?: string; where?: string }[]): string[] {
+  return cuts.filter(c => !c.why || !CUT_REASON.test(c.why)).map(c => `cuts: the hard cut at ${c.t.toFixed(2)} s${c.where ? ` (${c.where})` : ''} gives ${c.why ? `the reason "${c.why}", not one of the four` : 'no reason'}: write on the shot after it a reverse in a talk, a new activity, a jump in time or a fact (S3-238)`);
+}
+
 export interface FilmTiming { swing?: number; whip?: number }
 /** the camera at film time t: the segment's framing, swung from the last segment's final framing for the first
  *  `swing` seconds (default 0.45) when it joins by a swing; plus the shot's clock. The swing is a straight blend of the

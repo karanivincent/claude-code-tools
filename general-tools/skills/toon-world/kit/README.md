@@ -14,6 +14,23 @@ the project copy; fix it here and sync again. The sync also warns when a file un
 under 3 s without a reason, one unbroken take of 10 s or more for each 30 s. `tools/shots-check.mjs` calls it with each
 scene's `CUTS` and the join cards.
 
+`checkCutReasons(cuts)` (S3-238): each cut names one of the four reasons (`CUT_REASON`). `excusesShortStretch(why)`
+(S3-236): only a `why` naming a cold open or a fact excuses a stretch under 3 s, since `why` also carries a cut's reason.
+
+## world.ts: the rendered-world checks
+
+Pure functions over a film's files, called by `tools/world-check.mjs` and `tools/night-check.mjs`: `checkInk` (S3-213,
+the stage file's ink toggle and each place's `ink`), `activeRims` / `checkRims` (S3-224, read as cardshade draws them: a
+warm card tint lights the warm rim even with `rims.on` 0), `checkEmissive` (S3-223, the cards' code only),
+`checkSceneFrames` (S2-36, a "Scene | Reference frame" table), `checkProbes` (S3-231), `checkLightSources` (S3-191),
+`nightScenes`.
+
+## frame.ts: what the frame shows
+
+`captionsFromLines` (captions.tsx's word times), `captionBox`, `faceBox`, `checkCaptionFrame` (S3-147: a caption over
+more than a fifth of a face, or below 82% of the height), `runsOf` (faults over neighbouring frames as one line), for
+`tools/frame-check.mjs`, which takes heads cut by an edge from camera.ts `headCut`.
+
 ## camera.ts
 
 | Block | What it does |

@@ -1,7 +1,7 @@
 // Run: node --test general-tools/skills/toon-world/kit/timing.test.ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { makeTimeline, resolveClocks, shotClock, frameAt, viewAt, pushed, filmTimeOf, checkSegs, intoOf, checkJoins, checkCuts, type Data, type Seg, type View, planPace, checkPace } from './timing.ts';
+import { makeTimeline, resolveClocks, shotClock, frameAt, viewAt, pushed, filmTimeOf, checkSegs, intoOf, checkJoins, checkCuts, checkCutReasons, excusesShortStretch, type Data, type Seg, type View, planPace, checkPace } from './timing.ts';
 
 const words = (text: string, t0: number) => text.split(' ').map((w, i) => ({ w, s: +(t0 + i * 0.3).toFixed(2), e: +(t0 + i * 0.3 + 0.25).toFixed(2) }));
 const data: Data = { fps: 30, duration: 12, lines: [
@@ -143,4 +143,15 @@ test('checkCuts: a cut budget, no short stretches, long takes (S3-235 to S3-238)
   // a 60 s film cut every 7 s keeps the budget and has no long take
   const even = [7, 14, 21, 28, 35, 42, 49, 56];
   assert.match(checkCuts(even, 60).join(' '), /0 unbroken take/);
+});
+
+test('checkCutReasons and excusesShortStretch: every cut names one of four reasons; only a cold open or a fact excuses a short stretch (S3-236, S3-238)', () => {
+  assert.deepEqual(checkCutReasons([{ t: 3, why: 'a reverse in the talk' }, { t: 9, why: 'a jump in time' }, { t: 12, why: 'the fact: 2,000 oxen' }]), []);
+  const bad = checkCutReasons([{ t: 3, where: 's01 f90' }, { t: 9, why: 'looks better' }]);
+  assert.equal(bad.length, 2); assert.match(bad[0], /s01 f90.*no reason/); assert.match(bad[1], /"looks better", not one of the four/);
+  // the shots-check bug this fixes: a reason for the cut is not an excuse for a short stretch
+  assert.equal(excusesShortStretch('a reverse in the talk'), false);
+  assert.equal(excusesShortStretch('cold open: the face and the contradiction'), true);
+  assert.equal(excusesShortStretch('a fact insert: the date'), true);
+  assert.equal(excusesShortStretch(undefined), false);
 });
