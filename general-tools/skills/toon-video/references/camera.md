@@ -123,6 +123,29 @@ down" from the plan alone, came out with faces at 1/20 of the frame and lost to 
 - Hiding: cover between hider and seeker for the whole run, shot over the hider's shoulder (S3-111).
 - A name is spoken while its person is on screen (S3-112).
 
+### Calm, facts and the place
+
+From two spike series on 18 November 2026, measured against the newest Short of a larger channel in the same look;
+proven on short stretches only (X-30, `spikes.md`).
+
+- Choose shot sizes with the set: a wide holds the hero at about a third of the frame height, so the place shows
+  round him (S3-170). Fill comes after the camera is locked (S3-185).
+- Show a thing in the wide before cutting to it, so the close reads as "that thing over there" (S3-171).
+- Each fact gets its own moment at reading size on its word; first make it bigger in the world (1.3 times bigger
+  letters), then move the camera if it still needs it (S3-172).
+- Keep the picture calm: `bar-check.py`'s median change per frame under 8, aiming at the reference's 4 (S3-173). A
+  push-in for a fact raises that number and a cut does not; budget about one push-in per 4 s (S3-174). How many hard
+  cuts a film may have is S3-121.
+- Check the hero whole and clear of the edges on the one-a-second strip of each render (S3-175).
+- Dropping a device (an inset box, a card, a wipe) drops what it carried: list what it told the viewer and give each
+  thing a new home in the place, such as an address on the envelope the hero holds out (S3-176).
+- A fact on a prop shows both its ends: "too late" needs when it mattered (a tag at half past six) and when it arrived
+  (the hands stopping at eight), and the second lands as a hit, a stamp thumping RECEIVED, that leaves a mark (S3-177).
+- A diagram on a prop is still a diagram: a wedge on a clock face read as "on time". Cold-read the new home of a fact
+  with a fresh agent who has not read the script (S3-178, S4-13).
+- Height and angle make a place appear: about 2 m and 30 degrees or more off the hero's line for a terrace, low
+  (1.0 to 1.4 m) for a street (garbo-bar 3).
+
 ## The camera checks
 
 `audit.mjs` runs these over each frame and each layer of a dissolve (through `layerRuns`); in the scene loop they are facts for the

@@ -314,6 +314,14 @@ checks read the profile (S1-23).
 Take the nearest studied video from `references/playbook.md` and the project's studies, then change what this story
 needs.
 
+## Spikes
+
+When a look, a method or a fix is unproven, spike 15 seconds first, before a whole film (X-13): one stretch, one
+question, one thing changed, judged against a fixed baseline on the bar's 15 checks. The method, the series order, the
+brief templates and the scripts (`bar-check.py`, `spike-frames.sh`, `spike-ab.sh`): `references/spikes.md`; the
+checks: `references/bar.md`. The rules the 18 November 2026 spikes found (X-13..X-30, S3-170..S3-200) are proven on
+short stretches only; the next film made with this skill is their proof run (X-30).
+
 ## Adding a rule
 
 The register grows from every story: a lesson that stays a sentence in a chat is lost (X-12, S6-15).
@@ -345,8 +353,10 @@ Read each when its stage comes up; none links on to another.
 | `references/judge-brief.md` | Stages 3 to 6: the blind judge's brief for `abjudge.sh`, with the reference clip (S5-44, S5-77) |
 | `references/playbook.md` | Stage 1 and 2: techniques from studied videos, for the profile and the plan |
 | `references/findings.md` | After a round: past faults and the level each was fixed at (S5-27, S5-28) |
+| `references/spikes.md` | Before trying an unproven look, method or fix: the spike rules, the loop, planning a series, brief templates, the scripts (X-13) |
+| `references/bar.md` | Measuring a spike or a stretch against a reference: the 15 checks, the calm and brightness numbers (X-16) |
 | `references/why.md` | When asked why a rule exists, or for old patterns you meet in an older story |
 | `templates/review/index.html` | Stages 1, 2 and 6: the review page, one section and Approve button per stage |
 
-The scene loop's scripts sit in `scripts/loop/` (its README lists them). Scripts in `scripts/`: run `pitch.mjs`, `levels.mjs`, `animatic.py`, `eleven-balance.mjs` and `production_log.py` as shown above; `lint_rules.mjs`
+The scene loop's scripts sit in `scripts/loop/` (its README lists them). Scripts in `scripts/`: run `pitch.mjs`, `levels.mjs`, `animatic.py`, `eleven-balance.mjs` and `production_log.py` as shown above, and `bar-check.py`, `spike-frames.sh` and `spike-ab.sh` as `references/spikes.md` shows; `lint_rules.mjs`
 is run by whoever edits these skills (`node scripts/lint_rules.mjs <skills-root>`).

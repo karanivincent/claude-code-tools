@@ -29,6 +29,7 @@ must, never, always, every or only without an id.
   - [Fixing](#fixing)
 - [S6 Hand-back](#s6-hand-back)
 - [X Any stage](#x-any-stage)
+  - [Spikes](#spikes)
 
 ## How to read a rule
 
@@ -193,6 +194,12 @@ must, never, always, every or only without an id.
 - **S3-167** A background picture holds near, middle and far layers under a sky that adds colour, densely detailed, never a thin row on an empty field. Proof: owner Picture yes. Why: two thirds empty sky and one row of objects read flat.
 - **S3-168** The picture takes no more of the frame than its band; code middle, ground and detail layer fill the rest. Proof: check critic: world. Why: most of the B-17 frame was the dull generated picture.
 - **S3-169** Every shot has something moving behind the hero that fits the story: other planes, vehicles, people working, flags, birds, dust, smoke or water. Proof: check critic: world. Why: nothing moved behind the hero in all three B-17 builds.
+- **S3-185** Shot size comes before fill: fill a place once its locked camera shows it, never before. Proof: check scripts/loop/lock.mjs (stage shots). Why: fill behind a hero at two-thirds changed 1 to 4% of pixels.
+- **S3-186** A mid shot shows at least 3 m of floor behind the hero's mark, so an extra there stands under two-thirds his size. Proof: check critic: world. Why: under 1 m of floor behind him left no room for a place.
+- **S3-187** Fill a close shot with small moving things beside the hero, such as an animal, steam or a flag, never a second face. Proof: check critic: world. Why: a close with a sideways move slid faces behind his head.
+- **S3-188** Place extras by what the camera shows at their depth, not by the floor plan, each with a way in and out of frame. Proof: check critic: world. Why: extras placed on the plan were cut by the frame edge.
+- **S3-189** Keep fill off the hero's outline and off the line from the lens to a fact. Proof: check critic: world. Why: a black cat and pigeons blurred the hero's black hair.
+- **S3-190** Find out what a stray thing in frame is before removing it; a moved camera sees the backs and undersides of props. Proof: check critic: world. Why: a stray stick was a tram's pole; a line was an aerial.
 
 ### Light and the look stack
 
@@ -221,6 +228,16 @@ must, never, always, every or only without an id.
 - **S3-52** Metals and gold at about 60% albedo. Proof: check `critic: light`. Why: higher albedo goes lemon under the lit multiplier.
 - **S3-53** Light follows the story (warm fire, blue danger, gold hope) and every face stays bright enough for a phone. Proof: check `brightness.mjs`. Why: a dark face is lost on a phone.
 - **S3-54** Check a lit place by rendering from the master's camera and comparing mean brightness with the picture. Proof: check `measure_look` (new: exit code). Why: the first light was 30% too bright.
+- **S3-191** The parts plan names each place's light source, a sun, window, lamp or fire in the place, and the side it shines from. Proof: file stories/<slug>/parts.md. Why: no light source you could see, in all four studied films.
+- **S3-192** Check the hero's spot is in the light at frame 0 and in the widest frame. Proof: check critic: light (frame 0 and the widest frame). Why: a parapet's shadow covered the whole cafe table.
+- **S3-193** Shadows start at feet and bases that are in frame, and all fall one way. Proof: check critic: light. Why: a shadow arriving from out of frame read as a stain.
+- **S3-194** Tint the light and the shadows, never the whole picture; painted whites and blacks keep their colour. Proof: check critic: light. Why: a grade turned the white table cream and black stripes navy.
+- **S3-195** Daylight shows its source in frame: a hard-edged patch of light, a bright window or a glint. Proof: check critic: light. Why: well-placed day shadows still read flat with no source seen.
+- **S3-196** Night is the room going dark: out-of-shot glows off, lamps in frame fading with distance, mean about 85 of 255, darkest 5% above about 25. Proof: check bar-check.py (brightness). Why: a violet day room did not read as night; owner chose about 85.
+- **S3-197** Place the key lamp with the set and the camera: in front of the hero and to one side, so his shadow falls on a wall. Proof: file stories/<slug>/parts.md. Why: a lamp behind the hero threw his shadow at the lens.
+- **S3-198** A rim sits on the lamp side of a person alone; an even outline all round reads as a sticker edge. Proof: check critic: light. Why: an all-round rim read as a sticker, not light.
+- **S3-199** A light's edge never crosses a fact: the fact sits fully in the pool or fully out of it. Proof: check critic: light. Why: a hard edge split the clock face and cut the calendar.
+- **S3-200** Put light effects, a glow, a pulse or a glint, where the frame is dark enough for them to read. Proof: check critic: effects (every-frame strip). Why: the same tap glows barely showed in the lighter grade.
 
 ### People
 
@@ -253,6 +270,10 @@ must, never, always, every or only without an id.
 - **S3-78** Thrown things are about twice life thickness with a ghost trail. Proof: check `critic: people`. Why: life-size throws vanish on a phone.
 - **S3-79** The world keeps its state by time, not by shot: a stuck spear stays stuck in every later shot. Proof: check `checkStates`. Why: state carried by time makes picture jokes work.
 - **S3-80** Code clouds are not used; the sky is a picture on a dome. Proof: file `stories/<slug>/parts.md`. Why: code clouds read as pills.
+- **S3-179** An effect has its cause in frame, the hand with the stamp or the foot that lands; without it the effect reads as a glitch. Proof: check critic: effects (every-frame strip). Why: a chicken burst with no cause read as a glitch.
+- **S3-180** An effect sits beside the fact, never on it, and is big enough to read at phone size on its contact frame. Proof: check critic: effects (every-frame strip). Why: puffs heaped on the facts, then shrank too small to read.
+- **S3-181** Puffs are smaller than a foot, see-through and gone in about 12 frames; a light pulse holds about 6 frames; the mark it leaves stays. Proof: check critic: effects (every-frame strip). Why: long opaque puffs heaped up; two-frame glows read as flicker.
+- **S3-182** A thing that scatters stays itself and leaves its trace: chickens stay chickens and drop feathers. Proof: check critic: effects. Why: scattered chickens turned to cotton balls and vanished.
 
 ### Shots and camera
 
@@ -295,6 +316,15 @@ must, never, always, every or only without an id.
 - **S3-117** One shot split into several camera moves keeps one clock (`clock` in `shots.ts`). Proof: check `timing.ts: resolveClocks`. Why: the acting restarted at each split.
 - **S3-118** Segments over 1.8 s punch in at the middle unless the subject would leave the frame. Proof: check `checkPace`. Why: long holds read as stills.
 - **S3-119** While building, sheet the first and last frame of any shot where people move, and re-sheet only what changed. Proof: check `stills.mjs`. Why: people sit 2 to 3 degrees outside a portrait frame.
+- **S3-170** Choose shot sizes with the set: a wide holds the hero at about a third of the frame height, so the place shows round him. Proof: check tools/shots-check.mjs (size). Why: the hero at two-thirds of the frame left no room for a place.
+- **S3-171** Show a thing in the wide before cutting to it, so the close reads as that thing over there. Proof: check critic: camera. Why: the calendar and clock closes read because the wide showed them.
+- **S3-172** Each fact gets its own moment at reading size on its word; make it bigger in the world before moving the camera for it. Proof: check checkMustSee (words: true). Why: a wide journey lost the stamps and cut the embassy sign.
+- **S3-173** Keep the picture calm: the median change per frame from bar-check.py stays under 8, aiming at the reference's 4. Proof: check bar-check.py (median change). Why: our film churned at 20 against the reference's 4.
+- **S3-174** A push-in for a fact raises the change per frame and a cut does not; budget about one push-in per 4 s. Proof: check bar-check.py (median change). Why: four fact push-ins raised the churn from 7.5 to 11.
+- **S3-175** Check the hero whole and clear of every edge on every one-a-second frame of the clip (spike-frames.sh strip). Proof: check critic: camera (strip.jpg). Why: the baseline cut the hero at five of fifteen seconds.
+- **S3-176** When a device such as an inset box, a card or a wipe is removed, list what it told the viewer and give each its new home in the place. Proof: check critic: story. Why: dropping the inset dropped who received the reports.
+- **S3-177** A fact on a prop shows both its ends on screen, when it mattered and when it arrived, and the second lands as a hit that leaves a mark. Proof: check critic: story. Why: a clock showing one time at a time never told too late.
+- **S3-178** A diagram on a prop is still a diagram: cold-read its still with a fresh agent who has not read the script. Proof: file out/<slug>/coldread.json. Why: a wedge on a clock face read as on time.
 
 ### Joins
 
@@ -327,6 +357,8 @@ must, never, always, every or only without an id.
 - **S3-143** Gunfire is seen (flash, recoil, smoke, hits) and heard on top of the mix. Proof: check `checkSync`. Why: "if he's still fighting we should hear gunshots".
 - **S3-144** Every picture event has its sound within 0.1 s, and every sound its event. Proof: check `checkSync`. Why: a flash with no sound reads as a glitch.
 - **S3-145** A place exports its action times and the sound script reads the same numbers. Proof: check `checkSync`. Why: an acting change then re-syncs the sound.
+- **S3-183** Small actions of background people read from a mid shot or closer; in a wider shot give them bigger moves. Proof: check critic: people. Why: near people's small actions were missed at these shot sizes.
+- **S3-184** Mitten hands show no finger, so a tap, a press or a point is carried by an effect at the contact point. Proof: check critic: effects (every-frame strip). Why: no finger could be seen pressing the Morse key.
 
 ### Words on screen
 
@@ -561,3 +593,33 @@ camera, shot size and person's size), then the scene stage (people and motion, s
 - **X-10** Copy the reference's look and timing, never its meaning; write the meaning sheet first. Proof: file `stories/<slug>/meaning.md`. Why: a copied hot rail missed the gap closing.
 - **X-11** Bible in Clay: anything the toon skills leave unsaid is done as `clay-story-video` says. Proof: check `critic: kit PR`. Why: one channel, one set of defaults.
 - **X-12** A rule enters the register only through add_rule.mjs, with a stage, a proof and a reason. Proof: check lint_rules.mjs. Why: rules written as prose were skipped.
+
+### Spikes
+
+The spike method: `references/spikes.md`. X-13 to X-30 and S3-170 to S3-200 come from two spike series run on
+18 November 2026, "garbo-bar" (15.2 s, spikes 0 to 5c) and "garbo-night" (5.6 s, spikes 0 to 4), each measured against
+the newest Short of a much larger channel in the same look. **Proof status: proven on a 15-second and a 5.6-second
+stretch, not yet on a whole film.** By X-30 they stay unproven until the next film made with this skill matches or
+beats the spikes' clips in a blind judging. The bar: the result pages https://claude.ai/artifact/YZschJbe19yUVJ2WiwurZJ
+(garbo-bar) and https://claude.ai/artifact/8oFxfFAA2aW8VjLjJnPgko (garbo-night), and the branches
+`spike/garbo-bar-5-combine` and `spike/garbo-night` of the project the spikes ran in. That next film is the proof run,
+and its judge sees those clips.
+
+- **X-13** When a look, a method or a fix is unproven, spike it first: one stretch of 15 s or less, the same stretch for the whole series. Proof: file docs/spikes/LOG.md. Why: a whole film teaches one mixed lesson a day.
+- **X-14** A spike asks one question with a guessed answer, written before any code, and changes one thing; the question names only things the place has. Proof: file docs/spikes/<series>/PLAN.md. Why: two changes hide the cause; a question asked for awnings the street lacked.
+- **X-15** Each spike starts from the series baseline or the last kept spike, has a budget of about 90 minutes and 0.5M tokens, and stops when it is spent. Proof: file docs/spikes/LOG.md (cost line). Why: a budget keeps a spike an experiment, not a build.
+- **X-16** Measure every spike the same way, bar-check.py and the checks in bar.md, with the series plan naming the checks its stretch cannot show. Proof: check bar-check.py. Why: two reviewers counted the stretch's missing checks as 5 and 1.
+- **X-17** Every spike gets a log entry the day it runs, worked or not: question, change, numbers, answer, what it taught, cost. Proof: file docs/spikes/LOG.md. Why: a failed spike still teaches; unwritten, it is lost.
+- **X-18** Run a series in the order a picture is built: camera and shot size, then fill, then light, then acting and effects. Proof: file docs/spikes/<series>/PLAN.md. Why: fill with the camera frozen could fill only the wides.
+- **X-19** A series runs on one branch: each builder starts from the last spike's commit, and its brief lists what is locked. Proof: file docs/spikes/<series>/PLAN.md (must-not-touch column). Why: locked layers each passed more checks, the third at half the time.
+- **X-20** Each spike brief names the one or two beats that must not get worse; a spike that weakens one has failed, whatever else it gained. Proof: file docs/spikes/<series>/PLAN.md (beats). Why: the payoff stamps got weaker twice; the named beat caught a loss.
+- **X-21** One reviewer who did not build sees the baseline, the best so far and the new clip together, and reports what changed against both, not a fresh score. Proof: file out/spikes/<series>/<spike>/review.md. Why: separate reviewers gave 8 and 6 to clips of one quality.
+- **X-22** A builder's rules are claims; a lesson goes into the log's Taught list and on into a skill once the reviewer saw it too. Proof: file docs/spikes/LOG.md (Taught). Why: a builder's see-through puffs were an opaque heap to the reviewer.
+- **X-23** Judge anything that moves on every frame: the every-frame sheets, and every-frame strips around each hit. Proof: check spike-frames.sh (sheets). Why: one frame a second hid the tap glows and the pops.
+- **X-24** Place with stills sheets, render to confirm, and compare each try as the baseline over the try at the same seconds. Proof: check spike-ab.sh. Why: stills did most of the work; builders needed three to five renders.
+- **X-25** A combine ends with a fault sweep of the every-frame sheets: every frame edge, every fact at reading size, every shadow's direction, every light's source. Proof: file out/spikes/<series>/<spike>/notes.md (sweep list). Why: merges broke small things nobody owned.
+- **X-26** After the last spike run one fix round at most: a list ranked by what the viewer loses, with half its budget on the first item. Proof: file out/spikes/<series>/<spike>/notes.md (ranked list). Why: eight equal items missed the beat; a ranked list closed it.
+- **X-27** A series ends by showing the owner the baseline against the best clip, never more than three clips to choose from. Proof: owner Spike pick. Why: he picks well between few; ranking many tires him.
+- **X-28** A brief says what is allowed as plainly as what is not: write that cuts inside the place are allowed, not just one journey. Proof: file docs/spikes/<series>/brief-build.md. Why: one journey made three builders avoid the cut a payoff needed.
+- **X-29** Builders' notes and reviews are copied into docs/spikes/<series>/reports/ and committed the same hour, before any worktree is removed. Proof: file docs/spikes/<series>/reports/. Why: removing four worktrees deleted their reports.
+- **X-30** A skill change from a spike is unproven until a run of the skill matches or beats the spike's clip in a blind judging; the clip stays as the bar. Proof: file docs/spikes/LOG.md (bar clip). Why: the cliff film came out worse than its own spike.

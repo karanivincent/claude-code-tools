@@ -15,6 +15,7 @@ pattern clashes with `toon-video/references/rules.md`, the register wins. The li
   - [Places](#places)
   - [Light](#light)
   - [People](#people)
+  - [The spikes of 18 November 2026](#the-spikes-of-18-november-2026)
 - [Measures from the railroads copy](#measures-from-the-railroads-copy)
 
 ## Where the look came from
@@ -167,6 +168,27 @@ holdout needed five cuts to get right.
 - Cold read (S4-13): "it reads as something else" came back three rounds running: hail as fire and rocks as snow
   (Gibeon r1 to r2), fear as cheering (Mona Lisa r2), stones as posts (Gibeon r3). Gibeon r4's first batch was rendered
   with the sheet's labels and had to be redone clean.
+
+### The spikes of 18 November 2026
+
+Fill (S3-185..S3-190) and light (S3-191..S3-200) came from two spike series against the newest Short of a much larger
+channel in the same look; the full story of each spike is in `toon-video/references/why.md`. Proof status: proven on a
+15-second and a 5.6-second stretch, not yet on a whole film (X-30).
+
+- Fill: 14 set pieces and 11 extras behind a hero at two-thirds of the frame changed 1 to 4% of a street's pixels; the
+  reference's wides hold the hero at about a third. A black cat and pigeons against the hero's black hair blurred his
+  outline. A moved camera showed a tram's trolley pole as a black stick across the sky.
+- Day light: the street read lit (gold cobbles, blue shade, shadows that agree), the café did not: its parapet shaded
+  the whole table, the grade turned the white table cream, and one shadow lay on road already in shade. With good
+  shadows, a day scene still read flat with no source in frame.
+- Night: the baseline night was a day room under a violet grade. Turning off the glows that lit the room from out of
+  shot, and lighting it with lamps in frame that fade with distance, made it night (mean 78.5 against the reference's
+  77; the owner chose about 85). The kit's one sun-like key could not make a pool of light. The lamp behind the hero
+  threw his shadow toward the lens; a shadow-map edge split a clock face (the mask now fades on faces turned away from
+  the key); the rim ran all round each card like a sticker.
+- Two things the light spikes did are left out because they clash with rules here: haze on the far picture 40 to 55%
+  toward the air colour, which garbo-bar 2 proposed for the skill (S3-15 keeps far pictures crisp), and background
+  blur by shot size, which both light spikes used (S3-35 keeps backgrounds sharp). Both wait for the owner.
 
 ## Measures from the railroads copy
 

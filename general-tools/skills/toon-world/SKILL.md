@@ -105,6 +105,8 @@ Copy this checklist into the story's `checklist.md` and tick it as you go (S0-8)
 - [ ] Hero props in code, sized against a person (S2-11, S3-26)
 - [ ] Calm area behind each face; at most one busy band (S3-12, S3-13)
 - [ ] Doorways reach the floor; coplanar pieces offset (S3-23, S3-24)
+- [ ] Fill placed for the locked camera: 3 m of floor behind a mid shot's mark, extras by what the camera shows (S3-185..S3-189)
+- [ ] Light source and key lamp named in the parts plan; hero's spot lit at frame 0 and in the widest frame (S3-191, S3-192, S3-197)
 - [ ] Light and grade set (section below), checked on full-size frames
 - [ ] Cold read of each new place, prop, effect, material and face (S4-13)
 - [ ] Checked from each scene's planned camera; far picture faces the cameras; screen direction and blockers in marks.ts (S5-71, S5-72, S5-79)
@@ -127,6 +129,24 @@ A phone frame reads a few big shapes. Rows of thin repeated parts (braces, rails
 with lines: build them with fewer, thicker members, and ask the picture for "a few big, simple shapes, no fine
 repeated detail" (S3-13). A repeated part that is the hero of a close shot gets full detail (S3-14). Ink is thinned
 over painted detail (S3-39).
+
+### Fill for the camera
+
+From two spike series on 18 November 2026; proven on short stretches only (X-30, `toon-video/references/spikes.md`).
+Fill added behind a hero who fills two-thirds of the frame changed 1 to 4% of the pixels: the camera has to show the
+place first.
+
+- Shot size comes before fill: fill a place once its locked camera shows it (S3-185), with the hero at about a third
+  of the frame height in a wide (S3-170).
+- A mid shot shows at least 3 m of floor behind the hero's mark, so an extra there stands under two-thirds his size
+  (S3-186).
+- A close shot is filled with small moving things beside the hero, never a second face (S3-187): an animal, steam,
+  a flag.
+- Place extras by what the camera shows at their depth, not by the floor plan, each with a way in and out of frame
+  (S3-188).
+- Keep fill off the hero's outline (a black cat against black hair) and off the line from the lens to a fact (S3-189).
+- A moved camera sees the backs and undersides of props placed for the old one: find out what a stray thing is (a
+  tram's trolley pole, a parasol's underside, a radio aerial) before removing it (S3-190).
 
 ### Size, place and solids
 
@@ -174,6 +194,26 @@ after sheets of the same frames, watching large flat surfaces (S3-32). Numbers: 
 | Metals and gold | About 60% albedo | S3-52 |
 | Faces | Bright enough for a phone | S3-53 |
 
+### Light from a source (spikes, 18 November 2026)
+
+Proven on short stretches only (X-30, `toon-video/references/spikes.md`). Each is checked on full frames.
+
+| What | Setting | Rule |
+|---|---|---|
+| Source | The parts plan names each place's light source (a sun, window, lamp or fire in the place) and its side | S3-191 |
+| The hero's spot | In the light at frame 0 and in the widest frame; a parapet's shadow once covered the whole table | S3-192 |
+| Shadows | Start at feet and bases in frame, all fall one way; a shadow from out of frame reads as a stain | S3-193 |
+| Tint | Tint the light and the shadows, not the whole picture; painted whites and blacks keep their colour | S3-194 |
+| Day | Show the sun's work in frame: a hard-edged patch of light, a bright window, a glint | S3-195 |
+| Night | The room going dark: glows from out of shot turned off, lamps in frame with falloff (local lights that fade with distance: built on the garbo-night spike branch, not yet in `templates/look/`, whose key is one sun-like light), mean about 85 of 255, darkest 5% above about 25 (`bar-check.py`) | S3-196 |
+| Key lamp | Placed with the set and the camera, at the camera stage: in front of the hero and to one side throws his shadow on a wall; behind him it throws it at the lens | S3-197 |
+| Rim | On the lamp side of a person alone; an even outline all round reads as a sticker edge | S3-198 |
+| Light's edge | A fact sits fully in the pool or fully out of it; a hard edge across a clock face read as a fault | S3-199 |
+| Light effects | A glow, pulse or glint goes where the frame is dark enough to show it | S3-200 |
+
+A shadow map can draw a false hard edge on an upright prop that faces the camera with the light behind it; fade the
+shadow mask on faces turned away from the key (garbo-night 4).
+
 Look files: `templates/look/` (`ink.ts`, `lensblur.ts`, `shade.ts`, `lights.ts`, `grade.ts`, `cardshade.ts`).
 
 ## People
@@ -213,6 +253,9 @@ size with the check on, and collect the reports. A drawing whose outline dips un
 - A raymarched volume leaves `glslVersion` unset; GLSL3 draws nothing (S3-77). Worked volume: `templates/gameworld/fx.ts`.
 - An effect a card carries (a flame, a glow) is drawn from the card through its own transform (S3-73).
 - Dust in light shafts and smoke drifting count toward the detail layer (S3-9).
+- Effects on hits (spikes, 18 November 2026): the cause in frame (S3-179); beside the fact, never on it, readable at
+  phone size (S3-180); puffs smaller than a foot, see-through, gone in about 12 frames, a light pulse about 6 frames,
+  and the mark stays (S3-181); a thing that scatters stays itself (S3-182). Details: `toon-video/references/acting.md`.
 
 ## Checks: which script proves which rule
 
@@ -277,3 +320,9 @@ has the full list.
 | Nothing moves behind the hero | Other planes, vehicles, people working, flags, birds, dust (S3-169) |
 | Building a place from nothing | Copy the nearest library entry (S2-32) |
 | Editing `src/toon-kit/` in the story | Fix the kit in the skills repo and sync (S0-5) |
+| Filling a place before the camera shows it | Lock the shot sizes first, then fill (S3-185) |
+| A second face beside the hero in a close shot | Small moving things beside him (S3-187) |
+| Night as a lit room under a violet grade | Turn off the out-of-shot glows; lamps in frame with falloff (S3-196) |
+| A key lamp behind the hero | In front and to one side, so his shadow falls on a wall (S3-197) |
+| A rim all round a card | A rim on the lamp side (S3-198) |
+| A grade that tints painted whites | Tint the light and the shadows (S3-194) |

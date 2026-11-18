@@ -23,6 +23,7 @@ this file.
   - [The world and words](#the-world-and-words)
   - [The critic](#the-critic)
   - [Team and log](#team-and-log)
+  - [The spikes of 18 November 2026](#the-spikes-of-18-november-2026)
 
 ## Old patterns
 
@@ -246,3 +247,63 @@ old scale (2.0 to 3.0 on the new) in three rounds with a team.
 - Vincent chose to build by areas in order across the whole film, each locked before the next: one world agent, one
   shots agent, then scene builders for people and motion only, with any earlier build of a beat as that scene's
   reference (S5-71 to S5-90).
+
+### The spikes of 18 November 2026
+
+A gap study of four of our newest toon videos against the newest Short of a much larger channel in the same look found
+the same gaps in all four: a picture that never settles, few props, no light source you can see, effects with no
+weight. The owner asked for short spikes, "maybe a few 15-second ones", to improve the work and the process. Two series
+ran that day (method: `spikes.md`; the bar: `bar.md`). Proof status: proven on a 15-second and a 5.6-second stretch,
+not yet on a whole film (X-30). Bar clips: https://claude.ai/artifact/YZschJbe19yUVJ2WiwurZJ and
+https://claude.ai/artifact/8oFxfFAA2aW8VjLjJnPgko; branches `spike/garbo-bar-5-combine` and `spike/garbo-night` of the
+project the spikes ran in.
+
+**garbo-bar** (the first 15.2 s of a toon Short: a café, a cloud wipe, a street; seven spikes, about 3.0M tokens):
+
+- Baseline: no clean cuts, three big jumps (a cloud wipe, two whips), an inset box for 3.9 s, a median change per
+  frame of 20 against the reference's 4; 3 of the 10 checks the stretch could show passed. "Median change per frame"
+  came from this run (S3-173).
+- Spike 1, fill: 14 set pieces and 11 extras changed 1 to 4% of the street's pixels, because the hero filled
+  two-thirds of the frame with under 1 m of floor behind him (S3-185, S3-186). A black cat and pigeons against his
+  black hair blurred his outline (S3-189). The single spikes were not independent: hence the order (X-18).
+- Spike 2, light: the street stopped reading as a painting (gold cobbles, blue shade, shadows that agree); the café
+  did not. The café parapet shaded the whole table at the old sun angle (S3-192); a shadow on a road already in shade
+  and long "noon" shadows read as puddles (S3-193); the grade turned the white table cream (S3-194). Its question named
+  awnings the street does not have (X-14). Two reviewers counted out-of-stretch checks as 5 and 1 (X-16).
+- Spike 3, camera: one slow journey took the churn from 20 to 7.5 and passed 8 of 10 checks, and the hero was whole
+  everywhere the baseline cut him (S3-175). But facts were lost: dropping the inset dropped who received the reports
+  (S3-176), the NO stamps could not be read and the embassy sign was cut (S3-172). The calm camera showed every empty
+  patch and a one-frame head flip the busy camera had hidden.
+- Spike 4, acting: hits reacted on their contact frame, but a chicken burst with no cause turned the birds to cotton
+  balls (S3-179, S3-182), and stamp puffs heaped over the NO sheets (S3-180). The builder judged puffs best at 20 to 30
+  frames and 0.8 opacity; the reviewer saw a heap (S3-181, X-22). Background people's small actions did not read at
+  those shot sizes (S3-183).
+- Spike 5a, combine camera and fill: four fact push-ins raised the churn from 7.5 to 9.3 (S3-174); the address on the
+  envelope the hero holds out replaced a whole inset scene (S3-176). A close-up with a sideways move slid anyone behind
+  him behind his head (S3-187).
+- Spike 5b, combine light and effects: 6 of 10 checks; merges broke small things nobody owned, a stray stick in the
+  sky, a shadow the wrong way (X-25); the NO stamps got weaker a second time (X-20). Separate reviewers gave 8 and 6 to
+  clips of one quality (X-21). Effects tuned never to cover a fact became too small to read (S3-180). Daylight with
+  well-placed shadows still read flat with no source in frame (S3-195).
+- Spike 5c, one fix round of eight items in order: six fixed, the one that mattered (the NO stamps) missed, 105
+  minutes (X-26). The "stick" was the tram's trolley pole seen from a new angle (S3-190). "One journey" in the briefs
+  had made builders avoid the cut the payoff needed (X-28); the reference Short has 8 hard cuts, all angle changes
+  inside one place. This clashes with S3-121, which is left for the owner.
+
+**garbo-night** (a 5.6 s night office scene; five spikes on one branch, about 1.7M tokens):
+
+- Baseline: a bright room with a violet tint (mean 120, darkest 5% under 8), glow sprites that light nothing, an inset
+  box for 2.4 s, churn 16.8. Two beats named as must-not-get-worse: the date on the calendar and "too late".
+- Spike 1, room and camera: five shots cut inside the one room brought the churn to 3.9, as calm as the reference
+  (S3-174); the calendar and clock read because the wide showed them first (S3-171). "Too late" got worse: a wedge on
+  the clock face read as "on time" (S3-178), and the named beat in the brief is what caught it (X-20).
+- Spike 2, light: turning off every glow that lit the room from out of shot did more than any grade (S3-196). Grade A
+  (mean 78.5) read as night; grade B (mean 112, above a day-story brightness floor) read as dusk. The owner chose a
+  night of about 85. The lamp behind the hero threw his shadow at the lens (S3-197); a straight light edge split the
+  clock face with no source to point to (S3-199); the rim was an even outline all round (S3-198).
+- Spike 3, acting and effects (45 minutes, the cheapest, with camera and light locked: X-19): the hero's face changed
+  five times; two-frame tap glows read only as flicker and barely showed in grade B (S3-181, S3-200). "Too late" read
+  partly: the clock showed one time at a time (S3-177).
+- Spike 4, one ranked fix round with half the budget on the first item: "too late" fixed with a LANDINGS tag at half
+  past six, hands running to eight and a RECEIVED stamp landing on the word (S3-177, X-26). The hard edge was the key
+  light's shadow map on faces turned away from it. Mitten hands could not show a finger on the key (S3-184).
