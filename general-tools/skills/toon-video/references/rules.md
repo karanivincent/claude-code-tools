@@ -358,6 +358,10 @@ must, never, always, every or only without an id.
 - **S3-203** Hold a long segment with a slow drift, not a punch-in; at most one push-in every 4 s. Proof: check bar-check.py (median change). Why: punch-ins kept the picture churning at 20 against 4.
 - **S3-208** Medium shots by default: hero about a third of frame height where the place must read, half for acting; at most one frame in four a face close-up. Proof: check tools/shots-check.mjs (size); audit.mjs: closeUpShare (new). Why: the hero at two-thirds left no room for the place.
 - **S3-211** Choose shot sizes with the set at the shots stage, by S3-208 and S5-102, so the place shows round the hero. Proof: check tools/shots-check.mjs (size). Why: the hero at two-thirds of the frame left no room for a place.
+- **S3-235** A film has at most one hard cut per 7.5 s, 8 in 60 s, inside a place or between places; the next beat is reached by a camera move. Proof: check tools/shots-check.mjs (cut budget). Why: his median Short has under one hard cut; his most-cut has 8.
+- **S3-236** No stretch between hard cuts is shorter than 3 s, apart from a cold open or a fact insert whose shot gives its reason. Proof: check tools/shots-check.mjs (cut budget). Why: his shortest stretch between cuts is 3.1 s.
+- **S3-237** A 60-second film holds two or more unbroken takes of 10 s or longer, and each scene's big action plays inside one take. Proof: check tools/shots-check.mjs (cut budget). Why: his uncut runs of 11 to 15 s carry the fly-over and the lightning.
+- **S3-238** A hard cut has one of four reasons, written on its shot: a reverse in a talk, a new activity in the place, a jump in time, a fact. Proof: file src/stories/<slug>/scenes/<scene>/shots.ts (why on the shot after a cut). Why: our scene cut to each new beat, 3 times in 10 s.
 
 ### Joins
 

@@ -1,7 +1,7 @@
 // Run: node --test general-tools/skills/toon-world/kit/timing.test.ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { makeTimeline, resolveClocks, shotClock, frameAt, viewAt, pushed, filmTimeOf, checkSegs, intoOf, checkJoins, type Data, type Seg, type View, planPace, checkPace } from './timing.ts';
+import { makeTimeline, resolveClocks, shotClock, frameAt, viewAt, pushed, filmTimeOf, checkSegs, intoOf, checkJoins, checkCuts, type Data, type Seg, type View, planPace, checkPace } from './timing.ts';
 
 const words = (text: string, t0: number) => text.split(' ').map((w, i) => ({ w, s: +(t0 + i * 0.3).toFixed(2), e: +(t0 + i * 0.3 + 0.25).toFixed(2) }));
 const data: Data = { fps: 30, duration: 12, lines: [
@@ -128,4 +128,19 @@ test('one segment per line plans a slow film; more framings per line raise the p
   assert.ok(slow.perMinute < 50 && checkPace(oneEach, 67.5, 60).length === 1);
   const three = Array.from({ length: 81 }, (_, i) => ({ a: i * 0.83, b: (i + 1) * 0.83 }));
   assert.ok(planPace(three, 67.5).perMinute >= 60);
+});
+
+test('checkCuts: a cut budget, no short stretches, long takes (S3-235 to S3-238)', () => {
+  // the reference's most-cut Short: 8 cuts in 59 s, three uncut runs of 11 s or more, a cold open excused
+  const his = [0.83, 12.43, 15.77, 19.63, 32.3, 35.43, 39.1, 54.27];
+  assert.equal(checkCuts(his, 59.08, { excused: [0] }).length, 0);
+  assert.match(checkCuts(his, 59.08)[0], /under 3 s/, 'the 0.83 s cold open needs its reason');
+  // our scene one: 3 cuts in 10 s
+  const ours = checkCuts([4.9, 7.5, 8.9], 10.05);
+  assert.match(ours[0], /3 hard cuts/); assert.ok(ours.some(m => /under 3 s/.test(m)));
+  assert.equal(checkCuts([6], 10.05).length, 0, 'one cut in a 10 s scene');
+  assert.equal(checkCuts([], 10.05).length, 0, 'no cuts, and a 10 s scene owes no long take');
+  // a 60 s film cut every 7 s keeps the budget and has no long take
+  const even = [7, 14, 21, 28, 35, 42, 49, 56];
+  assert.match(checkCuts(even, 60).join(' '), /0 unbroken take/);
 });

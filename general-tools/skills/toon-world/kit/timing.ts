@@ -199,6 +199,30 @@ export function checkJoins(segs: Seg[], max = 3): string[] {
   return out;
 }
 
+/** The hard cuts of a whole film against the cut budget (S3-235 to S3-238). `cuts` are film seconds of every hard cut,
+ *  inside a place or between places (a dissolve or a join made from the world is not a cut); `dur` is the film's length.
+ *  At most one cut per `perCut` seconds (7.5: 8 in a 60-second film); no stretch between cuts shorter than `minRun`
+ *  (3 s) unless its start is in `excused` (a cold open or a fact insert whose shot gives its reason); and one unbroken
+ *  take of `long` seconds (10) or more for every 30 s of film. Why: the reference channel's median Short has under one
+ *  hard cut and its most-cut Short has 8, with three uncut runs of 11 to 15 s that carry its big action; our scene of
+ *  10 s had 3. A new function, so older films are unchanged (X-8). */
+export function checkCuts(cuts: number[], dur: number, o: { perCut?: number; minRun?: number; long?: number; excused?: number[] } = {}): string[] {
+  const perCut = o.perCut ?? 7.5, minRun = o.minRun ?? 3, long = o.long ?? 10, excused = o.excused ?? [];
+  const out: string[] = [], at = [...cuts].filter(t => t > 0 && t < dur).sort((x, y) => x - y);
+  const max = Math.max(1, Math.round(dur / perCut));
+  if (at.length > max) out.push(`cuts: ${at.length} hard cuts in ${dur.toFixed(1)} s (at ${at.map(t => t.toFixed(1)).join(', ')} s), over ${max}: reach the next beat with a camera move, and keep cuts for a reverse in a talk, a new activity in the place, a jump in time or a fact`);
+  const edges = [0, ...at, dur];
+  let longs = 0;
+  for (let i = 0; i + 1 < edges.length; i++) {
+    const a = edges[i], run = edges[i + 1] - a;
+    if (run >= long) longs++;
+    if (at.length && run < minRun && !excused.some(t => Math.abs(t - a) < 0.05)) out.push(`cuts: the stretch from ${a.toFixed(2)} s lasts ${run.toFixed(1)} s, under ${minRun} s: lengthen it, or give its shot a reason (a cold open, a fact insert)`);
+  }
+  const need = Math.floor(dur / 30);
+  if (longs < need) out.push(`cuts: ${longs} unbroken take(s) of ${long} s or more in ${dur.toFixed(1)} s, under ${need}: play each scene's big action inside one take`);
+  return out;
+}
+
 export interface FilmTiming { swing?: number; whip?: number }
 /** the camera at film time t: the segment's framing, swung from the last segment's final framing for the first
  *  `swing` seconds (default 0.45) when it joins by a swing; plus the shot's clock. The swing is a straight blend of the

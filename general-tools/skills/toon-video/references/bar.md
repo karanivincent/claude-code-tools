@@ -26,6 +26,21 @@ marked "not in this stretch", not "pass", and the review brief repeats that list
 | 14 | Each quoted line has a moving mouth | Reviewer | S3-66 |
 | 15 | Narration at 205 to 230 words a minute with gaps under 0.3 s | Word timings | S1-35 (differs: see below) |
 
+## The cut budget
+
+Check 5 says where a hard cut is allowed and check 6 asks for one long take. Since 18 November 2026 a film also keeps a
+budget (S3-235 to S3-238), checked by `tools/shots-check.mjs` from each scene's planned cuts and the join cards:
+
+| What | Number | From the reference |
+|---|---|---|
+| Hard cuts | At most one per 7.5 s: 8 in a 60-second film | Median of 20 Shorts: under one. Its most-cut Short: 8 |
+| A stretch between cuts | 3 s or longer, apart from a cold open or a fact insert with its reason | Its shortest: 3.1 s |
+| Unbroken takes of 10 s or more | Two or more in a 60-second film; each scene's big action inside one take | Three, of 11 to 15 s: the fly-over, the fire camp, the lightning |
+| A reason for each cut | A reverse in a talk, a new activity in the place, a jump in time, or a fact | Six of its 8 are angle changes in a talk or at the fire; one is a time jump |
+
+`bar-check.py` cannot count these: its detector found 3 of that Short's 8 cuts, because the colour stays the same
+across a cut inside one place. The count comes from the film's own shot lists.
+
 ## The world rows and the likeness number
 
 Added on 18 November 2026 with the rendered-world look (`toon-world`, "A rendered world behind drawn people"). The
