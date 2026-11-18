@@ -63,3 +63,52 @@ Every rule added or replaced, newest last. Written by `scripts/add_rule.mjs`; ne
 | 2026-11-13 | S5-95 | new | B-17 proof test (b17-checklist), Vincent's notes 13 Nov 2026 |
 | 2026-11-13 | S5-96 | new | B-17 proof test (b17-checklist), Vincent's notes 13 Nov 2026 |
 | 2026-11-13 | S6-17 | new | B-17 proof test (b17-checklist), Vincent's notes 13 Nov 2026 |
+| 2026-11-18 | X-13 | new | spike series garbo-bar and spike series garbo-night, process, 18 Nov 2026 |
+| 2026-11-18 | X-14 | new | spike series garbo-bar, spike 2, 18 Nov 2026 |
+| 2026-11-18 | X-15 | new | spike series garbo-bar and spike series garbo-night, process, 18 Nov 2026 |
+| 2026-11-18 | X-16 | new | spike series garbo-bar, spikes 0 and 2, 18 Nov 2026 |
+| 2026-11-18 | X-17 | new | spike series garbo-bar and spike series garbo-night, process, 18 Nov 2026 |
+| 2026-11-18 | X-18 | new | spike series garbo-bar, spike 1; spike series garbo-night, spikes 1 to 3, 18 Nov 2026 |
+| 2026-11-18 | X-19 | new | spike series garbo-night, spikes 1 to 3, 18 Nov 2026 |
+| 2026-11-18 | X-20 | new | spike series garbo-bar, spikes 3 and 5b; spike series garbo-night, spike 1, 18 Nov 2026 |
+| 2026-11-18 | X-21 | new | spike series garbo-bar, spikes 3 and 5b, 18 Nov 2026 |
+| 2026-11-18 | X-22 | new | spike series garbo-bar, spike 4, 18 Nov 2026 |
+| 2026-11-18 | X-23 | new | spike series garbo-bar, spike 4; spike series garbo-night, spike 3, 18 Nov 2026 |
+| 2026-11-18 | X-24 | new | spike series garbo-bar, spike 1; spike series garbo-night, process, 18 Nov 2026 |
+| 2026-11-18 | X-25 | new | spike series garbo-bar, spike 5b, 18 Nov 2026 |
+| 2026-11-18 | X-26 | new | spike series garbo-bar, spike 5c; spike series garbo-night, spike 4, 18 Nov 2026 |
+| 2026-11-18 | X-27 | new, differs from S5-93: the end of a spike series, not a shots-stage hero beat | spike series garbo-bar and spike series garbo-night, 18 Nov 2026 |
+| 2026-11-18 | X-28 | new | spike series garbo-bar, spike 5c, 18 Nov 2026 |
+| 2026-11-18 | X-29 | new | spike series garbo-bar, spikes 1 to 4, 18 Nov 2026 |
+| 2026-11-18 | X-30 | new | owner's standing rule, cliff film, 13 Nov 2026; written into the spike loop 18 Nov 2026 |
+| 2026-11-18 | S3-170 | new, differs from S5-88: sets the hero's size in a wide, not the floor for a face beat | spike series garbo-bar, spike 1; spike series garbo-night, spike 1, 18 Nov 2026 |
+| 2026-11-18 | S3-171 | new | spike series garbo-night, spike 1, 18 Nov 2026 |
+| 2026-11-18 | S3-172 | new | spike series garbo-bar, spikes 3 and 5a, 18 Nov 2026 |
+| 2026-11-18 | S3-173 | new | spike series garbo-bar, spikes 0 and 3; spike series garbo-night, spike 1, 18 Nov 2026 |
+| 2026-11-18 | S3-174 | new | spike series garbo-bar, spikes 5a and 5c; spike series garbo-night, spike 1, 18 Nov 2026 |
+| 2026-11-18 | S3-175 | new, differs from S3-95: a check on the rendered strip, not the kit's head check | spike series garbo-bar, spikes 0 and 3, 18 Nov 2026 |
+| 2026-11-18 | S3-176 | new | spike series garbo-bar, spike 3; spike series garbo-night, spike 1, 18 Nov 2026 |
+| 2026-11-18 | S3-177 | new | spike series garbo-night, spikes 3 and 4, 18 Nov 2026 |
+| 2026-11-18 | S3-178 | new | spike series garbo-night, spike 1, 18 Nov 2026 |
+| 2026-11-18 | S3-179 | new | spike series garbo-bar, spike 4, 18 Nov 2026 |
+| 2026-11-18 | S3-180 | new | spike series garbo-bar, spikes 4 and 5b, 18 Nov 2026 |
+| 2026-11-18 | S3-181 | new | spike series garbo-bar, spikes 4 and 5b; spike series garbo-night, spikes 3 and 4, 18 Nov 2026 |
+| 2026-11-18 | S3-182 | new | spike series garbo-bar, spike 4, 18 Nov 2026 |
+| 2026-11-18 | S3-183 | new, differs from S3-106: background people's small actions, not the hero's acting | spike series garbo-bar, spike 4, 18 Nov 2026 |
+| 2026-11-18 | S3-184 | new | spike series garbo-night, spike 4, 18 Nov 2026 |
+| 2026-11-18 | S3-185 | new | spike series garbo-bar, spike 1, 18 Nov 2026 |
+| 2026-11-18 | S3-186 | new | spike series garbo-bar, spike 1, 18 Nov 2026 |
+| 2026-11-18 | S3-187 | new | spike series garbo-bar, spikes 1 and 5a, 18 Nov 2026 |
+| 2026-11-18 | S3-188 | new | spike series garbo-bar, spike 1, 18 Nov 2026 |
+| 2026-11-18 | S3-189 | new | spike series garbo-bar, spike 1, 18 Nov 2026 |
+| 2026-11-18 | S3-190 | new | spike series garbo-bar, spike 5c; spike series garbo-night, spike 3, 18 Nov 2026 |
+| 2026-11-18 | S3-191 | new | spike series garbo-bar, spike 2; spike series garbo-night, spike 2, 18 Nov 2026 |
+| 2026-11-18 | S3-192 | new | spike series garbo-bar, spike 2, 18 Nov 2026 |
+| 2026-11-18 | S3-193 | new | spike series garbo-bar, spikes 2 and 5b, 18 Nov 2026 |
+| 2026-11-18 | S3-194 | new | spike series garbo-bar, spike 2, 18 Nov 2026 |
+| 2026-11-18 | S3-195 | new | spike series garbo-bar, spike 5b, 18 Nov 2026 |
+| 2026-11-18 | S3-196 | new | spike series garbo-night, spike 2; owner's pick of the dark grade, 18 Nov 2026 |
+| 2026-11-18 | S3-197 | new | spike series garbo-night, spike 2, 18 Nov 2026 |
+| 2026-11-18 | S3-198 | new | spike series garbo-night, spikes 2 and 4, 18 Nov 2026 |
+| 2026-11-18 | S3-199 | new | spike series garbo-night, spikes 2 and 4, 18 Nov 2026 |
+| 2026-11-18 | S3-200 | new | spike series garbo-night, spike 3, 18 Nov 2026 |

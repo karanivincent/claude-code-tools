@@ -36,6 +36,16 @@ stories' tools. <!-- lint-ok -->
 | Brightness | the project's brightness script | Bible in Clay: the opening and any dull stretch; any project: faces readable on a phone, night included | S4-18, S4-19 |
 | Sound levels | `scripts/levels.mjs` on the stems | Floor, music ceiling, held bed, silent tail | S4-4 |
 
+## On a spike or any stretch against a reference
+
+| Check | Script | Gives | Rule |
+|---|---|---|---|
+| The bar's machine half and the calm number | `python3 -I scripts/bar-check.py <clip>` | Hard cuts, soft joins, big jumps, still stretches, the longest run, median change per frame, brightness | X-16, S3-173, S3-196 |
+| Frames for a reviewer | `sh scripts/spike-frames.sh <clip> <dir>` | Full frames twice a second, every-frame sheets, a one-a-second strip | X-23, S3-175 |
+| Baseline over the try | `sh scripts/spike-ab.sh <base dir> <try dir> <out.jpg>` | One picture of both at the same seconds | X-24 |
+
+The 15 checks a reviewer scores: `references/bar.md`.
+
 ## The score scale
 
 1 broken, 2 weak, 3 fine, 4 good, 5 great, not rounded up; scores compare within one judging alone (S5-44).

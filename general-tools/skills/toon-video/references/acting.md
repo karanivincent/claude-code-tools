@@ -84,6 +84,8 @@ The faces in `look/toon.ts`, as they read on a phone (pick by what the beat feel
   small objects, or the mitten reads as holding them (S3-139).
 - Each card and word canvas runs `edgeTouches` right after it draws; sides drawn to the edge on purpose go in `allow`
   (S3-62, S3-63).
+- Mittens show no finger: a tap, a press or a point is carried by an effect at the contact point (a glow and a spark
+  on the key, a dial needle kicking), in a shot tight enough to show it (S3-184).
 
 ## Props and effects on people
 
@@ -106,6 +108,25 @@ The faces in `look/toon.ts`, as they read on a phone (pick by what the beat feel
 - The world keeps its state by time, not by shot: a spear that sticks stays stuck in later shots (S3-79). This is how
   picture jokes work: the camera comes back and the change carries the story.
 - Every picture event has its sound within 0.1 s, and every sound its event (S3-144).
+
+### Effects on hits (spikes, 18 November 2026)
+
+Proven on short stretches only (X-30, `spikes.md`). Judge each on an every-frame strip around the hit, not on one frame
+a second (X-23).
+
+- An effect has its cause in frame: the hand raising the stamp before it lands, the foot that lands. A burst with no
+  cause reads as a glitch (S3-179).
+- Beside the fact, never on it (S3-180), and big enough to read at phone size on its contact frame. Puffs tuned to
+  stay off the facts became too small to see; decide effects with the shot sizes, not after.
+- Sizes and times: puffs smaller than a foot, see-through, gone in about 12 frames; a light pulse (a glow on a key
+  tap) about 6 frames, since 2 frames reads as a flicker. The mark is what stays: ink, feathers, a print (S3-181).
+- A thing that scatters stays itself and leaves a trace: chickens run and flap aside as chickens and drop feathers
+  (S3-182).
+- Small actions of people behind the hero read from a mid shot or closer; in a wider shot give them bigger moves
+  (S3-183).
+- Light effects need the dark: the same glow that reads at night barely shows in a lighter grade (S3-200).
+- A beat can be carried by a hit instead of a face: a stamp thumping down on the word gives the moment a cause, a
+  sound to sit on and a mark that stays (S3-177).
 
 ## The world tells the story
 
