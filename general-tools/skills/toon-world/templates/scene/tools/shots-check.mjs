@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-// __SLUG__: the shots check, run by the shots stage on every scene before any acting (S5-72, S5-88). For each shot in a
+// __SLUG__: the shots check, run by the shots stage on every scene before any acting (S5-72, S5-102). For each shot in a
 // scene's shots.ts SHOTS, through the scene's own camera:
 //   - size: on a "close" or "mid" shot the hero is a third of the frame height or more (faces read on a phone); a
-//     "wide" lasts 45 frames (1.5 s) at most unless the shot says why;
+//     "wide" with the hero smaller than a third lasts 45 frames (1.5 s) at most unless the shot says why; a wide with
+//     the hero at a third or more may carry the scene (S5-102, owner, 18 November 2026);
 //   - far picture: the camera looks into the place's far picture (places/marks.ts FAR), with the frame's own width
 //     inside its arc, unless the shot says why not (noFar);
 //   - every frame of the scene is in a shot.
@@ -58,7 +59,7 @@ for (const id of ids) {
     if (sh.size !== 'wide') {
       if (low === Infinity) bad.push(`${who} is not in the shot`);
       else if (low < MIN) bad.push(`${who} is ${(low * 100).toFixed(0)} % of the frame height at the smallest (a ${sh.size} shot wants ${Math.round(MIN * 100)} % or more)`);
-    } else if (len > WIDE && !sh.why) bad.push(`a wide of ${(len / 30).toFixed(1)} s (wides place the scene: ${(WIDE / 30).toFixed(1)} s at most, or say why)`);
+    } else if (len > WIDE && !sh.why && (low === Infinity || low < MIN)) bad.push(`a wide of ${(len / 30).toFixed(1)} s with ${who} at ${low === Infinity ? 'no' : (low * 100).toFixed(0) + ' %'} of the frame height (a wide under ${Math.round(MIN * 100)} % places the scene: ${(WIDE / 30).toFixed(1)} s at most; hold ${who} at a third or more, or say why)`);
     // the far picture
     if (far && !sh.noFar) {
       for (const f of [sh.from, mid, sh.to]) {

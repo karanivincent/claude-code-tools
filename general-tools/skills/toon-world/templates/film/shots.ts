@@ -10,10 +10,10 @@ import { captionsOf, type CardDef, type PaperDef, type ThoughtDef } from './over
 // land a couple of frames before their word (TL.onWord). Defaults, each from a round lost on the jungle holdout:
 //  - W throws when a word is said twice in its line and you did not say which (the 1972 card on "one by one").
 //  - consecutive segments of the same shot share one clock (the list's tick restarted at every camera move).
-//  - segments over 1.8 s punch in at their middle (no hold reads as a still); punch: false where the subject would
-//    leave the frame or leaves sit close to the lens.
-//  - the same place joins by a swing; a new place, or a change of time, by a hard cut with its reason (`why`), at most
-//    3 plus the loop (decision 4; toon-kit checkJoins fails the rest). No whip pans (motion blur is banned).
+//  - punch: false on every segment: a hold drifts slowly (its `to` push), one push-in every 4 s at most (S3-203). The
+//    kit still punches in when punch is left out, so older films render the same (X-8).
+//  - the same place joins by a swing or a hard cut to a new angle (S3-201); a new place, or a change of time, by a hard
+//    cut with its reason (`why`), at most 3 plus the loop (toon-kit checkJoins fails the rest). No whip pans (motion blur is banned).
 //  - the film opens on a big subject that moves from frame 1, with the hook card up at 0.0 s (checkOpening).
 
 export const TL = makeTimeline(full as unknown as Data);
@@ -29,7 +29,7 @@ export type Act = (t: number, base: Person[]) => Person[];
 export const SEGS = resolveClocks<Seg<PlaceName, Act>>([
   // the opening: a big subject, the camera already pushing in on frame 0, the hook card up (CARDS)
   { place: 'example', shot: 'medium', a: 0, b: Math.min(2.4, END / 2), to: { push: 0.12 }, punch: false },
-  { place: 'example', shot: 'wide', a: Math.min(2.4, END / 2), b: END, to: { push: 0.2 } },
+  { place: 'example', shot: 'wide', a: Math.min(2.4, END / 2), b: END, to: { push: 0.2 }, punch: false },
 ]);
 
 /** the hook card is first, at a = 0: drawn whole on frame 0 (replace the text with the hook's words) */

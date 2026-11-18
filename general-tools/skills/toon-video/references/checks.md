@@ -9,7 +9,7 @@ stories' tools. <!-- lint-ok -->
 | Check | Script | Gives | Rule |
 |---|---|---|---|
 | Locks | `scripts/loop/lock.mjs out/<slug> set\|check\|reopen` (and `step.mjs` before each round, render and keep) | The places, then the cameras, sizes and join cards, frozen; a changed locked file is refused | S5-71, S5-73 |
-| Shot sizes and the far picture | `templates/scene/tools/shots-check.mjs` | Per shot: the hero's height in the frame, wides over 1.5 s, cameras looking away from the far picture, frames in no shot | S5-72, S5-88 |
+| Shot sizes and the far picture | `templates/scene/tools/shots-check.mjs` | Per shot: the hero's height in the frame, wides over 1.5 s with the hero under a third, cameras looking away from the far picture, frames in no shot | S5-72, S5-102 |
 | The rough film | `scripts/loop/abjudge.sh <animatic> <rough film> out/<slug>/film-0 --judges 3` | Film-level faults before any acting | S5-84 |
 
 ## In each round
@@ -40,7 +40,7 @@ stories' tools. <!-- lint-ok -->
 
 | Check | Script | Gives | Rule |
 |---|---|---|---|
-| The bar's machine half and the calm number | `python3 -I scripts/bar-check.py <clip>` | Hard cuts, soft joins, big jumps, still stretches, the longest run, median change per frame, brightness | X-16, S3-173, S3-196 |
+| The bar's machine half and the calm number | `python3 -I scripts/bar-check.py <clip>` | Hard cuts, soft joins, big jumps, still stretches, the longest run, median change per frame, brightness | X-16, S3-173, S3-205 |
 | Frames for a reviewer | `sh scripts/spike-frames.sh <clip> <dir>` | Full frames twice a second, every-frame sheets, a one-a-second strip | X-23, S3-175 |
 | Baseline over the try | `sh scripts/spike-ab.sh <base dir> <try dir> <out.jpg>` | One picture of both at the same seconds | X-24 |
 

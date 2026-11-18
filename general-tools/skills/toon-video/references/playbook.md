@@ -48,7 +48,7 @@ Status: **built** (in the kit, with a file), **blueprint** (we know how, not bui
 | Technique | Why it works | Blueprint | Status | Seen in |
 |---|---|---|---|---|
 | A camera that is almost always moving, each move eased in and out (S3-102) | Keeps a phone viewer from scrolling | Eased splines in `shots.ts` | built | both |
-| Long journeys through one place instead of cuts (dives, skims, orbits, pull-backs) | One unbroken idea per stretch | `shots.ts`, game-world places | built | railroads |
+| Long journeys through one place (dives, skims, orbits, pull-backs), with a cut to a new angle where a fact needs a close shot (S3-201) | One unbroken idea per stretch | `shots.ts`, game-world places | built | railroads |
 | Dissolves of 7–14 frames while both cameras move; matched so the subject keeps its place on screen | Soft joins that feel like one move | Moving dissolves in `shots.ts`; plan both shots in screen space | built (matching is blueprint) | both |
 | A wipe made by the world (a windscreen wiper sweeps one place into the next) | A join that belongs to the story | A pivoting mask with a blade drawn over it | blueprint | dashcam |
 | Swoop through glass from inside to outside | Moves from a person to their situation without a cut | One spline through a glass plane, speed lines on the fastest part, no motion blur (S3-38) | blueprint | dashcam |
@@ -61,7 +61,7 @@ Status: **built** (in the kit, with a file), **blueprint** (we know how, not bui
 | Pull out from one lit window to a whole building; crane to a map and dive to another example | One becomes many in two seconds | A facade with cutaway floors, one warm window; or terrain with tiny copies | blueprint | expulsion room, pink prison |
 | A whip pan reveals someone already there, inside one place (S3-123) | A comic arrival with no walk-in | 0.3 s pan with speed lines onto the waiting person | blueprint | scratch cards, random numbers |
 | A near object across the lens hides the dissolve | The join sits inside an action | Time a prop to fill about 60% of frame; dissolve under it | blueprint | pachinko, railroads |
-| Save hard cuts for a change of place or time (S3-121) | In a film of soft joins, a rare cut jolts at the right moment | Dissolves elsewhere; at most 3 cuts plus the loop, each with its reason | blueprint | roller coaster |
+| Cut to a new angle inside one place, and dissolve between places (S3-201) | Cuts inside a place cost no calm (churn 16.8 to 3.9 in the 18 November 2026 spikes); a dissolve carries the change of place | A cut on the word to a close shot of a fact and back; moving dissolves between places | built | roller coaster; the reference Short of the 18 November 2026 spikes (8 angle cuts) |
 | Pace as a curve: fast spectacle, still reveal | Calm frames give the reveal weight | A pace curve in the dynamics profile, not one number | blueprint | pachinko, idea zone, dashcam |
 | Split screen for one person in two places | A contradiction read at a glance | Two cameras into halves with a divider; stacked, then side by side | blueprint | teleporter |
 | A point of view with closing lids or a spyglass iris | The viewer sees as the character | Camera at the eyes; lid shapes closing with blur; or a gold-rimmed circle mask | blueprint | idea zone, mirror race |

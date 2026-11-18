@@ -93,9 +93,10 @@ export function pushed(v: View, m: Move): View {
 // ---- segments -----------------------------------------------------------------------------------------------------
 
 /** how a segment joins the one before: the camera swings from the last framing (same place: the default), or a hard
- *  cut (the default between places; inside a place only for a change of time). Decision 4 (Vincent, 11 November 2026):
- *  joins by default, a hard cut only for a change of place or time, at most 3 plus the loop, each with its reason
- *  (`why`). 'whip' is kept only so older stories still type-check: a whip pan is drawn with motion blur, which is
+ *  cut (the default between places in this single-composition template, which has no dissolve). Rule S3-201 (owner,
+ *  18 November 2026, replacing decision 4 of 11 November): a hard cut may change the angle inside one place, jump in
+ *  time or loop; a change of place is a join or a moving dissolve (the scene template), so a cut between places here
+ *  still gives its reason (`why`) and counts against `max`. 'whip' is kept only so older stories still type-check: a whip pan is drawn with motion blur, which is
  *  banned (decision 6), so the film draws it as a cut and checkJoins fails it. */
 export type Into = 'swing' | 'whip' | 'cut';
 export interface Seg<P extends string = string, A = unknown> {
@@ -108,7 +109,7 @@ export interface Seg<P extends string = string, A = unknown> {
   from?: Move;
   /** default: swing inside a place, cut between places */
   into?: Into;
-  /** why this segment opens on a hard cut (a change of place or of time): checkJoins asks for it on every cut */
+  /** why this segment opens on a hard cut between places (or a jump in time): checkJoins asks for it on those cuts */
   why?: string;
   /** film time the shot's clock starts from. Default: a segment of the same place and shot as the one before it
    *  continues that one's clock (one shot split into several camera moves keeps acting); any other segment starts
@@ -117,8 +118,9 @@ export interface Seg<P extends string = string, A = unknown> {
   /** the shot's clock starts this many seconds before its own starting `t` (a shot started early); continued segments
    *  inherit it */
   lead?: number;
-  /** the mid-shot punch in: on by default for segments over 1.8 s. false for a flat shot, one with leaves close to the
-   *  lens, or one whose subject would leave the frame */
+  /** the mid-shot punch in: on by default for segments over 1.8 s, kept so older films render the same (X-8). A new
+   *  film sets false and holds with a slow drift, one push-in every 4 s at most (S3-203); also false for a flat shot,
+   *  one with leaves close to the lens, or one whose subject would leave the frame */
   punch?: boolean;
   /** the far blur in px at 1080 wide (0 = sharp), overriding the shot's */
   blur?: number;
@@ -176,22 +178,24 @@ export function viewAt(s: Seg, base: View, other: (shot: string) => View, t: num
 export const intoOf = (segs: Seg[], i: number): Into =>
   segs[i].into ?? (i > 0 && segs[i - 1].place === segs[i].place ? 'swing' : 'cut');
 
-/** The joins against decision 4: every hard cut (after the first segment) has its reason in `why`; there are at most
- *  `max` of them (default 3; the loop back to the start is not a segment and not counted); a cut inside one place
- *  says why (a change of time); no whip pans (motion blur, decision 6). Why: the jungle holdout's whips and Elijah's
- *  eight place-to-place whips read as hard cuts, and the owner asked for joins. */
+/** The joins against S3-201: a hard cut to a new angle inside one place is free (no reason, not counted); every hard
+ *  cut between places has its reason in `why`, and there are at most `max` of them (default 3; the loop back to the
+ *  start is not a segment and not counted), since a change of place wants a join or a moving dissolve; no whip pans
+ *  (motion blur, decision 6). Why: the jungle holdout's whips and Elijah's eight place-to-place whips read as hard
+ *  cuts; the 18 November 2026 spikes found cuts inside one place calm (churn 16.8 to 3.9). */
 export function checkJoins(segs: Seg[], max = 3): string[] {
   const out: string[] = [], cuts: number[] = [];
   segs.forEach((s, i) => {
     if (i === 0) return;
     const into = intoOf(segs, i), name = `${i} ${s.place}/${s.shot} at ${s.a.toFixed(2)} s`;
     if (into === 'whip') out.push(`${name}: a whip pan (motion blur is banned, decision 6): join by a swing, or cut with a reason`);
+    if (into === 'cut' && segs[i - 1].place === s.place) return;  // a new angle inside one place (S3-201)
     if (into === 'cut' || into === 'whip') {
       cuts.push(i);
       if (!s.why || !s.why.trim()) out.push(`${name}: a hard cut with no reason; give \`why\` (a change of place or time) or join by a swing`);
     }
   });
-  if (cuts.length > max) out.push(`joins: ${cuts.length} hard cuts (at ${cuts.map(i => segs[i].a.toFixed(1)).join(', ')} s), over ${max}: join the rest by swings inside a place`);
+  if (cuts.length > max) out.push(`joins: ${cuts.length} hard cuts (at ${cuts.map(i => segs[i].a.toFixed(1)).join(', ')} s), over ${max}: join the rest by a dissolve (the scene template) or keep them in one place`);
   return out;
 }
 

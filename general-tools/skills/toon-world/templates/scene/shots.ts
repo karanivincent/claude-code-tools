@@ -18,10 +18,10 @@ const IN = joinIn(SCENE), OUT = joinOut(SCENE);
 // ---------------- beats (scene frames; from the voice's word times: a reaction lands 0-3 frames before its word) ----------------
 export const BEATS = { laugh: 0, dare: Math.round(FRAMES * 0.4), crouch: Math.round(FRAMES * 0.6), talk: Math.round(FRAMES * 0.5), end: FRAMES - 1 };
 
-// ---------------- the shot list (S5-88) ----------------
+// ---------------- the shot list (S5-102) ----------------
 /** One shot: its frames, its size, who it is about. A "close" or "mid" shot holds `hero` at a third of the frame
- *  height or more (faces read on a phone); a "wide" only places the scene and lasts 45 frames (1.5 s) at most, unless
- *  `why` says otherwise. Every shot looks into the place's far picture (S5-72) unless `noFar` says why not.
+ *  height or more (faces read on a phone); a "wide" with the hero at a third or more may carry the scene, and a wide
+ *  with the hero smaller lasts 45 frames (1.5 s) at most, unless `why` says otherwise. Every shot looks into the place's far picture (S5-72) unless `noFar` says why not.
  *  `ref` names the reference shot it copies (S5-76). */
 export type Shot = { from: number; to: number; size: 'wide' | 'mid' | 'close'; hero?: string; why?: string; noFar?: string; ref?: string };
 export const SHOTS: Shot[] = [

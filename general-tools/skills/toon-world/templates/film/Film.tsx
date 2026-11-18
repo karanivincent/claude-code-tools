@@ -9,8 +9,9 @@ import { segAt, frameAt, checkSegs, checkPace, checkJoins, intoOf } from '../../
 
 // The film: the board's places and shots played in time with the voice (shots.ts). One place is on screen at a time;
 // its canvas is keyed by the place, so a new place builds once and then runs for its frames, and the next place loads
-// while this one plays. Joins (decision 4): a swing inside a place by default; a hard cut between places, or for a
-// change of time, each with its reason (`why`), at most 3 plus the loop (toon-kit checkJoins). No whip pans: they need
+// while this one plays. Joins (S3-201): a swing inside a place by default, or a hard cut to a new angle there; a hard
+// cut between places, or for a change of time, with its reason (`why`), at most 3 plus the loop (toon-kit checkJoins;
+// this template has no dissolve, so the scene template's moving dissolve is the way between places). No whip pans: they need
 // motion blur, which is banned (decision 6). Cards, papers, thought bubbles and the running captions are drawn over the
 // picture.
 // Props: audio (the mix, '' for a silent render), debug ('audit' logs one sample a frame for tools/audit.mjs, 'nopost'

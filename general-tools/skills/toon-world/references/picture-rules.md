@@ -47,7 +47,7 @@ show him the best one.
 
 Four labelled blocks, the same words in each picture of the place:
 
-- WORLD: the place, each fixed thing named where it stands, in vivid modern cartoon colours (S3-30, S3-49);
+- WORLD: the place, each fixed thing named where it stands, in vivid modern cartoon colours (S3-207, S3-49; at night the lamps and moonlight of S3-205);
   "painted storybook film still" for the painted style.
 - CAMERA: where it stands on the plan, what it looks at, its height against something in the frame, the lens as a
   field of view in words, horizon at the middle, vertical lines perfectly straight.

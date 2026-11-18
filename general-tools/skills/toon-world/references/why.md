@@ -186,9 +186,13 @@ channel in the same look; the full story of each spike is in `toon-video/referen
   77; the owner chose about 85). The kit's one sun-like key could not make a pool of light. The lamp behind the hero
   threw his shadow toward the lens; a shadow-map edge split a clock face (the mask now fades on faces turned away from
   the key); the rim ran all round each card like a sticker.
+- The owner's decision of 18 November 2026 then changed three light rules: night (S3-48 to S3-205, with day-only
+  S3-206 and S3-207 in place of S3-31 and S3-30), the indoor key (S3-42 to S3-209, the place's named source placed with
+  the set) and the rims (S5-58 to S5-103 and S3-198 to S3-210, a warm rim on the key side). The full table is in
+  `toon-video/references/why.md`.
 - Two things the light spikes did are left out because they clash with rules here: haze on the far picture 40 to 55%
   toward the air colour, which garbo-bar 2 proposed for the skill (S3-15 keeps far pictures crisp), and background
-  blur by shot size, which both light spikes used (S3-35 keeps backgrounds sharp). Both wait for the owner.
+  blur by shot size, which both light spikes used (S3-35 keeps backgrounds sharp). The owner kept both rules as they are on 18 November 2026.
 
 ## Measures from the railroads copy
 

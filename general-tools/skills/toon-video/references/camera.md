@@ -22,8 +22,8 @@ are in `why.md`.
 Vincent, after the B-17 proof test: "choose the shot wisely, make it bigger, put other things happening behind".
 Choose each shot for size and drama, as a big channel would, not for coverage.
 
-- **The hero big.** On its key moments the hero fills a third of the frame height or more (S5-88). A wide only places
-  the scene.
+- **The hero big.** On its key moments the hero fills a third of the frame height or more (S5-102). A wide with the
+  hero at a third or more may carry a scene; a smaller wide only places it, 1.5 s at most (S5-102).
 - **The angle for a reason.** Each shot in `shots.ts` names why its angle was chosen (`why: 'low, so the plane climbs
   over the stand'`) (S5-91). No reason means restage it.
 - **Something behind.** Each shot names what moves behind the hero (`behind: 'second plane taxiing, crew running'`):
@@ -31,7 +31,7 @@ Choose each shot for size and drama, as a big channel would, not for coverage.
 - **The hero moment reads as big.** Stage it high, wide or close enough: a plane climbs visibly high above the
   ground and the people; a fall is seen whole, from the tip to the impact (S5-92).
 - **Light makes colour.** Shoot toward the low sun for rims, or across it for long shadows; a flat front light from
-  behind the camera gives plain colour (S3-166, S5-58).
+  behind the camera gives plain colour (S3-166, S5-103).
 - **Few candidates, one pick.** For each hero beat render 2 to 3 candidate stills, forced apart: a different camera
   side, height and shot size, not the same shot nudged. Put them on the review page at stage `shots`; Vincent picks
   one by note, and he is not asked to rank many (S5-93).
@@ -49,9 +49,10 @@ The parts that matter for the camera:
   where the camera goes, and how it joins the last:
   - `to` and `from`: another shot's framing, or a push `{ push, side, rise, fov, aim }`.
   - `into`: `swing` inside one place; between places a join from the stack below, the template's default being a
-    dissolve (S3-122); `whip` for a reveal inside one place (S3-123); `cut` for a change of place or time, counted
-    against S3-121.
-  - `punch`: a punch in at the middle of segments over 1.8 s (S3-118); off where the subject would leave the frame.
+    dissolve (S3-122); `whip` for a reveal inside one place (S3-123); `cut` for a change of angle inside one place, a
+    jump in time or the loop (S3-201).
+  - `punch`: a punch in at the middle of a segment over 1.8 s. The kit keeps it on for older films (X-8); a new film
+    sets `punch: false`, holds with a slow drift, and allows one push-in every 4 s at most (S3-203).
   - `clock`: consecutive segments of one shot share its clock (S3-117); `clock: 'own'` restarts it; a number shares
     a clock across shots.
   - `lead`: start a shot's clock early when its start moved earlier.
@@ -98,7 +99,8 @@ All from `src/toon-kit/camera` (synced by `sync-kit.mjs`); a story keeps no copy
 ## Framing
 
 The shots stage sets every scene's shots before any acting and locks them (S5-73): a beat with a face or an action
-holds the hero at a third of the frame height or more, and a wide only places the scene, 1.5 s at most (S5-88). Every
+holds the hero at a third of the frame height or more; a wide with the hero at a third or more may carry the scene,
+and a wide with the hero smaller lasts 1.5 s at most (S5-102). Every
 shot looks into the place's far picture (S5-72). When an earlier build of the beat exists, its shot sizes and camera
 side are copied (S5-76). `tools/shots-check.mjs` measures all of it. The cliff film's jump, framed "side-on, tilt
 down" from the plan alone, came out with faces at 1/20 of the frame and lost to the spike that held Josh at a third.
@@ -107,8 +109,8 @@ down" from the plan alone, came out with faces at 1/20 of the frame and lost to 
   stay within about 10 degrees of the centre line; far apart and side-on, shoot a diagonal from above (S3-93, S3-94).
 - Stagger two people in depth rather than side by side (S3-61).
 - Cameras on uneven ground give heights above the ground under each point (S3-28).
-- Medium shots by default: the person about half the frame high, the prop beside them, the room above. A face
-  close-up on an emotional turn, about 3 frames in 20 (S3-105). Acting framed with the person at least 25% of the
+- Medium shots by default: the hero about a third of the frame height where the place has to read, about half for
+  acting, the prop beside them, the room above. A face close-up on an emotional turn, about 3 frames in 20 (S3-208). Acting framed with the person at least 25% of the
   frame high (S3-106).
 - One clear thing per second, from the meaning sheet (S3-103). At least three kinds of view: from above, a map or
   cut-away, ground level (S3-104).
@@ -128,14 +130,14 @@ down" from the plan alone, came out with faces at 1/20 of the frame and lost to 
 From two spike series on 18 November 2026, measured against the newest Short of a larger channel in the same look;
 proven on short stretches only (X-30, `spikes.md`).
 
-- Choose shot sizes with the set: a wide holds the hero at about a third of the frame height, so the place shows
-  round him (S3-170). Fill comes after the camera is locked (S3-185).
+- Choose shot sizes with the set at the shots stage, so the place shows round the hero (S3-211, S3-208, S5-102).
+  Fill comes after the camera is locked (S3-185).
 - Show a thing in the wide before cutting to it, so the close reads as "that thing over there" (S3-171).
 - Each fact gets its own moment at reading size on its word; first make it bigger in the world (1.3 times bigger
   letters), then move the camera if it still needs it (S3-172).
 - Keep the picture calm: `bar-check.py`'s median change per frame under 8, aiming at the reference's 4 (S3-173). A
-  push-in for a fact raises that number and a cut does not; budget about one push-in per 4 s (S3-174). How many hard
-  cuts a film may have is S3-121.
+  push-in raises that number and a cut does not: hold with a slow drift, at most one push-in every 4 s (S3-203), and
+  give a fact a cut inside the place to a close shot and back (S3-202, S3-201).
 - Check the hero whole and clear of the edges on the one-a-second strip of each render (S3-175).
 - Dropping a device (an inset box, a card, a wipe) drops what it carried: list what it told the viewer and give each
   thing a new home in the place, such as an address on the envelope the hero holds out (S3-176).
@@ -168,8 +170,8 @@ declare each span framed on purpose with its reason (`framed`).
 ## Joins: what the join has to do
 
 The joins stack is a menu, not a default. For each join, say what it has to do, pick the entry that does it, and
-write the reason in the shot list (S3-120). A move whose reason you cannot say out loud is not a join: hold, dissolve,
-or (for a change of place or time) cut.
+write the reason in the shot list (S3-120). A move whose reason you cannot say out loud is not a join: hold, cut to a
+new angle inside the place, or (for a change of place) dissolve (S3-201).
 
 | The join has to | Look first at |
 |---|---|
@@ -180,8 +182,8 @@ or (for a change of place or time) cut.
 | Follow cause to effect | Follow what travels |
 | Go inside or outside | Through a door, window or gap |
 | Reveal someone already there, inside one place | Whip pan reveal (S3-123) |
-| Change place or time with a jolt | A hard cut: at most 3 plus the loop, each with its reason (S3-121) |
-| Anything else inside one place | Follow the subject, or hold |
+| Jump in time with a jolt, or loop to frame 0 | A hard cut on the word, with its reason (S3-201) |
+| Anything else inside one place | Follow the subject, hold with a slow drift (S3-203), or cut to a new angle (S3-201) |
 
 ## Rules for each join
 
@@ -216,7 +218,7 @@ with where it was seen or who proposed it.
 | A scene shrinks into an object or freezes into a photo | The join is also a punchline, or a memory | The object has no meaning in the story | cashiers, burglar, time test | Render the scene into the object; pull out; blueprint |
 | A near object crosses the lens and hides the dissolve | The join sits inside an action | Nothing near the lens belongs there | railroads, pachinko | A prop fills about 60% of the frame; dissolve under it |
 | Whip pan reveal | Someone is already waiting in the same place (a comic arrival) | Travel between places (S3-123) | scratch cards, random numbers, ancient jar, mirror race | 0.3 s pan onto the person, speed lines, no motion blur (S3-38) |
-| Hard cut | A change of place or time a join cannot carry, or the loop to frame 0; at most 3 plus the loop (S3-121) | Inside one place | roller coaster | A cut on the word, its reason in the shot list |
+| Hard cut | A new angle inside one place (a close shot of a fact and back), a jump in time, or the loop to frame 0 (S3-201) | A change of place: dissolve or join instead (S3-201) | roller coaster; 8 angle cuts in the reference Short of the 18 November 2026 spikes | A cut on the word, its reason in the shot list |
 | A wipe made by the world (a wiper, a passing train) | The world has a sweeping thing | Forced | dashcam | A pivoting mask with the blade drawn over it |
 | Split screen | One person in two places at once | Two different stories | teleporter | Two cameras into halves |
 | Through a break in the world (a hole, a tear, a crack) | Something breaks open and the story goes inside | Nothing in the story breaks | cannonballs, spear and shield, ancient jar | One path through the opening as it forms; switch places inside it |
@@ -232,7 +234,9 @@ with where it was seen or who proposed it.
 |---|---|---|
 | Rise into empty sky, fall onto the next place (S3-124) | Shows nothing; the camera moves for its own sake | Horizon approach, map zoom or a moving dissolve |
 | Tilt or rise into empty sky inside a shot, to make room for a card (S3-124) | Half the frame shows nothing and the person sinks to the edge | The card in sky already in frame, or a push on the person; `checkSky` |
-| A whip to travel between places (S3-122, S3-123) | Travel with no reason reads as a glitch | A dissolve from the stack, or a hard cut within the count |
+| A whip to travel between places (S3-122, S3-123) | Travel with no reason reads as a glitch | A dissolve or a join from the stack (S3-201) |
+| A hard cut between places (S3-201) | A jolt the place change does not need | A moving dissolve or a join from the stack |
+| An inset box, an overlay or a wipe carrying a fact (S3-176) | The fact leaves the place | A cut inside the place to the fact, or the fact on a prop (S3-202, S3-212) |
 | A swing with no subject at either end (S3-120) | The viewer cannot tell why it moved | Follow the subject, or dissolve |
 | A camera that arrives before its person (S3-133) | An empty frame on the word | `follow` the person |
 | A flight through walls or under the ground (S3-100) | Breaks the world | `safe`; a door or window join |

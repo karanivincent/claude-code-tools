@@ -64,8 +64,10 @@ World:
 - Any dark band or picture edge at a frame edge?
 
 Light:
-- One warm key from the side of the shot, a cool fill, rims on the cards? A key from straight behind the camera gives
-  the cards no rim.
+- Does the key come from a source you can point to in the place (a sun, window, lamp or fire), with a cool fill and a
+  warm rim on the key side of each card (at most a faint cool edge on the far side)? A key from straight behind the
+  camera gives the cards no rim; a rim all round reads as a sticker.
+- At night: is the room dark and lit by lamps you can see, nothing pure black, faces and facts still readable?
 - Is the subject warm against a cool or dark field? Cool on cool is a fault.
 - Does the light hold one time of day through the scene? No surface turning grey, no water turning purple.
 - Are the faces lit on the key words?

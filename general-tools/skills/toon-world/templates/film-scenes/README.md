@@ -58,8 +58,11 @@ it and the scene after starts on it.
 ```
 
 - The frame of the cut is the scene after's first film frame (`plan.ts sceneFrom`).
-- `"cut": true` marks a deliberate hard cut (a new place or angle): the camera is free on both sides and
-  `cam-speed` does not count the jump; the people are still held.
+- `"cut": true` marks a deliberate hard cut to a new angle inside one place (S3-201): the camera is free on both sides
+  and `cam-speed` does not count the jump; the people are still held. A change of place wants a moving dissolve
+  (S3-201), which this template does not have yet: it was built on the garbo-bar spike branch as a `dissolve` field
+  on the join card in `joins.json`, both cameras moving for about 10 frames. Until it is moved here, a cut between
+  places gives its reason in the shot list.
 - `"dip": <frames>` marks a jump in time: the Film fades through black over that many frames each side, the card holds
   nobody, and `join-times.mjs` writes it as kind "dip" for `joins.sh` (S5-86). `tools/join-card.mjs <scene> --jump
   --dip 8` writes one.

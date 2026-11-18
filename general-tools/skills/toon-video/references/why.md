@@ -24,6 +24,7 @@ this file.
   - [The critic](#the-critic)
   - [Team and log](#team-and-log)
   - [The spikes of 18 November 2026](#the-spikes-of-18-november-2026)
+  - [The owner's six changes, 18 November 2026](#the-owners-six-changes-18-november-2026)
 
 ## Old patterns
 
@@ -288,7 +289,7 @@ project the spikes ran in.
 - Spike 5c, one fix round of eight items in order: six fixed, the one that mattered (the NO stamps) missed, 105
   minutes (X-26). The "stick" was the tram's trolley pole seen from a new angle (S3-190). "One journey" in the briefs
   had made builders avoid the cut the payoff needed (X-28); the reference Short has 8 hard cuts, all angle changes
-  inside one place. This clashes with S3-121, which is left for the owner.
+  inside one place. This clashed with S3-121; the owner replaced it the same day (S3-201, change A below).
 
 **garbo-night** (a 5.6 s night office scene; five spikes on one branch, about 1.7M tokens):
 
@@ -307,3 +308,23 @@ project the spikes ran in.
 - Spike 4, one ranked fix round with half the budget on the first item: "too late" fixed with a LANDINGS tag at half
   past six, hands running to eight and a RECEIVED stamp landing on the word (S3-177, X-26). The hard edge was the key
   light's shadow map on faces turned away from it. Mitten hands could not show a finger on the key (S3-184).
+
+### The owner's six changes, 18 November 2026
+
+After the two spike series the owner was shown each place where an older rule disagreed with a spike lesson, with a
+recommendation, and answered "apply all". Source of each: owner's decision, 18 November 2026, after spike series
+garbo-bar and garbo-night. The old rules stay in `rules.md`, struck through, and their old wording is in
+`rules-log.md`. Not changed, by the same decision: the narration pace (S1-35), no haze (S3-15), sharp backgrounds
+(S3-35) and the sharpness and saturation measures (S5-97).
+
+| | Old | New | Why |
+|---|---|---|---|
+| A. Cuts inside one place | S3-121: hard cuts only for a change of place or time, at most 3 plus the loop | S3-201: a hard cut may change the angle inside one place, jump in time or loop; a change of place is a join or a moving dissolve. S3-202 (was S3-174) gives a fact a cut to a close shot and back | Five cuts inside one room took the churn from 16.8 to 3.9; the reference Short has 8 angle cuts; "one journey" made builders avoid the cut a payoff needed |
+| B. Push-ins on a hold | S3-118: segments over 1.8 s punch in at the middle | S3-203: hold with a slow drift; one push-in every 4 s at most. The kit keeps its punch-in on for older films (X-8); the film template turns it off | Four fact push-ins raised the churn from 7.5 to 11; the reference sits near 4 |
+| C. Night | S3-48: night by hue, brightness and one warm light; S3-31: black point near black; S3-30: bright and saturated | S3-205: the room goes dark, lit by lamps you can see that fade with distance; mean near 85, darkest 5% 25 or more, faces and facts readable, saturation kept. S3-206 and S3-207 keep S3-31 and S3-30 for day and point at night. S3-204 (was S3-196) turns off out-of-shot glows. S4-18 (the Bible in Clay floor) unchanged: no night scene tested there | A violet day room did not read as night; the dark grade (mean 78.5) read as the reference's night |
+| D. How big the hero is | S3-105: medium shots by default (camera.md: the person about half the frame high); S5-88: a wide only places the scene, 1.5 s at most | S3-208: about a third of the frame height where the place must read, about half for acting; S5-102: a wide with the hero at a third or more may carry a scene, the 1.5 s limit only for smaller wides. S3-211 (was S3-170) points at both | With the hero at two-thirds, 14 set pieces and 11 extras changed 1 to 4% of the pixels |
+| E. Light on the people | S3-42: one warm key per framing, set relative to the camera; S5-58: warm and cool rims on the cards | S3-209: the key is the place's named source, placed with the set; S5-103: a warm rim on the key side; S3-210 (was S3-198): at most a faint cool edge on the far side | A lamp behind the hero threw his shadow at the lens; an all-round rim read as a sticker |
+| F. Dates and facts | S3-150: dates and orders show as cards | S3-212: on a prop in the place (a wall calendar, an envelope), a card only when no prop can carry it | The date on the wall calendar and the address on the envelope read inside the place; inset boxes and cards took facts out of it |
+
+Code that followed: `shots-check.mjs` flags a long wide only when the hero is under a third; the kit's `checkJoins`
+no longer counts or asks a reason for a cut to a new angle inside one place; the film template sets `punch: false`.

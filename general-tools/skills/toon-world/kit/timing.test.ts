@@ -100,6 +100,9 @@ test('joins: swing inside a place, cut between places (no whip, no blur); checkJ
   assert.match(checkJoins(whip)[0], /whip/);
   const many = resolveClocks([0, 1, 2, 3, 4].map(k => ({ place: k % 2 ? 'a' : 'b', shot: 'list', a: k, b: k + 1, why: 'a change of place' })));
   assert.equal(checkJoins(many).length, 1, 'four cuts are over three');
+  // S3-201: a cut to a new angle inside one place needs no reason and is not counted
+  const angles = resolveClocks([0, 1, 2, 3, 4].map(k => ({ place: 'a', shot: k % 2 ? 'wide' : 'close', a: k, b: k + 1, into: 'cut' as const, punch: false })));
+  assert.equal(checkJoins(angles).length, 0, 'four angle cuts inside one place are allowed');
 });
 
 test('a swing never rises above the higher of its two framings (no lift into empty sky)', () => {
