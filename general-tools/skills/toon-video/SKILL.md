@@ -82,11 +82,11 @@ rule-by-rule lines for each step. Do not retell a step in other words (S0-8, X-7
 - [ ] Far pictures face the cameras; screen direction in marks.ts (S5-72, S5-79)
 - [ ] Places locked: out/<slug>/locks.json "world" (S5-71)
 ### Stage 4. Shots stage (one agent, every scene)    stop: shots locked
-- [ ] Every scene's camera, beats and shot list in shots.ts, copying any reference (S5-73, S5-76, S5-88)
+- [ ] Every scene's camera, beats and shot list in shots.ts, copying any reference (S5-73, S5-76, S5-102)
 - [ ] Spectacle: each shot's reason and what moves behind; hero moments staged big (S5-91, S5-92, S3-169)
 - [ ] 2 to 3 candidate stills per hero beat; owner's pick on the review page at stage "shots" (S5-93)
 - [ ] Each person's size once in sizes.ts; join cards written (S5-74, S5-51, S5-86)
-- [ ] shots-check, cam-speed and path-check clean (S5-72, S5-88, S5-67, S5-80)
+- [ ] shots-check, cam-speed and path-check clean (S5-72, S5-102, S5-67, S5-80)
 - [ ] Rough film rendered and judged against the animatic: out/<slug>/film-0/ (S5-84)
 - [ ] Shots locked: out/<slug>/locks.json "shots" (S5-73)
 ### Stage 5. Scene stage, up to four at once         stop: each pass at 4 (and at or above its reference), two rounds with no win, or six rounds
@@ -172,7 +172,7 @@ the same way. Say the cost before starting agents (X-3). Loop scripts: `<toon-vi
 | Stage | Who | Works on | Then | Rules |
 |---|---|---|---|---|
 | 3. World | one world agent | every place: sky, far band, middle, ground, detail layer, light | lock `world` | S5-71, S5-72, S5-79, S5-57..S5-62 |
-| 4. Shots | one shots agent | every scene's camera, beats, shot sizes; each person's size; join cards | rough film, lock `shots` | S5-73, S5-74, S5-76, S5-84, S5-88 |
+| 4. Shots | one shots agent | every scene's camera, beats, shot sizes; each person's size; join cards | rough film, lock `shots` | S5-73, S5-74, S5-76, S5-84, S5-102 |
 | 5. Scenes | up to four builders | people and acting, then motion and staging, on their own scenes | each scene to its stop | S5-75, S5-77, S5-78, S5-80, S5-87 |
 | 6. Join | the lead | the joined film, its joins, its one mix, the owner | notes back to scenes | S5-52, S5-82, S5-83, S5-86 |
 
@@ -199,8 +199,8 @@ are done once; the Film plays captions from the first render (S5-81).
 ### Stage 4. Shots stage
 
 1. The shots agent writes each scene's `scenes/<scene>/shots.ts`: beats from the word times, the camera keys, and the
-   shot list (S5-73). A beat with a face or an action holds the hero at a third of the frame height or more; wides
-   only place the scene, and briefly (S5-88). A scene with a reference copies its shot sizes and camera side, and its
+   shot list (S5-73). A beat with a face or an action holds the hero at a third of the frame height or more; a wide
+   with the hero at a third or more may carry the scene, and a smaller wide places it briefly (S5-102). A scene with a reference copies its shot sizes and camera side, and its
    loop is started with `--ref <clip>` (S5-76).
    Choose each shot for size and drama by the spectacle brief in `references/camera.md`: each shot names why its
    angle and what moves behind the hero (S5-91, S3-169); the hero moment reads as big (S5-92).
@@ -209,7 +209,7 @@ are done once; the Film plays captions from the first render (S5-81).
 2. Each person's size goes once into `src/stories/<slug>/sizes.ts` (S5-74). The join cards go into
    `stories/<slug>/joins.json` (S5-51): `tools/join-card.mjs <scene>`, or `--jump --dip 8` for a jump in time (S5-86).
 3. Checks, on each scene: `tools/shots-check.mjs`, `tools/cam-speed.mjs` (planned cuts in `shots.ts CUTS`) and
-   `tools/path-check.mjs <scene>` (S5-72, S5-88, S5-67, S5-80, S5-87).
+   `tools/path-check.mjs <scene>` (S5-72, S5-102, S5-67, S5-80, S5-87).
 4. Render the film rough (the scenes' stand-in poses, captions, the mix) and judge it against the animatic:
    `scripts/loop/abjudge.sh out/<slug>/animatic.mp4 <rough film> out/<slug>/film-0 --judges 3 --stills <refs>` (S5-84, S5-97). Film-level
    faults (dead stretches across joins, missing words) show here, not in a scene.
@@ -306,7 +306,7 @@ checks read the profile (S1-23).
 |---|---|---|
 | Pace (big changes a minute) | 25 (face-led jokes) to 50 (machines, journeys) | Faces slower; machines and journeys faster |
 | Longest holds | 0.5 s to 2.3 s (on a joke) | Hold where a face or a reveal needs reading time |
-| Joins | journeys and dissolves only, to 3 hard cuts plus the loop (S3-121) | Journeys for one big place; dissolves for many |
+| Joins | cuts to new angles inside a place, dissolves or joins between places (S3-201) | Calm holds with a slow drift (S3-203) and angle cuts for one place; dissolves for many |
 | Colour arc | by place, or with the plot | Whether the mood changes over the story |
 | Camera energy | dives and skims, or pushes and orbits resting on faces | As pace |
 | Voices | narration alone, or spoken lines with lip sync | Whether people talk in the story |
@@ -319,8 +319,8 @@ needs.
 When a look, a method or a fix is unproven, spike 15 seconds first, before a whole film (X-13): one stretch, one
 question, one thing changed, judged against a fixed baseline on the bar's 15 checks. The method, the series order, the
 brief templates and the scripts (`bar-check.py`, `spike-frames.sh`, `spike-ab.sh`): `references/spikes.md`; the
-checks: `references/bar.md`. The rules the 18 November 2026 spikes found (X-13..X-30, S3-170..S3-200) are proven on
-short stretches only; the next film made with this skill is their proof run (X-30).
+checks: `references/bar.md`. The rules the 18 November 2026 spikes found (X-13..X-30, S3-171..S3-200 and their replacements S3-201..S3-212, S5-102, S5-103) are
+proven on short stretches only; the next film made with this skill is their proof run (X-30).
 
 ## Adding a rule
 

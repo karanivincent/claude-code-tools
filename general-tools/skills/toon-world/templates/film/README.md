@@ -28,9 +28,9 @@ segments, and replaces the stand-in cast. Needs TypeScript 5, `@react-three/post
 |---|---|
 | `W` throws on a word said twice in its line unless told which | A card on the wrong word (the 1972 card on "one by one", 1.8 s early) |
 | Consecutive segments of one shot share its clock | Acting restarting at each camera move (the list's tick never landed) |
-| A punch in at the middle of every segment over 1.8 s | Holds that read as stills (cut 1: 14% still frames) |
+| `punch: false` on each segment: holds drift slowly, one push-in every 4 s at most (S3-203); the kit's punch-in stays on for older films | A picture that never settles (churn 20 against the reference's 4, spikes of 18 November 2026); a hold still reads alive by its drift |
 | A place's shots take the film's clock `t` | A board of stills played as a film ("he barely moves") |
-| Swing inside a place, a cut with its reason between places, at most 3 | Whip pans (motion blur, banned) and unexplained hard cuts |
+| Swing or a cut to a new angle inside a place; a cut with its reason between places, at most 3 (S3-201) | Whip pans (motion blur, banned) and unexplained hard cuts between places |
 | One place canvas at a time, keyed by place, next place loaded early | Every place built on every frame, and a stall at each change of place |
 | Sharp backgrounds in every shot, as in the reference stills (S3-35) | Soft frames that measure a sixth of the references' detail |
 | Overlays land on their words and are cues for the audit | Dates and orders missing or late ("I don't know what those are") |

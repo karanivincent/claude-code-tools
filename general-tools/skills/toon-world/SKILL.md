@@ -119,8 +119,8 @@ cameras is checked, a few seconds render, three reviewers watch at 6 fps with wo
 judge keeps or undoes the round (S5-41, S5-42). The far picture faces where the cameras look (S5-72): `marks.ts FAR`
 holds its direction and arc, and `tools/shots-check.mjs` checks each shot against it. Then the places are locked
 (`toon-video/scripts/loop/lock.mjs`), so no scene builder changes a place under another. A needed change goes to the
-lead, who reopens the world stage. What won in the spikes: the blend before round 1 (S5-57), a warm side
-key with cool fill and rims (S5-58), one light step a round (S5-59), a hidden sky seam (S5-60), see-through water
+lead, who reopens the world stage. What won in the spikes: the blend before round 1 (S5-57), a key from the
+place's named source with cool fill and a warm rim on the key side (S5-103), one light step a round (S5-59), a hidden sky seam (S5-60), see-through water
 (S5-61). Nobody edits `step.mjs`, the briefs or `approvals.json` to get past them (X-6).
 
 ### Keep the place simple
@@ -137,7 +137,7 @@ Fill added behind a hero who fills two-thirds of the frame changed 1 to 4% of th
 place first.
 
 - Shot size comes before fill: fill a place once its locked camera shows it (S3-185), with the hero at about a third
-  of the frame height in a wide (S3-170).
+  of the frame height where the place has to read (S3-211, S3-208).
 - A mid shot shows at least 3 m of floor behind the hero's mark, so an extra there stands under two-thirds his size
   (S3-186).
 - A close shot is filled with small moving things beside the hero, never a second face (S3-187): an animal, steam,
@@ -170,8 +170,9 @@ Indoors, a fitted master picture may paint the middle band, projected onto code 
 
 ## Light and grade
 
-Colour is bright and saturated: saturated sky and grass, warm golden sun, shade tinted blue or violet (S3-30). No
-muted albedos and no lifted blacks; the black point stays near black (S3-31). Push colour in passes, with before and
+By day colour is bright and saturated: saturated sky and grass, warm golden sun, shade tinted blue or violet (S3-207).
+No muted albedos and no lifted blacks; by day the black point stays near black (S3-206). Night has its own rule
+(S3-205): the room goes dark and is lit by lamps you can see. Push colour in passes, with before and
 after sheets of the same frames, watching large flat surfaces (S3-32). Numbers: `references/look-targets.md` (see).
 
 | What | Setting | Rule |
@@ -184,11 +185,11 @@ after sheets of the same frames, watching large flat surfaces (S3-32). Numbers: 
 | Ink on the world | Near-black, about 5 px near to 3 px far, its own pass, thinned over painted detail | S3-39 |
 | Cards and ink | Cards on the `NOINK` layer with their own outline | S3-40 |
 | Shade | Blue-grey indoors, violet-blue outdoors at sunset; not brown or black | S3-41 |
-| Indoor key | One warm key per framing, set relative to the camera; casters limited to people's blobs and free-standing floor things | S3-42, S3-43 |
+| Indoor key | The place's named source (a lamp, window or fire), placed with the set, not tied to the camera; casters limited to people's blobs and free-standing floor things | S3-209, S3-191, S3-43 |
 | Bloom | Real light sources, threshold 1.0; faces do not glow; nothing glowing within 4 m of the lens | S3-44, S3-45 |
 | In front of the face | Nothing translucent or additive | S3-46 |
 | Time of day | `timeOfDay` multiplies each lit material, before people and effects | S3-47 |
-| Night | Hue, brightness and one warm light; saturation at or above the day's | S3-48 |
+| Night | The room goes dark, lit by lamps you can see that fade with distance; mean near 85, darkest 5% 25 or more, faces and facts readable; saturation at or above the day's | S3-205, S4-19 |
 | Era | Shown by objects; colours bright and modern; faded grade for a marked flashback alone | S3-49 |
 | Light volumes | Fade by viewing angle and below the top, no outline, still readable as light | S3-50, S3-51 |
 | Metals and gold | About 60% albedo | S3-52 |
@@ -205,9 +206,9 @@ Proven on short stretches only (X-30, `toon-video/references/spikes.md`). Each i
 | Shadows | Start at feet and bases in frame, all fall one way; a shadow from out of frame reads as a stain | S3-193 |
 | Tint | Tint the light and the shadows, not the whole picture; painted whites and blacks keep their colour | S3-194 |
 | Day | Show the sun's work in frame: a hard-edged patch of light, a bright window, a glint | S3-195 |
-| Night | The room going dark: glows from out of shot turned off, lamps in frame with falloff (local lights that fade with distance: built on the garbo-night spike branch, not yet in `templates/look/`, whose key is one sun-like light), mean about 85 of 255, darkest 5% above about 25 (`bar-check.py`) | S3-196 |
+| Night | Glows from out of shot turned off; the light comes from lamps in frame with falloff (local lights that fade with distance: built on the garbo-night spike branch, not yet in `templates/look/`, whose key is one sun-like light); measure with `bar-check.py` | S3-204, S3-205 |
 | Key lamp | Placed with the set and the camera, at the camera stage: in front of the hero and to one side throws his shadow on a wall; behind him it throws it at the lens | S3-197 |
-| Rim | On the lamp side of a person alone; an even outline all round reads as a sticker edge | S3-198 |
+| Rim | A warm rim on the key side, at most a faint cool edge on the far side; an even outline all round reads as a sticker edge | S3-210 |
 | Light's edge | A fact sits fully in the pool or fully out of it; a hard edge across a clock face read as a fault | S3-199 |
 | Light effects | A glow, pulse or glint goes where the frame is dark enough to show it | S3-200 |
 
@@ -267,7 +268,7 @@ has the full list.
 | `templates/scene/` pose sheet and stills sheet | Every pose drawn and visible; each change seen before a render (S5-54, S5-41) |
 | `templates/scene/` camera-speed probe | No move over about 0.3 m or 1.5 degrees a frame (S5-67) |
 | `templates/scene/` path projection (`tools/path-check.mjs`) | An action's path clears the other figures and the place's blockers; the action ends inside its scene (S5-80, S5-87) |
-| `templates/scene/tools/shots-check.mjs` | The hero's size on each shot, short wides, cameras into the far picture (S5-72, S5-88) |
+| `templates/scene/tools/shots-check.mjs` | The hero's size on each shot, short wides, cameras into the far picture (S5-72, S5-102) |
 | `templates/scene/tools/pose-check.mjs` | No face swap or hand jump in one frame (S5-78) |
 | `python3 scripts/short_qa.py final.mp4 <qa dir> shots.json` | Black, white, frozen and popping frames, loudness (S5-18) |
 | `node scripts/fit-camera-example.mjs` | A master picture's camera, fit error under about 15 px (S3-19) |
@@ -306,13 +307,13 @@ has the full list.
 | Blurred backgrounds behind people | Sharp backgrounds; a calm area behind the face (S3-35, S3-12) |
 | Building a place with no reference stills | Pick 3 to 6 catalog stills per place first and copy their detail (S2-34, S2-35) |
 | Motion blur on a fast move | None (S3-38) |
-| Lifted blacks, muted colour, haze toward the horizon | Near-black black point, saturated colour, crisp far band (S3-30, S3-31, S3-15) |
+| Lifted blacks, muted colour, haze toward the horizon (by day) | Near-black black point, saturated colour, crisp far band (S3-207, S3-206, S3-15) |
 | Emissive cards | Lit cards with a contact blob (S3-57) |
 | Cards with the depth test off | The card depth fix (S3-58) |
 | Ink-dot or finger hands on toon figures | Mittens (S3-55) |
 | A busy cut-out behind a face | A calm area behind faces (S3-12) |
 | A band or rail running across a doorway | `trimSpans` from the wall's openings (S3-23) |
-| Night as a desaturated grade | `timeOfDay` by hue and brightness (S3-47, S3-48) |
+| Night as a desaturated grade | The room going dark with lamps in frame, saturation kept (S3-47, S3-205) |
 | A generated close-up of the place | Model the close object or crop the master (S3-20) |
 | Code clouds | A picture sky on a dome (S3-80) |
 | A flat midday far picture with an empty sky and one row of things | Golden hour or storm light, layers, dense detail, by the template (S3-166, S3-167) |
@@ -322,7 +323,7 @@ has the full list.
 | Editing `src/toon-kit/` in the story | Fix the kit in the skills repo and sync (S0-5) |
 | Filling a place before the camera shows it | Lock the shot sizes first, then fill (S3-185) |
 | A second face beside the hero in a close shot | Small moving things beside him (S3-187) |
-| Night as a lit room under a violet grade | Turn off the out-of-shot glows; lamps in frame with falloff (S3-196) |
+| Night as a lit room under a violet grade | Turn off the out-of-shot glows; lamps in frame with falloff (S3-204, S3-205) |
 | A key lamp behind the hero | In front and to one side, so his shadow falls on a wall (S3-197) |
-| A rim all round a card | A rim on the lamp side (S3-198) |
+| A rim all round a card, or warm and cool rims | A warm rim on the key side (S3-210) |
 | A grade that tints painted whites | Tint the light and the shadows (S3-194) |

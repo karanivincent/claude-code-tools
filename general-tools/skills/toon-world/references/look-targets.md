@@ -7,18 +7,20 @@ lifted blacks, haze toward the horizon, ink-dot hands; see `why.md`, "Superseded
 
 ## Colour and grade
 
-Bright and saturated (S3-30); the black point near black (S3-31). Indoors and at night, saturation stays at or above
-the day's (S3-48).
+By day bright and saturated (S3-207), the black point near black (S3-206). Indoors and at night, saturation stays at or
+above the day's (S3-205). At night the room goes dark, lit by lamps in frame, with the darkest parts above pure black
+(S3-205); the night column is from the spikes of 18 November 2026 (the reference's night Short: mean 77, darkest 5%
+33, brightest 5% 173 of 255).
 
-| | Day | Golden hour | Interior |
-|---|---|---|---|
-| Median luma | about 0.57 | about 0.52 | 0.40 to 0.45 |
-| Dark floor (non-ink p5) | near black, with detail kept | near black | near black |
-| Highlights (p95 to p99) | near white, 0.87 to 0.97 | near white | 0.74 to 0.87 |
-| Lit chroma C* p50 / p90 | 34 / 55 or more | 34 / 55 or more | 34 / 55 or more |
-| Corners over centre (vignette) | 0.86 | 0.86 | 0.65 |
-| Shadow colour | Cool tint in shade, same hue as lit | Violet-blue (facade about #444380), not brown (S3-41) | Neutral blue-grey, not violet; violet turns stone lavender (S3-41) |
-| Sky | Top about #5e93d9, horizon 1.28 times brighter | Peach horizon #ffd08a | |
+| | Day | Golden hour | Interior | Night |
+|---|---|---|---|---|
+| Median luma | about 0.57 | about 0.52 | 0.40 to 0.45 | mean near 0.33 (85 of 255) |
+| Dark floor (non-ink p5) | near black, with detail kept | near black | near black | 0.10 or more (25 of 255), not pure black (S3-205) |
+| Highlights (p95 to p99) | near white, 0.87 to 0.97 | near white | 0.74 to 0.87 | the lamp pools, 0.68 to 0.87 |
+| Lit chroma C* p50 / p90 | 34 / 55 or more | 34 / 55 or more | 34 / 55 or more | at or above the day's |
+| Corners over centre (vignette) | 0.86 | 0.86 | 0.65 | |
+| Shadow colour | Cool tint in shade, same hue as lit | Violet-blue (facade about #444380), not brown (S3-41) | Neutral blue-grey, not violet; violet turns stone lavender (S3-41) | Blue-violet away from the lamps, warm in their pools |
+| Sky | Top about #5e93d9, horizon 1.28 times brighter | Peach horizon #ffd08a | | Blue-violet |
 
 Metals and gold at about 60% albedo (S3-52). Faces are not lemon or lavender-lit.
 
@@ -42,10 +44,11 @@ Metals and gold at about 60% albedo (S3-52). Faces are not lemon or lavender-lit
 
 ## Camera and motion
 
-- Joins by default; hard cuts by `toon-video`'s joins and S3-121. Glides of 18 to 40 frames, peak about 25 px a frame
+- Between places a join or a moving dissolve; hard cuts to a new angle inside one place, a jump in time or the loop
+  (S3-201). Glides of 18 to 40 frames, peak about 25 px a frame
   at 720p.
-- About 65% of frames move; a hold pushes in 0.15 to 0.35% a frame, 0.6% on punch words; no still hold of 4 frames or
-  more (QA flags 12 frozen frames as a freeze).
+- About 65% of frames move; a hold drifts slowly, with one push-in every 4 s at most (S3-203), and the median change
+  per frame stays under 8 (S3-173); no still hold of 4 frames or more (QA flags 12 frozen frames as a freeze).
 - Rolls of 4 to 5 degrees on emphasis; impact kicks flip sign each frame and decay over 7 frames.
 - Camera height median 0.8 times a character's height; 82% at eye level.
 

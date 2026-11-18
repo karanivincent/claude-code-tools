@@ -31,7 +31,7 @@ when it was left for later.
 | People who leave fall or walk out in clear view | S3-142 |
 | Gunfire seen (flash, recoil, smoke, hits) and heard on top of the mix | S3-143 |
 | Captions one word at a time | S3-146 |
-| Dates and orders as cards; unfamiliar words as thought bubbles | S3-150 |
+| Dates and orders on a prop in the place (a wall calendar, an envelope), a card only when no prop can carry it; unfamiliar words as thought bubbles | S3-212 |
 | A place sized to the story, its moving parts moving (boat, wake, waves) | S3-17 |
 | A detail layer of real moving things in each shot | S3-9 |
 | Fire that reads as fire: tall flickering tongues, smoke columns, embers, glow on the ground | S3-76 |
