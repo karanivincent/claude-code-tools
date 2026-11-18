@@ -155,3 +155,4 @@ Every rule added or replaced, newest last. Written by `scripts/add_rule.mjs`; ne
 | 2026-11-18 | X-33 | new | Vincent's note on hannibal-oxen scene one, 18 Nov 2026 |
 | 2026-11-18 | X-34 | new, differs from S3-231: S3-231 is a probe of one set before it is built; this is about naming what is wrong with a finished clip | spike series garbo-world, 18 Nov 2026, spike 0 |
 | 2026-11-18 | S5-106 | replaces S5-103 | owner's decision, 18 November 2026, after spike series garbo-world and hannibal-oxen scene one (J, tidied) |
+| 2026-11-18 | S3-234 | new | film hannibal-oxen, scene one second fix round and its review, 18 Nov 2026 |

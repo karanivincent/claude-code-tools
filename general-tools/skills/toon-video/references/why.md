@@ -356,3 +356,6 @@ its flame turning a blue sky pink; measuring night second by second; choosing ea
 drawn. Not yet in `templates/look/`: the code these rules lean on (soft shadows, contact darkening, the flat card mode,
 limb outlines, the night grades). It lives in the film's `src/look/` until it is brought over.
 
+The second fix round of that scene (likeness 6) added S3-234: a surface's colour on screen is its paint times the
+light on it. Its review also found that each fix round closed about half its list, three of six items twice running.
+

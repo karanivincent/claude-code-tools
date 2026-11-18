@@ -225,7 +225,7 @@ the proof run (X-30). A reviewer scores these as the world rows W1 to W7 (`toon-
 |---|---|---|
 | Ink | None on the world; nothing exists as a line alone: each object has a painted shape, and in shade a lighter top and darker sides | S3-213, S3-215 |
 | Materials | Each near surface painted at its real scale: grain, weave, wear, pattern, readable at phone size | S3-214 |
-| Colour | Strong colour kept, in the mid-tones; muted toward grey by a fifth at most, not toward brown. A colour cast: check the paint before the lamps | S3-216, S3-217 |
+| Colour | Strong colour kept, in the mid-tones; muted toward grey by a fifth at most, not toward brown. A colour cast: check the paint before the lamps, and measure the rendered pixel, since a colour on screen is the paint times the light | S3-216, S3-217, S3-234 |
 | Shade | Smooth, keeping the surface's colour and texture. At night a neutral fill, cool on the side away from the lamp, warm floor round the lamp; both checked on one frame | S3-218, S3-219 |
 | Night highlights | The brightest 5% near 175 of 255 | S3-220 |
 | Shadows | Soft, the edge widening with distance from the caster; darkening where things meet the floor or each other. After a light change, check each person and seat still has a shadow and a contact | S3-221, S3-222 |
@@ -234,6 +234,17 @@ the proof run (X-30). A reviewer scores these as the world rows W1 to W7 (`toon-
 | Sky | The reference's colour, clouds with soft lit edges; at night slate blue-grey with a large moon | S3-232 |
 | Use | Things to sit on and to hold, and people using them | S3-233 |
 | First place | The hardest place first, one scene to likeness 7 against its reference frame, shown to the owner before the other places | S2-36, S5-104, S5-105 |
+
+By day S3-207 still tints the shade blue or violet; S3-218 asks that the surface's paint and texture show through it.
+No day scene has tested the two together yet.
+
+**The templates still build the drawn look.** `templates/film-scenes/stage.tsx` turns the ink pass on and ties the key
+to the camera, `templates/look/lights.ts` presets put rims on the cards, `cardshade.ts` shades cards with a gradient
+and `shade.ts` shades in two tones. The code for the rows above (soft shadows `softSunShadow`, smooth shade `uSoft`,
+`contact.ts`, the flat card mode, limb outlines, the night grades `nightF` and `nightH`) is in the film's project, in
+`src/look/` on the branch `story/hannibal-oxen` of Epiclings, each piece an option that is off until a place turns it
+on. Until it is brought into `templates/look/`, a film in this look copies those files and turns the ink pass off in
+its stage file, and says so in its plan.
 
 Look files: `templates/look/` (`ink.ts`, `lensblur.ts`, `shade.ts`, `lights.ts`, `grade.ts`, `cardshade.ts`).
 
@@ -251,7 +262,7 @@ clothes and props.
 | What | Rule |
 |---|---|
 | Mittens, hand size 1; a grip wider than a face uses a side view | S3-55, S3-56 |
-| Flat (`cardshade`, flat mode): one even tone per colour area with a little of the place's colour, no gradient, not emissive; faces near white (about 0.93) | S3-223 |
+| Flat: one even tone per colour area with a little of the place's colour, no gradient, not emissive; faces near white (about 0.93) | S3-223 |
 | Outline on the card for head, body, arms and legs; a tight dark contact under the soles and under each seat's feet | S3-225, S3-226 |
 | A held or pressed thing stands in front of the card, with the hand on it | S3-227 |
 | A near-white face kept out of the grade's tint | S3-228 |

@@ -261,6 +261,7 @@ must, never, always, every or only without an id.
 - **S3-221** Furniture, props and people cast soft shadows whose edge widens with distance from the caster; things darken where they meet the floor or each other. Proof: check critic: light (row W4). Why: a fixed blur only blurs the shape; no contact left props floating.
 - **S3-222** After any change to the light, check each person and seat still has a shadow and a contact you can see. Proof: check critic: light (row W4). Why: softer shadows took the people's shadows away.
 - **S3-224** A card carries no light rim, on the key side or any other. Proof: check critic: people (row W5). Why: a rim drew a second line outside the outline; the hero looked cut out.
+- **S3-234** A surface's colour on screen is its paint times the light on it: measure the rendered pixel against the reference's, and change paint and light together. Proof: check critic: light. Why: browner earth under the same warm pools measured the same yellow.
 
 ### People
 
@@ -651,7 +652,7 @@ and S5-58, and S3-202, S3-204, S3-210 and S3-211 tidy the spike rules they had s
 the same proof status.
 
 A third series the same day, "garbo-world" (5.6 s, spikes 0 to 4), and scene one of the film "hannibal-oxen" gave the
-rendered-world look: S3-213 to S3-233, S2-36, S5-104 to S5-106 and X-31 to X-34, with S3-213, S3-218, S3-221, S3-223,
+rendered-world look: S3-213 to S3-234, S2-36, S5-104 to S5-106 and X-31 to X-34, with S3-213, S3-218, S3-221, S3-223,
 S3-224 and S5-106 replacing S3-39, S3-41, S3-43, S3-57, S3-210 and S5-103 by the owner's decision (G to M in `why.md`).
 **Proof status: two night scenes, 5.6 and 10 seconds; no day scene and no whole film yet.** The bar: the result page
 https://claude.ai/artifact/RLGzG16MMCsR1yAqeWG75v and the branch `spike/garbo-world`.

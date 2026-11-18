@@ -6,7 +6,7 @@ method or a fix is unproven: a whole film takes a day and teaches one thing at t
 that changed; a spike takes about an hour and teaches one thing you can name. A 15-second stretch renders in under a
 minute at half size, so one spike can try a change ten times.
 
-Rule ids point into `rules.md` (the method is X-13 to X-34, the craft it found is S3-171 to S3-200, with the owner's replacements of 18 November 2026 at S3-201 to S3-212, S5-102 and S5-106, and the rendered-world look of the third series at S3-213 to S3-233). The 15 checks a
+Rule ids point into `rules.md` (the method is X-13 to X-34, the craft it found is S3-171 to S3-200, with the owner's replacements of 18 November 2026 at S3-201 to S3-212, S5-102 and S5-106, and the rendered-world look of the third series at S3-213 to S3-234). The 15 checks a
 spike is measured on are in `references/bar.md`.
 
 ## Proof status
@@ -250,10 +250,13 @@ each hit with ffmpeg if you need them (inside {clip dir}).
    point to and what it lights.}
 6. What got worse or looks wrong: anything pasted on, too busy, cut by a frame edge, a shadow or light with no source,
    a fact covered, the hero lost.
-7. Against the reference: the three biggest differences left.
+7. Against the reference: the three biggest differences left, and one likeness number from 1 to 10 against the
+   scene's reference frame (S2-36), beside the same number for the baseline and the best so far. Where the series
+   judges the rendered-world look, one row for each world row W1 to W7 of bar.md: pass or fail, with the frame.
 8. Three things to do next, ranked by what the viewer gains, each small and specific.
 
-End with two lines: `CHECKS: pass=N fail=N` and `OWNER: a,b,c,d,e,f`.
+End with two lines: `CHECKS: pass=N fail=N` and `OWNER: a,b,c,d,e,f`; a series that scores likeness adds a third,
+`LIKENESS: new=N best=N baseline=N`.
 Foreground only, no browser, write nothing outside {clip dir}. Do not read any builder's notes. Final message: the
 review path, the two lines, and eight lines of summary.
 ```
