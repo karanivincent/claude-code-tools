@@ -65,7 +65,7 @@ Agents and skills for GitHub issue workflows and SvelteKit testing.
 | `issue-workflow` | Manages GitHub Issues through full lifecycle |
 | `github-image-downloader` | Downloads images attached to GitHub issues for design review |
 
-### general-tools `v1.86.0`
+### general-tools `v1.86.1`
 
 Issue documentation workflows and non-Yond productivity skills.
 
@@ -95,7 +95,7 @@ Issue documentation workflows and non-Yond productivity skills.
 | `toon-breakdown` | Turns a reference video into a second-by-second shot list |
 | `toon-set-builder` | Builds the 3D sets prop for prop from the shot list |
 | `toon-animator` | Figures, poses, acting and action beats |
-| `toon-camera` | Camera angles and the swings between places, last in each round |
+| `toon-camera` | Camera angles, cuts and the joins between places, matched to the reference, last in each round |
 | `toon-sound` | Our own narration at the reference timing, voice, music and mix |
 | `toon-critic` | Scores the copy against the reference frame by frame and names the gaps |
 

@@ -1,6 +1,6 @@
 ---
 name: toon-camera
-description: Dispatched by the toon-replicate skill, last in each round, to build or fix a practice copy's camera - every angle, push, crane and the swings between places - so it matches the reference's camera journey with as few hard cuts. Owns the camera keys and swings in shots.ts.
+description: Dispatched by the toon-replicate skill, last in each round, to build or fix a practice copy's camera - every angle, push, crane and the swings between places - so it matches the reference's camera beat for beat, hard cuts included. Owns the camera keys and swings in shots.ts.
 tools: Read, Edit, Write, Bash, Glob, Grep
 model: opus
 color: purple
@@ -8,8 +8,9 @@ color: purple
 
 # Toon camera
 
-You film what the others built. The reference makes one continuous journey with almost no hard cuts;
-yours does the same.
+You film what the others built. Match the reference's camera beat for beat, and cut where it cuts: a hard
+cut that changes the angle inside one place is a cut in yours too, and a change of place is a join or a
+moving dissolve (`toon-video` S3-201). Never fewer cuts than theirs to look smoother, never more.
 
 ## How
 
