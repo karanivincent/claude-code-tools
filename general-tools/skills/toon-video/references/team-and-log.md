@@ -1,12 +1,12 @@
 # The team, the log and tool gotchas
 
-How to build with agents at stage 3, how to log each step, and the tool gotchas met so far. Rule ids point into
-`rules.md`.
+How to build with agents at stages 3 to 5, the briefs a lead fills in for them, how to log each step, and the tool
+gotchas met so far. Rule ids point into `rules.md`.
 
 ## Contents
 
 - [Building as a team](#building-as-a-team)
-- [The place agent brief](#the-place-agent-brief)
+- [The briefs](#the-briefs): world agent (first scene; a place), shots agent, scene builder
 - [Logging each step](#logging-each-step)
 - [A series](#a-series)
 - [Tool gotchas](#tool-gotchas)
@@ -14,70 +14,266 @@ How to build with agents at stage 3, how to log each step, and the tool gotchas 
 ## Building as a team
 
 For a film longer than a few seconds, build with specialist agents that own separate files (X-4), in the order of
-the stages (S5-71, S5-73, S5-75). Each stage's files are locked before the next starts:
+SKILL.md's stages 3 to 6. A locked file is not theirs to change: they ask the lead, who reopens it (S5-71, S5-73).
 
 | Agent | Stage | Owns | Locked after |
 |---|---|---|---|
-| The lead | before 3, and 6 | the cast (`cast.ts`), the one mix, captions, joining, the owner | |
-| One world agent | 3 | all the places (S5-71): `places/`, the far pictures in `public/<slug>/`, light, `marks.ts` (FAR, BLOCKERS, SCREEN) | `world` |
-| One shots agent | 4 | all the scenes' `shots.ts` (S5-73), `sizes.ts`, `joins.json`, the rough film | `shots` |
-| Scene builders, up to four | 5 | their own scenes' `story.ts`: people, acting, motion | each scene to its stop |
+| The lead (Opus) | all | the cast (`cast.ts`), the one mix, captions, `scenes.md`, the review page, the locks, joining, the owner (S5-101) | |
+| One world agent | 3, then 4a, 4c, 4d | the first scene whole (its place, rough shots, stand-in people, the look files); then each place: `places/<place>.ts`, its pictures in `public/<slug>/`, its light, its rows in `marks.ts` (S5-71) | `look` at stage 3; `world` place by place, then whole |
+| One shots agent | 4b, and the end of 4 | each place's scenes' `shots.ts` (S5-73); at the end `sizes.ts`, `joins.json` and the rough film | `shots` place by place, then whole |
+| Scene builders, up to four | 5 | their own scenes' `story.ts`: people, acting, motion (S5-75) | each scene to its stop |
+| The first scene's reviewer | 3 | nothing in `src/`: `out/<slug>/first-scene/review.md` | |
 
-A scene builder's brief names: its scenes and their loop folders; each scene's reference clip when one exists; the
-locks (places, shots, sizes and join cards are not theirs to change: ask the lead); the stop rules of S5-43, which no
-brief lowers (S5-89); the commands of SKILL.md's stage 5; and a 10-minute command timeout for `look.sh` and
-`abjudge.sh`. The cliff film's lean brief capped each pass at two rounds and passes stopped at 2.5 to 3.1.
-
+- Brief each agent from the templates below (X-5): copy one into the scratchpad, fill each `{field}` and change
+  nothing else. A field that does not apply says "none". Save the filled brief in `stories/<slug>/briefs/`.
 - Say the cost before a round of agents starts: about 0.5M tokens an agent call (X-3).
+- The lead is Opus; builders, reviewers and judges run on Sonnet (S5-101).
 - Agents run in the foreground, and none drives a browser (X-2).
-- Resume the same agents for the next round so they keep their knowledge of the code (X-4).
-- Each agent writes a short report with notes for the next stage.
-- Reviewers and judges are separate: `scripts/loop/look.sh` and `abjudge.sh` brief them from `reviewer-brief.md` and `judge-brief.md` (S5-41).
+- Resume the same agents for the next round or the next place so they keep their knowledge of the code (X-4).
+- A builder's count of what it fixed is a claim; a reviewer or judge who did not build it decides (X-31).
+- Reviewers and judges are separate: `scripts/loop/look.sh` and `abjudge.sh` brief them from `reviewer-brief.md` and
+  `judge-brief.md` (S5-41); the first scene's reviewer works from the reviewer brief in `spikes.md` (X-21).
 
-## The place agent brief
+## The briefs
 
-Copy this into the scratchpad, fill every bracket (X-5), and give it to each place agent with its own file list and
-shot table. About 0.25M tokens a place agent per round.
+Four templates, in the order they are used. The spike briefs in `spikes.md` are their pattern. Each says what is
+locked, the rules for its role by id, the beats that must not get worse (X-20), how the work is checked and what
+comes back.
 
+### World agent brief: the first scene
+
+```markdown
+# World agent brief: the first scene of "{film}"
+
+You build the first scene of our toon video "{film}": its hardest place, {place}, and one scene in it, {scene}
+({seconds} s, film seconds {from} to {to}). You build it whole, as a spike (X-13): the place, rough shots and
+stand-in people. It sets the look for the whole film: the owner says yes to the look on this scene before any other
+place is built (S5-108, S5-105). A clear "this did not work, and here is why" is a useful result too.
+
+Repo: {repo} (branch {branch}). Work only inside it. Foreground only: no background jobs, no dev server, no browser
+(X-2). Do not push. Your output folder: `out/{slug}/first-scene/`.
+
+## Read first, in this order
+1. `<toon-world>/SKILL.md`, section "A rendered world behind drawn people", and the rules it cites (S3-213 to S3-234).
+2. `<toon-video>/references/bar.md`, "The world rows and the likeness number" (W1 to W7), and
+   `<toon-world>/references/look-targets.md`.
+3. The scene frame: {scene frame path}. It is the level to reach: learn how it is made, copy none of its content
+   (S2-37, X-34).
+4. The reference stills for this place: {stills dir} (S2-34, S2-35).
+5. The approved parts plan: `stories/{slug}/parts.md`, section "{place}": its light source and side (S3-191).
+6. The scene's words and times: {words file}; its meaning-sheet rows: {meaning rows}.
+7. The look code to start from: {the files to copy into src/look/ and the stage file's switches, ink off}.
+
+## What is locked
+Nothing is locked yet. The story's words, voice, captions, the mix and `cast.ts` are the lead's: ask before changing
+them. Your files: {file list: places/<place>.ts, public/<slug>/<pictures>, src/look/<files>, stage.tsx,
+scenes/<scene>/shots.ts, scenes/<scene>/story.ts}.
+
+## The beats that must not get worse
+{beat 1}; {beat 2} (X-20). Check them at phone size on every try.
+
+## The loop
+1. Write your plan in `notes.md` before any code: what you build first and what you expect to see.
+2. The structure first: walls or land, floor that leads the eye in, a far view or a lit far wall, sky, the big
+   pieces at three depths (S3-229, S3-230, S3-232). Then the probe still: the widest camera beside the scene frame,
+   `out/{slug}/places/{place}/probe.jpg`, before you build the place out (S3-231). Write what it shows against the
+   frame.
+3. Rough shots in `scenes/{scene}/shots.ts`: the hero about a third of the frame high where the place reads, about
+   half for acting (S3-241, S5-102); hard cuts by S3-201 and S3-235 to S3-238. Then fill for what those cameras show
+   (S3-185 to S3-190) and light from the named source: key lamp in front of the hero and to one side, fill on the far
+   side, smooth shade, soft shadows and contact (S3-197, S3-209, S3-218 to S3-222). Stand-in people as flat cards
+   with held things in front (S3-223 to S3-228).
+4. Place with stills, render to confirm (X-24). Stills: {stills command}. Render: {render command}, taking a render
+   slot as the project says. Look with `sh <toon-video>/scripts/spike-frames.sh <clip> <out>/rN` and
+   `spike-ab.sh`, beside the scene frame. One line in notes.md per try: what changed, what you saw, keep or undo.
+5. Measure your best try: `python3 -I <toon-video>/scripts/bar-check.py <clip>`.
+6. Stop when you judge it at likeness 7 with every world row passing, or after {budget: minutes and renders}.
+
+## How it is checked
+One reviewer who did not build it fills the reviewer brief of `<toon-video>/references/spikes.md` on your clip:
+likeness 1 to 10 against the scene frame, each world row W1 to W7, the beats (S2-37, X-21). Your own count is a claim
+(X-31). It is done at likeness 7 or more with every row passing (S5-108); under that the lead resumes you with the
+review. Then the owner sees it full size beside the scene frame and says yes to the look or sends notes (S5-105, X-33).
+
+## Hand back
+Your best try as `out/{slug}/first-scene/clip.mp4` at full size, `spike-frames.sh` on it into `best/`, the probe
+still, and notes.md finished with: 1. What you built, each with its file. 2. Tries (the table). 3. The world rows as
+you see them, with a frame each (a claim). 4. The beats: the frame where each reads and its size on screen. 5. What
+the kit or the look code lacked, with a size (small, medium, large). 6. What the other places should copy from this
+one. 7. Cost: tries, renders, minutes. Commit on the branch with a plain message that lists the changes. Final
+message: the paths and five lines.
 ```
-# Brief: animate your places for <story>
 
-Repo: <repo path> (branch <branch>). Run in the foreground; start no background work. Do not commit. Edit only the
-files in your list.
+### World agent brief: a place
 
-## What this is
-<One paragraph: the film, the look, the owner's last notes in his words.> Your job: make your shots alive. People act
-and move; things fly, fall, burn, splash and sparkle each second.
+```markdown
+# World agent brief: the place "{place}" of "{film}", turn {a | c and d}
 
-## How the film drives a shot
-- shots.ts lists the shots with their stretch of the film (table below). The film calls your place's shot function
-  as shots[name](built, t): t starts at the shot's own t and runs up with the seconds in the shot. The board calls it
-  without t (use t ?? <the shot's t>). Compute people by time inside it; keep the returned view as the board framing.
-- update(shot, t, cam) runs each frame with the same t: animate the world there.
-- Land each action inside its shot's stretch, on the word that names it (word times are in full.json).
-- If you export action times (shots fired, falls), say so in the report: the sound reads them.
+You build one place of our toon video "{film}" in the look the owner approved on the first scene (S5-105). A place
+takes two turns with the shots agent between them: turn a builds its set; the shots agent then locks its cameras;
+turn c and d fill and light it for what those cameras show, then run world rounds (S3-185, S3-197). This brief is
+for turn {a | c and d}.
 
-## Rules your shots meet
-S3-9 (detail layer), S3-72 (props held), S3-73 (effects from the card), S3-76 (fire), S3-134..S3-137 (acting),
-S3-142 (nobody vanishes), S3-144 (picture events have sound). Read them in rules.md.
+Repo: {repo} (branch {branch}). Work only inside it. Foreground only: no background jobs, no dev server, no browser
+(X-2). Do not push. Run `look.sh` and `abjudge.sh` with a 10-minute command timeout.
 
-## People can do
-<The card options: modes (walk, fall), phase, hand targets in design space, expressions, look, tilt, lean, roll, lift,
-vis; a salute's hand point; how a held 3D prop gets drawn fists.>
+## Read first, in this order
+1. `<toon-world>/SKILL.md`, "A rendered world behind drawn people" (S3-213 to S3-234) and "Fill for the camera"
+   (S3-185 to S3-190).
+2. `<toon-video>/references/bar.md`, the world rows W1 to W7.
+3. The first scene: `out/{slug}/first-scene/clip.mp4` and `review.md`: the bar this place matches.
+4. The approved parts plan, section "{place}", with what the first scene taught; the scene frames of its scenes:
+   {scene: frame, one each}.
+5. The reference stills for this place: {stills dir} (S2-35).
+6. Turn c and d: the locked cameras: {scenes and their shots.ts} and the shots agent's report {path}.
 
-## Detail helpers (read only)
-<The detail layer helpers in detail.ts and their tick(t, cam).>
+## What is locked
+`look`: `src/look/`, `stage.tsx`. `shots`: {scenes locked so far}. `world`: {places locked so far}. Do not change a
+locked file: ask the lead, who reopens it (`lock.mjs reopen`); `step.mjs` refuses a round while a locked file
+differs. Your files: {places/<place>.ts, public/<slug>/<its pictures>, its rows in places/marks.ts}.
 
-## The owner's likes (keep)
-<From the lessons file.> Keep the shot names.
+## The beats that must not get worse
+{for each scene in this place: beat; beat} (X-20).
 
-## Checking your work
-- The typecheck passes.
-- Take a render slot if the project uses them; render a short moving stretch of your shots at half size; look at 2
-  to 3 full-size stills at your action beats. Free the slot.
+## Turn a: the set
+The structure and no fill (S3-185): walls or land, floor that leads the eye in, a lit far wall or far view, sky, the
+big pieces at three depths, things to sit on and to hold (S3-229, S3-230, S3-232, S3-233). For each of its scenes a
+probe still from the widest planned camera beside that scene's frame, `out/{slug}/places/{place}/{scene}-probe.jpg`
+(S3-231, X-34). Stop there; the shots agent sets the cameras next.
 
-## Report
-Per shot: what now moves, and what is still off. Under 400 words.
+## Turn c: fill and light
+For what the locked cameras show: fill by S3-185 to S3-190. Light from the parts plan's source and side (S3-191): the
+key lamp in front of the hero and to one side for these cameras (S3-197, S3-209), the fill on the side away from it,
+smooth shade, soft shadows and contact (S3-218 to S3-222, S5-107); at night S3-204, S3-205, S3-219, S3-220. The far
+picture faces where the cameras look (S5-72, `marks.ts FAR`); the place's screen direction and blockers go in
+`marks.ts` (S5-79, S5-80).
+
+## Turn d: world rounds
+`node <toon-video>/scripts/loop/step.mjs out/{slug}/world/{place} init --code src/stories/{slug}/places --passes world`
+once, then each round as `step.mjs` prints it, on clips of a few seconds from {scenes}: a stills sheet before any
+render, the render, `look.sh` with the world focus, `abjudge.sh` against best with `--stills {stills dir}` (S5-41,
+S5-97). The judge keeps or reverts (S5-42). A pass stops by S5-43 alone: at 4, after two rounds in a row with no win,
+or after six rounds; nobody caps it lower (S5-89).
+
+## How it is checked
+Turn a: the lead puts each probe still beside its scene frame. Turn d: `verdict.json` per round and the world rows in
+the reviewers' faults; the lead reads both, then locks: `lock.mjs out/{slug} set world --add <your files>`.
+
+## Hand back
+`out/{slug}/world/{place}/report.md`, under 400 words: per turn, what you built with its files; the probe stills;
+each round's verdict; the world rows and the beats, each with a frame; what the next place should copy; cost
+(rounds, renders, minutes). Final message: the path and five lines.
+```
+
+### Shots agent brief
+
+```markdown
+# Shots agent brief: the cameras of "{place}" in "{film}"
+
+You set the cameras and shot sizes of the scenes in one place, {place}: {scenes}. Its set is built and not yet filled
+or lit, because fill and the key lamp serve the cameras you lock (S3-185, S3-197, S3-246). A camera changed after you
+lock it sends the place's fill and light back too, so choose now.
+
+Repo: {repo} (branch {branch}). Work only inside it. Foreground only: no background jobs, no dev server, no browser
+(X-2). Do not push.
+
+## Read first, in this order
+1. `<toon-video>/references/camera.md`: the spectacle brief, shots by subject, the camera checks.
+2. The rules for your role: shot sizes S3-241, S3-246, S5-102; the cut budget S3-235 to S3-238, with S3-201, S3-202,
+   S3-203; each shot's reason and what moves behind S5-91, S3-169; the hero moment big S5-92; candidate stills S5-93;
+   the far picture S5-72; beat references S5-76; camera speed S5-67; paths S5-80, S5-87.
+3. The animatic and still board: {paths}; the rows of `stories/{slug}/scenes.md` for {scenes}; their words: {words
+   files}.
+4. The first scene's cameras, which the owner approved the look on: `scenes/{first scene}/shots.ts`.
+5. Beat references: {scene: clip, or none}. Scene frames: {scene: frame}.
+6. The world agent's turn-a report and probe stills: {paths}.
+
+## What is locked
+`look`; `world`: {places locked so far}; `shots`: {scenes locked so far}. Your files: `scenes/<scene>/shots.ts` for
+{scenes}; `sizes.ts` and `joins.json` at the end of stage 4 only, when the lead asks.
+
+## The beats that must not get worse
+{for each scene: beat; beat} (X-20).
+
+## What to do
+1. Each scene's `shots.ts`: beats from the word times, the camera keys, the shot list (S5-73). A face or action beat
+   holds the hero at a third of the frame height or more; a wide with the hero smaller lasts 1.5 s at most (S5-102);
+   about a third where the place reads, about half for acting (S3-241). A scene with a beat reference copies its shot
+   sizes and camera side (S5-76).
+2. Cuts: at most one hard cut per 7.5 s over the film, this place's share {n}; no stretch under 3 s; two takes of
+   10 s or more in the film; a reason written on each cut (S3-235 to S3-238). A change of place is a join or a
+   moving dissolve (S3-201). Allowed: {what is allowed, said plainly (X-28)}. Not allowed: {for example wipes, inset
+   boxes}.
+3. Each shot names why its angle and what moves behind the hero (S5-91, S3-169); the hero moment reads big (S5-92).
+4. For each hero beat, 2 to 3 candidate stills forced apart in angle and size, in
+   `out/{slug}/shots/{scene}/candidates/`; the lead puts them on the review page (S5-93).
+5. Checks, each to exit 0: `node src/stories/{slug}/tools/shots-check.mjs`, `cam-speed.mjs <scene>`,
+   `path-check.mjs <scene>` (S5-72, S5-102, S5-67, S5-80, S5-87, S3-235 to S3-238).
+
+## How it is checked
+The scripts above exit 0; the lead looks at a stills sheet of each shot's first and last frames beside the scene
+frame; the owner picks one candidate per hero beat (S5-93). Then the lead locks `shots --add`. At the end of stage 4
+three judges compare the rough film with the animatic (S5-84).
+
+## Hand back
+`out/{slug}/shots/{place}-report.md`, under 400 words: per scene the shot list (size, reason, what moves behind, the
+reason for each cut), the last line of each check, the candidate stills, the hard cuts against this place's share;
+and, for the world agent, what each camera shows that needs fill or light (where the floor shows, what stands behind
+the hero). Final message: the path and five lines.
+```
+
+### Scene builder brief
+
+```markdown
+# Scene builder brief: {scenes} of "{film}"
+
+You make the people act and move in {scenes} of our toon video "{film}", inside places, cameras and sizes that are
+locked (S5-75). Each scene runs the scene loop round after round, judged blind against its best so far, until it
+stops by the rules below. Your scenes start from the rough film the judges passed: `out/{slug}/film-0/` (S5-84).
+
+Repo: {repo} (branch {branch}). Work only inside it. Foreground only: no background jobs, no dev server, no browser
+(X-2). Do not push. Run `look.sh` and `abjudge.sh` with a 10-minute command timeout.
+
+## Read first, in this order
+1. `<toon-video>/SKILL.md`, "Stage 5. Scene stage", and `<toon-video>/scripts/loop/README.md`.
+2. `<toon-video>/references/acting.md`.
+3. For each scene: meaning-sheet rows {rows}; beat reference {clip, or none}; scene frame {path}; reference stills
+   {dir}.
+4. The owner's notes so far, in his words: {notes, or none}.
+
+## What is locked
+`look`, `world`, `shots` (each `shots.ts`, `sizes.ts`, `joins.json`). Your files: `scenes/<scene>/story.ts` and the
+pose drawings it needs, for {scenes}. A change to a place, a camera, a size or a join card goes to the lead (S5-75);
+`step.mjs` refuses a round while a locked file differs.
+
+## The beats that must not get worse
+{for each scene: beat; beat} (X-20). Name them in each round's notes; a round that weakens one is reported as a loss.
+
+## The loop you run
+For each scene, `D=out/{slug}/scenes/<scene>`:
+1. Once: `node <toon-video>/scripts/loop/step.mjs $D init --code src/stories/{slug}/scenes/<scene> {--ref <clip>, or
+   nothing}`, and the scene's words with `words.mjs` as SKILL.md shows. The rig check comes first: a pose sheet of
+   each pose and prop the words need (S5-54 to S5-56, S5-85).
+2. Each round as `step.mjs $D` prints it (S5-41): at most five changes from `best/faults.md`; a stills sheet,
+   `pose-check.mjs` (and `path-check.mjs` when someone moves past others) before any render (S5-78, S5-80); the
+   render; `jumps.sh`; `look.sh` (three reviewers); `abjudge.sh`, the blind judge, with `--stills {dir}` and `--ref`
+   when the scene has a beat reference (S5-77, S5-97); then `step.mjs $D keep` or `revert` as the verdict says (S5-42).
+3. Every round ends with the blind judge. You do not skip it, judge a round yourself, or keep a round it lost
+   (S5-41, S5-42).
+4. Passes: people, then motion. A pass stops by S5-43 alone: at 4 on the three-judge average, after two rounds in a
+   row with no win, or after six rounds; with a beat reference, best also beats or ties it (S5-77). You do not cap
+   rounds below that, whatever else you read (S5-89).
+
+## How it is checked
+`step.mjs` and the judge decide each round (S5-42); the lead reads each scene's `verdict.json` and `log.md`. At the
+join three judges watch the whole film against the last film the owner saw (S5-82), and the owner's notes come back
+to the scene they name.
+
+## Hand back
+`out/{slug}/scenes/<scene>/report.md` per scene, under 400 words: a table of rounds (pass, changes, verdict, the
+judge's scores); the stop and its rule; the beats, each with a frame; the faults left in three piles: fixable here,
+behind a lock, hard in the tool (X-32); a line per finding for `stories/{slug}/lessons.md` (S6-15). Final message:
+the paths and five lines.
 ```
 
 ## Logging each step
@@ -98,8 +294,8 @@ python3 <toon-video>/scripts/production_log.py add docs/production-log.jsonl --s
 - A fix row carries the `--cycle` and `--round` of the critique it fixes, and the round's tool timings in `--note`:
   the `note:` line of `production_log.py tooltime out/<slug>/tool-times.jsonl --since <round start>`. The story's
   tools (gate, stills, render, audit, look) each append one line a step to that file, the bundle timed on its own.
-- From round 2 on, and on each render, a critique gets its `## <cycle>-<round>` section in `stories/<slug>/findings.md`
-  (S5-27).
+- The scene loop logs each phase in its loop folder with `step.mjs <loop> log <phase>` (S5-48). The whole-film method
+  alone keeps `stories/<slug>/findings.md`, one `## <cycle>-<round>` section per critique from round 2 on (S5-27).
 - `--at` without a time zone is read in the machine's zone.
 - At the start, `production_log.py profile` records how the video is made (S0-11).
 

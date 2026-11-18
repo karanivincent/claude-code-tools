@@ -2,7 +2,7 @@
 // a prompt or a section length changed (S3-165). The music is cut into sections at the story's turns (from the voice's
 // word times), held down under every line by a gain track and side-chained to the voice (S3-155, S3-156). The effects
 // sit on their words in their own layer, neither held nor side-chained, each levelled from its own measured loudness
-// (S3-162, S3-163: in the held bed Elijah's effects were inaudible). A limiter and loudnorm bring the mix to -14 LUFS.
+// (S3-248, S3-163: in the held bed Elijah's effects were inaudible). A limiter and loudnorm bring the mix to -14 LUFS.
 // Writes voice.wav and bed.wav beside the mix for levels.mjs (S3-154), and cues.json for the acting audit.
 //   node --env-file=<your secrets.env> scripts/__SLUG__-sound.mjs
 // Needs Node 22.6 or later (it imports the toon-kit's timing.ts) and ffmpeg.

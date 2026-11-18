@@ -67,7 +67,7 @@ World:
 - Is the world rendered, not drawn (the world rows in `bar.md`)? W1: no drawn line on a wall, floor, land or prop
   (S3-213). W2: on three frames, six surfaces show what they are made of (S3-214). W6: a lit far view, floor that
   leads the eye in, props at three depths, sky and ground both in the wides (S3-229, S3-230).
-- Beside the scene's reference frame (S2-36): what are the three biggest differences, biggest first?
+- Beside the scene's reference frame (S2-37): what are the three biggest differences, biggest first?
 
 Light:
 - Does the key come from a source you can point to in the place (a sun, window, lamp or fire), with a cool fill on

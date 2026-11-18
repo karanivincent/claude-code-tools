@@ -10,14 +10,29 @@ render read as a drawing, and the people. `toon-video` holds the script, acting,
 
 Each rule lives once, with its id and its proof, in `toon-video/references/rules.md` (the register, X-7); this
 skill cites ids and does not restate them. The terms (the blend, parts plan, detail layer, still board, beat board,
-critic round, render, cycle) are defined in the register's Terms table and used here in that sense.
+critic round, render, cycle) are defined in the register's Terms table and used here in that sense; "reference" is
+split into five names in `toon-video`'s Terms (reference stills, scene frame, beat reference, reference video,
+reference channel).
+
+## Read first
+
+Since 18 November 2026 the people are drawn and the world is rendered. Before building or lighting a place, read:
+
+1. [A rendered world behind drawn people](#a-rendered-world-behind-drawn-people-18-november-2026) below (S3-213..S3-234),
+   and the templates note at its end: the templates still build the drawn look.
+2. `toon-video/references/bar.md`, "The world rows and the likeness number": the rows W1 to W7 a reviewer scores.
+3. `references/look-targets.md`: the numbers.
+4. `toon-video` SKILL.md, "Stages 3 to 6": the hardest scene first and the owner's Look yes (S5-108, S5-105); then each
+   other place as set, cameras, fill and light, each locked (S3-185, S3-197). Its world agent brief is in
+   `toon-video/references/team-and-log.md` (X-5).
 
 ## Contents
 
+- [Read first](#read-first)
 - [The house look: the blend](#the-house-look-the-blend)
 - [The parts plan](#the-parts-plan)
 - [Building a place](#building-a-place)
-- [Light and grade](#light-and-grade)
+- [Light and grade](#light-and-grade), and [A rendered world behind drawn people](#a-rendered-world-behind-drawn-people-18-november-2026)
 - [People](#people)
 - [Effects](#effects)
 - [Checks: which script proves which rule](#checks-which-script-proves-which-rule)
@@ -61,7 +76,9 @@ Before planning a place, look in `library/` (`library/index.md`) for a place, ve
 name each one the plan copies (S2-32). How to copy one in and give improvements back: `library/README.md` (see).
 
 Before building a place, write its parts plan in `stories/<slug>/parts.md` (S2-9). It names the source of each band
-above, the story's state for the place (S2-13), and what stands behind a gate, door or wall the story names (S2-14).
+above, the story's state for the place (S2-13), what stands behind a gate, door or wall the story names (S2-14), its
+light source and the side it shines from (S3-191), and where its probe still goes (S3-231). A "Scene frames" table
+below the places names one scene frame per scene (S2-37). `new-film.mjs` writes the stub with these fields.
 Vincent approves each place's plan by his button on the review page (S2-30); `step.mjs` reads it from `approvals.json`,
 and no agent writes it (S0-14).
 
@@ -81,10 +98,15 @@ A concrete example, one place:
 - Hero props: a clay jar and a bundle of sticks, code 3D.
 - People: the widow and her son, Elijah. Bean-head cards.
 - Effects: a cooking fire's smoke from beyond the wall (code volume).
+- Light source: the late sun, low in the west, from screen left in the gate shots (S3-191).
+- Key lamp: none; outdoors by day the sun is the key. A lamp-lit place names its lamp here and where it stands (S3-197).
+- Probe still: out/<slug>/places/zarephath-gate/probe.jpg, beside the gate scene's frame (S3-231).
 - Flat 2D exception: none.
 ```
 
-Prove the blend on the first place, then brief the other place agents from it (S2-17, X-5).
+The first place built is the hardest one, with one scene in it, as `toon-video`'s stage 3 (S5-108, S2-17); the owner's
+Look yes on it sets the look for the other places (S5-105). The world agent is briefed from `toon-video`'s
+`references/team-and-log.md` (X-5).
 
 ## Building a place
 
@@ -95,31 +117,36 @@ Copy this checklist into the story's `checklist.md` and tick it as you go (S0-8)
 - [ ] Post stack and TypeScript pinned (S0-4)
 - [ ] Library checked; entries copied in and named in the parts plan (S2-32)
 - [ ] Parts plan for this place approved by Vincent's button (S2-30)
-- [ ] Set list: 8 or more props, a full background, extras (S3-2)
 - [ ] Sky and far band pictures made by picture-rules.md; backdrop reaches below the ground's far edge (S3-21, S3-5, S3-6)
 - [ ] Picture has rich light, layers, dense detail and a coloured sky; it fills no more than its band (S3-166..S3-168)
 - [ ] Picture approved by Vincent's picture-<place> button (S2-33)
-- [ ] Middle and ground in code 3D with painted textures, 2048 px, mipmaps, 16x anisotropy (S3-7, S3-8)
+- [ ] Probe still from the widest camera beside the scene frame, before the place is built out (S3-231)
+- [ ] Set: middle and ground in code 3D with painted textures, 2048 px, mipmaps, 16x anisotropy; a lit far view or wall, floor that leads in, three depths (S3-7, S3-8, S3-229, S3-230)
+- [ ] Doorways reach the floor; coplanar pieces offset (S3-23, S3-24)
+- [ ] Cameras and shot sizes set by the shots agent with the set, and locked into "shots" (S3-246, S5-73)
+- [ ] Set list for what the cameras show: 8 or more props, a full background, extras (S3-2)
+- [ ] Hero props in code, sized against a person (S2-11, S3-26)
+- [ ] Fill placed for the locked camera: 3 m of floor behind a mid shot's mark, extras by what the camera shows (S3-185..S3-189)
 - [ ] Detail layer of moving real things in each shot; ground detail with a purpose, no scattered litter (S3-9, S3-244)
 - [ ] Per shot, something that fits the story moves behind the hero: shot __ moves __ (S3-169)
-- [ ] Hero props in code, sized against a person (S2-11, S3-26)
 - [ ] Calm area behind each face; at most one busy band (S3-12, S3-13)
-- [ ] Doorways reach the floor; coplanar pieces offset (S3-23, S3-24)
-- [ ] Fill placed for the locked camera: 3 m of floor behind a mid shot's mark, extras by what the camera shows (S3-185..S3-189)
-- [ ] Light source and key lamp named in the parts plan; hero's spot lit at frame 0 and in the widest frame (S3-191, S3-192, S3-197)
-- [ ] Light and grade set (section below), checked on full-size frames
+- [ ] Light source and key lamp named in the parts plan, the lamp placed for the locked cameras; hero's spot lit at frame 0 and in the widest frame (S3-191, S3-192, S3-197)
+- [ ] Light and grade set (sections below), checked on full-size frames
 - [ ] Cold read of each new place, prop, effect, material and face (S4-13)
-- [ ] Checked from each scene's planned camera; far picture faces the cameras; screen direction and blockers in marks.ts (S5-71, S5-72, S5-79)
-- [ ] World rounds until world and light reach 4 (S5-43, S5-57..S5-62); places locked (S5-71)
+- [ ] Far picture faces the cameras; screen direction and blockers in marks.ts (S5-72, S5-79)
+- [ ] World rounds until world and light reach 4, the world rows W1 to W7 scored (S5-43, S5-57..S5-62); place locked into "world" (S5-71)
 ```
 
-One world agent builds all the places of a film, before any scene is acted (`toon-video` stage 3, S5-71). Its
-feedback loop is the world pass in `out/<slug>/world/`: the agent changes a place, a stills sheet from several scenes'
-cameras is checked, a few seconds render, three reviewers watch at 6 fps with world and light first, and a blind
-judge keeps or undoes the round (S5-41, S5-42). The far picture faces where the cameras look (S5-72): `marks.ts FAR`
-holds its direction and arc, and `tools/shots-check.mjs` checks each shot against it. Then the places are locked
-(`toon-video/scripts/loop/lock.mjs`), so no scene builder changes a place under another. A needed change goes to the
-lead, who reopens the world stage. What won in the spikes: the blend before round 1 (S5-57), a key from the
+One world agent builds all the places of a film, before any scene is acted (S5-71), in `toon-video`'s order. Stage 3:
+the hardest place and one scene in it, as a spike, to likeness 7 and the owner's Look yes (S5-108, S5-105). Stage 4,
+each other place in turn: a. the set, with no fill; b. the shots agent sets and locks its cameras; c. fill and light
+for what those cameras show (S3-185, S3-197); d. world rounds in `out/<slug>/world/<place>/`: the agent changes the
+place, a stills sheet from its scenes' cameras is checked, a few seconds render, three reviewers watch at 6 fps with
+world and light first, and a blind judge keeps or undoes the round (S5-41, S5-42). The far picture faces where the
+cameras look (S5-72): `marks.ts FAR` holds its direction and arc, and `tools/shots-check.mjs` checks each shot against
+it. Then the place is locked (`toon-video/scripts/loop/lock.mjs set world --add`), so no scene builder changes a place
+under another. A needed change goes to the lead, who reopens that place's files alone (`lock.mjs reopen world
+<file>`). What won in the spikes: the blend before round 1 (S5-57), a key from the
 place's named source with a cool fill on the side away from it and no fog (S5-107, S3-15), one light step a round (S5-59), a hidden sky seam (S5-60), see-through water
 (S5-61). Nobody edits `step.mjs`, the briefs or `approvals.json` to get past them (X-6).
 

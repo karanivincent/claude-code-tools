@@ -251,7 +251,7 @@ each hit with ffmpeg if you need them (inside {clip dir}).
 6. What got worse or looks wrong: anything pasted on, too busy, cut by a frame edge, a shadow or light with no source,
    a fact covered, the hero lost.
 7. Against the reference: the three biggest differences left, and one likeness number from 1 to 10 against the
-   scene's reference frame (S2-36), beside the same number for the baseline and the best so far. Where the series
+   scene's reference frame (S2-37), beside the same number for the baseline and the best so far. Where the series
    judges the rendered-world look, one row for each world row W1 to W7 of bar.md: pass or fail, with the frame.
 8. Three things to do next, ranked by what the viewer gains, each small and specific.
 

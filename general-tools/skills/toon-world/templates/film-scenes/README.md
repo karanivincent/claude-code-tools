@@ -16,18 +16,19 @@ src/stories/<slug>/
   captions.tsx          one word at a time from full.json (the voice script's timeline; an empty stand-in until then)
   compositions.tsx      every composition in one folder: <FilmId>, <FilmId>-<scene>, <FilmId>-<scene>-poses, <FilmId>-cast
   CastSheet.tsx         the cast sheet: every person standing, labelled (stage 2's out/<slug>/cast.png)
-  stage.tsx             one scene through the look stack (place, cast, splashes, place light, ink, blur, bloom, grade)
+  stage.tsx             one scene through the look stack (place, cast, splashes, place light, ink, blur, bloom, grade);
+                        locked with src/look/ as "look" after the owner's Look yes (S5-105)
   cast.ts               the cast, shared by every scene (cards, hands kept in the card, canvas edge check, talk, soft faces)
-  sizes.ts              each person's size, set once by the shots stage and locked (S5-74)
+  sizes.ts              each person's size, set once by the shots agent at the end of stage 4 and locked (S5-74)
   joins.ts              reads stories/<slug>/joins.json: joinIn, joinOut, onCards, holdCards, blendPose, assertJoins
   motion.ts             easing and camera keys (keysAt), no three.js
   poses.tsx             the pose-sheet grid every scene's PoseSheet uses
   places/index.ts       the place list and its contract (light, pictures, build -> root, update(filmFrame), groundY)
-  places/<place>.ts     one file per place, shared, built by the world stage and then locked
+  places/<place>.ts     one file per place, shared: the set, then fill and light for its locked cameras, then locked
   places/marks.ts       where things stand in each place, its far picture's direction (FAR), what can hide a person
                         (BLOCKERS) and its screen direction (SCREEN)
   places/parts/         the blend's parts and the splash (templates/scene/parts)
-  scenes/<scene>/       shots.ts (camera, beats, shot list: the shots stage, locked), story.ts (the people: the scene
+  scenes/<scene>/       shots.ts (camera, beats, shot list: the shots agent, locked before fill), story.ts (the people: the scene
                         builder), Scene.tsx, PoseSheet.tsx (templates/scene)
   scenes/index.ts       the scene list in film order (written by new-film.mjs)
   tools/                stills-sheet, board, render, cam-speed, shots-check, path-check, pose-check, join-card,

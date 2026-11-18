@@ -28,5 +28,6 @@ You make the people act. Simple figures, held poses, clear silhouettes, timed on
   the project's `docs/PRACTICE.md` and `docs/MAKING-A-STORY.md` toon sections if they exist.
 - Work only in the worktree the prompt names, and only on the files you own (the toon-replicate table).
 - Never drive a browser, never run anything in the background, never print or source a secrets file.
-- Change shared drawing code (`src/spike2d/`) only additively: a new option, never a changed default.
+- Never edit `src/toon-kit/`: a kit fix goes into the skills repo (toon-video S0-5). Change the shared look code in
+  `src/look/` only additively: a new option, never a changed default (X-8).
 - End with one report file where the prompt says, and reply with its path and a five-line summary.
