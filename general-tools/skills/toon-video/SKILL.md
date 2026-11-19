@@ -79,7 +79,7 @@ rule-by-rule lines for each step. Do not retell a step in other words (S0-8, X-7
 - [ ] Meaning sheet: stories/<slug>/meaning.md; profile: stories/<slug>/profile.md (S1-20..S1-23)
 - [ ] Review page published at stage "story"; approvals pulled; "story" approved (S1-24)
 ### Stage 2. Cast, look, parts plan, scenes, animatic  stop: owner "Direction yes" and "Parts plan yes" per place
-- [ ] Cast sheet: out/<slug>/cast.png (S2-1..S2-6, S2-24)
+- [ ] Cast sheet: out/<slug>/cast.png; the people and their props wear the palette's strongest colours (S2-1..S2-6, S2-24, S3-251)
 - [ ] Library checked first; parts plan per place, the blend proved on one place: stories/<slug>/parts.md (S2-32, S2-7..S2-14, S2-17, S2-25)
 - [ ] Reference stills per place and hero beat from the catalog, picked by the lead: stories/<slug>/references.md (S2-34)
 - [ ] Each place's light source and side named in its parts plan (S3-191)
@@ -95,6 +95,7 @@ rule-by-rule lines for each step. Do not retell a step in other words (S0-8, X-7
 - [ ] World agent briefed from team-and-log.md "World agent brief", first-scene form (X-36, X-13)
 - [ ] Probe still beside the scene frame before the place is built out: out/<slug>/places/<place>/probe.jpg (S3-231, X-34)
 - [ ] Place, rough shots and stand-in people built to toon-world "A rendered world behind drawn people" (S3-213..S3-234)
+- [ ] Colour: no place light with sat under 1 (world-check.mjs); the scene's clip at a mean saturation of 0.33 or more (bar-check.py --gate) (S3-252, S3-206, S3-250)
 - [ ] Likeness 7 or more and every world row passing, from a reviewer who did not build it: out/<slug>/first-scene/review.md (S2-37, S5-108, X-21, X-31)
 - [ ] Review page stage "look": the scene full size beside its scene frame; "look" approved (S5-105, X-33)
 - [ ] Look locked: lock.mjs set look; what the scene taught written into the other places' parts plans (S5-105, S2-30)
@@ -108,12 +109,13 @@ rule-by-rule lines for each step. Do not retell a step in other words (S0-8, X-7
 - [ ] World and shots locked whole: lock.mjs set world, set shots (S5-120, S5-121)
 ### Stage 5. Scene stage, up to four at once         stop: each pass at 4 (and at or above its reference), two rounds with no win, or six rounds
 - [ ] Rig check: out/<slug>/scenes/<scene>/poses.jpg (S5-54..S5-56, S5-85)
-- [ ] People and acting rounds (S5-63, S5-64, S5-66, S5-78, S5-80)
+- [ ] People and acting rounds; each round's bar gate runs tools/acting-audit.mjs, and reviewers judge acting on the strips (S5-63, S5-64, S5-66, S5-78, S5-80, S3-134, S5-124, S5-126)
 - [ ] Motion and staging rounds (S5-67..S5-69, S5-87)
 - [ ] Each hero object and effect measured against its stills every round: stories/<slug>/heroes.json (S5-99, S5-122)
 - [ ] Opus lead, Sonnet builders, reviewers and judges (S5-101)
 ### Stage 6. Join                                    stop: owner's notes taken into the scenes
 - [ ] Film joined; joins.sh clean; sound checked once on the mix (S5-52, S5-83)
+- [ ] motion-check.py <film> --gate passes: at most 4 quiet seconds a minute, never two in a row, none in the first second (S5-127, S1-37)
 - [ ] Three judges against a film-length reference; owner's pick logged against theirs (S5-82, S5-96)
 - [ ] Render on the review page; notes sent to their scenes (S5-53)
 ### Stage 7. Hand-back                               stop: owner "Looks good"
@@ -434,5 +436,5 @@ Read each when its stage comes up; none links on to another.
 | `references/why.md` | When asked why a rule exists, or for old patterns you meet in an older story |
 | `templates/review/index.html` | Stages 1, 2 and 6: the review page, one section and Approve button per stage |
 
-The scene loop's scripts sit in `scripts/loop/` (its README lists them). Scripts in `scripts/`: run `pitch.mjs`, `levels.mjs`, `animatic.py`, `eleven-balance.mjs` and `production_log.py` as shown above, and `bar-check.py`, `spike-frames.sh` and `spike-ab.sh` as `references/spikes.md` shows; `lint_rules.mjs`
+The scene loop's scripts sit in `scripts/loop/` (its README lists them). Scripts in `scripts/`: run `pitch.mjs`, `levels.mjs`, `animatic.py`, `eleven-balance.mjs` and `production_log.py` as shown above, `motion-check.py <film> --gate` on the joined film (it needs numpy and opencv: its first lines say how), and `bar-check.py`, `spike-frames.sh` and `spike-ab.sh` as `references/spikes.md` shows; `lint_rules.mjs`
 is run by whoever edits these skills (`node scripts/lint_rules.mjs <skills-root>`).

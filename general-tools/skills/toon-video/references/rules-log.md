@@ -212,3 +212,13 @@ Every rule added or replaced, newest last. Written by `scripts/add_rule.mjs`; ne
 | 2026-11-18 | S5-108 | proof repointed | owner's yes to the skills audit, 18 November 2026: file out/<slug>/first-scene/review.md (likeness line and world rows) |
 | 2026-11-18 | S5-122 | replaces S5-100 | owner's yes to the skills audit, 18 November 2026 (audit A 3, 13; B 1) |
 | 2026-11-18 | S5-123 | new | savings test O on 11 stored rounds, 18 Nov 2026; owner's yes to the tests |
+| 2026-11-19 | S3-250 | new | colour study of Hannibal's oxen against the reference Short and three older films, 19 Nov 2026; owner: 'the colors are not so vibrant like his' |
+| 2026-11-19 | S3-251 | new | colour study of Hannibal's oxen against the reference Short and three older films, 19 Nov 2026; owner: 'the colors are not so vibrant like his' |
+| 2026-11-19 | S3-206 | proof repointed | owner's yes to the colour changes, 19 November 2026: check tools/world-check.mjs (sat); bar-check.py --gate (colour) |
+| 2026-11-19 | S3-242 | proof repointed | owner's yes to the colour changes, 19 November 2026: check bar-check.py --gate (colour); critic: light for the shade |
+| 2026-11-19 | S3-252 | replaces S3-216 | colour study of Hannibal's oxen, 19 Nov 2026; owner: 'the colors are not so vibrant like his' |
+| 2026-11-19 | S5-124 | new | acting round on Hannibal's oxen and savings tests P and Q, 19 Nov 2026; owner: 'let's increase the acting' |
+| 2026-11-19 | S5-125 | new | acting round on Hannibal's oxen and savings tests P and Q, 19 Nov 2026; owner: 'let's increase the acting' |
+| 2026-11-19 | S5-126 | new | acting round on Hannibal's oxen and savings tests P and Q, 19 Nov 2026; owner: 'let's increase the acting' |
+| 2026-11-19 | S3-134 | proof repointed | owner's yes to the acting changes, 19 November 2026: check tools/acting-audit.mjs (step.mjs bar: acting.txt, bar.json) |
+| 2026-11-19 | S5-127 | new | acting round on Hannibal's oxen, 19 Nov 2026 (still seconds 15 to 4, judges 3.6 to 3.3); owner: 'let's increase the acting' |

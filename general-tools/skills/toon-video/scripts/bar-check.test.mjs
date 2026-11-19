@@ -2,6 +2,8 @@
 // bar-check.py's gate on made clips, called the way the scene loop calls it: `python3 -I bar-check.py <clip> --gate
 // [--night]`. Each clip is two seconds of flat grey made by ffmpeg: a calm night (passes), a dark night, a picture that
 // never settles, a still picture and a night with a white pool over a twelfth of the frame (each fails its measure).
+// The calm night is a warm brown (saturation about 0.48), so it also passes the colour floor (S3-250); a lit grey day
+// fails only that floor, and --no-colour leaves it out.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync, execFileSync } from 'node:child_process';
@@ -21,7 +23,8 @@ const C = {};
 before(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bar-check-'));
   const grey = (hex, extra = '') => `color=c=0x${hex}:s=108x192:r=30:d=2,noise=alls=8:allf=t${extra}`;
-  C.night = clip('night', grey('555555'));
+  C.night = clip('night', 'color=c=0x704e3a:s=108x192:r=30:d=2,noise=c0s=8:c0f=t');
+  C.greyday = clip('greyday', 'color=c=0x999999:s=108x192:r=30:d=2,noise=c0s=8:c0f=t');
   C.dark = clip('dark', grey('202020'));
   C.pool = clip('pool', grey('484848', ',drawbox=x=0:y=0:w=108:h=16:color=white:t=fill'));
   C.churn = clip('churn', 'color=c=0x777777:s=108x192:r=30:d=2,noise=alls=100:allf=t');
@@ -59,4 +62,14 @@ test('--json alone prints the numbers on stdout; --json <file> writes them', () 
   const f = path.join(dir, 'n.json');
   assert.equal(run(C.night, '--json', f).status, 0);
   assert.equal(JSON.parse(fs.readFileSync(f, 'utf8')).frames, 60);
+});
+
+test('a lit grey picture fails the colour floor and nothing else; --no-colour leaves it out; a dark clip is not judged on colour', () => {
+  const r = run(C.greyday, '--gate');
+  assert.equal(r.status, 1);
+  assert.deepEqual(r.stdout.trim().split('\n').map((l) => l.split('FAIL ')[1].split(':')[0]), ['S3-250 colour']);
+  assert.equal(run(C.greyday, '--gate', '--no-colour').status, 0);
+  assert.doesNotMatch(run(C.dark, '--gate', '--night').stdout, /S3-250/);
+  const j = JSON.parse(run(C.night, '--json').stdout);
+  assert.ok(j.sat_mean > 0.4 && j.sat_mean < 0.56, String(j.sat_mean));
 });

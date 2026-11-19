@@ -4,7 +4,7 @@
 //
 //   node step.mjs <scene-dir>                     where the scene stands and the next step (the command to run)
 //   node step.mjs <scene-dir> init --code <dir> [--code <dir2>] [--passes people,motion] [--ref <clip.mp4>]
-//                 [--ref-frame <image>] [--night] [--needs story,direction,look] [--approvals <approvals.json>]
+//                 [--ref-frame <image>] [--night] [--no-colour] [--needs story,direction,look] [--approvals <approvals.json>]
 //                                                 write scene.json: the source folders keep snapshots and revert restores,
 //                                                 the passes this loop runs, the reference clip (S5-76, S5-112), the
 //                                                 reference frame (S2-37; default <scene-dir>/ref-frame.jpg), whether
@@ -23,7 +23,11 @@
 //                                                 the round's approval-override.md
 //   node step.mjs <scene-dir> bar [--dry-run]     run python3 -I <toon-video>/scripts/bar-check.py <clip> --gate
 //                                                 [--night] on the round's clip; writes bar.json and bar.txt. Exit 1 of
-//                                                 bar-check is a failed round (S3-173, S3-205, S3-220)
+//                                                 bar-check is a failed round (S3-173, S3-205, S3-220). On a people or
+//                                                 motion round it also runs the story's tools/acting-audit.mjs <scene>
+//                                                 --gate when the story has it (S3-134; acting.txt): its fault lines go
+//                                                 into bar.json as "acting: ..." and fail the round the same way; a story
+//                                                 without the tool is gated by bar-check alone (one line on stderr)
 //   node step.mjs <scene-dir> keep                the current round's code and clip become best/ (faults.md carried
 //                                                 from best and the judge when the round had no reviewers: S5-90).
 //                                                 Refused without a review by someone who did not build it (X-31) and
@@ -52,6 +56,7 @@
 //     clip.mp4         the render
 //     jumps.md         jumps.sh: one-frame jumps                          audible.md: audible.py (sound pass)
 //     bar.json         step.mjs bar: the bar gate                         (no bar.json, no look)
+//     acting.txt       step.mjs bar: the acting audit's printout (people and motion rounds of a story that has it)
 //     looks/           look.sh: the three reviewers' replies and usage   faults.md: their faults, ranked
 //     verdict.json     abjudge.sh against best/clip.mp4                   (no verdict.json, no next round)
 //     kept | reverted  written by keep and revert
@@ -251,7 +256,7 @@ function judgeNotes(r, kept) {
   const v = verdict(r);
   const L = [];
   const b = bar(r);
-  if (b?.status === 'fail') L.push(`## The bar gate failed on ${r.name} (bar-check.py --gate)`, '', ...b.lines.map((l) => `- ${l}`), '');
+  if (b?.status === 'fail') L.push(`## The bar gate failed on ${r.name} (bar-check.py --gate${b.acting?.status === 'fail' ? ' and the acting audit, S3-134' : ''})`, '', ...b.lines.map((l) => `- ${l}`), '');
   if (!v?.judges?.length) return L.join('\n');
   const credit = v.judges.flatMap((j) => j.new?.credit ?? []), blame = v.judges.flatMap((j) => j.new?.blame ?? []);
   const other = v.judges.flatMap((j) => j.best?.credit ?? []);
@@ -284,8 +289,8 @@ function runBar(dry) {
   const night = scene()?.night === true;
   const gate = fs.readFileSync(script, 'utf8').includes('--gate');
   const py = barPython();
-  const args = ['-I', script, path.join(r.dir, 'clip.mp4'), ...(gate ? ['--gate'] : []), ...(gate && night ? ['--night'] : [])];
-  if (dry) { console.log(`dry-run: ${py} ${args.map((a) => (/\s/.test(a) ? `"${a}"` : a)).join(' ')}   -> ${rel(path.join(r.dir, 'bar.json'))}`); return; }
+  const args = ['-I', script, path.join(r.dir, 'clip.mp4'), ...(gate ? ['--gate'] : []), ...(gate && night ? ['--night'] : []), ...(gate && scene()?.noColour === true ? ['--no-colour'] : [])];
+  if (dry) { console.log(`dry-run: ${py} ${args.map((a) => (/\s/.test(a) ? `"${a}"` : a)).join(' ')}   -> ${rel(path.join(r.dir, 'bar.json'))}`); runActing(r, true); return; }
   const p = spawnSync(py, args, { encoding: 'utf8' });
   const out = (p.stdout ?? '') + (p.stderr ? `\n[stderr]\n${p.stderr}` : '');
   fs.writeFileSync(path.join(r.dir, 'bar.txt'), out);
@@ -299,9 +304,35 @@ function runBar(dry) {
     status = 'unsupported';
     console.warn(`warning: bar-check refused --gate (an older version); this round is not gated. See ${rel(path.join(r.dir, 'bar.txt'))}`);
   } else refuse(`bar-check did not run (exit ${p.status}${p.error ? `, ${p.error.message}` : ''}); see ${rel(path.join(r.dir, 'bar.txt'))}. It needs ffmpeg and a python with numpy (set PYTHON).`);
-  fs.writeFileSync(path.join(r.dir, 'bar.json'), JSON.stringify({ status, night, exit: p.status, lines, cmd: [py, ...args].join(' '), at: new Date().toISOString() }, null, 1) + '\n');
-  console.log(`bar: ${status}${night ? ' (night)' : ''}${lines.length ? `\n  ${lines.join('\n  ')}` : ''}`);
+  // the acting audit (S3-134): fails the round the same way, its fault lines kept with bar-check's
+  const acting = runActing(r);
+  if (acting?.status === 'fail') { status = 'fail'; lines.push(...acting.lines.map((l) => `acting: ${l}`)); }
+  fs.writeFileSync(path.join(r.dir, 'bar.json'), JSON.stringify({ status, night, exit: p.status, lines, cmd: [py, ...args].join(' '), at: new Date().toISOString(), acting }, null, 1) + '\n');
+  console.log(`bar: ${status}${night ? ' (night)' : ''}${acting ? `; acting audit ${acting.status}` : ''}${lines.length ? `\n  ${lines.join('\n  ')}` : ''}`);
   if (status === 'fail') process.exitCode = 1;   // a failed round (exit 1), so `step.mjs bar && look.sh` stops
+}
+
+// ---- the acting audit (S3-134; exit 0 pass, 1 fail with one fault line per stretch on stdout, 2 unreadable) ----------
+// The story's own src/stories/<slug>/tools/acting-audit.mjs <scene> --gate, run from the project root, for a people or
+// motion round of a scene loop folder out/<slug>/scenes/<scene>/. A story made before the audit has no such file: the
+// round is gated by bar-check alone, with one line on stderr.
+function actingTarget() {
+  const scenes = path.dirname(D), slugDir = path.dirname(scenes), out = path.dirname(slugDir);
+  if (path.basename(scenes) !== 'scenes' || path.basename(out) !== 'out') return { why: `${rel(D)} is not a scene loop folder (out/<slug>/scenes/<scene>/)` };
+  const root = path.dirname(out), slug = path.basename(slugDir), scene = path.basename(D);
+  return { root, scene, tool: path.join(root, 'src', 'stories', slug, 'tools', 'acting-audit.mjs') };
+}
+function runActing(r, dry = false) {
+  if (r.pass !== 'people' && r.pass !== 'motion') return null;
+  const t = actingTarget();
+  if (!t.tool || !fs.existsSync(t.tool)) { console.error(`acting audit: skipped, ${t.tool ? `no ${rel(t.tool)} in this story (made before the audit)` : t.why}`); return null; }
+  const args = [t.tool, t.scene, '--gate'], cmd = `(cd ${t.root} && node ${path.relative(t.root, t.tool)} ${t.scene} --gate)`;
+  if (dry) { console.log(`dry-run: ${cmd}   -> ${rel(path.join(r.dir, 'acting.txt'))}`); return null; }
+  const p = spawnSync(process.execPath, args, { cwd: t.root, encoding: 'utf8', timeout: 300e3 });
+  fs.writeFileSync(path.join(r.dir, 'acting.txt'), (p.stdout ?? '') + (p.stderr ? `\n[stderr]\n${p.stderr}` : ''));
+  if (p.status !== 0 && p.status !== 1) refuse(`the acting audit did not run (exit ${p.status}${p.error ? `, ${p.error.message}` : ''}); see ${rel(path.join(r.dir, 'acting.txt'))}. Fix the story's files or sync its toon-kit, then run bar again.`);
+  const lines = p.status === 1 ? (p.stdout ?? '').split('\n').map((l) => l.trim()).filter(Boolean) : [];
+  return { status: p.status === 0 ? 'pass' : 'fail', exit: p.status, lines, cmd };
 }
 
 const L = here;
@@ -477,6 +508,7 @@ switch (cmd) {
     if (refPath) sc.ref = refPath;
     if (framePath) sc.refFrame = framePath;
     if (flag('--night')) sc.night = true;
+    if (flag('--no-colour')) sc.noColour = true; // a scene with no colour by design (S3-250): say why in log.md
     if (flag('--day')) sc.night = false;
     if (nd !== undefined) sc.needs = nd.split(',').map((x) => x.trim()).filter(Boolean);
     if (a0) sc.approvals = path.resolve(a0);

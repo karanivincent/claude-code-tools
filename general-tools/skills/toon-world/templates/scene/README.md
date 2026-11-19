@@ -21,6 +21,7 @@ The story-level files (stage, cast, joins, the place list) come from `../film-sc
 | `tools/frame-check.mjs` | Every frame, each person through the scene camera: a head cut by the left, right or bottom edge (S3-95, S3-175), the caption word over a face or below 82% of the height (S3-147). |
 | `tools/night-check.mjs` | Each declared night scene's render (a place or its light with `night: true`, or `--night s05`) through toon-video's `bar-check.py --gate --night`, one scene at a time (S3-173, S3-205, S3-220); a night scene with no clip fails. |
 | `tools/pose-check.mjs` | A face swapped in one frame with no in-between, a hand that jumps against the frames around it, a mode switch (S5-78). |
+| `tools/acting-audit.mjs` | Everyone still, and anyone 12% of the frame or taller who keeps one pose for more than 1 s (S3-134); no render. `step.mjs bar` runs it with `--gate` on people and motion rounds. The starter scene fails it until its people act: that is the first round's job. |
 | `tools/join-times.mjs` | Each join's film second and kind (cut, dip, swing) for toon-video's `joins.sh`. |
 | `tools/stills-sheet.mjs` | 5-10 frames at half scale of a time range, labelled, five a row, in a few seconds (one bundle kept until a source changes). Also the film (`film`) and the pose sheet (`poses <scene>`). Prints any card cut by its canvas. |
 | `tools/cam-speed.mjs` | The camera's move per frame in metres and degrees; flags over 0.3 m or 1.5 degrees a frame (read as whips in cliff spike 7) and dead stops. With no scene, the whole film across its joins. |
@@ -39,7 +40,8 @@ node src/stories/<slug>/tools/cam-speed.mjs s01                        # camera 
 node src/stories/<slug>/tools/shots-check.mjs                          # shot sizes and the far picture, every scene
 node src/stories/<slug>/tools/path-check.mjs s01                       # the action's path (exit 1 on an overlap)
 node src/stories/<slug>/tools/pose-check.mjs s01                       # face swaps and hand jumps
-node src/stories/<slug>/tools/world-check.mjs                          # ink, rims, emissive, reference frames, probes, light sources
+node src/stories/<slug>/tools/acting-audit.mjs s01                     # anyone holding one pose over 1 s (exit 1)
+node src/stories/<slug>/tools/world-check.mjs                          # ink, rims, muted paint, emissive, reference frames, probes, light sources
 node src/stories/<slug>/tools/frame-check.mjs [s01]                    # heads cut by the frame, captions over faces or too low
 node src/stories/<slug>/tools/night-check.mjs [--night s05]            # each night scene's render through bar-check's gate
 node src/stories/<slug>/tools/board.mjs stories/<slug>/board-stills.json out/<slug>/board   # the still board

@@ -81,7 +81,8 @@ The reviewer answers these too, in words, scored 0 to 3 against the reference fr
 - how effects react (a splash that lands well and is not too fast);
 - the hero kept in frame, not at the edge or cut off;
 - small details in the other people's actions;
-- strong colour;
+- strong colour (measured since 19 November 2026: `bar-check.py` prints each clip's mean saturation and its gate
+  fails a scene under 0.33, S3-250; the reference's scenes run 0.35 to 0.46);
 - detail in rocks and background; shadows when people move.
 
 ## Where the spikes and the register differed
@@ -98,4 +99,4 @@ he settled the rest (`why.md`, "The audit's tidy pass"):
 - A spike may still test haze or blur, as its one question, and says so in its plan (X-14); a builder never adds
   either quietly.
 - The survey also found that sharpness and saturation do not track the reference channel's views; the register still
-  aims at the reference stills' sharpness and at saturated colour by day (S5-113, S3-242).
+  aims at the reference stills' sharpness and at saturated colour by day and by night (S5-113, S3-242, S3-250).

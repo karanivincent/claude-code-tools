@@ -253,7 +253,7 @@ the proof run (X-30). A reviewer scores these as the world rows W1 to W7 (`toon-
 |---|---|---|
 | Ink | None on the world; nothing exists as a line alone: each object has a painted shape, and in shade a lighter top and darker sides | S3-213, S3-215 |
 | Materials | Each near surface painted at its real scale: grain, weave, wear, pattern, readable at phone size | S3-214 |
-| Colour | Strong colour kept, in the mid-tones; muted toward grey by a fifth at most, not toward brown. A colour cast: check the paint before the lamps, and measure the rendered pixel, since a colour on screen is the paint times the light | S3-216, S3-217, S3-234 |
+| Colour | Strong colour kept at full strength, in the mid-tones: paint is never muted toward grey or brown, and a place light keeps `sat` at 1 or more. Each scene's lit pixels average saturation 0.33 or more. The people and their props wear the strongest colours. A colour cast: check the paint before the lamps, and measure the rendered pixel, since a colour on screen is the paint times the light | S3-252, S3-250, S3-251, S3-217, S3-234 |
 | Shade | Smooth, keeping the surface's colour and texture. At night a neutral fill, cool on the side away from the lamp, warm floor round the lamp; both checked on one frame | S3-218, S3-219 |
 | Night highlights | The brightest 5% near 175 of 255 | S3-220 |
 | Shadows | Soft, the edge widening with distance from the caster; darkening where things meet the floor or each other. After a light change, check each person and seat still has a shadow and a contact | S3-221, S3-222 |
@@ -262,6 +262,20 @@ the proof run (X-30). A reviewer scores these as the world rows W1 to W7 (`toon-
 | Sky | The reference's colour, clouds with soft lit edges; at night slate blue-grey with a large moon | S3-232 |
 | Use | Things to sit on and to hold, and people using them | S3-233 |
 | First place | The hardest place first, one scene to likeness 7 against its reference frame, shown to the owner before the other places | S2-37, S5-108, S5-105 |
+
+**Colour (19 November 2026).** The first film in this look came out dull by day, and the owner saw it at once. Its
+four day scenes measured a mean saturation of 0.26 to 0.30; the reference's scenes run 0.35 to 0.46 and our three
+older films 0.36 to 0.56. Its night scenes matched the reference (0.36 to 0.41). Three things did it, and each now
+fails a check before a review:
+
+- every place light turned the world's paint down (`sat` 0.8 to 0.94), which the rule before S3-252 allowed "by a fifth":
+  `tools/world-check.mjs` faults any `sat` under 1 (S3-206, S3-252). Darken a scene with its light, never by greying
+  the paint;
+- pale haze over long distances and pale skies washed the far land (S5-107 already keeps haze out): the scene's clip
+  fails `bar-check.py --gate` under a mean saturation of 0.33 (S3-250);
+- a palette of sand, white and grey, with the people in white and grey too. Choose the palette at the cast stage so
+  the people and what they hold carry the strongest colours in the frame (S3-251); the reference's people wear teal,
+  red and patterned cloth against a dark blue world.
 
 By day the two shade rules hold together: the shaded side keeps the surface's paint and texture (S3-218), and the sky's
 light cools it a little, never to grey or brown (S3-242). No day scene has tested this yet; until one does, take day
@@ -333,6 +347,9 @@ has the full list.
 | `templates/scene/` path projection (`tools/path-check.mjs`) | An action's path clears the other figures and the place's blockers; the action ends inside its scene (S5-80, S5-87) |
 | `templates/scene/tools/shots-check.mjs` | The hero's size on each shot, short wides, cameras into the far picture (S5-72, S5-102) |
 | `templates/scene/tools/pose-check.mjs` | No face swap or hand jump in one frame (S5-78) |
+| `templates/scene/tools/acting-audit.mjs` | Nobody big in frame keeps one pose over about 1 s, read from the scene's code with no render; the scene loop's bar gate runs it on people and motion rounds (S3-134) |
+| `templates/scene/tools/world-check.mjs` | No ink or rims, no emissive cards, no place light with `sat` under 1, a reference frame and a probe per place, a named light source (S3-213, S3-224, S3-223, S3-206, S2-37, S3-231, S3-191) |
+| `python3 -I <toon-video>/scripts/bar-check.py <clip> --gate [--night]` | The picture settles and is never still, the night levels, and a mean saturation of 0.33 or more (S3-173, S3-205, S3-220, S3-250) |
 | `python3 scripts/short_qa.py final.mp4 <qa dir> shots.json` | Black, white, frozen and popping frames, loudness (S5-18) |
 | `node scripts/fit-camera-example.mjs` | A master picture's camera, fit error under about 15 px (S3-19) |
 | Cold read with `references/cold-read-brief.md` | Each new place, prop, effect, material and face reads cold (S4-13, S4-14, S4-15) |

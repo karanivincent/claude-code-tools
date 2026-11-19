@@ -63,7 +63,9 @@ reviewers wait for the judge: they run only when the judge would keep the round,
 | `words.json` | The scene's words on its own clock (`words.mjs`) | reviewer 3's stills on the action words |
 | `poses.jpg` | The pose sheet (rig check) | `step.mjs`: no pose sheet, no build |
 
-`scene.json` also records `"night": true` (`init --night`), which adds `--night` to the bar gate.
+`scene.json` also records `"night": true` (`init --night`), which adds `--night` to the bar gate. `init --no-colour` records `"noColour": true` for a scene with no colour by
+design (a snowfield, a document insert), which adds `--no-colour` so the colour floor (S3-250) is left out; say why in
+`log.md`.
 
 ## The owner's approvals
 
@@ -85,6 +87,22 @@ failed round is reverted with no reviewers or judge spent on it, and its lines g
 build stays the first best, its lines in its faults. A bar-check without `--gate` (an older copy) is run without it
 and the round is marked `unsupported`, with a warning: it is not gated. It looks for a Python with numpy (`PYTHON`
 overrides; `TOON_BAR_CHECK` points at another bar-check). `bar --dry-run` prints the command.
+
+The acting audit is part of the same gate (S3-134). On a people or motion round of a scene loop folder
+(`out/<slug>/scenes/<scene>/`), `bar` also runs the story's own `src/stories/<slug>/tools/acting-audit.mjs <scene>
+--gate` from the project root, with no render: everyone still for over 1 s (toon-kit `actingStills`), and anyone at 12%
+of the frame high or more who keeps one pose for over 1 s while others act (`personStills`). Its printout goes to
+`acting.txt`. A fault fails the round as bar-check does: each fault line goes into `bar.json`'s `lines` as
+`acting: <scene>: <who> keeps one pose 2.0-3.5 s (...)`, so the revert puts it in `best/faults.md` for the builder.
+`bar.json` keeps the audit's own result under `acting`. A story made before the audit has no such tool: the round is
+gated by bar-check alone, with one line on stderr. An audit that cannot read the story (exit 2) refuses the step.
+
+`motion-check.py` (in `scripts/`) is not part of this per-round gate: it needs a render of the joined film and a Python
+with numpy and opencv, and a 5 to 10 s scene is too short to judge on. Run it once the scenes are joined, and on every
+cut before it goes out:
+`<python with numpy and opencv> -I <toon-video>/scripts/motion-check.py <film.mp4> --gate [--json out.json] [--sheet heat.jpg]`.
+It fails a film with more quiet seconds (under 1% of the picture moving besides the camera) than 4 per 60 s of length
+(at least 1), or with two quiet seconds in a row. The reference Short has 4 in 59 s, never two in a row.
 
 ## What the review calls cost
 
@@ -111,6 +129,7 @@ round's line in `log.md`:
 | `look.sh <clip> <round> --focus <area> [--ref-frame img] [--meaning f] [--prior f] [--claims f] [--protect f] [--hits f] [--words f] [--actions a,b] [--facts f] [--dry-run]` | Three Sonnet reviewers with `references/reviewer-brief.md`: reviewer 1 the cold reader (no script; names each main thing on screen, a thing it cannot name is a fault), reviewer 2 on sheets and frames, reviewer 3 on full-size stills at the action words; all three see the reference frame and the strips, answer W1 to W7 and give a likeness | `looks/<n>.md`, `looks/usage.jsonl`, `looks/scores.json`, `faults.md`, `faults.json` |
 | `abjudge.sh <best> <new> <round> [--judges 1\|3] [--brief f] [--meaning f] [--focus area] [--ref-frame img] [--ref clip] [--stills dir] [--protect f] [--hits f] [--model m] [--any-length] [--dry-run]` | Blind A/B with `references/judge-brief.md`: A/B order drawn per judge, the key outside the judge's folder; the reference frame as F; `--ref` shows the reference clip as R (S5-112); a weaker protected beat is a loss (X-20); refuses clips more than two times apart in length (S5-82) | `verdict.json`, `judges-usage.jsonl`, `judge-<j>/`, `keys/` |
 | `joins.sh <film> <joins.json> <outdir> [--no-review]` | Jumps within 0.5 s of each join, a 2 s clip around it for one reviewer | `joins.md`, `join-<i>/` |
+| `../motion-check.py <film> [--json [f]] [--gate] [--sheet f.jpg]` | The joined film, not a round: per second, what moves besides the camera and the camera's speed; `--gate` fails over 4 quiet seconds per 60 s or two in a row. Needs numpy and opencv | the JSON, the heat sheet |
 
 `_brief.py` (fills a brief), `_beats.py` (reads `protect.md` and hits), `_usage.py` (the JSON reply and its usage),
 `_merge_looks.py` and `_verdict.py` are helpers of the scripts above.
@@ -158,6 +177,7 @@ out/<slug>/scenes/<scene>/
     clip.mp4        the render
     jumps.md        jumps.sh                    audible.md   audible.py (sound pass)
     bar.json        step.mjs bar                 bar.txt      bar-check's printout   a failed gate is a failed round
+                                                acting.txt   the acting audit's printout (people and motion rounds)
     looks/          look.sh (usage.jsonl)       faults.md    the reviewers' faults, ranked
     verdict.json    abjudge.sh                  judge-<j>/, keys/, judges-usage.jsonl
                                                 no verdict.json, no next round; no look, no keep (X-31)

@@ -40,7 +40,9 @@ stories' tools. <!-- lint-ok -->
 
 | Check | Script | Gives | Rule |
 |---|---|---|---|
-| The bar's machine half and the calm number | `python3 -I scripts/bar-check.py <clip>` | Hard cuts, soft joins, big jumps, still stretches, the longest run, median change per frame, brightness | X-16, S3-173, S3-205 |
+| The bar's machine half and the calm number | `python3 -I scripts/bar-check.py <clip>` | Hard cuts, soft joins, big jumps, still stretches, the longest run, median change per frame, brightness, mean saturation (its gate fails under 0.33) | X-16, S3-173, S3-205, S3-250 |
+| Motion in a joined film | `python3 -I scripts/motion-check.py <film> --gate` (numpy and opencv) | Quiet seconds (under 1% of the picture moving besides the camera), the longest quiet run, the camera's speed second by second; `--sheet` draws what moved | S5-127, S1-37 |
+| Acting in a scene, no render | `node src/stories/<slug>/tools/acting-audit.mjs <scene> --gate` (run by `step.mjs bar` on people and motion rounds) | Everyone still, and anyone 12% of the frame or taller who keeps one pose over 1 s | S3-134 |
 | Frames for a reviewer | `sh scripts/spike-frames.sh <clip> <dir>` | Full frames twice a second, every-frame sheets, a one-a-second strip | X-23, S3-175 |
 | Baseline over the try | `sh scripts/spike-ab.sh <base dir> <try dir> <out.jpg>` | One picture of both at the same seconds | X-24 |
 
