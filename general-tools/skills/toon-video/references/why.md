@@ -460,3 +460,68 @@ Measured on the way: a round's review is about 1.56M tokens and 1.55 dollars (th
 judge at about 0.5M), three times the audit's guess; about 80% of it is cached image reads. Not yet tested: each role
 reading only its own rules, and Sonnet scene builders; both need a scene built twice.
 
+### The colour study, 19 November 2026
+
+The owner watched the first film built to the rendered-world look (hannibal-oxen) and said its colours were "not so
+vibrant like his", and that the films made before the look change had "that colorfulness that attracts the eye". He
+posted the film as it was and asked for the change in the skill. Measured the same day (two frames a second, the
+caption band left out; saturation is (max - min) / max of a lit pixel's red, green and blue):
+
+| Clip | Mean saturation | Strongly saturated share |
+|---|---|---|
+| The reference night Short, whole | 0.39 | 13% |
+| The reference, scene by scene (six) | 0.35 to 0.46 | 1% to 25% |
+| hannibal-oxen, its four day scenes | 0.26 to 0.30 | 1% to 17% |
+| hannibal-oxen, its four night scenes | 0.36 to 0.41 | 8% to 20% |
+| Three older films of ours (Garbo, the jungle film, the B-17 film) | 0.36 to 0.56 | 19% to 50% |
+
+So the night was already at the reference's level, and the dull half was the day: 33 of the film's 62 seconds,
+the opening among them. Three causes were found in the film's own files, none of them tested one at a time, because
+the owner did not want that film changed:
+
+- every place light set the world's saturation under 1 (0.8 to 0.94). The look change of 18 November had allowed
+  paint to be muted "by a fifth at most" (S3-216), while S3-206 said "no muted albedos": the two disagreed and the
+  looser one won. S3-252 replaces S3-216, and `world-check.mjs` now faults a `sat` under 1;
+- pale haze over hundreds of metres and pale skies, though S5-107 keeps haze out. Nothing measured it;
+- a palette of sand, white oxen and white tunics. The reference's people wear teal, red and patterned cloth against a
+  dark blue world (S3-251).
+
+S3-242 and S3-206 had asked for saturated colour since the audit, with a proof (`measure_look`) that was never built.
+The floor of 0.33 (S3-250) now sits in `bar-check.py --gate`, which the scene loop already runs each round: it fails
+that film's four day scenes and passes every scene of the reference. The strongly saturated share is printed, not
+gated, because the reference's own scenes run from 1% to 25%. Not known: how much each cause contributed, and whether
+0.33 is right for a snow or desert story (such a scene passes `--no-colour` with its reason in the round's log).
+
+### The acting round and the last two savings tests, 19 November 2026
+
+The owner watched the same film and said it had little motion: "a lot of things are still". Measured against the
+reference Short with the camera's own move taken out (`scripts/motion-check.py`):
+
+| Measure | The reference | The film before | After one acting round |
+|---|---|---|---|
+| Quiet seconds (under 1% of the picture moving besides the camera) | 4 in 59 s | 15 in 62.5 s | 4 |
+| Longest quiet run | 1 s | 3 s (the opening) | 1 s |
+| Camera speed in a typical second, % of the width | 15 | 6 | 9 |
+| Seconds with a slow camera (under 6) | 15 | 31 | 23 |
+
+The amount of motion was the same in both films (6.5% of the picture against 6.1%). In the reference it sat on the
+people; in ours it was land sliding under three camera flights while people held one pose for 3 to 4 seconds. S3-134
+already said nobody is still for more than about a second, and `actingStills` existed in the kit; no scene tool ran
+it, the bar gate only checked that the camera was not still, and reviewers scored acting 2 of 3 from stills. One
+round on acting only, with an audit that fails a frozen person before a render, took the acting audit from 7 scenes
+failing to none, and three blind judges preferred the new cut 3.6 to 3.3 (people 3.83 to 3.17). So: the audit is a
+template tool that the bar gate runs on people and motion rounds (S3-134), acting is judged on strips (S5-124), and a
+joined film passes `motion-check.py --gate` (S5-127). Still open: the camera. The round reached 23 slow seconds
+against a target of 15, and no rule sets a floor for it yet.
+
+The two savings tests left over from the audit ran inside that round, one scene each, judged blind by three judges:
+
+| Test | Result | Numbers |
+|---|---|---|
+| A Sonnet builder against an Opus builder (the tent and the march) | A tie, 3.30 to 3.30 | Sonnet 12.6 minutes and 4.7M tokens with cache reads, Opus 17.1 minutes and 9.4M. S5-101 already puts builders on Sonnet; this agrees with it |
+| A builder reading only `acting.md` against one reading the whole register (the dusk camp) | A tie, 3.20 to 3.17 | 9.0 minutes and 3.8M tokens against 11.9 and 5.2M, about a quarter less: S5-126 |
+
+One scene each is a first sign, not proof. Both tests also compared the trials with the last cut, and that half was
+worthless: the last cut's clip had captions and the trials had none, and every judge note in its favour was about the
+captions (S5-125).
+

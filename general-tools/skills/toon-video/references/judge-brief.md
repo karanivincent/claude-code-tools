@@ -24,6 +24,8 @@ stand-in for Vincent: his own pick outranks any judge, and the lead logs each ju
 `stories/<slug>/judge-vs-owner.md`, with the model (S5-96). Neutral by design: no area is named as the one being worked
 on, unless the loop asks for a lean with `--focus`. With `--ref`, `{REF_BLOCK}` adds a third clip, R: an earlier good
 build of the same beat (S5-112), and `{REF_JSON}` adds its scores to the JSON block. Without it both fields are empty.
+R is cut like A and B: captions on all three or on none (S5-125). On 19 November 2026 a captioned R beat two
+uncaptioned trials on its captions alone, so both "against the last cut" results were worthless.
 
 ---
 

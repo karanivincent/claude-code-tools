@@ -15,6 +15,8 @@ export interface PersonSample {
   height?: number;
   /** a named person must stay whole in frame; extras may be cut */
   named?: boolean;
+  /** the pose itself, for a story's own PoseChanged test (personStills, numberPoses) */
+  pose?: unknown;
 }
 export interface PropSample { name: string; at: XY; holder?: string; hand?: XY }
 /** the camera this frame (world metres, degrees), when the film logs it: the opening's motion and the camera checks */
@@ -40,6 +42,59 @@ export function actingStills(samples: Sample[], opts: { maxStill?: number } = {}
   }
   if (runStart && last) close(last);
   return out;
+}
+
+/** Is `b` a new pose since `a`, the sample that opened the run? Default: the signatures differ. A story whose
+ *  signature is exact (hands to the unit) passes its own test with thresholds, so a small sway is not a new pose. */
+export type PoseChanged = (a: PersonSample, b: PersonSample) => boolean;
+const sigChanged: PoseChanged = (a, b) => a.sig !== b.sig;
+
+/** each person's runs of one pose, per shot: a run starts when the person enters the shot or shows a new pose since
+ *  the run's first sample, and ends at the next new pose (that sample's time), at the sample before they leave, or
+ *  at the last sample. `n` counts the person's poses in the shot; `big` is true when any sample of the run has them at
+ *  `minHeight` of the frame or more (no height given counts as big: it cannot be told). */
+function poseRuns(samples: Sample[], changed: PoseChanged, minHeight: number) {
+  const open = new Map<string, { who: string; shot: string; from: number; first: PersonSample; n: number; big: boolean }>();
+  const runs: { who: string; shot: string; from: number; to: number; big: boolean }[] = [];
+  const numbers: Map<string, number>[] = [];
+  let prevT: number | null = null;
+  const close = (k: string, end: number) => { const r = open.get(k); if (r) runs.push({ who: r.who, shot: r.shot, from: r.from, to: end, big: r.big }); };
+  for (const s of samples) {
+    const seen = new Set<string>(), here = new Map<string, number>();
+    for (const p of s.people) {
+      const k = `${p.key}@${s.shot}`, r = open.get(k), big = p.height === undefined || p.height >= minHeight;
+      seen.add(k);
+      if (!r || changed(r.first, p)) { if (r) close(k, s.t); open.set(k, { who: p.key, shot: s.shot, from: s.t, first: p, n: (r?.n ?? 0) + 1, big }); }
+      else if (big) r.big = true;
+      here.set(p.key, open.get(k)!.n);
+    }
+    for (const k of [...open.keys()]) if (!seen.has(k)) { close(k, prevT ?? s.t); open.delete(k); }
+    numbers.push(here);
+    prevT = s.t;
+  }
+  for (const k of [...open.keys()]) close(k, prevT ?? 0);
+  return { runs, numbers };
+}
+
+/** The samples with each person's `sig` replaced by their pose number in the shot under `changed`, so actingStills
+ *  reads "a new pose" the same way personStills does (a sway under the story's thresholds is not one). */
+export function numberPoses(samples: Sample[], changed: PoseChanged = sigChanged): Sample[] {
+  const { numbers } = poseRuns(samples, changed, 0);
+  return samples.map((s, i) => ({ ...s, people: s.people.map(p => ({ ...p, sig: String(numbers[i].get(p.key) ?? 0) })) }));
+}
+
+/** Anyone at least `minHeight` of the frame tall (default 0.12) who keeps one pose for more than `maxStill` seconds
+ *  (default 1 s), even while someone else on screen acts. actingStills only fails a stretch where nobody changes pose,
+ *  so one person talking let the other stand frozen for 3 to 4 s: the Hannibal film had 15 quiet seconds in 62 s
+ *  where the reference Short has 4 in 59 (19 November 2026); this check took the film's failing scenes from 7 to 0
+ *  and its quiet seconds to 4. A pose is compared with the one that opened the run through `changed`. Runs are cut
+ *  at a change of shot and when the person leaves the frame. */
+export function personStills(samples: Sample[], opts: { maxStill?: number; minHeight?: number; changed?: PoseChanged } = {}): Issue[] {
+  const maxStill = opts.maxStill ?? 1.0, minH = opts.minHeight ?? 0.12;
+  return poseRuns(samples, opts.changed ?? sigChanged, minH).runs
+    .filter(r => r.big && r.to - r.from > maxStill)
+    .sort((a, b) => a.from - b.from)
+    .map(r => ({ check: 'person-still', from: r.from, to: r.to, shot: r.shot, who: r.who, what: `${r.who} keeps one pose for ${(r.to - r.from).toFixed(1)} s` }));
 }
 
 /** heads cut by the frame's edge (named people at any edge, everyone at the bottom), and named people too small to

@@ -117,6 +117,10 @@ Light:
 - Are the faces lit on the key words?
 
 People:
+- Judge acting on the every-frame strips, never on a still (S5-124): does whoever the words are about take a new pose or
+  do something on the words, about every half second to a second? Is anyone big in frame still for more than about a
+  second (S3-134)? Name the person and the seconds.
+- Do the hands hold or use something from the place (S3-233)?
 - Is each held or pressed thing in front of its card, with the hand on it (S3-227)?
 - Is each repeated action drawn differently? The same pose with the card changing is a fault.
 - Do feet, knees and shins touch what they rest on? Any limb hanging in the air?

@@ -4,6 +4,7 @@
 //   S3-213  the ink pass is off for the world: the stage file's ink toggle (stage.tsx) and each place's `ink`
 //   S3-224  no rim on the cards: each place light's rims, read as look/cardshade.ts draws them (a warm card tint turns
 //           the warm rim on even with rims.on 0); a place that draws its cards flat (`people.flat`) passes
+//   S3-206  no muted paint: no place light sets the world's saturation (`sat`) under 1
 //   S3-223  never emissive: every emissive set in the cards' code (this story's cast.ts, src/look/cardshade.ts) is zero
 //   S2-37   each scene names a reference frame that is on disk: a "Scene | Reference frame" (or "Scene frame") table in
 //           stories/__SLUG__/scenes.md, parts.md or plan.md; a catalog id (s011) is looked up as <id>.jpg/png under
@@ -16,7 +17,7 @@
 // still turns the ink pass and the card rims on. Not checked here (they need the flat card mode and the soft shadows,
 // which are not in templates/look yet): S3-223's one even tone with no gradient, S3-221 soft shadows, S3-226 contact.
 //   node src/stories/__SLUG__/tools/world-check.mjs [--skip probe,frames,...] [--ref-dir <dir>]
-// Checks: ink, rims, emissive, frames, probe, light. Prints one line per fault (FAULT <scene> (<place>) <rule>: ...);
+// Checks: ink, rims, sat, emissive, frames, probe, light. Prints one line per fault (FAULT <scene> (<place>) <rule>: ...);
 // exit 1 on a fault, 2 when the film's files cannot be read.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -35,7 +36,7 @@ try {
 const read = (p) => (fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null);
 const faults = [];
 
-if (!skip.has('ink') || !skip.has('rims')) {
+if (!skip.has('ink') || !skip.has('rims') || !skip.has('sat')) {
   try { places = (await loadTs(path.join(STORY_DIR, 'places', 'index.ts'))).PLACES; } catch (e) { console.error(`world-check: cannot load places/index.ts in node: ${e.message}`); process.exit(2); }
 }
 if (!skip.has('ink')) {
@@ -44,6 +45,7 @@ if (!skip.has('ink')) {
   else faults.push(...kit.checkInk(stage, places, used));
 }
 if (!skip.has('rims')) faults.push(...kit.checkRims(places, used));
+if (!skip.has('sat')) faults.push(...kit.checkSaturation(places, used));
 if (!skip.has('emissive')) {
   const files = {};
   for (const p of [path.join(STORY_DIR, 'cast.ts'), path.resolve('src', 'look', 'cardshade.ts')]) { const t = read(p); if (t !== null) files[path.relative(process.cwd(), p)] = t; }

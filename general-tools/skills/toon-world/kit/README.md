@@ -21,7 +21,8 @@ scene's `CUTS` and the join cards.
 
 Pure functions over a film's files, called by `tools/world-check.mjs` and `tools/night-check.mjs`: `checkInk` (S3-213,
 the stage file's ink toggle and each place's `ink`), `activeRims` / `checkRims` (S3-224, read as cardshade draws them: a
-warm card tint lights the warm rim even with `rims.on` 0), `checkEmissive` (S3-223, the cards' code only),
+warm card tint lights the warm rim even with `rims.on` 0), `checkSaturation` (S3-206, no place light sets the world's
+`sat` under 1), `checkEmissive` (S3-223, the cards' code only),
 `checkSceneFrames` (S2-37, a "Scene | Reference frame" table), `checkProbes` (S3-231), `checkLightSources` (S3-191),
 `nightScenes`.
 
@@ -109,6 +110,7 @@ that holds them; plus its cards and its picture events and sound cues. Run it af
 | Block | What it does |
 |---|---|
 | `actingStills` | Stretches over 1 s (`maxStill`) where nobody on screen changes pose. Camera moves do not count. |
+| `personStills`, `numberPoses` | Anyone at 12% of the frame high or more (`minHeight`) who keeps one pose over 1 s (`maxStill`) while others act. A story's own `changed(a, b)` sets what counts as a new pose (a sway under its thresholds is not one); `numberPoses` gives `actingStills` the same reading. The scene template's `tools/acting-audit.mjs` runs both, and the scene loop's bar step gates on it. |
 | `checkOpening` | The first frame is the Short's package, all three required: by 0.2 s a named person over 30% of the frame, something moving from frame 1 (a pose change or the camera), and the word card up at 0.0 s. |
 | `actingTooSmall` | A named person changing pose while under 25% of the frame high: acting a phone cannot read. Frame it close or push in on the action word. |
 | `checkFraming` | Named heads cut by any edge; named people under 8% of the frame high. A person whose head and feet are both outside the frame is skipped (off screen, not cut); the film template's sampler also drops people behind the lens. |

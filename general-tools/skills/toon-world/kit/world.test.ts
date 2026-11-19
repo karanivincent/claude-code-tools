@@ -1,7 +1,7 @@
 // Run: node --test general-tools/skills/toon-world/kit/world.test.ts
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { inkSetting, checkInk, activeRims, checkRims, checkEmissive, mdTables, frameTokens, checkSceneFrames, checkProbes, checkLightSources, nightScenes } from './world.ts';
+import { inkSetting, checkInk, activeRims, checkRims, checkSaturation, checkEmissive, mdTables, frameTokens, checkSceneFrames, checkProbes, checkLightSources, nightScenes } from './world.ts';
 
 // the template's stage.tsx (ink on) and hannibal-oxen's (ink read from the place), cut down to the lines that matter
 const TEMPLATE_STAGE = `// Post toggles for checks: --props '{"post":{"ink":false}}'
@@ -34,6 +34,13 @@ test('S3-224 rims: rims.on, a cool rim and a warm card tint each draw a rim; fla
   assert.deepEqual(activeRims({ rims: { on: 1, width: 0, cool: 1 } }), [], 'width 0 draws nothing');
   assert.equal(checkRims({ camp: { light: DUSK }, tent: { light: { rims: { on: 0, width: 2, cool: 0 } } } }, used).length, 2, 'once per place');
   assert.deepEqual(checkRims({ camp: { light: DUSK, people: { flat: [1, 1, 1] } }, tent: { light: { rims: { on: 0, width: 2, cool: 0 } } } }, used), []);
+});
+
+test('S3-206 saturation: a place light with sat under 1 fails once per place; 1 or more, or no sat, passes', () => {
+  const used2 = { s01: 'camp', s02: 'camp', s03: 'tent', s04: 'hill' };
+  const f = checkSaturation({ camp: { light: { sat: 0.92 } }, tent: { light: { sat: 1.04 } }, hill: { light: {} } }, used2);
+  assert.equal(f.length, 1); assert.equal(f[0].rule, 'S3-206'); assert.equal(f[0].place, 'camp'); assert.match(f[0].what, /0\.92/);
+  assert.deepEqual(checkSaturation({ camp: { light: { sat: 1 } } }, used2), []);
 });
 
 test('S3-223 emissive: a card with an emissive colour or intensity fails; zeros pass', () => {

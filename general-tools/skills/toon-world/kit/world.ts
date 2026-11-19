@@ -69,6 +69,21 @@ const zeroColour = (v: string) => /^(0x0+|0|['"]#0{3}(0{3})?['"]|['"]black['"])$
 /** S3-223 (the "never emissive" half): every emissive colour or intensity set in the cards' own code (the film's cast.ts,
  *  the project's look/cardshade.ts) is zero. `files` maps a file name to its text. Places, fires and bulbs may glow:
  *  pass only the cards' files. The flat, gradient-free half of S3-223 needs the flat card mode in templates/look. */
+// ---- S3-206: no muted albedos -----------------------------------------------------------------------------------------
+/** S3-206: a place light never turns the world's colour down. `light.sat` is the world's albedo saturation (1 = as
+ *  painted, shade.ts uSat); every place of the first film built to this look set it to 0.8 to 0.94, and its day scenes
+ *  measured a mean saturation of 0.27 against the reference's 0.35 to 0.46 (19 November 2026). Once per place. */
+export function checkSaturation(places: Record<string, { light?: { sat?: unknown } }>, used: Record<string, string>): WorldFault[] {
+  const out: WorldFault[] = [], seen = new Set<string>();
+  for (const [scene, place] of Object.entries(used)) {
+    const sat = places[place]?.light?.sat;
+    if (seen.has(place) || typeof sat !== 'number') continue;
+    seen.add(place);
+    if (sat < 1) out.push({ rule: 'S3-206', scene, place, what: `the place light of "${place}" sets the world's saturation to ${sat}: keep sat at 1 or more and darken with the light, not by greying the paint` });
+  }
+  return out;
+}
+
 export function checkEmissive(files: Record<string, string>): WorldFault[] {
   const out: WorldFault[] = [];
   for (const [name, src] of Object.entries(files)) {

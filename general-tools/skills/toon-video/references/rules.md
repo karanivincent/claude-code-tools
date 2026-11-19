@@ -264,14 +264,14 @@ must, never, always, every or only without an id.
 - **S3-200** Put light effects, a glow, a pulse or a glint, where the frame is dark enough for them to read. Proof: check critic: effects (every-frame strip). Why: the same tap glows barely showed in the lighter grade.
 - **S3-204** At night turn off every glow that lights the room from out of shot; the light comes from the lamps in frame. Proof: check critic: light. Why: out-of-shot glows kept the night a lit day room.
 - **S3-205** At night the room goes dark, lit by visible lamps fading with distance: mean near 85, darkest 5% 25 or more, faces and facts readable, saturation at least the day's. Proof: check bar-check.py --gate --night; tools/night-check.mjs. Why: a violet day room did not read as night.
-- **S3-206** No muted albedos and no lifted blacks; by day the black point stays near black, and a night scene follows S3-205. Proof: check measure_look (new: exit code). Why: lifted blacks and muted colour read washed out.
+- **S3-206** No muted albedos and no lifted blacks; by day the black point stays near black, and a night scene follows S3-205. Proof: check tools/world-check.mjs (sat); bar-check.py --gate (colour). Why: lifted blacks and muted colour read washed out.
 - ~~**S3-207** By day colour is bright and saturated: saturated sky and grass, warm golden sun, shade tinted blue or violet, never grey; a night scene follows S3-205. Proof: check measure_look (new: exit code). Why: Vincent wants bright game colour.~~ Replaced by S3-242.
 - **S3-209** Indoors the key light is the named source of S3-191, a lamp, window or fire in the place, placed with the set, not tied to the camera. Proof: file stories/<slug>/parts.md. Why: a key tied to the camera lit nothing you could see.
 - ~~**S3-210** A rim sits on the key side of a person, with at most a faint cool edge on the far side; an even outline all round reads as a sticker. Proof: check critic: light. Why: an all-round rim read as a sticker, not light.~~ Replaced by S3-224.
 - **S3-213** The world carries no ink and the ink pass is off: no drawn line on walls, floor, land, props or furniture; people and what they hold keep their outline. Proof: check tools/world-check.mjs (ink). Why: ink on the world made room and people one flat cartoon.
 - **S3-214** Every near surface is a painted material at its real scale, with grain, weave, wear or pattern you can read at phone size. Proof: check critic: world (row W2). Why: flat colour on walls and floor read as drawn.
 - **S3-215** Nothing exists only as a line: every object has a painted shape, and in shade a lighter top and darker sides. Proof: check critic: world (row W1). Why: the teapot vanished and the table merged into the floor.
-- **S3-216** Paint toward the real material without losing colour: strong reds, creams and blues stay, in the mid-tones; mute toward grey by a fifth at most, never toward brown. Proof: check critic: world (row W2). Why: a style pulling every colour to brown made the room muddy.
+- ~~**S3-216** Paint toward the real material without losing colour: strong reds, creams and blues stay, in the mid-tones; mute toward grey by a fifth at most, never toward brown. Proof: check critic: world (row W2). Why: a style pulling every colour to brown made the room muddy.~~ Replaced by S3-252.
 - **S3-217** When a place has a colour cast, check the paint before the lamps. Proof: check critic: light. Why: the amber room came from the materials, not the light.
 - **S3-218** World surfaces shade smoothly, with no hard band between two flat tones; the shaded side keeps the surface's own colour and texture. Proof: check critic: light (row W3). Why: two flat tones on a surface read as drawn.
 - **S3-219** At night shade is a neutral fill, cool only on the side away from the lamp, and the floor round the lamp stays warm; check both on one frame. Proof: check critic: light. Why: neutral shade turned the room amber; the cool fill washed out the pool.
@@ -280,8 +280,10 @@ must, never, always, every or only without an id.
 - **S3-222** After any change to the light, check each person and seat still has a shadow and a contact you can see. Proof: check critic: light (row W4). Why: softer shadows took the people's shadows away.
 - **S3-224** A card carries no light rim, on the key side or any other. Proof: check tools/world-check.mjs (rims). Why: a rim drew a second line outside the outline; the hero looked cut out.
 - **S3-234** A surface's colour on screen is its paint times the light on it: measure the rendered pixel against the reference's, and change paint and light together. Proof: check critic: light. Why: browner earth under the same warm pools measured the same yellow.
-- **S3-242** By day colour is bright and saturated with warm golden sun; shade keeps the surface's paint and texture, cooled a little by sky light, never grey or brown. Proof: check measure_look (new: exit code). Why: S3-207's violet shade and S3-218's kept colour disagreed; unproven by day.
+- **S3-242** By day colour is bright and saturated with warm golden sun; shade keeps the surface's paint and texture, cooled a little by sky light, never grey or brown. Proof: check bar-check.py --gate (colour); critic: light for the shade. Why: S3-207's violet shade and S3-218's kept colour disagreed; unproven by day.
 - **S3-243** Composer order: bloom on light sources, neutral tone map, grade, MSAA 4; the ink pass stays off (S3-213) and lens blur at 0 unless S3-36 sets it. Proof: check look.mjs: composer order (new). Why: The old order still named world ink and lens blur.
+- **S3-250** A scene's lit pixels average saturation 0.33 or more, by day and by night; a scene with no colour by design passes --no-colour with its reason logged. Proof: check bar-check.py --gate (colour). Why: Our dull day scenes measured 0.26 to 0.30; the reference's scenes 0.35 to 0.46.
+- **S3-252** Paint the real material at full colour: strong reds, creams and blues stay, in the mid-tones. Never mute paint toward grey or brown; darken with the light. Proof: check tools/world-check.mjs (sat); critic: world (row W2). Why: S3-216 let paint be muted by a fifth; every place then set saturation 0.8 to 0.94 and the day scenes read dull.
 
 ### People
 
@@ -307,6 +309,7 @@ must, never, always, every or only without an id.
 - **S3-227** Anything a person holds or presses stands in front of their card, with the hand on it. Proof: check critic: people. Why: the Morse key sat behind the card; the hand pressed nothing.
 - **S3-228** A near-white face stays out of the grade's tint; in a close it never takes the colour of the shade. Proof: check critic: people. Why: a white face went lilac-grey in the close.
 - **S3-247** An invented person or thing is a solid paper cut-out card with a white border and a stand; it flicks up and folds away, never fades or turns see-through. Proof: check critic: people. Why: See-through dotted agents were 'not clear, could be missed'.
+- **S3-251** People and the props they use wear the frame's strongest colours, chosen at the cast stage; the world behind them is quieter. Proof: check critic: people. Why: The reference's people wear teal, red and patterned cloth against dark blue; ours wore white and grey against sand.
 
 ### Props and effects
 
@@ -408,7 +411,7 @@ must, never, always, every or only without an id.
 
 ### Acting and action
 
-- **S3-134** An action or expression change on every beat of the words; nobody still for more than about 1 s. Proof: check `actingStills`. Why: one frown in 57 s scored 3 of 10.
+- **S3-134** An action or expression change on every beat of the words; nobody still for more than about 1 s. Proof: check tools/acting-audit.mjs (step.mjs bar: acting.txt, bar.json). Why: one frown in 57 s scored 3 of 10.
 - **S3-135** What the line says happens on screen, as it happens. Proof: check `checkMustSee`. Why: "still fighting" over a man standing still.
 - **S3-136** A key gesture the story turns on (a salute, a handover) is held about 1 s and framed close. Proof: check `actingTooSmall`. Why: half-second gestures were missed.
 - **S3-137** No one-frame pose snaps; poses change through in-betweens. Proof: check `acting.ts: poseSnaps` (new). Why: snaps between board samples showed only in motion.
@@ -522,6 +525,7 @@ camera, shot size and person's size), then the scene stage (people and motion, s
 - **S5-119** Each round's clip passes bar-check.py --gate, with --night for a night scene; a failed gate is a failed round. Proof: check scripts/loop/step.mjs (bar). Why: calm and night numbers were never measured inside a film.
 - **S5-122** Reviewers and judges give one likeness number, 1 to 10, against the scene frame, and run Vincent's standing notes as a checklist. Proof: file references/judge-brief.md. Why: work scored 3.4 of 5 passed 3 of 10 checks beside his frames.
 - **S5-123** A one-judge win by 0.15 or less is judged again with the two clips swapped; it is a win only when the two average 0.1 or more. Proof: check scripts/loop/abjudge.sh (second judge). Why: 3 of 11 narrow wins failed a re-judge; the judge leaned to the clip shown second.
+- **S5-125** A judge's reference clip is cut like the trial clips: captions on all of them or on none. Proof: file the round's judge brief (reference line). Why: A captioned last cut beat uncaptioned trials on captions alone, in two tests.
 
 ### Scenes in parallel and the join
 
@@ -533,6 +537,7 @@ camera, shot size and person's size), then the scene stage (people and motion, s
 - **S5-81** The Film template plays captions from the voice's word times from the first render, before any judge sees it. Proof: check templates/film-scenes/Film.tsx (Captions). Why: render 1 had no words on screen; every judge blamed it.
 - **S5-82** A film is judged against a film of about its length: the last film the owner saw, else the animatic or a studied video; never a short clip. Proof: check scripts/loop/abjudge.sh (length). Why: a 60 s film lost to a 5 s spike on length alone.
 - **S5-86** A jump in time between scenes is a join card with dip frames that holds nobody (join-card.mjs --jump); join-times.mjs writes it as a dip. Proof: check tools/join-times.mjs (kind dip). Why: six planned dips were flagged as faulty cuts.
+- **S5-127** A joined film has at most 4 quiet seconds a minute (under 1% of the picture moving besides the camera), never two in a row, none in its first second. Proof: check motion-check.py <film> --gate. Why: A film with 15 quiet seconds, three of them the opening, read as still; the reference has 4.
 
 ### Rig check
 
@@ -582,6 +587,8 @@ camera, shot size and person's size), then the scene stage (people and motion, s
 - **S5-75** Scene builders, up to four at once, run only the people and motion passes, with places, cameras and sizes locked; a change to those goes to the lead. Proof: check scripts/loop/step.mjs (passes, locks). Why: A/B rounds judged two worlds at once.
 - **S5-78** A face change eases over three frames or more through an in-between (exprTo, exprK), and no hand jumps in one frame. Proof: check tools/pose-check.mjs. Why: judges at 6 fps blamed one-tile face and arm swaps.
 - **S5-80** Before a render, project the action's path through the shot's camera: it clears every other figure, and no wall, post or rock in BLOCKERS hides the hero. Proof: check tools/path-check.mjs. Why: a post hid the hero and the old check missed it.
+- **S5-124** Reviewers and judges score acting from the clip's every-frame strips, never from stills. Proof: check critic: people (strips named in the reply). Why: Stills scored a film's acting 2 of 3 while people held poses for 3 to 4 seconds.
+- **S5-126** In an acting round a builder reads acting.md and its scene brief, not the whole register. Proof: check the builder's brief (team-and-log.md template). Why: A builder with only its role's rules tied one with the register, at 25% fewer tokens (one scene).
 
 ### Scene stage: motion and staging
 

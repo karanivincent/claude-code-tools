@@ -236,7 +236,7 @@ Repo: {repo} (branch {branch}). Work only inside it. Foreground only: no backgro
 
 ## Read first, in this order
 1. `<toon-video>/SKILL.md`, "Stage 5. Scene stage", and `<toon-video>/scripts/loop/README.md`.
-2. `<toon-video>/references/acting.md`.
+2. `<toon-video>/references/acting.md`. Not `rules.md`: an acting round's builder reads its role's file only (S5-126).
 3. For each scene: meaning-sheet rows {rows}; beat reference {clip, or none}; scene frame {path}; reference stills
    {dir}.
 4. The owner's notes so far, in his words: {notes, or none}.

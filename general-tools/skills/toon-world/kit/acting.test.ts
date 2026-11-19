@@ -100,3 +100,47 @@ test('fromFrames merges a camera finding over neighbouring frames into one run i
   const r = fromFrames(f, 30, () => 'gate/wide');
   assert.equal(r.length, 2); assert.equal(r[0].check, 'cam-empty-sky'); assert.equal(r[0].from, 2); assert.equal(r[0].to, 2.2);
 });
+
+test('personStills: one person frozen while another acts is flagged; actingStills alone lets it through', async () => {
+  const { personStills } = await import('./acting.ts');
+  const ts = [0, 0.5, 1, 1.5, 2, 2.5];
+  const s: Sample[] = ts.map((t, i) => ({ t, shot: 'a', people: [
+    { key: 'fabius', sig: 'arms-folded', height: 0.4 },
+    { key: 'hannibal', sig: i % 2 ? 'point' : 'talk', height: 0.4 },
+  ] }));
+  assert.equal(actingStills(s).length, 0);
+  const r = personStills(s);
+  assert.equal(r.length, 1);
+  assert.equal(r[0].who, 'fabius'); assert.equal(r[0].from, 0); assert.equal(r[0].to, 2.5); assert.equal(r[0].check, 'person-still');
+  // a pose change at 1 s splits the run into two of 1 s and 1.5 s: only the second fails
+  const s2 = s.map(x => ({ ...x, people: x.people.map(p => (p.key === 'fabius' && x.t >= 1 ? { ...p, sig: 'hands-up' } : p)) }));
+  assert.deepEqual(personStills(s2).map(i => [i.who, i.from, i.to]), [['fabius', 1, 2.5]]);
+});
+
+test('personStills: small people, a change of shot and leaving the frame are not held against anyone', async () => {
+  const { personStills } = await import('./acting.ts');
+  const one = (t: number, shot: string, height = 0.4) => ({ t, shot, people: [{ key: 'ox', sig: 'stand', height }] });
+  // under minHeight (0.12) the whole time: not judged
+  assert.equal(personStills([0, 0.5, 1, 1.5, 2].map(t => one(t, 'a', 0.08))).length, 0);
+  // the same pose across a cut: two runs of 0.8 s
+  assert.equal(personStills([0, 0.4, 0.8].map(t => one(t, 'a')).concat([1.2, 1.6, 2.0].map(t => one(t, 'b')))).length, 0);
+  // out of frame at 1 s: the run ends at the sample before
+  const gone = [one(0, 'a'), one(0.5, 'a'), { t: 1, shot: 'a', people: [] }, one(1.5, 'a'), one(2, 'a')];
+  assert.equal(personStills(gone).length, 0);
+  // --max and --min move the limits
+  assert.equal(personStills([0, 0.5, 1].map(t => one(t, 'a', 0.1)), { maxStill: 0.8, minHeight: 0.05 }).length, 1);
+});
+
+test('personStills and numberPoses with a story test of a new pose: a sway under the threshold is the same pose', async () => {
+  const { personStills, numberPoses } = await import('./acting.ts');
+  const sway = (t: number, x: number) => ({ t, shot: 'a', people: [{ key: 'hero', sig: `hand ${x}`, height: 0.5, pose: { hand: x } }] });
+  const s = [0, 0.5, 1, 1.5].map((t, i) => sway(t, 300 + 10 * (i % 2)));
+  const changed = (a: { pose?: unknown }, b: { pose?: unknown }) => Math.abs((a.pose as { hand: number }).hand - (b.pose as { hand: number }).hand) > 60;
+  assert.equal(personStills(s).length, 0);                       // exact signatures: every sample a new pose
+  assert.equal(personStills(s, { changed }).length, 1);          // the story's threshold: one pose for 1.5 s
+  assert.equal(actingStills(s).length, 0);
+  assert.equal(actingStills(numberPoses(s, changed)).length, 1); // the same reading for everyone-still
+  // a real move (over 60 units) starts a new pose
+  const moved = s.concat([sway(2, 420), sway(2.5, 420)]);
+  assert.deepEqual(personStills(moved, { changed }).map(i => [i.from, i.to]), [[0, 2]]);
+});
