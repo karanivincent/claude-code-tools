@@ -5,7 +5,8 @@
 // a beat read as a jolt. Slow it down and ease every start and stop (motion.ts keysAt: "through" keys keep it moving).
 //   node src/stories/__SLUG__/tools/cam-speed.mjs [<scene>] [--max-m 0.3] [--max-deg 1.5] [--table] [--cuts 45,120]
 // A planned cut inside a scene (the scene's shots.ts CUTS, scene frames, or --cuts) is a jump on purpose: the step onto
-// that frame is not a move, and the camera may stop on the frame before it.
+// that frame is not a move, and the camera may stop on the frame before it. A scene's second part (PART2, a moving
+// dissolve to a second camera: lib.mjs withPart2) is read from its first frame on, and that frame is a join of the same kind.
 // No scene: every scene in film order, across the joins too (a join that is not a cut must carry the move on).
 // Exit 1 when anything is flagged.
 import fs from 'node:fs';
@@ -24,7 +25,7 @@ const rows = []; // { id, f, film, m, deg, join }
 let prev = null;
 for (const id of ids) {
   const S = await loadScene(id), from = film.sceneFrom(id);
-  const cuts = new Set([...(S.CUTS ?? []), ...(pos[0] && o.cuts ? String(o.cuts).split(',').map(Number) : [])]);
+  const cuts = new Set([...(S.CUTS ?? []), ...(typeof S.PART2?.at === 'number' ? [S.PART2.at] : []), ...(pos[0] && o.cuts ? String(o.cuts).split(',').map(Number) : [])]);
   for (let f = 0; f < S.FRAMES; f++) {
     const c = S.camAt(f);
     if (cuts.has(f)) { rows.push({ id, f, film: from + f, m: 0, deg: 0, join: true, cut: true }); prev = { c, id }; continue; }

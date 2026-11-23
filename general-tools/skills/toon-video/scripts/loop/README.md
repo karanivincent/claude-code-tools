@@ -17,14 +17,18 @@ Run these scripts from the main session, not from a subagent, with a 10-minute c
 take longer than three minutes). `look.sh` and `abjudge.sh` take `--dry-run`: they make the frames and the briefs,
 print each `claude -p` command, and stop.
 
-## A narrow win
+## A clear win
 
-A win by 0.15 or less with one judge is not trusted on its own (S5-123). `abjudge.sh` starts a second judge with the
-two clips in the other order and `_verdict.py` averages the two: the round is a win when the average is 0.1 or more,
-and a tie otherwise. `verdict.json` then carries `narrow` with the first judge's margin. `--no-second` turns it off.
-Why: on 11 stored narrow wins judged again in both orders, the judge scored the new clip about 0.1 higher when it was
-shown second (9 of 11 pairs), which is the size of the margin itself; 3 of the 11 did not hold. It costs one judge call
-on about one round in six.
+A round is kept only on a clear win (S5-133). One judge's margin above 0.3 is a win on its own. A margin of 0.1 to 0.3
+from a judge who prefers the new clip is not: `abjudge.sh` starts a second judge with the two clips in the other
+order, and `_verdict.py` calls the round a win only when both judges prefer the new clip and they average 0.1 or more.
+Anything else above a loss is a tie, and a tie keeps best (the next round carries what the judges credited).
+`verdict.json` then carries `narrow` with the first judge's margin. `--no-second` turns the second judge off, which
+leaves such a round a tie. With three judges (a film) a win is 0.1 or more with most judges preferring the new clip.
+Why: on the dancing plague (91 rounds) 30 of the 48 kept rounds had won by 0.2 or less or tied, at about 1.7M tokens
+each, and the same clip scored 3.1 to 3.6 with different judges; on 11 stored narrow wins judged again in both orders,
+the judge scored the new clip about 0.1 higher when it was shown second, and 3 of the 11 did not hold. It costs one
+more judge call on a round with a 0.1 to 0.3 margin, and a pass with no clear win stops after two rounds.
 
 ## When a pass stops
 
@@ -147,9 +151,8 @@ none of these sections, still merge; those fields stay empty.
 
 `verdict.json`: `judges[]` (each judge's A/B order, its scores per area for `best` and `new`, their means, likeness,
 failed world rows, what it could not name, what it credited and blamed in each, its pick and its protected-beat
-picks), `mean` (per area and overall, best and new, with `likeness` and `rows_failed`), `diff`, `winner` (`win` when
-new is 0.1 or more above best, `loss` when 0.1 or more below, else `tie`; always `loss` when a protected beat got
-weaker), `prefer` (the judges' pick), `keep` (`new` on a win or on a tie the judges prefer, else `best`), `protected`
+picks), `mean` (per area and overall, best and new, with `likeness` and `rows_failed`), `diff`, `winner` (`win` on a clear win, S5-133; `loss` when new is 0.1 or more below best; else `tie`; always `loss` when a
+protected beat got weaker), `prefer` (the judges' pick), `keep` (`new` on a clear win, else `best`: S5-133), `second` (true when one judge's 0.1 to 0.3 margin calls for a second judge), `protected`
 (per beat: votes and `weaker`) and `lost_on`. With `--ref`, `ref`: the reference clip's mean scores, and best and new
 against it (`diff`, `status`: beats, ties or below, with the same 0.1 margin).
 

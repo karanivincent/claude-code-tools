@@ -174,6 +174,7 @@ must, never, always, every or only without an id.
 - ~~**S2-36** Each scene names one reference frame of its own kind and light level, a night camp against a night camp; the reviewer scores likeness 1 to 10 against it. Proof: file stories/<slug>/parts.md (reference frame per scene). Why: a night room scored against a bright tent mixed light into the look.~~ Replaced by S2-37.
 - **S2-37** Each scene names one reference frame of its own kind and light level, night against night, in parts.md "Scene frames"; reviewers score likeness 1 to 10 against it, never without one. Proof: check tools/world-check.mjs (frames). Why: a night room scored against a bright tent mixed light into the look.
 - **S2-38** A famous real person is drawn with the features everyone knows, in the cast's style, and shows the face; a back view or silhouette alone says nothing. Proof: file out/<slug>/coldread.json (who is it). Why: 'How do we know that it's Hitler?'.
+- **S2-39** Before any scene is built, three reviewers look at the cast sheet at phone size beside the reference and say what each person reads as. Proof: file out/<slug>/cast-review.md. Why: A cap read as a blindfold in every scene; one cheap round would have caught it.
 
 ## S3 Build
 
@@ -524,9 +525,11 @@ camera, shot size and person's size), then the scene stage (people and motion, s
 - **S5-117** Reviewers and judges see each frame round a hit and round a protected beat, not 6 a second. Proof: check scripts/loop/frames.sh --strips. Why: a tap at 6 frames a second read as flicker.
 - **S5-119** Each round's clip passes bar-check.py --gate, with --night for a night scene; a failed gate is a failed round. Proof: check scripts/loop/step.mjs (bar). Why: calm and night numbers were never measured inside a film.
 - **S5-122** Reviewers and judges give one likeness number, 1 to 10, against the scene frame, and run Vincent's standing notes as a checklist. Proof: file references/judge-brief.md. Why: work scored 3.4 of 5 passed 3 of 10 checks beside his frames.
-- **S5-123** A one-judge win by 0.15 or less is judged again with the two clips swapped; it is a win only when the two average 0.1 or more. Proof: check scripts/loop/abjudge.sh (second judge). Why: 3 of 11 narrow wins failed a re-judge; the judge leaned to the clip shown second.
+- ~~**S5-123** A one-judge win by 0.15 or less is judged again with the two clips swapped; it is a win only when the two average 0.1 or more. Proof: check scripts/loop/abjudge.sh (second judge). Why: 3 of 11 narrow wins failed a re-judge; the judge leaned to the clip shown second.~~ Replaced by S5-133.
 - **S5-125** A judge's reference clip is cut like the trial clips: captions on all of them or on none. Proof: file the round's judge brief (reference line). Why: A captioned last cut beat uncaptioned trials on captions alone, in two tests.
 - **S5-128** Trial: a people or motion round's change list may come from a text round (textround.py), which needs the frame's hard limits written down. Proof: file <round>/text/changes.md. Why: One text round beat film 3's shot with all three judges; a text design with no limits lost.
+- **S5-129** When two kept rounds in a row leave a scene's likeness under 7, the next round goes to the place or the cast, not to acting. Proof: check scripts/loop/step.mjs (likeness stall). Why: 91 acting rounds left likeness at 5; one place round raised it a point.
+- **S5-133** A round is kept only on a clear win: over 0.3 from one judge, or two judges in both orders who both prefer it and average 0.1. Proof: check scripts/loop/abjudge.sh (second judge) and _verdict.py (clear win). Why: 30 of 48 kept rounds won by 0.2 or less or tied; judges differ by 0.5 on one clip; a tie keeps best.
 
 ### Scenes in parallel and the join
 
@@ -539,6 +542,8 @@ camera, shot size and person's size), then the scene stage (people and motion, s
 - **S5-82** A film is judged against a film of about its length: the last film the owner saw, else the animatic or a studied video; never a short clip. Proof: check scripts/loop/abjudge.sh (length). Why: a 60 s film lost to a 5 s spike on length alone.
 - **S5-86** A jump in time between scenes is a join card with dip frames that holds nobody (join-card.mjs --jump); join-times.mjs writes it as a dip. Proof: check tools/join-times.mjs (kind dip). Why: six planned dips were flagged as faulty cuts.
 - **S5-127** A joined film has at most 4 quiet seconds a minute (under 1% of the picture moving besides the camera), never two in a row, none in its first second. Proof: check motion-check.py <film> --gate. Why: A film with 15 quiet seconds, three of them the opening, read as still; the reference has 4.
+- **S5-130** A fault every reviewer names in two rounds of a scene, and each line of its requests.md, goes to the lead after the scene's second round. Proof: file out/<slug>/scenes/<scene>/requests.md. Why: A cap over the eyes was named in every look and fixed after 91 rounds; builders worked round requests for an hour.
+- **S5-131** After the scene loops each join is checked person by person: place, pose, step, face and what is held carry over, and the camera's speed. Proof: file out/<slug>/joins/notes.md. Why: Three joins drifted because each scene was judged alone.
 
 ### Rig check
 
@@ -602,6 +607,7 @@ camera, shot size and person's size), then the scene stage (people and motion, s
 
 - ~~**S5-70** Run `audible.py` on the scene's slice: every effect is heard at its cue, and `levels.mjs` passes. The sound pass has no blind judge (judges see frames alone) and stops when no cue is masked or just heard, or at six rounds. Proof: check `scripts/loop/audible.py`. Why: half of Elijah's effects sat 11-14 dB under the mix and passed the old bed check (12 Nov 2026).~~ Replaced by S5-83.
 - **S5-83** The sound check runs once on the film's one mix at the join: audible.py on every cue, then levels.mjs; scenes have no sound pass. Proof: check scripts/loop/audible.py. Why: one mix serves every scene; per-scene passes repeated it.
+- **S5-132** Sound cues are re-timed to the actions after the scene loops, and each new contact gets a cue. Proof: file stories/<slug>/sound-notes.md (re-time after the loops). Why: About twenty cues had moved and five new actions had no sound.
 
 ### Replaced cycle rules
 
@@ -693,6 +699,7 @@ camera, shot size and person's size), then the scene stage (people and motion, s
 - **X-12** A rule enters the register only through add_rule.mjs, with a stage, a proof and a reason. Proof: check lint_rules.mjs. Why: rules written as prose were skipped.
 - **X-35** On craft this register wins; on a channel's own rules (posting, brand, brightness floor, music level) the project's making-of doc wins. Proof: file docs/MAKING-A-STORY.md (the project's). Why: Both documents claimed to win over the other.
 - **X-36** Brief the world agent, the shots agent and each scene builder from their templates in team-and-log.md, each field filled and nothing else changed. Proof: file stories/<slug>/briefs/. Why: leads rewrote the brief and dropped the judge on two films.
+- **X-37** Before stage 3 the lead writes the film's token budget from the price list in team-and-log.md and stops to ask the owner when it is spent. Proof: file stories/<slug>/budget.md. Why: The lead's estimates ran 2 to 6 times low four times on one film.
 
 ### Spikes
 

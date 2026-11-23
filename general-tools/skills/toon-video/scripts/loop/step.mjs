@@ -224,6 +224,16 @@ function passStop(pass) {
 }
 
 // the same top fault in the last two rounds of a pass: restage that beat
+// S5-129: acting rounds do not raise likeness. When the last two kept people or motion rounds both left it under 7, the
+// next round belongs to the place or the cast: a note for the lead, who reopens that stage (lock.mjs reopen).
+function likenessStall() {
+  const kept = rounds().filter((r) => (r.pass === 'people' || r.pass === 'motion') && r.n >= 1 && has(r.dir, 'kept'))
+    .map((r) => verdict(r)?.mean?.new?.likeness).filter((x) => typeof x === 'number');
+  const last2 = kept.slice(-2);
+  return last2.length === 2 && last2.every((x) => x < LIKENESS)
+    ? `likeness stayed under ${LIKENESS} through the last two kept rounds (${last2.join(', ')}): the next round belongs to the place or the cast, not to acting (S5-129); tell the lead`
+    : null;
+}
 function restageHint(pass) {
   const rs = rounds().filter((r) => r.pass === pass && has(r.dir, 'faults.json')).slice(-2);
   if (rs.length < 2) return null;
@@ -416,6 +426,8 @@ function nextStep() {
   }
   const hint = restageHint(pass);
   if (hint) say(hint);
+  const stall = likenessStall();
+  if (stall) say(stall);
   if (has(r.dir, 'reverted') || verdict(r)?.winner === 'tie') say(`the last round lost or tied: the next round's reviewers wait for the judge; build from best/faults.md (it now holds the judge's credit and blame)`);
   say(`next: node ${S('step.mjs')} ${rel(D)} round ${pass}`);
   return lines;
