@@ -9,8 +9,9 @@ Reads each judge's reply (<outdir>/judge-<j>/reply.md, ending in judge-brief.md'
              reference frame) and "rows_failed" (the world rows a judge failed, with how many judges failed each)
   winner:    win (new mean higher by 0.1 or more), loss (lower by 0.1 or more), or tie; a loss whatever the means when
              a protected beat got weaker (X-20)
-  prefer:    new, best or same: the judges' picks by majority (a tie keeps the preferred clip's credited parts)
-  keep:      new or best: the clip that is best after this round (win: new; loss: best; tie: the preferred one)
+  prefer:    new, best or same: the judges' picks by majority (after a tie the next round carries what they credited)
+  keep:      new or best: the clip that is best after this round (new only on a clear win, S5-133; a tie keeps best)
+  second:    true when one judge scored new 0.1 to 0.3 higher and preferred it: abjudge.sh brings in a second judge
   protected: with --protect: per beat, the judges' votes (new, best, same) and "weaker": true when more judges
              picked best than new on it
   ref:       with a reference clip (S5-112): its mean scores, and best and new against it: diff and status (beats when 0.1
@@ -22,7 +23,7 @@ import glob, json, os, re, subprocess, sys
 AREAS = ["world", "people", "light", "story", "motion"]
 args = sys.argv[1:]
 protect_p = None
-narrow = None  # the first judge's margin, when a narrow one-judge win brought in a second judge with the order swapped (S5-123)
+narrow = None  # the first judge's margin, when it was 0.1 to 0.3 and a second judge was brought in with the order swapped (S5-133)
 if "--narrow" in args:
     i = args.index("--narrow"); narrow = float(args[i + 1]); del args[i:i + 2]
 if "--protect" in args:
@@ -117,9 +118,21 @@ def rows_failed(c):
 mean = {c: {**{a: avg(c, a) for a in AREAS}, "mean": avg(c), "likeness": lk_avg(c), "rows_failed": rows_failed(c)}
         for c in ("best", "new")}
 diff = round(mean["new"]["mean"] - mean["best"]["mean"], 2)
-winner = "win" if diff >= 0.1 else "loss" if diff <= -0.1 else "tie"
 votes = [r["prefer"] for r in judges]
 prefer = "new" if votes.count("new") > votes.count("best") else "best" if votes.count("best") > votes.count("new") else "same"
+# A clear win (S5-133): the same clip scored 3.1 to 3.6 with different judges, so a margin of 0.3 or less from one judge
+# is not a win on its own. One judge: more than 0.3. Two (the second sees the clips in the other order): both prefer
+# new and they average 0.1 or more. Three or more (a film): 0.1 or more and most prefer new. Anything else above a
+# loss is a tie, and a tie keeps best.
+CLEAR = 0.3
+if diff <= -0.1:
+    winner = "loss"
+elif len(judges) == 1:
+    winner = "win" if diff > CLEAR else "tie"
+elif len(judges) == 2:
+    winner = "win" if diff >= 0.1 and votes.count("new") == 2 else "tie"
+else:
+    winner = "win" if diff >= 0.1 and prefer == "new" else "tie"
 protected, weaker = [], []
 for x in beats:
     vs = [r.get("protected", {}).get(x["beat"]) for r in judges]
@@ -130,11 +143,12 @@ for x in beats:
         weaker.append(x["beat"])
 if weaker:  # X-20: a round that weakens a protected beat loses, whatever its average
     winner = "loss"
-keep = "new" if winner == "win" or (winner == "tie" and prefer == "new") else "best"
+keep = "new" if winner == "win" else "best"
+second = len(judges) == 1 and winner == "tie" and 0.1 <= diff <= CLEAR and prefer == "new"
 v = {"best": os.path.abspath(best_p), "new": os.path.abspath(new_p), "judges": judges, "mean": mean, "diff": diff,
-     "winner": winner, "prefer": prefer, "keep": keep, "problems": problems}
+     "winner": winner, "prefer": prefer, "keep": keep, "second": second, "problems": problems}
 if narrow is not None:
-    v["narrow"] = {"first_diff": narrow, "judges": len(judges), "rule": "S5-123: a one-judge win by 0.15 or less is judged again with A and B swapped; the average decides"}
+    v["narrow"] = {"first_diff": narrow, "judges": len(judges), "rule": "S5-133: one judge's margin of 0.1 to 0.3 is judged again with A and B swapped; a win only when both prefer new and they average 0.1 or more"}
 if beats:
     v["protected"] = protected
     if weaker:

@@ -63,6 +63,7 @@ test('S2-37 reference frames: a table row per scene naming frames that are on di
   assert.equal(mdTables(SCENES_MD)[0].rows.length, 3);
   assert.deepEqual(frameTokens('s011 for the kind, s113 for the light'), { paths: [], ids: ['s011', 's113'] });
   assert.deepEqual(frameTokens('`stories/x/ref/camp-night.jpg`').paths, ['stories/x/ref/camp-night.jpg']);
+  assert.deepEqual(frameTokens('`mirror-race-045.5s` for the kind, ancient-jar-027s for the light').ids, ['mirror-race-045.5s', 'ancient-jar-027s'], 'a catalog still keeps its whole name, dot and all');
   const disk = new Set(['s011', 's113', 'stories/x/ref/camp-night.jpg']);
   const bad = checkSceneFrames({ 'scenes.md': SCENES_MD }, ['s01', 's02', 's03', 's04'], (t) => disk.has(t));
   assert.deepEqual(bad.map((f) => f.scene), ['s03', 's04'], 'a TODO cell and a scene with no row');

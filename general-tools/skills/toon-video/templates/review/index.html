@@ -99,7 +99,7 @@ for (const S of D.sections) {
 (async () => {
   const db = await window.claude?.use?.('db'), user = await window.claude?.use?.('user');
   if (!db) { bars.forEach(b => b.state.textContent = 'Approvals cannot be saved in this view. Open the page in claude.ai.'); return; }
-  const owner = user ? user.isOwner() : false, by = owner && user ? await user.id() : null;
+  const owner = user ? await user.isOwner() : false, by = owner && user ? await user.id() : null;
   const seen = {}, openEl = document.getElementById('open');
   const warnOpen = () => {
     const live = bars.filter(b => !b.S.done), ok = live.filter(b => seen[b.S.stage] === true), wait = live.filter(b => seen[b.S.stage] === false);

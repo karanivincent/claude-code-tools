@@ -116,8 +116,12 @@ export function mdTables(md: string): { header: string[]; rows: string[][] }[] {
 /** The frames a cell names: paths with a picture's extension (in backticks or not), and catalog ids such as `s011`. */
 export function frameTokens(cell: string): { paths: string[]; ids: string[] } {
   const paths = [...cell.matchAll(/[\w./@-]+\.(?:jpe?g|png|webp)\b/gi)].map((m) => m[0]);
-  const rest = cell.replace(/[\w./@-]+\.(?:jpe?g|png|webp)\b/gi, ' ');
-  const ids = [...rest.matchAll(/\b[a-z]{0,3}\d{2,5}\b/gi)].map((m) => m[0]);
+  let rest = cell.replace(/[\w./@-]+\.(?:jpe?g|png|webp)\b/gi, ' ');
+  // a catalog still named <video>-<seconds>s ("mirror-race-045.5s"): the whole name, not the digits before its dot
+  const STILL = /\b[a-z][\w-]*-\d{2,4}(?:\.\d+)?s\b/gi;
+  const stills = [...rest.matchAll(STILL)].map((m) => m[0]);
+  rest = rest.replace(STILL, ' ');
+  const ids = [...stills, ...[...rest.matchAll(/\b[a-z]{0,3}\d{2,5}\b/gi)].map((m) => m[0])];
   return { paths, ids };
 }
 /** S2-37: each scene names a reference frame (a table with a "Scene" column and a "Reference frame" or "Scene frame"

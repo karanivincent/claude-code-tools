@@ -23,11 +23,20 @@ export async function loadTs(file) {
   try { return await import(pathToFileURL(out).href + `?t=${Date.now()}`); } finally { fs.rmSync(out, { force: true }); }
 }
 export const loadFilm = () => loadTs(path.join(STORY_DIR, 'plan.ts'));
-export const loadScene = (id) => {
+export const loadScene = async (id) => {
   const f = path.join(STORY_DIR, 'scenes', id, 'story.ts');
   if (!fs.existsSync(f)) throw new Error(`no scene "${id}" (${path.relative(process.cwd(), f)})`);
-  return loadTs(f);
+  return withPart2(await loadTs(f));
 };
+/** A scene with a second part (it exports PART2: from frame `at` a second camera, and people when it names them, fade
+ *  up over the first over `frames` frames: a moving dissolve inside the scene). The tools read what is on screen, so
+ *  from `at` the camera and the people are the second part's. Without this, frame-check, cam-speed and shots-check
+ *  measured the first camera to the scene's end and missed a dead stop at the next join (the dancing plague, s06). */
+export function withPart2(S) {
+  const P = S.PART2;
+  if (!P || typeof P.camAt !== 'function' || typeof P.at !== 'number') return S;
+  return { ...S, camAt: (f) => (f >= P.at ? P.camAt(f) : S.camAt(f)), people: (f) => (f >= P.at && P.people ? P.people(f) : S.people(f)) };
+}
 
 /** The story's own public folder for bundles and renders: out/__SLUG__/pub/__SLUG__/ <- public/__SLUG__/ (copied when
  *  newer). Bundling the project's whole public/ copies every story's files into every bundle. */

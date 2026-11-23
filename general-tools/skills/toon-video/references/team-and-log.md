@@ -27,6 +27,20 @@ SKILL.md's stages 3 to 6. A locked file is not theirs to change: they ask the le
 - Brief each agent from the templates below (X-36): copy one into the scratchpad, fill each `{field}` and change
   nothing else. A field that does not apply says "none". Save the filled brief in `stories/<slug>/briefs/`.
 - Say the cost before a round of agents starts: about 0.5M tokens an agent call (X-3).
+- The film's budget (X-37) is written before stage 3 from this price list, counted as the logs count (input, output,
+  cache read and cache write of each call; measured on the dancing plague, November 2026):
+
+  | What | Tokens |
+  |---|---|
+  | A scene round's reviewers and judge (`look.sh`, `abjudge.sh`) | 1.7M |
+  | A second judge on a 0.1 to 0.3 margin (S5-133) | 0.6M |
+  | A place or cast round, with its builder | 3.7M |
+  | A film judged by three | 0.9M to 2.1M |
+  | A text round (`textround.py`) | 0.6M |
+  | A fresh builder's round of five changes | about 6M; a resumed builder far less (X-4) |
+
+  An estimate is calls times the context each call carries: an agent started from a desktop session carries about
+  110K of tools on each call. Double the worked figure before saying it.
 - The lead is Opus; builders, reviewers and judges run on Sonnet (S5-101).
 - Agents run in the foreground, and none drives a browser (X-2).
 - Resume the same agents for the next round or the next place so they keep their knowledge of the code (X-4).

@@ -126,7 +126,9 @@ rule-by-rule lines for each step. Do not retell a step in other words (S0-8, X-7
 
 ### Stage 0. Start
 
-As in Start above. Proof is the branch base and the files `new-film.mjs` writes.
+As in Start above. Proof is the branch base and the files `new-film.mjs` writes. Write the film's token budget in
+`stories/<slug>/budget.md` from the price list in `references/team-and-log.md`, and stop to ask the owner when it is
+spent (X-37).
 
 ### Stage 1. Script, voice and meaning sheet
 
@@ -155,6 +157,8 @@ Template and layout: `<toon-world>/templates/film-scenes/README.md` and `<toon-w
 
 - Cast sheet `out/<slug>/cast.png`: each person and animal as a flat card in this story's own style
   (S2-1..S2-6): `npx remotion still src/index.ts <Film>-cast out/<slug>/cast.png`. Load `toon-world` for the cards.
+  Then a cast review (S2-39): three reviewers see the sheet at phone size beside the reference and write, for each
+  person, what they read as in three words, in `out/<slug>/cast-review.md`. A person who reads wrong is redrawn now.
 - Library first: read `<toon-world>/library/index.md` and copy any place, vehicle, prop or costume that fits, so the
   budget goes on shots and acting (S2-32). Each copied entry is named in the parts plan.
 - Parts plan `stories/<slug>/parts.md`, one section per place: the source of sky, far band, middle, ground, detail
@@ -314,6 +318,11 @@ builder builds exactly that list and proves its check table; then judge first, a
 would keep the round (S5-46). It needs the frame's hard limits in `limits.md` and takes about 12 minutes and 0.6M tokens; run
 it as a background command. Read `references/text-round.md` first.
 
+A round is kept on a clear win (S5-133): over 0.3 from one judge, or, for a margin of 0.1 to 0.3, a second judge in
+the other order who also prefers it; a tie keeps best. When two kept rounds in a row leave likeness under 7,
+`step.mjs` says so: the next round is the lead's, on the place or the cast (S5-129). After a scene's second round the
+lead reads its `requests.md` and takes any fault the reviewers all named twice (S5-130).
+
 Run steps 5 and 6 with a 10-minute command timeout. After a lost or tied round, skip step 5 next time (S5-46);
 `step.mjs` writes `faults.md` from best's faults and the judge's notes (S5-90). The same top fault twice running means
 restaging that beat (S5-45). A pass stops at 4 on its area, two rounds in a row with no win, or six rounds (S5-110),
@@ -326,7 +335,9 @@ clips side by side within one judging (S5-44).
 2. `node src/stories/<slug>/tools/join-times.mjs > out/<slug>/join-times.json`, then `scripts/loop/joins.sh <film>
    out/<slug>/join-times.json out/<slug>/film-<n>/joins` over the joins (S5-52); a dip is a planned fade (S5-86). A
    bad join goes back to the scene that owns its card (S5-51).
-3. The sound check, once on the film's mix: `audible.py` on every cue, then `levels.mjs` (S5-83).
+3. Each join person by person (S5-131): place, pose, step, face and what is held carry over, and the camera's speed,
+   in `out/<slug>/joins/notes.md`. Then the sound's cues are re-timed to the actions as built, each new contact given
+   a cue (S5-132), and the sound check runs once on the film's mix: `audible.py` on every cue, then `levels.mjs` (S5-83).
 4. `scripts/loop/abjudge.sh <reference film> <new film> out/<slug>/film-<n> --judges 3`, where the reference film is
    the last film the owner saw, else the rough film or the animatic: never a short clip (S5-82). Then `short_qa.py`
    on the full film (S5-18), faces bright enough for a phone, night included (S4-19), and the project's own brightness

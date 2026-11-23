@@ -146,7 +146,7 @@ if [ $dry = 1 ]; then
     echo "dry-run: judge $j ($model, $(cat "$out/keys/judge-$j.key")): (cd $d && claude -p \"$(prompt "$d")\" --model $model --allowedTools \"Read,Glob\" --output-format json < /dev/null > $d/raw.json 2> $d/reply.err)"
   done
   echo "dry-run: then _usage.py writes judge-<j>/reply.md and $out/judges-usage.jsonl, and _verdict.py writes $out/verdict.json"
-  [ "$judges" = 1 ] && [ $second = 1 ] && echo "dry-run: a win by 0.15 or less with this one judge starts a second judge with A and B swapped; the two are averaged (S5-123)"
+  [ "$judges" = 1 ] && [ $second = 1 ] && echo "dry-run: a margin of 0.1 to 0.3 for new with this one judge (who prefers it) starts a second judge with A and B swapped; a win only when both prefer new and they average 0.1 or more (S5-133)"
   rm -rf "$F"; exit 0
 fi
 rm -f "$out/judges-usage.jsonl"
@@ -170,19 +170,20 @@ while [ $j -lt "$judges" ]; do
 done
 for p in $pids; do wait $p || true; done
 python3 "$here/_verdict.py" "$out" "$best" "$new" $ref ${protect:+--protect "$protect"}
-# A narrow win with one judge (S5-123): the judge leans to the clip it sees second by about 0.1, the size of the margin
-# itself, so a win by 0.15 or less gets a second judge with A and B swapped. _verdict.py averages the two, and the
-# round is a win only when that average is 0.1 or more; otherwise it is a tie.
+# A clear win (S5-133): one judge's margin above 0.3 is a win on its own. A margin of 0.1 to 0.3 (from a judge who
+# prefers the new clip) gets a second judge with A and B swapped: the judge leans to the clip it sees second by about
+# 0.1, and the same clip scored 3.1 to 3.6 with different judges. The round is a win only when both prefer the new clip
+# and they average 0.1 or more; otherwise it is a tie, and a tie keeps best.
 if [ "$judges" = 1 ] && [ $second = 1 ]; then
   narrow=$(python3 - "$out/verdict.json" <<'PY'
 import json, sys
 v = json.load(open(sys.argv[1]))
-print(v["diff"] if v.get("winner") == "win" and v.get("diff", 9) <= 0.15 and len(v.get("judges", [])) == 1 else "")
+print(v["diff"] if v.get("second") else "")
 PY
 )
   if [ -n "$narrow" ]; then
     case "$(cat "$out/keys/judge-1.key")" in "A=best"*) other=new;; *) other=best;; esac
-    echo "abjudge.sh: a win by $narrow with one judge: a second judge sees the clips in the other order" >&2
+    echo "abjudge.sh: new is $narrow ahead with one judge, not a clear win (S5-133): a second judge sees the clips in the other order" >&2
     setup 2 $other; judge 2
     grep -q '"better"' "$out/judge-2/reply.md" 2>/dev/null || { echo "abjudge.sh: retrying judge 2" >&2; judge 2; }
     python3 "$here/_verdict.py" "$out" "$best" "$new" $ref ${protect:+--protect "$protect"} --narrow "$narrow"
