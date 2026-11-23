@@ -230,3 +230,8 @@ Every rule added or replaced, newest last. Written by `scripts/add_rule.mjs`; ne
 | 2026-11-23 | X-37 | new | Epiclings dancing-plague, loop logs and Vincent's yes, 23 Nov 2026 |
 | 2026-11-23 | S5-133 | replaces S5-123 | Epiclings dancing-plague, loop logs and Vincent's yes, 23 Nov 2026 |
 | 2026-11-23 | S2-39 | new | Epiclings dancing-plague, loop logs and Vincent's yes, 23 Nov 2026 |
+| 2026-11-23 | X-38 | new | Epiclings dancing-plague, the lead's reports and Vincent's yes, 23 Nov 2026 |
+| 2026-11-23 | S3-253 | new | Epiclings dancing-plague, the lead's reports and Vincent's yes, 23 Nov 2026 |
+| 2026-11-23 | S3-254 | new | Epiclings dancing-plague, the lead's reports and Vincent's yes, 23 Nov 2026 |
+| 2026-11-23 | S1-40 | new | Epiclings dancing-plague, the lead's reports and Vincent's yes, 23 Nov 2026 |
+| 2026-11-23 | S0-23 | new | Epiclings dancing-plague, the lead's reports and Vincent's yes, 23 Nov 2026 |

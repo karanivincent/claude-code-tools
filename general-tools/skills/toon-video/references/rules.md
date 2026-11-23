@@ -91,6 +91,7 @@ must, never, always, every or only without an id.
 - **S0-20** A story that reuses a practice build branches from main and brings the practice's files in by path; the practice clip becomes the scene's reference. Proof: file out/<slug>/scenes/<scene>/scene.json (ref). Why: the skill had no line for starting from a practice.
 - **S0-21** Before new-film.mjs --look updates src/look, it lists the other stories importing it; render one still of one before and after. Proof: check new-film.mjs (look importers). Why: --look rewrote shared drawing code other stories use.
 - **S0-22** A round with no owner's approval on file runs only with --override-approval and a written reason, which is logged. Proof: check scripts/loop/step.mjs (approvals). Why: three approvals given in chat left no record.
+- **S0-23** The review page is published before the owner is away; without his approvals only a staging pass on measured faults runs, not the scene loop. Proof: check scripts/loop/step.mjs (approvals). Why: A night run stopped at the rough film: the loop needs three approvals and the override was refused.
 
 ## S1 Script and voice
 
@@ -133,6 +134,7 @@ must, never, always, every or only without an id.
 - **S1-37** Design second 0 first: a big face or subject at least a third of the frame high (S3-241), motion from frame 1, the hook card at 0.0 s. Proof: check checkOpening. Why: In the feed frame 0 is the package.
 - **S1-38** The hook, the turn and the payoff are voiced as three takes each; the owner picks one by ear on the review page. Proof: owner Take pick. Why: Takes line by line control the tone; agents cannot hear them.
 - **S1-39** The narration shares no run of three or more words with any source, plain names and noun pairs apart; facts.md records the check. Proof: file stories/<slug>/facts.md (overlap line). Why: Paraphrase drifts into copying.
+- **S1-40** Each rule on the meaning sheet names its exceptions: who it does not apply to, and in which scenes. Proof: file stories/<slug>/meaning.md. Why: 'Nobody grins while dancing' made two reviewers fault the wedding couple's smiles in each round of one scene.
 
 ## S2 Cast, look and animatic
 
@@ -391,6 +393,8 @@ must, never, always, every or only without an id.
 - **S3-245** Acting is never left in a locked wide: each acting beat comes in to S3-241's acting size. Proof: check actingTooSmall. Why: Acting in locked wides was missed by every viewer.
 - ~~**S3-246** Choose shot sizes with the set at the shots stage, by S3-241 and S5-102, so the place shows round the hero. Proof: check tools/shots-check.mjs (size). Why: The hero at two-thirds of the frame left no room for a place.~~ Replaced by S3-249.
 - **S3-249** Choose shot sizes with the set, at stage 4b, by S3-241 and S5-102, so the place shows round the hero. Proof: check tools/shots-check.mjs (size). Why: the hero at two-thirds of the frame left no room for a place.
+- **S3-253** When bodies fill the frame the bodies carry the motion and the camera eases; the camera travels when people are small or between beats. Proof: check bar-check.py --gate (median change). Why: With both 'everything moves' and a camera speed in the briefs, first renders changed 9 to 17 a frame against a limit of 8.
+- **S3-254** A scene is built to 7.5 or under on the change per frame; the gate stays at 8, so a later fix has room. Proof: check scripts/loop/step.mjs (bar: near the limit). Why: Four scenes ended within 0.5 of the limit, and a wanted cast fix pushed two over.
 
 ### Joins
 
@@ -700,6 +704,7 @@ camera, shot size and person's size), then the scene stage (people and motion, s
 - **X-35** On craft this register wins; on a channel's own rules (posting, brand, brightness floor, music level) the project's making-of doc wins. Proof: file docs/MAKING-A-STORY.md (the project's). Why: Both documents claimed to win over the other.
 - **X-36** Brief the world agent, the shots agent and each scene builder from their templates in team-and-log.md, each field filled and nothing else changed. Proof: file stories/<slug>/briefs/. Why: leads rewrote the brief and dropped the judge on two films.
 - **X-37** Before stage 3 the lead writes the film's token budget from the price list in team-and-log.md and stops to ask the owner when it is spent. Proof: file stories/<slug>/budget.md. Why: The lead's estimates ran 2 to 6 times low four times on one film.
+- **X-38** A builder does not stop under its target while budget is left; it says what blocks it instead. Proof: file stories/<slug>/briefs/ (the line in each brief). Why: A builder stopped at 23% of its time with its own score under the target.
 
 ### Spikes
 
