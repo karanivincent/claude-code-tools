@@ -110,6 +110,7 @@ likeness 1 to 10 against the scene frame, each world row W1 to W7, the beats (S2
 review. Then the owner sees it full size beside the scene frame and says yes to the look or sends notes (S5-105, X-33).
 
 ## Hand back
+Do not stop under your target while budget is left: say what blocks you instead (X-38).
 Your best try as `out/{slug}/first-scene/clip.mp4` at full size, `spike-frames.sh` on it into `best/`, the probe
 still, and notes.md finished with: 1. What you built, each with its file. 2. Tries (the table). 3. The world rows as
 you see them, with a frame each (a claim). 4. The beats: the frame where each reads and its size on screen. 5. What
@@ -174,6 +175,7 @@ Turn a: the lead puts each probe still beside its scene frame. Turn d: `verdict.
 the reviewers' faults; the lead reads both, then locks: `lock.mjs out/{slug} set world --add <your files>`.
 
 ## Hand back
+Do not stop under your target while budget is left: say what blocks you instead (X-38).
 `out/{slug}/world/{place}/report.md`, under 400 words: per turn, what you built with its files; the probe stills;
 each round's verdict; the world rows and the beats, each with a frame; what the next place should copy; cost
 (rounds, renders, minutes). Final message: the path and five lines.
@@ -224,12 +226,16 @@ Repo: {repo} (branch {branch}). Work only inside it. Foreground only: no backgro
 5. Checks, each to exit 0: `node src/stories/{slug}/tools/shots-check.mjs`, `cam-speed.mjs <scene>`,
    `path-check.mjs <scene>` (S5-72, S5-102, S5-67, S5-80, S5-87, S3-235 to S3-238).
 
+When bodies fill the frame the bodies carry the motion and the camera eases; the camera travels when people are
+small or between beats (S3-253). Build each scene to 7.5 or under on the change per frame (S3-254).
+
 ## How it is checked
 The scripts above exit 0; the lead looks at a stills sheet of each shot's first and last frames beside the scene
 frame; the owner picks one candidate per hero beat (S5-93). Then the lead locks `shots --add`. At the end of stage 4
 three judges compare the rough film with the animatic (S5-84).
 
 ## Hand back
+Do not stop under your target while budget is left: say what blocks you instead (X-38).
 `out/{slug}/shots/{place}-report.md`, under 400 words: per scene the shot list (size, reason, what moves behind, the
 reason for each cut), the last line of each check, the candidate stills, the hard cuts against this place's share;
 and, for the world agent, what each camera shows that needs fill or light (where the floor shows, what stands behind
@@ -278,12 +284,16 @@ For each scene, `D=out/{slug}/scenes/<scene>`:
    row with no win, or after six rounds; with a beat reference, best also beats or ties it (S5-112). You do not cap
    rounds below that, whatever else you read (S5-111).
 
+When bodies fill the frame the bodies carry the motion and the camera eases; the camera travels when people are
+small or between beats (S3-253). Build each scene to 7.5 or under on the change per frame (S3-254).
+
 ## How it is checked
 `step.mjs` and the judge decide each round (S5-42); the lead reads each scene's `verdict.json` and `log.md`. At the
 join three judges watch the whole film against the last film the owner saw (S5-82), and the owner's notes come back
 to the scene they name.
 
 ## Hand back
+Do not stop under your target while budget is left: say what blocks you instead (X-38).
 `out/{slug}/scenes/<scene>/report.md` per scene, under 400 words: a table of rounds (pass, changes, verdict, the
 judge's scores); the stop and its rule; the beats, each with a frame; the faults left in three piles: fixable here,
 behind a lock, hard in the tool (X-32); a line per finding for `stories/{slug}/lessons.md` (S6-15). Final message:

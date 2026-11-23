@@ -146,6 +146,7 @@ spent (X-37).
 - Meaning sheet `stories/<slug>/meaning.md` (S1-20..S1-22): per beat, the thing that changes, its cause, and the shot
   that shows the change; the one thing to see each second; a keyed action per verb. The same entries go into code as
   must-see entries later (S3-83).
+  Each rule on the sheet names its exceptions: who it does not apply to, and in which scenes (S1-40).
 - Dynamics profile `stories/<slug>/profile.md` from the nearest studied video (S1-23); the dials are below.
 - **Stop.** Publish the review page at stage `story` with the script, the narration (an `audio` item) and the meaning
   sheet (a `text` item), and wait for the owner's Approve (S1-24). Notes he sends instead are fixed and the page
@@ -323,7 +324,9 @@ the other order who also prefers it; a tie keeps best. When two kept rounds in a
 `step.mjs` says so: the next round is the lead's, on the place or the cast (S5-129). After a scene's second round the
 lead reads its `requests.md` and takes any fault the reviewers all named twice (S5-130).
 
-Run steps 5 and 6 with a 10-minute command timeout. After a lost or tied round, skip step 5 next time (S5-46);
+Run steps 5 and 6 with a 10-minute command timeout. After a lost or tied round, skip step 5 next time (S5-46:
+`look.sh` now refuses until the judge has run; `--force` overrides). `step.mjs bar` warns when a passing scene is over
+7.5 on the change per frame (S3-254);
 `step.mjs` writes `faults.md` from best's faults and the judge's notes (S5-90). The same top fault twice running means
 restaging that beat (S5-45). A pass stops at 4 on its area, two rounds in a row with no win, or six rounds (S5-110),
 whatever a brief says (S5-111); with a reference, the target stop also needs best to beat or tie it (S5-112). Compare
@@ -362,6 +365,8 @@ The owner's yes is his click on a review page, copied into `src/stories/<slug>/a
 the page's store and copy it; they never create or change an approval row (S0-14, X-6). `lock.mjs set look` refuses
 without an approved `look` row. `step.mjs` does not read the file yet, so the lead checks the row for a stage before
 starting the next one (S2-23, S5-48). A yes he gives in chat: ask him to click it on the page.
+Publish the page before the owner is away (S0-23): without his approvals a staging pass on measured faults may run
+(the busy number, heads cut by the frame, hidden beats, cards over heads), and the scene loop may not.
 
 **Publish the page.** One review page per story, republished at each stage, so one store holds each approval.
 

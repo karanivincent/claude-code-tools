@@ -82,6 +82,13 @@ true`, `source: "page"`, `at` and `by` (S2-23, S0-14; the same reading as toon-w
 writes the missing stages and the reason into `log.md` and the round's `approval-override.md`; the round's log line
 carries it too.
 
+## The reviewers wait for the judge
+
+After a lost or tied round the judge runs first, and the reviewers run on a round that is to be kept (S5-46). Inside a
+loop folder `look.sh` asks `step.mjs check look`, which refuses while the last closed round lost or tied and this
+round has no `verdict.json`; `look.sh --force` runs anyway. `step.mjs bar` adds one line to a passing round whose
+change per frame is over 7.5 (S3-254): the gate still fails over 8, and the line asks for room for a later fix.
+
 ## The bar gate
 
 `node step.mjs <loop> bar` runs `python3 -I <toon-video>/scripts/bar-check.py <clip> --gate` (with `--night` for a night
@@ -130,7 +137,7 @@ round's line in `log.md`:
 | `frames.sh <clip> <outdir> [fps=6] [--strips a-b,t]` | Contact sheets, 30 tiles a sheet, time and frame number on each tile; a frame every 0.5 s; every-frame strips round each time or window (X-23) | `sheet-NN.jpg`, `f6/`, `full/`, `strips/` |
 | `jumps.sh <clip> <outdir> [--planned shots.json]` | One-frame jumps from toon-world's `short_qa.py`, frame numbers only | `jumps.md`, `jumps.json`, `qa/` |
 | `audible.py <mix.wav> <cues.json> [--voice voice.wav] [--out f]` | Each effect's loudness at its cue against the mix: heard, just or masked | `audible.md` |
-| `look.sh <clip> <round> --focus <area> [--ref-frame img] [--meaning f] [--prior f] [--claims f] [--protect f] [--hits f] [--words f] [--actions a,b] [--facts f] [--dry-run]` | Three Sonnet reviewers with `references/reviewer-brief.md`: reviewer 1 the cold reader (no script; names each main thing on screen, a thing it cannot name is a fault), reviewer 2 on sheets and frames, reviewer 3 on full-size stills at the action words; all three see the reference frame and the strips, answer W1 to W7 and give a likeness | `looks/<n>.md`, `looks/usage.jsonl`, `looks/scores.json`, `faults.md`, `faults.json` |
+| `look.sh <clip> <round> --focus <area> [--ref-frame img] [--meaning f] [--prior f] [--claims f] [--protect f] [--hits f] [--words f] [--actions a,b] [--facts f] [--dry-run] [--force]` | Three Sonnet reviewers with `references/reviewer-brief.md`: reviewer 1 the cold reader (no script; names each main thing on screen, a thing it cannot name is a fault), reviewer 2 on sheets and frames, reviewer 3 on full-size stills at the action words; all three see the reference frame and the strips, answer W1 to W7 and give a likeness | `looks/<n>.md`, `looks/usage.jsonl`, `looks/scores.json`, `faults.md`, `faults.json` |
 | `abjudge.sh <best> <new> <round> [--judges 1\|3] [--brief f] [--meaning f] [--focus area] [--ref-frame img] [--ref clip] [--stills dir] [--protect f] [--hits f] [--model m] [--any-length] [--dry-run]` | Blind A/B with `references/judge-brief.md`: A/B order drawn per judge, the key outside the judge's folder; the reference frame as F; `--ref` shows the reference clip as R (S5-112); a weaker protected beat is a loss (X-20); refuses clips more than two times apart in length (S5-82) | `verdict.json`, `judges-usage.jsonl`, `judge-<j>/`, `keys/` |
 | `textround.py <clip> <round> --limits f [--meaning f] [--protect f] [--facts f] [--words f] [--reference f] [--window a-b] [--passes 1\|2] [--text f] [--dry-run]` | The text round, a trial (S5-128; `references/text-round.md`): a describer writes the clip out as text from labelled strips, lean text reviewers (a cold reader, an acting critic, with `--reference` a reference reader) read the text only, a reviser writes at most five changes, a checker reads them against the limits and the reviser answers. The builder then builds exactly `text/changes.md`. About 12 minutes: run it as a background command | `text/beat.md`, `text/notes-*.md`, `text/changes-1.md`, `text/check.md`, `text/changes.md`, `text/usage.jsonl`, `text/frames/` |
 | `joins.sh <film> <joins.json> <outdir> [--no-review]` | Jumps within 0.5 s of each join, a 2 s clip around it for one reviewer | `joins.md`, `join-<i>/` |

@@ -2,7 +2,7 @@
 # look.sh <clip.mp4> <outdir> --focus <world|shots|people|light|story|motion|sound>
 #         [--ref-frame <image>] [--meaning <file>] [--prior <file>] [--claims <changes.md>] [--protect <protect.md>]
 #         [--hits <cues.json|t1,t2>] [--words <words.json>] [--actions w1,w2,...] [--facts <file>]...
-#         [--no-jumps] [--brief <file>] [--models "sonnet sonnet sonnet"] [--dry-run]
+#         [--no-jumps] [--brief <file>] [--models "sonnet sonnet sonnet"] [--dry-run] [--force]
 #
 # Three reviewers on one scene clip, run in the FOREGROUND with `claude -p`, all at once; waits for all of them.
 # (In the spikes, reviewers started as background agents died when the turn ended: that is why they run here.)
@@ -35,12 +35,13 @@
 #             else every word of four letters or more, at most 10). Without it, reviewer 3 gets a still every second.
 # --facts     another fact file to paste in (audible.py's audible.md in the sound pass); repeatable
 # --dry-run   make the frames and the briefs, print each `claude -p` command it would run, and stop
+# --force     run even when step.mjs says the judge goes first (S5-46: after a lost or tied round the reviewers wait)
 set -eu
 usage() { echo "usage: look.sh <clip.mp4> <outdir> --focus <world|shots|people|light|story|motion|sound> [--ref-frame img] [--meaning f] [--prior f] [--claims f] [--protect f] [--hits f|t,t] [--words f] [--actions a,b] [--facts f]... [--no-jumps] [--brief f] [--models \"sonnet sonnet sonnet\"] [--dry-run]" >&2; exit 2; }
 [ $# -ge 2 ] || usage
 clip=$1; out=$2; shift 2
 here=$(cd "$(dirname "$0")" && pwd)
-focus=""; meaning=""; prior=""; claims=""; protect=""; hits=""; words=""; actions=""; facts=""; jumps=1; dry=0
+focus=""; meaning=""; prior=""; claims=""; protect=""; hits=""; words=""; actions=""; facts=""; jumps=1; dry=0; force=0
 refframe=""; brief=$here/../../references/reviewer-brief.md
 models="sonnet sonnet sonnet"  # S5-101
 while [ $# -gt 0 ]; do case $1 in
@@ -49,10 +50,17 @@ while [ $# -gt 0 ]; do case $1 in
   --ref-frame) refframe=$2; shift 2;;
   --words) words=$2; shift 2;; --actions) actions=$2; shift 2;; --facts) facts="$facts $2"; shift 2;;
   --no-jumps) jumps=0; shift;; --brief) brief=$2; shift 2;; --models) models=$2; shift 2;; --dry-run) dry=1; shift;;
+  --force) force=1; shift;;
   *) usage;; esac; done
 case $focus in world|shots|people|light|story|motion|sound) ;; *) echo "look.sh: --focus must be world, shots, people, light, story, motion or sound" >&2; exit 2;; esac
 for f in "$clip" "$brief" $meaning $prior $claims $protect $words $facts $refframe; do [ -f "$f" ] || { echo "look.sh: missing file $f" >&2; exit 1; }; done
 [ $dry = 1 ] || command -v claude >/dev/null || { echo "look.sh: the claude CLI is not on PATH" >&2; exit 1; }
+# S5-46: after a lost or tied round the judge runs first. Inside a loop folder (scene.json beside the round) step.mjs
+# decides; a look outside a loop (a first scene's review, a spike) is not checked. --force skips it.
+loopdir=$(cd "$(dirname "$out")" 2>/dev/null && pwd || true)
+if [ $force = 0 ] && [ -n "$loopdir" ] && [ -f "$loopdir/scene.json" ] && command -v node >/dev/null; then
+  node "$here/step.mjs" "$loopdir" check look || exit 1
+fi
 mkdir -p "$out/looks"
 out=$(cd "$out" && pwd); clip=$(cd "$(dirname "$clip")" && pwd)/$(basename "$clip")
 L=$out/looks; T0=$(date +%s)

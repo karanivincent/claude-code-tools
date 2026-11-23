@@ -74,7 +74,7 @@ const AREA = { world: ['world', 'light'], shots: ['story'], people: ['people'], 
 const DEFAULT_PASSES = ['people', 'motion'];
 // the one stop rule (loop README, "When a pass stops"): 4 on the 1 to 5 scale and likeness 7 against the reference
 // frame, or two rounds in a row with no win, or six rounds (S5-110, S5-108)
-const MAX_ROUNDS = 6, TARGET = 4, LIKENESS = 7;
+const MAX_ROUNDS = 6, TARGET = 4, LIKENESS = 7, NEAR_CALM = 7.5;
 // the owner's approvals a round needs (S2-23, S5-105): the first scene's loop drops "look" with --needs
 const DEFAULT_NEEDS = ['story', 'direction', 'look'];
 
@@ -319,6 +319,9 @@ function runBar(dry) {
   if (acting?.status === 'fail') { status = 'fail'; lines.push(...acting.lines.map((l) => `acting: ${l}`)); }
   fs.writeFileSync(path.join(r.dir, 'bar.json'), JSON.stringify({ status, night, exit: p.status, lines, cmd: [py, ...args].join(' '), at: new Date().toISOString(), acting }, null, 1) + '\n');
   console.log(`bar: ${status}${night ? ' (night)' : ''}${acting ? `; acting audit ${acting.status}` : ''}${lines.length ? `\n  ${lines.join('\n  ')}` : ''}`);
+  // S3-254: a scene is built to 7.5 or under, so a later fix (a cast change, a join) does not push it over the gate's 8
+  const calm = Number((out.match(/median change per frame ([\d.]+)/) ?? [])[1]);
+  if (status === 'pass' && calm > NEAR_CALM) console.log(`  near the limit: change per frame ${calm} is over ${NEAR_CALM} (the gate fails over 8): ease the camera or the busiest action so a later fix has room (S3-254)`);
   if (status === 'fail') process.exitCode = 1;   // a failed round (exit 1), so `step.mjs bar && look.sh` stops
 }
 
@@ -455,7 +458,14 @@ function check(step) {
       return miss;
     }
     case 'render': need(path.join(r?.dir ?? D, 'stills.jpg'), 'no stills sheet, no render'); checkLocks(); return;
-    case 'look': need(path.join(r?.dir ?? D, 'clip.mp4'), 'no render, no look'); return;
+    case 'look': {
+      need(path.join(r?.dir ?? D, 'clip.mp4'), 'no render, no look');
+      // S5-46: after a lost or tied round the judge runs first, and the reviewers only on a round that is to be kept
+      const prev = r ? rounds().filter((x) => x !== r && done(x)).at(-1) : null;
+      if (r && r.pass !== 'sound' && prev && (has(prev.dir, 'reverted') || verdict(prev)?.winner === 'tie') && !has(r.dir, 'verdict.json'))
+        refuse(`the last round lost or tied: the judge runs first (S5-46). Run abjudge.sh on ${r.name}; the reviewers run only if it is to be kept`);
+      return;
+    }
     case 'judge':
       need(path.join(r?.dir ?? D, 'clip.mp4'), 'no render, no judge');
       need(path.join(D, 'best', 'clip.mp4'), 'no best clip to judge against');
