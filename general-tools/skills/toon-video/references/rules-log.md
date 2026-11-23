@@ -222,3 +222,4 @@ Every rule added or replaced, newest last. Written by `scripts/add_rule.mjs`; ne
 | 2026-11-19 | S5-126 | new | acting round on Hannibal's oxen and savings tests P and Q, 19 Nov 2026; owner: 'let's increase the acting' |
 | 2026-11-19 | S3-134 | proof repointed | owner's yes to the acting changes, 19 November 2026: check tools/acting-audit.mjs (step.mjs bar: acting.txt, bar.json) |
 | 2026-11-19 | S5-127 | new | acting round on Hannibal's oxen, 19 Nov 2026 (still seconds 15 to 4, judges 3.6 to 3.3); owner: 'let's increase the acting' |
+| 2026-11-23 | S5-128 | new | Epiclings dancing-plague, edit-in-text test and Vincent's yes, 23 Nov 2026 |
