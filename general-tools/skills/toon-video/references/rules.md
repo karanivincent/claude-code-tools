@@ -526,6 +526,7 @@ camera, shot size and person's size), then the scene stage (people and motion, s
 - **S5-122** Reviewers and judges give one likeness number, 1 to 10, against the scene frame, and run Vincent's standing notes as a checklist. Proof: file references/judge-brief.md. Why: work scored 3.4 of 5 passed 3 of 10 checks beside his frames.
 - **S5-123** A one-judge win by 0.15 or less is judged again with the two clips swapped; it is a win only when the two average 0.1 or more. Proof: check scripts/loop/abjudge.sh (second judge). Why: 3 of 11 narrow wins failed a re-judge; the judge leaned to the clip shown second.
 - **S5-125** A judge's reference clip is cut like the trial clips: captions on all of them or on none. Proof: file the round's judge brief (reference line). Why: A captioned last cut beat uncaptioned trials on captions alone, in two tests.
+- **S5-128** Trial: a people or motion round's change list may come from a text round (textround.py), which needs the frame's hard limits written down. Proof: file <round>/text/changes.md. Why: One text round beat film 3's shot with all three judges; a text design with no limits lost.
 
 ### Scenes in parallel and the join
 

@@ -306,6 +306,14 @@ A round (S5-41), with `$R` the round folder:
 6. `scripts/loop/abjudge.sh $D/best/clip.mp4 $R/clip.mp4 $R [--ref <clip>]`: keep, revert or keep the credited parts
    (S5-42). With a reference the judge sees it too and scores the new clip against both (S5-112).
 
+A text round (a trial, S5-128): on a scene's first people round, the change list may come from
+`scripts/loop/textround.py $D/best/clip.mp4 $R --limits $D/limits.md --meaning $D/meaning.md --protect $D/protect.md
+--facts $D/facts.md --words $D/words.json --window <a-b>` instead of from the builder's reading of `best/faults.md`. It
+writes the clip out as text, has text reviewers and a reviser work on the text, and leaves `$R/text/changes.md`: the
+builder builds exactly that list and proves its check table; then judge first, and `look.sh` when the judge
+would keep the round (S5-46). It needs the frame's hard limits in `limits.md` and takes about 12 minutes and 0.6M tokens; run
+it as a background command. Read `references/text-round.md` first.
+
 Run steps 5 and 6 with a 10-minute command timeout. After a lost or tied round, skip step 5 next time (S5-46);
 `step.mjs` writes `faults.md` from best's faults and the judge's notes (S5-90). The same top fault twice running means
 restaging that beat (S5-45). A pass stops at 4 on its area, two rounds in a row with no win, or six rounds (S5-110),
@@ -428,6 +436,7 @@ Read each when its stage comes up; none links on to another.
 | `references/team-and-log.md` | Stages 3 to 5: the briefs for the world agent (first scene; a place), the shots agent and the scene builders, filled in and not rewritten (X-36); logging times; tool gotchas |
 | `references/checks.md` | Stages 3 to 6: each measured check, its script, its aim and its rule id |
 | `references/reviewer-brief.md` | Stages 3 to 5: the brief `look.sh` gives the three reviewers (S5-41) |
+| `references/text-round.md` | Stage 5, before a text round: what was measured, the limits and facts files, the steps, what it does not do (S5-128) |
 | `references/judge-brief.md` | Stages 3 to 6: the blind judge's brief for `abjudge.sh`, with the reference clip (S5-44, S5-112) |
 | `references/playbook.md` | Stage 1 and 2: techniques from studied videos, for the profile and the plan |
 | `references/findings.md` | After a round: past faults and the level each was fixed at (S5-27, S5-28) |
